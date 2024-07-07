@@ -1,0 +1,80 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam monochrome true
+skinparam shadowing false
+skinparam linetype ortho
+
+package "Core Types" {
+    interface ModuleState
+    abstract class ModuleAction {
+        + moduleTag: KClass<*>
+    }
+    interface "Dispatch" <<(F,#FF7700) Function>> {
+        (ModuleAction) -> Unit
+    }
+}
+
+package "Module Components" {
+    abstract class ModuleLogic<A : ModuleAction> {
+        + dispatch: Dispatch
+        + {abstract} suspend invoke(action: ModuleAction, dispatch: Dispatch)
+        + {static} invoke(logic: suspend (ModuleAction, Dispatch) -> Unit): ModuleLogic<A>
+    }
+
+    interface Module<S : ModuleState, A : ModuleAction> {
+        + initialState: S
+        + reducer: (S, A) -> S
+        + logic: ModuleLogic<A>
+    }
+
+    class ModuleInfo {
+        + module: Module<*, *>
+        + state: MutableStateFlow<ModuleState>
+        + logic: ModuleLogic<out ModuleAction>
+    }
+}
+
+package "Store Components" {
+    interface "Middleware" <<(F,#FF7700) Function>> {
+        suspend (ModuleAction, Map<KClass<out ModuleState>, ModuleState>, suspend (ModuleAction) -> ModuleState) -> ModuleState
+    }
+
+    class Store {
+        - coroutineScope: CoroutineScope
+        - middlewares: List<Middleware>
+        - moduleInfo: Map<KClass<*>, ModuleInfo>
+        + dispatcher: Dispatch
+        - actionChannel: Channel<ModuleAction>
+        + selectState<S : ModuleState>(): StateFlow<S>
+        + selectLogic<L : ModuleLogic<out ModuleAction>>(): L
+        + cleanup()
+    }
+
+    class StoreDSL {
+        - coroutineScope: CoroutineScope
+        - middlewares: MutableList<Middleware>
+        - moduleInfo: MutableMap<KClass<*>, ModuleInfo>
+        - actionChannel: Channel<ModuleAction>
+        + modules(vararg newModules: Module<*, *>)
+        + middlewares(vararg newMiddlewares: Middleware)
+        + coroutineContext(context: CoroutineContext)
+        - build(): Store
+    }
+}
+
+ModuleLogic --> Dispatch : uses
+Module --> ModuleState : uses
+Module --> ModuleAction : uses
+Module --> ModuleLogic : has
+ModuleInfo --> Module : contains
+ModuleInfo --> ModuleState : contains
+ModuleInfo --> ModuleLogic : contains
+Store --> Middleware : uses
+Store --> ModuleInfo : manages
+Store --> Dispatch : uses
+Store --> ModuleAction : processes
+StoreDSL --> Middleware : configures
+StoreDSL --> ModuleInfo : configures
+StoreDSL ..> Store : creates
+
+@enduml

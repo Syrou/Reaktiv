@@ -1,7 +1,7 @@
 # Reaktiv Library
 
-A flexible and powerful state management library for Kotlin applications, inspired by other MVLI solutions but tailored
-for Kotlin's coroutine-based concurrency model.
+A flexible and powerful state management library for Kotlin applications, leveraging Kotlin's coroutine-based
+concurrency model to provide a robust MVLI (Model-View-Logic-Intent) solution.
 
 ## Table of Contents
 
@@ -22,6 +22,7 @@ for Kotlin's coroutine-based concurrency model.
 - [Custom Coroutine Context](#custom-coroutine-context)
 
 6. [Best Practices](#best-practices)
+7. [License](#license)
 
 ## Installation
 
@@ -39,14 +40,15 @@ for Kotlin's coroutine-based concurrency model.
 
 ## Architecture
 
-Here's a diagram illustrating the main components of the Kotlin Store Library:
+Here's a diagram illustrating the main components of the Reaktiv Library:
 
-![PlantUML model](https://www.planttext.com/api/plantuml/svg/ZLJBRjim4BppAnO-MOeS84LFWY14S14qYDsB-WCqjN49qwH1hfAYJVwz52ahagC4lP6xmvbzZ7JhY5jgZugvWzGdRlaHXEBEtHbDjVo3SFDrBlM37n6-etf2ae9V8YeYAtSjuHlBbqyn7zBjk3ZihMbripRAM23BjVCfrCHOu86QZ4Nuom1MmdWeIOrhpuc_AOVrHQH37MNJA7ps92w7ZNHKR8T86G2cQHNUwqUJmvQVYeTr9rIaPGRR8LMa6QHbXxzgf2-9nAyb5oIDpdjK5Mx9656txeIw-HZeKA6WcZXXKP_puLekanp2wKwPvw8kt-0RivUYs9pXyUfhwrvis2jZqlTk7xd07b7KCE7Ee89fCMKOw9NKaYHN0UJLkv35fXLeSrZM_ba2gpB6LQSwBQ4gvyG36MDyv_mo1KKtJCIZTjp2JxxFOLZ0bAzNcI_zFF8SllMdsD2JEU0m_og3zxYaKnbNzQdEVpEEvZ3ORPPYB9B17gaV_yYAtjCJRsGNDntCxwBRO3cnMRUn4JgPEA4hD7vGwMe5YtJH9_kWEGU73bZCH_ZDOi8rJWrCiOhvPs7GR7I6w-kNCkwPiLlVY_zJ_GC0)
-This diagram shows the relationships between the main components of the library:
+![Architecture Diagram](https://www.planttext.com/api/plantuml/svg/hLR1Rk8m4Btp5IFs4hfGzLOfYg8YAgHguPJk1nZ7W4LYHxPJThVYtzU9dMH2GjkLbWj4xtbctimRXoTjY39bdatqYOk2A983pOZMIsCKtvM6lL0f4lw7mGEYv598UbGoPs1KoH2YZoILPouEi2UPnaZ61JE_2mPIcQESJ0f2J-J0OBgIYi6hHVGKtYTWFrmOflQ4CjZAjCnOOeXXDK9ssYX2ZIlImqjgk1J-RFNvRWkiW5To2E77gg96Tt4DNwuIJ9-vBeYXnob4KR2UVrkl7nyV7cQmBaKTDevHu00ddC4YXf-26n_uWZGv7gnaNaZ1X6cbZGhOo0EdqHB2dg2ufoZrTORGL8p0zoRi1NIf2oPIA_5DdbX0wb3zmFEHO3CSpPh2S7ffOcHLUM4REUZ7QYCqxPY5VLbDuqT76oMjwdhAS_Yu3Tmcu2IhkI4a254iBIbJ8GI93L9NWs4ludPbU20lOYz7_DGSZ-xcuFtaOEtAsPQ6xBoGTIRF4H8MVroBB4rVzOYf4bDjoj1JoCrRdgOPEnF5lkJd6oFTaYBoQzFLvLJChvv68zJDHxphvs7RdRIki0LGgMnkUsSaL1QsjwlUCoBchMGTmePh4tLDY36ldMo81TwraYee7jcuobE3dLk0swpLaGZ1CbkV-n4DX-WjmZ96JIt_slDnO5UcCqqoFEOyie5FF5C7sg3JD6D4b4Kmkz7nvsJp7vhkRV_LtZls5qRmpprsQNJmPbyuwW22dHrJznSNttL823xMazS-u8DjgrRIhjyl4r3tZPhcaHaIj2jvbhfns_PtEux62WkxB8tVxCHBpRJ7QmWPvoRgtuYtO9SdX2DfmFh2wmWMg-GGBcuGclGViveyBSkjUKreczfKYR0kLWWv4VRom_1rRwuFjk8B9IdJBQKo-o2rBMtF3wKQa70DOwJx-zZVMXPNpBP3JoPFzYgqVwR-0W00)
+
+This diagram illustrates the relationships between the main components of the library:
 
 - The `Store` is the central component that manages multiple `Module`s and aggregates multiple `Middleware`s.
 - Each `Module` contains one `ModuleState`, multiple `ModuleAction`s, and one `ModuleLogic`.
-- `ModuleLogic` implements the `Logic` interface.
+- `ModuleLogic` handles side effects and complex operations.
 - `Middleware` can intercept and process actions before they reach the modules.
 
 ## Usage
@@ -63,17 +65,18 @@ object CounterModule : Module<CounterState, CounterAction> {
     }
 
     override val initialState = CounterState()
+
     override val reducer: (CounterState, CounterAction) -> CounterState = { state, action ->
         when (action) {
-            is CounterAction.Increment -> state.copy(count = state.count + 1)
-            is CounterAction.Decrement -> state.copy(count = state.count - 1)
+            is Increment -> state.copy(count = state.count + 1)
+            is Decrement -> state.copy(count = state.count - 1)
         }
     }
 
     override val logic = ModuleLogic<CounterAction> { action, dispatch ->
         when (action) {
-            is CounterAction.Increment -> println("Incremented!")
-            is CounterAction.Decrement -> println("Decremented!")
+            is Increment -> println("Incremented to ${(action as Increment).count}")
+            is Decrement -> println("Decremented to ${(action as Decrement).count}")
         }
     }
 }
@@ -85,18 +88,19 @@ object CounterModule : Module<CounterState, CounterAction> {
 val store = createStore {
     modules(CounterModule)
     middlewares(loggingMiddleware)
-    coroutineContext(Dispatchers.Default)
+    coroutineContext(Dispatchers.Default + SupervisorJob())
 }
 ```
 
 ### Dispatching Actions
 
 ```kotlin
-store.dispatch(CounterAction.Increment)
+// Using the dispatcher property
+store.dispatcher(CounterAction.Increment)
 
-// Or suspending version
-suspend fun incrementCounter() {
-    store.dispatchSuspend(CounterAction.Increment)
+// Or in a coroutine
+launch {
+    store.dispatcher(CounterAction.Increment)
 }
 ```
 
@@ -106,8 +110,10 @@ suspend fun incrementCounter() {
 val counterState: StateFlow<CounterState> = store.selectState()
 
 // In a coroutine
-counterState.collect { state ->
-    println("Current count: ${state.count}")
+launch {
+    counterState.collect { state ->
+        println("Current count: ${state.count}")
+    }
 }
 ```
 
@@ -115,6 +121,7 @@ counterState.collect { state ->
 
 ```kotlin
 val counterLogic: CounterLogic = store.selectLogic()
+counterLogic.someCustomMethod()
 ```
 
 ## Advanced Features
@@ -141,12 +148,14 @@ val store = createStore {
 
 ## Best Practices
 
-1. Keep your state immutable.
-2. Design your actions to be as granular and specific as possible.
-3. Use logic for side effects and complex operations.
-4. Leverage Kotlin's strong type system in your state and actions.
-5. Use middleware for cross-cutting concerns like logging or analytics.
+1. Keep your state immutable to prevent unexpected side effects.
+2. Design your actions to be as granular and specific as possible for better traceability.
+3. Use logic for handling side effects and complex operations, keeping your reducers pure.
+4. Leverage Kotlin's strong type system in your state and actions for compile-time safety.
+5. Use middleware for cross-cutting concerns like logging, analytics, or error handling.
+6. Prefer using `StateFlow` for observing state changes in your UI layer.
+7. Utilize Kotlin's coroutines and flow for asynchronous operations within your logic.
 
 ## License
 
-This project is licensed under the Apache License Version 2.0. See the LICENSE file for details.
+This project is licensed under the Apache License Version 2.0. See the [LICENSE](LICENSE) file for details.

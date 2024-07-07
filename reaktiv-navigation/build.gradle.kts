@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.syrou"
-version = "0.0.1"
+version = "0.0.2"
 
 repositories {
     mavenCentral()
@@ -58,15 +58,15 @@ kotlin {
                 implementation(compose.material)
                 implementation(compose.components.resources)
                 implementation(project(":reaktiv-core"))
+                implementation(project(":reaktiv-compose"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                //implementation(kotlin("test-annotations"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
-                @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+                @OptIn(ExperimentalComposeLibrary::class)
                 implementation(compose.uiTest)
             }
         }

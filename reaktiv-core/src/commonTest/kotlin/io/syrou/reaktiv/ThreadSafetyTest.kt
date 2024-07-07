@@ -1,4 +1,4 @@
-package eu.syrou.reaktiv
+package io.syrou.reaktiv
 
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.Module
@@ -111,9 +111,9 @@ class StoreTest {
         val jobs = List(1000) { index ->
             launch {
                 if (index % 2 == 0) {
-                    store.dispatchSuspend(TestModule.Action.IncrementAction)
+                    store.dispatcher(TestModule.Action.IncrementAction)
                 } else {
-                    store.dispatchSuspend(TestModule.Action.DecrementAction)
+                    store.dispatcher(TestModule.Action.DecrementAction)
                 }
             }
         }
@@ -141,7 +141,7 @@ class StoreTest {
         }
 
         repeat(100) {
-            store.dispatchSuspend(TestModule.Action.IncrementAction)
+            store.dispatcher(TestModule.Action.IncrementAction)
             println(it)
         }
 
@@ -169,7 +169,7 @@ class StoreTest {
 
         val writerJob = launch {
             repeat(1000) {
-                store.dispatchSuspend(TestModule.Action.IncrementAction)
+                store.dispatcher(TestModule.Action.IncrementAction)
             }
         }
 
@@ -195,7 +195,7 @@ class StoreTest {
         }
 
         repeat(100) {
-            store.dispatchSuspend(TestModule.Action.IncrementAction)
+            store.dispatcher(TestModule.Action.IncrementAction)
         }
 
         assertEquals(100, middlewareExecutions, "Middleware should be executed for each action")
@@ -216,9 +216,9 @@ class StoreTest {
         val jobs = List(1000) { index ->
             launch {
                 if (index % 2 == 0) {
-                    store.dispatchSuspend(TestModule.Action.IncrementAction)
+                    store.dispatcher(TestModule.Action.IncrementAction)
                 } else {
-                    store.dispatchSuspend(TestModule2.Action.UpdateAction("a"))
+                    store.dispatcher(TestModule2.Action.UpdateAction("a"))
                 }
             }
         }
@@ -242,7 +242,7 @@ class StoreTest {
         }
 
         repeat(100) { i ->
-            store.dispatchSuspend(ComplexModule.ComplexAction.UpdateBoth(i, i.toString()))
+            store.dispatcher(ComplexModule.ComplexAction.UpdateBoth(i, i.toString()))
         }
 
         val finalState = store.selectState<ComplexModule.ComplexState>().value
@@ -261,13 +261,13 @@ class StoreTest {
             coroutineContext(testDispatcher)
         }
 
-        store.dispatchSuspend(TestModule.Action.IncrementAction)
+        store.dispatcher(TestModule.Action.IncrementAction)
         assertEquals(1, store.selectState<TestModule.TestState>().value.value)
 
         store.cleanup()
 
         assertFails {
-            store.dispatchSuspend(TestModule.Action.IncrementAction)
+            store.dispatcher(TestModule.Action.IncrementAction)
         }
     }
 
@@ -280,7 +280,7 @@ class StoreTest {
         }
 
         repeat(1000) { i ->
-            store.dispatchSuspend(LargeStateModule.LargeAction.AddItem(10000 + i))
+            store.dispatcher(LargeStateModule.LargeAction.AddItem(10000 + i))
         }
 
         val finalState = store.selectState<LargeStateModule.LargeState>().value

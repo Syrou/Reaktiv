@@ -6,8 +6,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.runComposeUiTest
-import io.github.syrou.reaktiv.navigation.NavController
-import io.github.syrou.reaktiv.navigation.NavGraph
+import io.github.syrou.reaktiv.navigation.NavigationStack
+import io.github.syrou.reaktiv.navigation.Navigation
 import io.github.syrou.reaktiv.navigation.NavHost
 import io.github.syrou.reaktiv.navigation.NavTransition
 import io.github.syrou.reaktiv.navigation.Screen
@@ -36,38 +36,38 @@ class TestDeeplinkExtraction {
         }
     }
 
-    val navController = NavController(HomeScreen)
-    val navGraph = NavGraph(navController)
+    val navigationStack = NavigationStack(HomeScreen)
+    val navigation = Navigation(navigationStack)
 
     @AfterTest
     fun clear() {
-        navController.clear()
-        navGraph.clear()
+        navigationStack.clear()
+        navigation.clear()
     }
 
     @Test
     fun testNormalNavigation() {
-        navGraph.addScreenGroup(UserManagementScreens)
-        navGraph.navigate("user/delete/{456}")
-        assertNotEquals(navController.currentScreen.value.first, UserManagementScreens.EditUser)
-        assertEquals(navController.currentScreen.value.first, UserManagementScreens.DeleteUser)
-        assertEquals("id", navController.currentScreen.value.second.keys.first())
-        assertEquals("456", navController.currentScreen.value.second.values.first())
+        navigation.addScreenGroup(UserManagementScreens)
+        navigation.navigate("user/delete/{456}")
+        assertNotEquals(navigationStack.currentScreen.value.first, UserManagementScreens.EditUser)
+        assertEquals(navigationStack.currentScreen.value.first, UserManagementScreens.DeleteUser)
+        assertEquals("id", navigationStack.currentScreen.value.second.keys.first())
+        assertEquals("456", navigationStack.currentScreen.value.second.values.first())
     }
 
     @Test
     fun testThrowWhenMalformedPathParamsNavigation() {
-        navGraph.addScreenGroup(UserManagementScreens)
-        assertFails { navGraph.navigate("user/delete/{456") }
+        navigation.addScreenGroup(UserManagementScreens)
+        assertFails { navigation.navigate("user/delete/{456") }
     }
 
     @Test
     fun testDeepLinkExtractionAndNavigation() {
-        navGraph.addScreenGroup(UserManagementScreens)
-        navGraph.handleDeepLink("https://example.com/navigation/user/edit/456")
-        assertEquals(navController.currentScreen.value.first, UserManagementScreens.EditUser)
-        assertTrue { navController.currentScreen.value.second.containsKey("id") }
-        assertTrue { navController.currentScreen.value.second.containsValue("456") }
+        navigation.addScreenGroup(UserManagementScreens)
+        navigation.handleDeepLink("https://example.com/navigation/user/edit/456")
+        assertEquals(navigationStack.currentScreen.value.first, UserManagementScreens.EditUser)
+        assertTrue { navigationStack.currentScreen.value.second.containsKey("id") }
+        assertTrue { navigationStack.currentScreen.value.second.containsValue("456") }
     }
 
     @OptIn(ExperimentalTestApi::class)
@@ -75,12 +75,12 @@ class TestDeeplinkExtraction {
     fun testParamsEndsUpPresentedInComposable() = runComposeUiTest {
         setContent {
             val isAuthRequired by remember { mutableStateOf(false) }
-            NavHost(navController, isAuthRequired) {
+            NavHost(navigationStack, isAuthRequired) {
                 //No need to navigate to auth
             }
         }
-        navGraph.addScreenGroup(UserManagementScreens)
-        navGraph.navigate("user/edit/{456}")
+        navigation.addScreenGroup(UserManagementScreens)
+        navigation.navigate("user/edit/{456}")
         onNodeWithTag("id").assertTextEquals("456")
     }
 }

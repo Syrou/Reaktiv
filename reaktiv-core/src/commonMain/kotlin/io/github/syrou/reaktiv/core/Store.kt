@@ -17,25 +17,16 @@ import kotlin.reflect.KClass
 interface ModuleState
 
 abstract class ModuleAction(val moduleTag: KClass<*>)
+typealias Dispatch = (ModuleAction) -> Unit
 
-interface ModuleTag
-typealias Dispatch = suspend (ModuleAction) -> Unit
-
-interface Logic<A : ModuleAction> {
-    var dispatch: Dispatch
-    suspend operator fun invoke(action: A, dispatch: Dispatch)
-}
-
-open class ModuleLogic<A : ModuleAction> : Logic<A> {
-    override lateinit var dispatch: Dispatch
-    override suspend fun invoke(action: A, dispatch: Dispatch) {
-        dispatch.invoke(action)
-    }
+abstract class ModuleLogic<A : ModuleAction> {
+    lateinit var dispatch: Dispatch
+    abstract suspend operator fun invoke(action: ModuleAction, dispatch: Dispatch)
 
     companion object {
-        operator fun <A : ModuleAction> invoke(logic: suspend (A, Dispatch) -> Unit): ModuleLogic<A> {
+        operator fun <A : ModuleAction> invoke(logic: suspend (ModuleAction, Dispatch) -> Unit): ModuleLogic<A> {
             return object : ModuleLogic<A>() {
-                override suspend fun invoke(action: A, dispatch: Dispatch) {
+                override suspend fun invoke(action: ModuleAction, dispatch: Dispatch) {
                     logic(action, dispatch)
                 }
             }
@@ -49,10 +40,10 @@ interface Module<S : ModuleState, A : ModuleAction> {
     val logic: ModuleLogic<A>
 }
 
-data class ModuleInfo<S : ModuleState, L : Logic<*>>(
+data class ModuleInfo(
     val module: Module<*, *>,
     val state: MutableStateFlow<ModuleState>,
-    val logic: Logic<*>
+    val logic: ModuleLogic<out ModuleAction>
 )
 
 typealias Middleware = suspend (
@@ -67,78 +58,38 @@ typealias Middleware = suspend (
  * The Store coordinates the interaction between [Module]s, [Middleware], and the application logic.
  * It provides methods for dispatching actions, selecting state, and accessing module logic.
  *
- * @property coroutineContext The [CoroutineContext] used for launching coroutines within the Store.
+ * @property coroutineScope The [CoroutineScope] used for launching coroutines within the Store.
  * @property middlewares A list of [Middleware] functions that can intercept and process actions.
  * @property moduleInfo A map containing information about all registered modules.
+ * @property dispatcher A function for dispatching actions within the Store.
+ * @property actionChannel A channel for handling actions asynchronously.
  *
  * @see Module
  * @see Middleware
  */
 class Store private constructor(
-    private val coroutineContext: CoroutineContext,
+    private val coroutineScope: CoroutineScope,
     private val middlewares: List<Middleware>,
-    private val moduleInfo: Map<KClass<*>, ModuleInfo<*, *>>,
-    private val dispatcher: Dispatch,
-    private val actionChannel: Channel<ModuleAction>
+    private val moduleInfo: Map<KClass<*>, ModuleInfo>,
+    private val actionChannel: Channel<ModuleAction>,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + coroutineContext)
-    private val dispatchMutex = Mutex()
+    private val stateUpdateMutex = Mutex()
+    val dispatcher: Dispatch = { action ->
+        coroutineScope.launch {
+            actionChannel.send(action)
+        }
+    }
 
     init {
         moduleInfo.values.forEach { info ->
-            (info.logic as? ModuleLogic<*>)?.dispatch = dispatcher
+            info.logic.dispatch = dispatcher
         }
-
-        scope.launch {
-            processActions()
-        }
-    }
-
-    /**
-     * Dispatches an action to the store, triggering state updates and side effects.
-     *
-     * This method is non-blocking and launches a coroutine to process the action.
-     *
-     * @param action The [ModuleAction] to be dispatched.
-     *
-     * @see ModuleAction
-     *
-     * Example usage:
-     * ```kotlin
-     * val store = createStore { ... }
-     * store.dispatch(CounterAction.Increment)
-     * ```
-     */
-    fun dispatch(action: ModuleAction) {
-        scope.launch {
-            dispatchSuspend(action)
+        coroutineScope.launch {
+            processActionChannel()
         }
     }
 
-    /**
-     * Dispatches an action to the store in a suspending manner.
-     *
-     * This method is useful when you need to dispatch an action from within a coroutine
-     * or when you want to wait for the action to be processed before continuing.
-     *
-     * @param action The [ModuleAction] to be dispatched.
-     *
-     * @see ModuleAction
-     *
-     * Example usage:
-     * ```kotlin
-     * val store = createStore { ... }
-     * coroutineScope {
-     *     store.dispatchSuspend(CounterAction.Increment)
-     *     // The action has been processed at this point
-     * }
-     * ```
-     */
-    suspend fun dispatchSuspend(action: ModuleAction) = withContext(scope.coroutineContext) {
-        actionChannel.send(action)
-    }
-
-    private suspend fun processActions() = withContext(scope.coroutineContext) {
+    private suspend fun processActionChannel() = withContext(coroutineScope.coroutineContext) {
         for (action in actionChannel) {
             val newState = applyMiddlewares(action)
             updateState(newState::class, newState)
@@ -159,7 +110,8 @@ class Store private constructor(
                     if (innerAction == action) {
                         next(innerAction)
                     } else {
-                        dispatchSuspend(innerAction)
+                        dispatcher.invoke(innerAction)
+                        //dispatchSuspend(innerAction)
                         moduleInfo[innerAction::class]?.state?.value
                             ?: throw IllegalStateException("No state found for module: ${action.moduleTag}")
                     }
@@ -169,7 +121,7 @@ class Store private constructor(
     }
 
     private suspend fun processAction(action: ModuleAction): ModuleState {
-        val info = moduleInfo[action.moduleTag] as? ModuleInfo<*, *>
+        val info = moduleInfo[action.moduleTag]
             ?: throw IllegalArgumentException("No module found for action: ${action::class}")
 
         val currentState = info.state.value
@@ -177,15 +129,15 @@ class Store private constructor(
         @Suppress("UNCHECKED_CAST")
         val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
 
-        scope.launch(Dispatchers.Default) {
-            (info.logic as Logic<ModuleAction>)(action, dispatcher)
+        coroutineScope.launch(coroutineScope.coroutineContext) {
+            info.logic.invoke(action, dispatcher)
         }
 
         return newState
     }
 
     private suspend fun updateState(stateClass: KClass<out ModuleState>, newState: ModuleState) {
-        dispatchMutex.withLock {
+        stateUpdateMutex.withLock {
             moduleInfo[stateClass]?.state?.value = newState
         }
     }
@@ -203,8 +155,8 @@ class Store private constructor(
      *
      * Example usage:
      * ```kotlin
-     * val store = createStore { ... }
-     * val counterState: StateFlow<CounterState> = store.selectState()
+     * val store = createStore { /* ... */ }
+     * val counterState: StateFlow<CounterState> = store.selectState(CounterState::class)
      *
      * // In a coroutine
      * counterState.collect { state ->
@@ -212,6 +164,7 @@ class Store private constructor(
      * }
      * ```
      */
+    @Suppress("UNCHECKED_CAST")
     fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
         return moduleInfo[stateClass]?.state as? StateFlow<S>
             ?: throw IllegalStateException("No state found for state class: $stateClass")
@@ -229,7 +182,7 @@ class Store private constructor(
      *
      * Example usage:
      * ```kotlin
-     * val store = createStore { ... }
+     * val store = createStore { /* ... */ }
      * val counterState: StateFlow<CounterState> = store.selectState<CounterState>()
      *
      * // In a coroutine
@@ -249,13 +202,14 @@ class Store private constructor(
      *
      * Example usage:
      * ```kotlin
-     * val store = createStore { ... }
+     * val store = createStore { /* ... */ }
      * val counterLogic: CounterLogic = store.selectLogic(CounterLogic::class)
      *
      * // Use the logic
      * counterLogic.someCustomMethod()
      * ```
      */
+    @Suppress("UNCHECKED_CAST")
     fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L {
         return moduleInfo[logicClass]?.logic as? L
             ?: throw IllegalStateException("No logic found for logic class: $logicClass")
@@ -273,7 +227,7 @@ class Store private constructor(
      *
      * Example usage:
      * ```kotlin
-     * val store = createStore { ... }
+     * val store = createStore { /* ... */ }
      * val counterLogic: CounterLogic = store.selectLogic<CounterLogic>()
      *
      * // Use the logic
@@ -290,13 +244,13 @@ class Store private constructor(
      *
      * Example usage:
      * ```kotlin
-     * val store = createStore { ... }
+     * val store = createStore { /* ... */ }
      * // Use the store...
      * store.cleanup()
      * ```
      */
     fun cleanup() {
-        scope.cancel()
+        coroutineScope.cancel()
         actionChannel.close()
     }
 
@@ -307,17 +261,15 @@ class Store private constructor(
          * This method is internal and should not be called directly. Use the [createStore] function instead.
          */
         internal fun create(
-            coroutineContext: CoroutineContext,
+            coroutineScope: CoroutineScope,
             middlewares: List<Middleware>,
-            moduleInfo: Map<KClass<*>, ModuleInfo<*, *>>,
-            dispatch: Dispatch,
-            actionChannel: Channel<ModuleAction>
+            moduleInfo: Map<KClass<*>, ModuleInfo>,
+            actionChannel: Channel<ModuleAction>,
         ): Store {
             return Store(
-                coroutineContext = coroutineContext,
+                coroutineScope = coroutineScope,
                 middlewares = middlewares,
                 moduleInfo = moduleInfo,
-                dispatcher = dispatch,
                 actionChannel = actionChannel
             )
         }
@@ -333,15 +285,16 @@ class Store private constructor(
  * @property middlewares A mutable list of [Middleware] functions to be applied to the Store.
  * @property coroutineContext The [CoroutineContext] to be used by the Store for launching coroutines.
  * @property moduleInfo A mutable map containing information about all registered modules.
+ * @property actionChannel A channel for handling actions asynchronously.
  *
  * @see Store
  * @see Middleware
  * @see Module
  */
 class StoreDSL {
+    private lateinit var coroutineScope: CoroutineScope
     private val middlewares = mutableListOf<Middleware>()
-    private var coroutineContext: CoroutineContext = Dispatchers.Default
-    private val moduleInfo = mutableMapOf<KClass<*>, ModuleInfo<*, *>>()
+    private val moduleInfo = mutableMapOf<KClass<*>, ModuleInfo>()
     private val actionChannel = Channel<ModuleAction>(Channel.UNLIMITED)
 
     /**
@@ -365,7 +318,7 @@ class StoreDSL {
      */
     fun modules(vararg newModules: Module<*, *>) {
         newModules.forEach { module ->
-            val info = ModuleInfo<ModuleState, ModuleLogic<*>>(
+            val info = ModuleInfo(
                 module = module,
                 state = MutableStateFlow(module.initialState),
                 logic = module.logic
@@ -416,7 +369,7 @@ class StoreDSL {
      * ```
      */
     fun coroutineContext(context: CoroutineContext) {
-        coroutineContext = context
+        coroutineScope = CoroutineScope(context)
     }
 
     /**
@@ -426,13 +379,15 @@ class StoreDSL {
      * This method is internal and is called by the [createStore] function after the DSL
      * block has been executed.
      *
+     * If the user did not provide a context, create one for them
+     *
      * @return A fully configured [Store] instance.
      */
     internal fun build(): Store {
-        val dispatcher: Dispatch = { action ->
-            actionChannel.send(action)
+        if (!::coroutineScope.isInitialized) {
+            coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         }
-        return Store.create(coroutineContext, middlewares, moduleInfo, dispatcher, actionChannel)
+        return Store.create(coroutineScope, middlewares, moduleInfo, actionChannel)
     }
 }
 
