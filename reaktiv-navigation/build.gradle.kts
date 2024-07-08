@@ -73,6 +73,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation("org.jetbrains.skiko:skiko-awt-runtime-$target:$version")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
                 implementation(compose.desktop.currentOs)
                 implementation(compose.desktop.uiTestJUnit4)
             }
