@@ -5,10 +5,11 @@ plugins {
     id("org.jetbrains.compose")
     id("com.android.library")
     id("convention.publication")
+    kotlin("plugin.serialization")
 }
 
 group = "io.github.syrou"
-version = "0.0.2"
+version = "0.5.0"
 
 repositories {
     mavenCentral()
@@ -60,6 +61,7 @@ kotlin {
                 implementation(project(":reaktiv-core"))
                 implementation(project(":reaktiv-compose"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
             }
         }
         val commonTest by getting {

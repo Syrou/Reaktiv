@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "io.github.syrou"
-version = "0.0.2"
+version = "0.5.0"
 
 repositories {
     mavenCentral()

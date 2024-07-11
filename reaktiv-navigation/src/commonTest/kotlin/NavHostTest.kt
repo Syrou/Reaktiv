@@ -4,11 +4,10 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import io.github.syrou.reaktiv.core.createStore
-import io.github.syrou.reaktiv.navigation.NavHost
+import io.github.syrou.reaktiv.navigation.NavigationRender
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationModule
-import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.navigate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.setMain
@@ -31,7 +30,7 @@ class NavHostTest {
             modules(TestNavigationModule())
         }
         setContent {
-            NavHost(store = store, isAuthenticated = true)
+            NavigationRender(store = store, isAuthenticated = true)
         }
 
         onNodeWithText("Home Screen").assertIsDisplayed()
@@ -48,7 +47,7 @@ class NavHostTest {
         }
         var authenticationCalled = false
         setContent {
-            NavHost(
+            NavigationRender(
                 store = store,
                 isAuthenticated = false,
                 onAuthenticationRequired = { authenticationCalled = true }
@@ -70,7 +69,7 @@ class NavHostTest {
             )
         }
         setContent {
-            NavHost(
+            NavigationRender(
                 store = store,
                 isAuthenticated = true,
                 loadingContent = { Text("Loading...") }
