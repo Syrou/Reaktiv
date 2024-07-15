@@ -1,9 +1,11 @@
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.navigation.NavTransition
 import io.github.syrou.reaktiv.navigation.NavigationAction
-import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.Screen
+import io.github.syrou.reaktiv.navigation.createNavigationModule
 import kotlinx.coroutines.Dispatchers
+import models.homeScreen
+import models.profileScreen
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -19,7 +21,10 @@ class NavigationModuleTest {
             @Composable
             override fun Content(params: Map<String, Any>) {}
         }
-        val module = NavigationModule(initialScreen = homeScreen)
+        val module = createNavigationModule {
+            startScreen = homeScreen
+            addScreen(homeScreen)
+        }
 
         assertEquals(homeScreen, module.initialState.currentScreen)
         assertEquals(1, module.initialState.backStack.size)
@@ -28,11 +33,12 @@ class NavigationModuleTest {
 
     @Test
     fun `reducer handles Navigate action correctly`() {
-        val module = NavigationModule(
-            coroutineContext = Dispatchers.Unconfined,
-            initialScreen = homeScreen,
-            profileScreen
-        )
+        val module = createNavigationModule {
+            startScreen = homeScreen
+            addScreen(homeScreen)
+            addScreen(profileScreen)
+            coroutineContext(Dispatchers.Unconfined)
+        }
         val initialState = module.initialState
         val action = NavigationAction.Navigate("profile")
 

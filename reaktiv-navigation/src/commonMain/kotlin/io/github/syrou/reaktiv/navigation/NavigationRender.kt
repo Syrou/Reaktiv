@@ -2,6 +2,8 @@ package io.github.syrou.reaktiv.navigation
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -12,31 +14,34 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import io.github.syrou.reaktiv.core.Store
+import io.github.syrou.reaktiv.compose.selectState
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import kotlinx.coroutines.Dispatchers
 
 @Composable
 fun NavigationRender(
     modifier: Modifier,
-    store: Store,
     isAuthenticated: Boolean,
     onAuthenticationRequired: () -> Unit = {},
     loadingContent: @Composable () -> Unit = { /* Default loading UI */ },
-    screenContent: @Composable (Screen, StringAnyMap) -> Unit = { _, _ ->}
+    screenContent: @Composable (Screen, StringAnyMap) -> Unit = { _, _ -> }
 ) {
-    val navigationState by store.selectState<NavigationState>().collectAsState(Dispatchers.Main)
-
+    val navigationState by selectState<NavigationState>().collectAsState(Dispatchers.Main.immediate)
+    var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
+    val currentBackStackSize = navigationState.backStack.size
+    val isForward = currentBackStackSize > previousBackStackSize
+    // Update the previous backstack size for the next recomposition
+    previousBackStackSize = currentBackStackSize
     AnimatedContent(
         modifier = modifier.testTag("AnimatedContent"),
         targetState = navigationState.currentScreen,
         transitionSpec = {
-            getTransitionAnimation(
-                initialState.enterTransition,
-                targetState.enterTransition
-            )
+            getContentTransform(initialState.exitTransition, targetState.enterTransition, isForward)
         }
     ) { screen ->
         when {
@@ -55,25 +60,46 @@ fun NavigationRender(
     }
 }
 
-private fun getTransitionAnimation(
+private fun getContentTransform(
     exitTransition: NavTransition,
-    enterTransition: NavTransition
+    enterTransition: NavTransition,
+    isForwardNavigation: Boolean
 ): ContentTransform {
-    val enter = when (enterTransition) {
-        is NavTransition.Slide -> slideInHorizontally { fullWidth -> fullWidth } + fadeIn()
-        is NavTransition.Fade -> fadeIn()
-        is NavTransition.Scale -> scaleIn() + fadeIn()
-        is NavTransition.Custom -> enterTransition.enter
-        NavTransition.None -> fadeIn() // Default to fade for None
-    }
-
-    val exit = when (exitTransition) {
-        is NavTransition.Slide -> slideOutHorizontally { fullWidth -> -fullWidth } + fadeOut()
-        is NavTransition.Fade -> fadeOut()
-        is NavTransition.Scale -> scaleOut() + fadeOut()
-        is NavTransition.Custom -> exitTransition.exit
-        NavTransition.None -> fadeOut() // Default to fade for None
-    }
-
+    val enter = getEnterAnimation(enterTransition, isForwardNavigation)
+    val exit = getExitAnimation(exitTransition, isForwardNavigation)
     return enter togetherWith exit
+}
+
+private fun getEnterAnimation(transition: NavTransition, isForwardNavigation: Boolean): EnterTransition {
+    return when (transition) {
+        NavTransition.Slide -> {
+            if (isForwardNavigation) {
+                slideInHorizontally { width -> width }
+            } else {
+                slideInHorizontally { width -> -width }
+            } + fadeIn()
+        }
+
+        NavTransition.Fade -> fadeIn()
+        NavTransition.Scale -> scaleIn()
+        is NavTransition.Custom -> transition.enter
+        NavTransition.None -> EnterTransition.None
+    }
+}
+
+private fun getExitAnimation(transition: NavTransition, isForwardNavigation: Boolean): ExitTransition {
+    return when (transition) {
+        NavTransition.Slide -> {
+            if (isForwardNavigation) {
+                slideOutHorizontally { width -> -width }
+            } else {
+                slideOutHorizontally { width -> width }
+            } + fadeOut()
+        }
+
+        NavTransition.Fade -> fadeOut()
+        NavTransition.Scale -> scaleOut()
+        is NavTransition.Custom -> transition.exit
+        NavTransition.None -> ExitTransition.None
+    }
 }

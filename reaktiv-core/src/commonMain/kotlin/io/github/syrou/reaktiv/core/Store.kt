@@ -1,8 +1,10 @@
 package io.github.syrou.reaktiv.core
 
 import io.github.syrou.reaktiv.core.persistance.PersistenceManager
+import io.github.syrou.reaktiv.core.persistance.PersistenceStrategy
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -24,82 +26,67 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KClass
 
 /**
- * Represents the state of a module in the Reaktiv architecture.
- *
- * Example:
- * ```
- * data class CounterState(val count: Int) : ModuleState
- * ```
+ * Represents the state of a module in the Reaktiv framework.
  */
 interface ModuleState
 
 /**
- * Represents an action that can be dispatched to modify the state of a module.
+ * Represents an action that can be dispatched to a module in the Reaktiv framework.
  *
- * @property moduleTag The [KClass] of the module that this action is associated with.
- *
- * Example:
- * ```
- * sealed class CounterAction : ModuleAction(CounterModule::class) {
- *     object Increment : CounterAction()
- *     object Decrement : CounterAction()
- * }
- * ```
+ * @property moduleTag The KClass of the module this action is associated with.
  */
-abstract class ModuleAction(val moduleTag: KClass<*>)
-
-typealias Dispatch = (ModuleAction) -> Unit
+abstract class ModuleAction(internal val moduleTag: KClass<*>)
 
 /**
- * Defines the logic for handling actions in a module.
- *
- * @param A The type of [ModuleAction] that this logic handles.
- *
- * Example:
- * ```
- * class CounterLogic : ModuleLogic<CounterAction>() {
- *     override suspend fun invoke(action: ModuleAction, dispatch: Dispatch) {
- *         when (action) {
- *             is CounterAction.Increment -> println("Incrementing")
- *             is CounterAction.Decrement -> println("Decrementing")
- *         }
- *     }
- * }
- * ```
+ * A function type alias for dispatching actions in the Reaktiv framework.
  */
+typealias Dispatch = (ModuleAction) -> Unit
 
+
+/**
+ * Defines the logic interface for handling actions in the Reaktiv framework.
+ */
 interface Logic {
-    var dispatch: Dispatch
-    suspend operator fun invoke(action: ModuleAction, dispatch: Dispatch)
+    /**
+     * Invokes the logic with the given action.
+     *
+     * @param action The action to be processed.
+     */
+    suspend operator fun invoke(action: ModuleAction)
 }
 
+
+/**
+ * Represents the logic for a specific module in the Reaktiv framework.
+ *
+ * @param A The type of action this logic handles.
+ */
 open class ModuleLogic<A : ModuleAction> : Logic {
-    override lateinit var dispatch: Dispatch
-    override suspend fun invoke(action: ModuleAction, dispatch: Dispatch) {
-        //dispatch.invoke(action)
+    override suspend fun invoke(action: ModuleAction) {
+        //Leave this empty
     }
 
-    /**
-     * Creates a [ModuleLogic] instance from a suspending function.
-     *
-     * @param logic The function that defines the logic behavior.
-     * @return A new [ModuleLogic] instance.
-     *
-     * Example:
-     * ```
-     * val counterLogic = ModuleLogic<CounterAction> { action, dispatch ->
-     *     when (action) {
-     *         is CounterAction.Increment -> println("Incrementing")
-     *         is CounterAction.Decrement -> println("Decrementing")
-     *     }
-     * }
-     * ```
-     */
     companion object {
-        operator fun <A : ModuleAction> invoke(logic: suspend (ModuleAction, Dispatch) -> Unit): ModuleLogic<A> {
+        /**
+         * Creates a new ModuleLogic instance with the given logic function.
+         *
+         * @param logic The function to be executed when the logic is invoked.
+         * @return A new ModuleLogic instance.
+         *
+         * Example:
+         * ```
+         * val myLogic = ModuleLogic<MyAction> { action ->
+         *     when (action) {
+         *         is MyAction.Increment -> // Handle increment
+         *         is MyAction.Decrement -> // Handle decrement
+         *     }
+         * }
+         * ```
+         */
+        operator fun <A : ModuleAction> invoke(logic: suspend (ModuleAction) -> Unit): ModuleLogic<A> {
             return object : ModuleLogic<A>() {
-                override suspend fun invoke(action: ModuleAction, dispatch: Dispatch) {
-                    logic(action, dispatch)
+                override suspend fun invoke(action: ModuleAction) {
+                    logic(action)
                 }
             }
         }
@@ -107,101 +94,92 @@ open class ModuleLogic<A : ModuleAction> : Logic {
 }
 
 /**
- * Defines the structure of a module in the Reaktiv architecture.
+ * Defines the structure of a module in the Reaktiv framework.
  *
- * @param S The type of [ModuleState] for this module.
- * @param A The type of [ModuleAction] that this module handles.
- *
- * Example:
- * ```
- * object CounterModule : Module<CounterState, CounterAction> {
- *     override val initialState = CounterState(0)
- *     override val reducer: (CounterState, CounterAction) -> CounterState = { state, action ->
- *         when (action) {
- *             is CounterAction.Increment -> state.copy(count = state.count + 1)
- *             is CounterAction.Decrement -> state.copy(count = state.count - 1)
- *         }
- *     }
- *     override val logic = ModuleLogic<CounterAction> { _, _ -> /* No side effects */ }
- * }
- * ```
+ * @param S The type of state managed by this module.
+ * @param A The type of action this module can handle.
  */
 interface Module<S : ModuleState, A : ModuleAction> {
-    /** The initial state of the module. */
+    /**
+     * The initial state of the module.
+     */
     val initialState: S
 
-    /** The reducer function that computes a new state based on the current state and an action. */
+    /**
+     * The reducer function that defines how the state changes in response to actions.
+     */
     val reducer: (S, A) -> S
 
-    /** The logic that handles side effects for this module. */
-    val logic: ModuleLogic<A>
+    /**
+     * Creates the logic for this module.
+     *
+     * @param dispatch The dispatch function to be used by the logic.
+     * @return The created ModuleLogic instance.
+     */
+    val createLogic: (dispatch: Dispatch) -> ModuleLogic<A>
 }
 
 internal data class ModuleInfo(
     val module: Module<*, *>,
     val state: MutableStateFlow<ModuleState>,
-    val logic: ModuleLogic<out ModuleAction>
+    var logic: ModuleLogic<out ModuleAction>? = null
 )
 
 /**
- * Represents a middleware function that can intercept and process actions before they reach the reducer.
+ * Represents a middleware in the Reaktiv framework.
  *
- * Example:
- * ```
- * val loggingMiddleware: Middleware = { action, getState, next ->
- *     println("Action: $action")
- *     println("State before: ${getState()}")
- *     val result = next(action)
- *     println("State after: ${getState()}")
- *     result
- * }
- * ```
+ * @param action The action being processed.
+ * @param getAllStates A function to retrieve all current states.
+ * @param updatedState A function to get the updated state after processing an action.
  */
 typealias Middleware = suspend (
     action: ModuleAction,
-    getState: Map<String, ModuleState>,
-    next: suspend (ModuleAction) -> ModuleState
-) -> ModuleState
+    getAllStates: suspend () -> Map<String, ModuleState>,
+    updatedState: suspend (ModuleAction) -> ModuleState
+) -> Unit
 
 /**
- * The central class of the Reaktiv architecture, managing the state and logic of all modules.
- *
- * This class is not meant to be instantiated directly. Use [createStore] to create a Store instance.
- *
- * Example usage:
- * ```
- * val store = createStore {
- *     module(CounterModule)
- *     middlewares(loggingMiddleware)
- *     coroutineContext(Dispatchers.Default)
- * }
- *
- * // Dispatch an action
- * store.dispatcher(CounterAction.Increment)
- *
- * // Select state
- * val counterState = store.selectState<CounterState>()
- * println("Current count: ${counterState.value.count}")
- * ```
+ * The main store class for managing state and actions in the Reaktiv framework.
  */
 class Store private constructor(
     private val coroutineScope: CoroutineScope,
     private val middlewares: List<Middleware>,
-    private val moduleInfo: Map<String, ModuleInfo>,
-    private val actionChannel: Channel<ModuleAction>,
+    private val modules: List<Module<ModuleState, ModuleAction>>,
     private val persistenceManager: PersistenceManager?,
 ) {
     private val stateUpdateMutex = Mutex()
+    private val actionChannel: Channel<ModuleAction> = Channel<ModuleAction>(Channel.UNLIMITED)
+    private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
+
+    @OptIn(DelicateCoroutinesApi::class)
     val dispatcher: Dispatch = { action ->
-        coroutineScope.launch {
+        if (actionChannel.isClosedForSend) {
+            throw IllegalStateException("Store is closed")
+        }
+
+        coroutineScope.launch(coroutineScope.coroutineContext) {
             actionChannel.send(action)
         }
     }
 
-    init {
-        moduleInfo.values.forEach { info ->
-            info.logic.dispatch = dispatcher
+    private fun initializeModules() {
+        modules.forEach { module ->
+            val logic = module.createLogic(dispatcher)
+            val info = ModuleInfo(
+                module = module,
+                state = MutableStateFlow(module.initialState),
+                logic = logic
+            )
+            moduleInfo[module::class.qualifiedName!!] = info
+            moduleInfo[module.initialState::class.qualifiedName!!] = info
+            logic::class.qualifiedName?.let {
+                moduleInfo[it] = info
+            }
         }
+    }
+
+    init {
+        initializeModules()
         coroutineScope.launch {
             processActionChannel()
         }
@@ -209,49 +187,42 @@ class Store private constructor(
 
     private suspend fun processActionChannel() = withContext(coroutineScope.coroutineContext) {
         for (action in actionChannel) {
-            val newState = applyMiddlewares(action)
-            updateState(newState::class.qualifiedName!!, newState)
+            processAction(action)
         }
     }
 
-    private suspend fun applyMiddlewares(action: ModuleAction): ModuleState {
+    private suspend fun processAction(action: ModuleAction) {
         val chain = createMiddlewareChain()
-        return chain(action)
+        chain(action)
     }
 
-    private suspend fun createMiddlewareChain(): suspend (ModuleAction) -> ModuleState {
-        return middlewares.foldRight(
-            { a: ModuleAction -> processAction(a) }
-        ) { middleware, next ->
+    private suspend fun createMiddlewareChain(): suspend (ModuleAction) -> Unit {
+        val baseHandler: suspend (ModuleAction) -> Unit = { action ->
+            val info = moduleInfo[action.moduleTag.qualifiedName]
+                ?: throw IllegalArgumentException("No module found for action: ${action::class}")
+
+            val currentState = info.state.value
+
+            val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
+            updateState(newState::class.qualifiedName!!, newState)
+            coroutineScope.launch(coroutineScope.coroutineContext) {
+                info.logic?.invoke(action)
+            }
+        }
+
+        return middlewares.foldRight(baseHandler) { middleware, next ->
             { action: ModuleAction ->
-                middleware(action, getAllStates()) { innerAction ->
+                middleware(action, ::getAllStates) { innerAction ->
                     if (innerAction == action) {
                         next(innerAction)
                     } else {
-                        dispatcher.invoke(innerAction)
-                        moduleInfo[innerAction::class.qualifiedName]?.state?.value
-                            ?: throw IllegalStateException("No state found for module: ${action.moduleTag}")
+                        dispatcher(innerAction)
                     }
+                    moduleInfo[action.moduleTag.qualifiedName]?.state?.value
+                        ?: throw IllegalStateException("No state found for module: ${action.moduleTag}")
                 }
             }
         }
-    }
-
-    private suspend fun processAction(action: ModuleAction): ModuleState {
-        val info = moduleInfo[action.moduleTag.qualifiedName]
-            ?: throw IllegalArgumentException("No module found for action: ${action::class}")
-
-        val currentState = info.state.value
-
-        @Suppress("UNCHECKED_CAST")
-        val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
-
-
-        coroutineScope.launch(coroutineScope.coroutineContext) {
-            info.logic.invoke(action, dispatcher)
-        }
-
-        return newState
     }
 
     private suspend fun updateState(stateClass: String, newState: ModuleState) {
@@ -260,38 +231,109 @@ class Store private constructor(
         }
     }
 
-    private fun getAllStates(): Map<String, ModuleState> {
-        return moduleInfo.values.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
+    private suspend fun getAllStates(): Map<String, ModuleState> {
+        stateUpdateMutex.withLock {
+            return moduleInfo.values.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
+        }
     }
 
+    /**
+     * Selects the state of a specific module.
+     *
+     * @param S The type of state to select.
+     * @param stateClass The KClass of the state to select.
+     * @return A StateFlow of the selected state.
+     *
+     * Example:
+     * ```
+     * val counterState: StateFlow<CounterState> = store.selectState(CounterState::class)
+     * ```
+     */
     @Suppress("UNCHECKED_CAST")
     fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
         return moduleInfo[stateClass.qualifiedName]?.state as? StateFlow<S>
             ?: throw IllegalStateException("No state found for state class: $stateClass")
     }
 
+    /**
+     * Selects the state of a specific module using reified type parameter.
+     *
+     * @param S The type of state to select.
+     * @return A StateFlow of the selected state.
+     *
+     * Example:
+     * ```
+     * val counterState: StateFlow<CounterState> = store.selectState()
+     * ```
+     */
     inline fun <reified S : ModuleState> selectState(): StateFlow<S> = selectState(S::class)
 
+    /**
+     * Selects the logic of a specific module.
+     *
+     * @param L The type of logic to select.
+     * @param logicClass The KClass of the logic to select.
+     * @return The selected logic instance.
+     *
+     * Example:
+     * ```
+     * val counterLogic: CounterLogic = store.selectLogic(CounterLogic::class)
+     * ```
+     */
     @Suppress("UNCHECKED_CAST")
     fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L {
         return moduleInfo[logicClass.qualifiedName]?.logic as? L
             ?: throw IllegalStateException("No logic found for logic class: $logicClass")
     }
 
+    /**
+     * Selects the logic of a specific module using reified type parameter.
+     *
+     * @param L The type of logic to select.
+     * @return The selected logic instance.
+     *
+     * Example:
+     * ```
+     * val counterLogic: CounterLogic = store.selectLogic()
+     * ```
+     */
     inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = selectLogic(L::class)
 
+    /**
+     * Cleans up resources used by the store.
+     */
     fun cleanup() {
         coroutineScope.cancel()
         actionChannel.close()
     }
 
-    suspend fun persistState() {
-        persistenceManager?.persistState(getAllStates())
+    /**
+     * Saves the current state of all modules.
+     *
+     * @param state The state to be saved.
+     *
+     * Example:
+     * ```
+     * store.saveState(mapOf("CounterState" to CounterState(count = 5)))
+     * ```
+     */
+    suspend fun saveState(state: Map<String, ModuleState>) {
+        persistenceManager?.persistState(state) ?: throw IllegalStateException("No persistence strategy set")
     }
 
-    suspend fun restoreState() {
+    /**
+     * Loads the previously saved state for all modules.
+     *
+     * Example:
+     * ```
+     * store.loadState()
+     * ```
+     */
+    suspend fun loadState() {
         val restoredState = persistenceManager?.restoreState()
-        println("TESTOR - RESTORED STATE: $restoredState")
+        if (restoredState == null) {
+            println("Warning, no persistence strategy set when using loadState")
+        }
         restoredState?.forEach { (key, state) ->
             updateState(key, state)
         }
@@ -301,49 +343,45 @@ class Store private constructor(
         internal fun create(
             coroutineScope: CoroutineScope,
             middlewares: List<Middleware>,
-            moduleInfo: Map<String, ModuleInfo>,
-            actionChannel: Channel<ModuleAction>,
+            modules: List<Module<ModuleState, ModuleAction>>,
             persistenceManager: PersistenceManager?,
         ): Store {
             return Store(
                 coroutineScope = coroutineScope,
                 middlewares = middlewares,
-                moduleInfo = moduleInfo,
-                actionChannel = actionChannel,
-                persistenceManager = persistenceManager
+                modules = modules.toList(),
+                persistenceManager = persistenceManager,
             )
         }
     }
 }
 
 /**
- * A DSL for configuring and creating a [Store] instance.
- * This class is not meant to be used directly. Use [createStore] to create a Store instance.
+ * A DSL for configuring and building a Store instance.
  */
 class StoreDSL {
-    private lateinit var coroutineScope: CoroutineScope
+    private var coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val middlewares = mutableListOf<Middleware>()
-    private val moduleInfo = mutableMapOf<String, ModuleInfo>()
-    private val actionChannel = Channel<ModuleAction>(Channel.UNLIMITED)
-    private var persistenceManager: PersistenceManager? = null
+    private val modules: MutableList<Module<ModuleState, ModuleAction>> = mutableListOf()
+    private var persistenceStrategy: PersistenceStrategy? = null
     private val moduleStateRegistrations = mutableListOf<(PolymorphicModuleBuilder<ModuleState>) -> Unit>()
     private val customTypeRegistrars = mutableListOf<CustomTypeRegistrar>()
 
     @OptIn(InternalSerializationApi::class)
+            /**
+             * Adds a module to the store configuration.
+             *
+             * @param S The type of state managed by the module.
+             * @param A The type of action handled by the module.
+             * @param stateClass The KClass of the module's state.
+             * @param module The module instance to be added.
+             *
+             */
     fun <S : ModuleState, A : ModuleAction> module(
         stateClass: KClass<S>,
         module: Module<S, A>
     ) {
-        val info = ModuleInfo(
-            module = module,
-            state = MutableStateFlow(module.initialState),
-            logic = module.logic
-        )
-
-        moduleInfo[module::class.qualifiedName!!] = info
-        moduleInfo[module.initialState::class.qualifiedName!!] = info
-        module.logic::class.qualifiedName?.let { moduleInfo[it] = info }
-
+        modules.add(module as Module<ModuleState, ModuleAction>)
         moduleStateRegistrations.add { builder ->
             @Suppress("UNCHECKED_CAST")
             builder.subclass(stateClass, module.initialState::class.serializer() as KSerializer<S>)
@@ -355,62 +393,83 @@ class StoreDSL {
     }
 
 
+    /**
+     * Adds a module to the store configuration using reified type parameters.
+     *
+     * @param S The type of state managed by the module.
+     * @param A The type of action handled by the module.
+     * @param module The module instance to be added.
+     *
+     */
     inline fun <reified S : ModuleState, A : ModuleAction> module(module: Module<S, A>) {
         module(S::class, module)
     }
 
+    /**
+     * Adds middlewares to the store configuration.
+     *
+     * @param newMiddlewares The middlewares to be added.
+     *
+     */
     fun middlewares(vararg newMiddlewares: Middleware) {
         middlewares.addAll(newMiddlewares)
     }
 
+    /**
+     * Sets the coroutine context for the store.
+     *
+     * @param context The CoroutineContext to be used.
+     *
+     */
     fun coroutineContext(context: CoroutineContext) {
         coroutineScope = CoroutineScope(context)
     }
 
-
-    fun persistenceManager(manager: PersistenceManager) {
-        persistenceManager = manager.copy(
-            json = Json {
-                ignoreUnknownKeys = true
-                serializersModule = SerializersModule {
-                    polymorphic(ModuleState::class) {
-                        moduleStateRegistrations.forEach { it(this) }
-                    }
-                    customTypeRegistrars.forEach { registrar ->
-                        registrar.registerAdditionalSerializers(this)
-                    }
-                }
-            }
-        )
+    /**
+     * Sets the persistence strategy for the store.
+     *
+     * @param persistenceStrategy The PersistenceStrategy to be used.
+     *
+     */
+    fun persistenceManager(persistenceStrategy: PersistenceStrategy) {
+        this.persistenceStrategy = persistenceStrategy
     }
 
     internal fun build(): Store {
-        if (!::coroutineScope.isInitialized) {
-            coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val persistenceManager = persistenceStrategy?.let {
+            PersistenceManager(
+                json = Json {
+                    ignoreUnknownKeys = true
+                    serializersModule = SerializersModule {
+                        polymorphic(ModuleState::class) {
+                            moduleStateRegistrations.forEach { it(this) }
+                        }
+                        customTypeRegistrars.forEach { registrar ->
+                            registrar.registerAdditionalSerializers(this)
+                        }
+                    }
+                },
+                persistenceStrategy = it
+            )
         }
-        return Store.create(coroutineScope, middlewares, moduleInfo, actionChannel, persistenceManager)
+        return Store.create(coroutineScope, middlewares, modules, persistenceManager)
     }
 }
 
 /**
- * Creates a new [Store] instance using the provided configuration block.
+ * Creates a new Store instance using the provided configuration.
  *
  * @param block The configuration block for setting up the store.
- * @return A new [Store] instance.
+ * @return A new Store instance.
  *
  * Example:
  * ```
  * val store = createStore {
- *     module(CounterModule)
+ *     module<CounterState, CounterAction>(CounterModule)
  *     middlewares(loggingMiddleware)
  *     coroutineContext(Dispatchers.Default)
- *     persistenceManager(MyPersistenceManager())
+ *     persistenceManager(FilePersistenceStrategy("app_state.json"))
  * }
- *
- * // Use the store
- * store.dispatcher(CounterAction.Increment)
- * val counterState = store.selectState<CounterState>()
- * println("Counter value: ${counterState.value.count}")
  * ```
  */
 fun createStore(block: StoreDSL.() -> Unit): Store {

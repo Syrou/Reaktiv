@@ -1,12 +1,13 @@
 plugins {
     kotlin("multiplatform")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
     id("com.android.library")
     id("convention.publication")
 }
 
 group = "io.github.syrou"
-version = "0.5.0"
+version = "0.6.0"
 
 repositories {
     mavenCentral()

@@ -30,6 +30,14 @@ fun Store.popUpTo(
     selectLogic<NavigationLogic>().popUpTo(route, inclusive, config)
 }
 
+fun Store.popUpTo(
+    screen: Screen,
+    inclusive: Boolean = false,
+    config: (PopUpToBuilder.() -> Unit)? = null
+) {
+    popUpTo(screen.route, inclusive, config)
+}
+
 fun Store.navigateBack() {
     selectLogic<NavigationLogic>().navigateBack()
 }

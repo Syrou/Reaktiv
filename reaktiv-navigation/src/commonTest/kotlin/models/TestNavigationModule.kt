@@ -1,15 +1,20 @@
+package models
+
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Module
+import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.navigation.NavTransition
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.Screen
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
 class TestNavigationModule : Module<NavigationState, NavigationAction> {
-    private val homeScreen = object : Screen {
+    val homeScreen = object : Screen {
         override val route = "home"
         override val titleResourceId = 0
         override val enterTransition = NavTransition.None
@@ -22,7 +27,7 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
         }
     }
 
-    private val profileScreen = object : Screen {
+    val profileScreen = object : Screen {
         override val route = "profile"
         override val titleResourceId = 0
         override val enterTransition = NavTransition.None
@@ -48,5 +53,11 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
         }
     }
 
-    override val logic = NavigationLogic(Dispatchers.Unconfined, initialState.availableScreens)
+    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<NavigationAction> = { dispatch: Dispatch ->
+        NavigationLogic(
+            CoroutineScope(Dispatchers.Unconfined),
+            initialState.availableScreens,
+            dispatch
+        )
+    }
 }

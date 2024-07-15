@@ -1,16 +1,21 @@
 package io.syrou.reaktiv
 
+import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.createStore
+import io.syrou.reaktiv.ComplexModule.ComplexAction
+import io.syrou.reaktiv.LargeStateModule.LargeAction
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -38,7 +43,10 @@ object TestModule : Module<TestModule.TestState, TestModule.Action> {
             else -> state
         }
     }
-    override val logic: ModuleLogic<Action> = ModuleLogic() { _, _ -> }
+
+    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<Action> = { dispatch: Dispatch ->
+        ModuleLogic { action -> }
+    }
 }
 
 
@@ -56,7 +64,10 @@ object TestModule2 : Module<TestModule2.TestState2, TestModule2.Action> {
             else -> state
         }
     }
-    override val logic: ModuleLogic<Action> = ModuleLogic { _, _ -> }
+
+    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<Action> = { dispatch: Dispatch ->
+        ModuleLogic { action -> }
+    }
 }
 
 // Additional data classes for the new tests
@@ -77,7 +88,9 @@ object ComplexModule : Module<ComplexModule.ComplexState, ComplexModule.ComplexA
             else -> state
         }
     }
-    override val logic: ModuleLogic<ComplexAction> = ModuleLogic { _, _ -> }
+    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<ComplexAction> = { dispatch: Dispatch ->
+        ModuleLogic { action -> }
+    }
 }
 
 object LargeStateModule : Module<LargeStateModule.LargeState, LargeStateModule.LargeAction> {
@@ -96,15 +109,17 @@ object LargeStateModule : Module<LargeStateModule.LargeState, LargeStateModule.L
             else -> state
         }
     }
-    override val logic: ModuleLogic<LargeAction> = ModuleLogic { _, _ -> }
+    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<LargeAction> = { dispatch: Dispatch ->
+        ModuleLogic { action -> }
+    }
 }
 
 class StoreTest {
-        @Test
+    @Test
     fun testConcurrentDispatches() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
-            modules(TestModule)
+            module(TestModule)
             coroutineContext(testDispatcher)
         }
 
@@ -129,12 +144,12 @@ class StoreTest {
     fun testRapidStateChanges() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
-            modules(TestModule)
             coroutineContext(testDispatcher)
+            module(TestModule)
         }
 
         val stateChanges = mutableListOf<Int>()
-        val job = launch {
+        val job = launch(testDispatcher) {
             store.selectState<TestModule.TestState>().collect {
                 stateChanges.add(it.value)
             }
@@ -142,11 +157,11 @@ class StoreTest {
 
         repeat(100) {
             store.dispatcher(TestModule.Action.IncrementAction)
-            println(it)
+            advanceUntilIdle()
         }
-
         job.cancelAndJoin()
-        assertEquals(100, stateChanges.size, "Should have captured all state changes")
+        advanceUntilIdle()
+        assertEquals(101, stateChanges.size, "Should have captured all state changes")
         assertTrue(stateChanges.zipWithNext().all { (a, b) -> b == a + 1 }, "Each state change should increment by 1")
         store.cleanup()
     }
@@ -155,7 +170,7 @@ class StoreTest {
     fun testConcurrentStateReads() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
-            modules(TestModule)
+            module(TestModule)
             coroutineContext(testDispatcher)
         }
 
@@ -163,6 +178,7 @@ class StoreTest {
             launch {
                 repeat(100) {
                     store.selectState<TestModule.TestState>().value
+                    advanceUntilIdle()
                 }
             }
         }
@@ -170,12 +186,13 @@ class StoreTest {
         val writerJob = launch {
             repeat(1000) {
                 store.dispatcher(TestModule.Action.IncrementAction)
+                advanceUntilIdle()
             }
         }
-
+        advanceUntilIdle()
         readerJobs.joinAll()
         writerJob.join()
-
+        yield()
         val finalState = store.selectState<TestModule.TestState>().value
         assertEquals(1000, finalState.value, "Final state should reflect all increments")
     }
@@ -189,13 +206,14 @@ class StoreTest {
         }
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
-            modules(TestModule)
+            module(TestModule)
             middlewares(testMiddleware)
             coroutineContext(testDispatcher)
         }
 
         repeat(100) {
             store.dispatcher(TestModule.Action.IncrementAction)
+            advanceUntilIdle()
         }
 
         assertEquals(100, middlewareExecutions, "Middleware should be executed for each action")
@@ -210,7 +228,8 @@ class StoreTest {
     fun testMultipleModuleConcurrency() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
-            modules(TestModule, TestModule2)
+            module(TestModule)
+            module(TestModule2)
             coroutineContext(testDispatcher)
         }
         val jobs = List(1000) { index ->
@@ -220,11 +239,11 @@ class StoreTest {
                 } else {
                     store.dispatcher(TestModule2.Action.UpdateAction("a"))
                 }
+
             }
         }
-
         jobs.joinAll()
-
+        advanceUntilIdle()
         val finalState1 = store.selectState<TestModule.TestState>().value
         val finalState2 = store.selectState<TestModule2.TestState2>().value
 
@@ -237,12 +256,13 @@ class StoreTest {
     fun testComplexStateChanges() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
-            modules(ComplexModule)
+            module(ComplexModule)
             coroutineContext(testDispatcher)
         }
 
         repeat(100) { i ->
             store.dispatcher(ComplexModule.ComplexAction.UpdateBoth(i, i.toString()))
+            advanceUntilIdle()
         }
 
         val finalState = store.selectState<ComplexModule.ComplexState>().value
@@ -257,15 +277,16 @@ class StoreTest {
     fun testStoreLifecycle() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
-            modules(TestModule)
+            module(TestModule)
             coroutineContext(testDispatcher)
         }
 
         store.dispatcher(TestModule.Action.IncrementAction)
+        advanceUntilIdle()
         assertEquals(1, store.selectState<TestModule.TestState>().value.value)
 
         store.cleanup()
-
+        advanceUntilIdle()
         assertFails {
             store.dispatcher(TestModule.Action.IncrementAction)
         }
@@ -275,12 +296,13 @@ class StoreTest {
     fun testLargeStateChanges() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
-            modules(LargeStateModule)
+            module(LargeStateModule)
             coroutineContext(testDispatcher)
         }
 
         repeat(1000) { i ->
             store.dispatcher(LargeStateModule.LargeAction.AddItem(10000 + i))
+            advanceUntilIdle()
         }
 
         val finalState = store.selectState<LargeStateModule.LargeState>().value

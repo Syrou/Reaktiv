@@ -1,161 +1,82 @@
-# Reaktiv Library
+# Reaktiv
 
-A flexible and powerful state management library for Kotlin applications, leveraging Kotlin's coroutine-based
-concurrency model to provide a robust MVLI (Model-View-Logic-Intent) solution.
+Reaktiv is a powerful MVLI (Model-View-Logic-Intent) library for Kotlin Multiplatform, designed to simplify state management and navigation in modern applications. It provides a robust architecture for building scalable and maintainable applications across various platforms.
 
-## Table of Contents
+## Features
 
-1. [Installation](#installation)
-2. [Core Concepts](#core-concepts)
-3. [Architecture](#architecture)
-4. [Usage](#usage)
+- **MVLI Architecture**: Implements a unidirectional data flow pattern with a distinct Logic layer for enhanced separation of concerns.
+- **Kotlin Multiplatform**: Supports development for multiple platforms from a single codebase.
+- **Modular Design**: Consists of three main modules: Core, Navigation, and Compose.
+- **Type-safe Navigation**: Offers a type-safe and flexible navigation system.
+- **Jetpack Compose Integration**: Seamless integration with Jetpack Compose for declarative UI development.
+- **Coroutine Support**: Leverages Kotlin Coroutines for efficient asynchronous programming.
 
-- [Defining a Module](#defining-a-module)
-- [Creating a Store](#creating-a-store)
-- [Dispatching Actions](#dispatching-actions)
-- [Selecting State](#selecting-state)
-- [Using Logic](#using-logic)
+## Modules
 
-5. [Advanced Features](#advanced-features)
+### Core
 
-- [Middleware](#middleware)
-- [Custom Coroutine Context](#custom-coroutine-context)
+The Core module provides the fundamental building blocks of the Reaktiv MVLI architecture. It includes:
 
-6. [Best Practices](#best-practices)
-7. [License](#license)
+- State management
+- Action dispatching
+- Module system with Logic layer
+- Middleware support
 
-## Installation
+[Learn more about the Core module](./core/README.md)
 
-*Note: Add installation instructions here once the library is published to a repository.*
+### Navigation
 
-## Core Concepts
+The Navigation module extends the Core functionality with a powerful navigation system. It features:
 
-- **Store**: The central hub that holds the application state and manages state updates.
-- **Module**: A self-contained unit that defines a piece of state, actions that can modify that state, and logic for
-  side effects.
-- **Action**: A description of a change to be made to the state.
-- **Reducer**: A pure function that specifies how the state should change in response to an action.
-- **Logic**: A place to handle side effects and complex operations in response to actions.
-- **Middleware**: A way to intercept actions and perform additional operations before or after they reach the reducer.
+- Type-safe route definitions
+- Deep linking support
+- Navigation state management
+- Animated transitions
 
-## Architecture
+[Learn more about the Navigation module](./navigation/README.md)
 
-Here's a diagram illustrating the main components of the Reaktiv Library:
+### Compose
 
-![Architecture Diagram](https://www.planttext.com/api/plantuml/svg/hLR1Rk8m4Btp5IFs4hfGzLOfYg8YAgHguPJk1nZ7W4LYHxPJThVYtzU9dMH2GjkLbWj4xtbctimRXoTjY39bdatqYOk2A983pOZMIsCKtvM6lL0f4lw7mGEYv598UbGoPs1KoH2YZoILPouEi2UPnaZ61JE_2mPIcQESJ0f2J-J0OBgIYi6hHVGKtYTWFrmOflQ4CjZAjCnOOeXXDK9ssYX2ZIlImqjgk1J-RFNvRWkiW5To2E77gg96Tt4DNwuIJ9-vBeYXnob4KR2UVrkl7nyV7cQmBaKTDevHu00ddC4YXf-26n_uWZGv7gnaNaZ1X6cbZGhOo0EdqHB2dg2ufoZrTORGL8p0zoRi1NIf2oPIA_5DdbX0wb3zmFEHO3CSpPh2S7ffOcHLUM4REUZ7QYCqxPY5VLbDuqT76oMjwdhAS_Yu3Tmcu2IhkI4a254iBIbJ8GI93L9NWs4ludPbU20lOYz7_DGSZ-xcuFtaOEtAsPQ6xBoGTIRF4H8MVroBB4rVzOYf4bDjoj1JoCrRdgOPEnF5lkJd6oFTaYBoQzFLvLJChvv68zJDHxphvs7RdRIki0LGgMnkUsSaL1QsjwlUCoBchMGTmePh4tLDY36ldMo81TwraYee7jcuobE3dLk0swpLaGZ1CbkV-n4DX-WjmZ96JIt_slDnO5UcCqqoFEOyie5FF5C7sg3JD6D4b4Kmkz7nvsJp7vhkRV_LtZls5qRmpprsQNJmPbyuwW22dHrJznSNttL823xMazS-u8DjgrRIhjyl4r3tZPhcaHaIj2jvbhfns_PtEux62WkxB8tVxCHBpRJ7QmWPvoRgtuYtO9SdX2DfmFh2wmWMg-GGBcuGclGViveyBSkjUKreczfKYR0kLWWv4VRom_1rRwuFjk8B9IdJBQKo-o2rBMtF3wKQa70DOwJx-zZVMXPNpBP3JoPFzYgqVwR-0W00)
+The Compose module offers seamless integration with Jetpack Compose, making it easy to use Reaktiv in declarative UI applications. It includes:
 
-This diagram illustrates the relationships between the main components of the library:
+- Compose-specific extensions
+- State observation utilities
+- Easy-to-use composables for common Reaktiv patterns
 
-- The `Store` is the central component that manages multiple `Module`s and aggregates multiple `Middleware`s.
-- Each `Module` contains one `ModuleState`, multiple `ModuleAction`s, and one `ModuleLogic`.
-- `ModuleLogic` handles side effects and complex operations.
-- `Middleware` can intercept and process actions before they reach the modules.
+[Learn more about the Compose module](./compose/README.md)
 
-## Usage
+## Getting Started
 
-### Defining a Module
+To get started with Reaktiv, add the following dependencies to your project:
 
 ```kotlin
-object CounterModule : Module<CounterState, CounterAction> {
-    data class CounterState(val count: Int = 0) : ModuleState
-
-    sealed class CounterAction : ModuleAction(CounterModule::class) {
-        object Increment : CounterAction()
-        object Decrement : CounterAction()
-    }
-
-    override val initialState = CounterState()
-
-    override val reducer: (CounterState, CounterAction) -> CounterState = { state, action ->
-        when (action) {
-            is Increment -> state.copy(count = state.count + 1)
-            is Decrement -> state.copy(count = state.count - 1)
-        }
-    }
-
-    override val logic = ModuleLogic<CounterAction> { action, dispatch ->
-        when (action) {
-            is Increment -> println("Incremented to ${(action as Increment).count}")
-            is Decrement -> println("Decremented to ${(action as Decrement).count}")
-        }
-    }
-}
+implementation("io.github.syrou.reaktiv:core:0.6.0")
+implementation("io.github.syrou.reaktiv:navigation:0.6.0")
+implementation("io.github.syrou.reaktiv:compose:0.6.0")
 ```
 
-### Creating a Store
+Then, create your first Reaktiv store:
 
 ```kotlin
 val store = createStore {
-    modules(CounterModule)
+    module<AppState, AppAction>(AppModule)
     middlewares(loggingMiddleware)
-    coroutineContext(Dispatchers.Default + SupervisorJob())
+    coroutineContext(Dispatchers.Default)
 }
 ```
 
-### Dispatching Actions
+## Documentation
 
-```kotlin
-// Using the dispatcher property
-store.dispatcher(CounterAction.Increment)
+For detailed documentation and usage examples, please refer to the README files of each module:
 
-// Or in a coroutine
-launch {
-    store.dispatcher(CounterAction.Increment)
-}
-```
+- [Core Module Documentation](./core/README.md)
+- [Navigation Module Documentation](./navigation/README.md)
+- [Compose Module Documentation](./compose/README.md)
 
-### Selecting State
+## Contributing
 
-```kotlin
-val counterState: StateFlow<CounterState> = store.selectState()
-
-// In a coroutine
-launch {
-    counterState.collect { state ->
-        println("Current count: ${state.count}")
-    }
-}
-```
-
-### Using Logic
-
-```kotlin
-val counterLogic: CounterLogic = store.selectLogic()
-counterLogic.someCustomMethod()
-```
-
-## Advanced Features
-
-### Middleware
-
-```kotlin
-val loggingMiddleware: Middleware = { action, getState, next ->
-    println("Before action: $action")
-    val result = next(action)
-    println("After action: $action, New State: ${getState[CounterState::class]}")
-    result
-}
-```
-
-### Custom Coroutine Context
-
-```kotlin
-val store = createStore {
-    modules(CounterModule)
-    coroutineContext(Dispatchers.Default + SupervisorJob())
-}
-```
-
-## Best Practices
-
-1. Keep your state immutable to prevent unexpected side effects.
-2. Design your actions to be as granular and specific as possible for better traceability.
-3. Use logic for handling side effects and complex operations, keeping your reducers pure.
-4. Leverage Kotlin's strong type system in your state and actions for compile-time safety.
-5. Use middleware for cross-cutting concerns like logging, analytics, or error handling.
-6. Prefer using `StateFlow` for observing state changes in your UI layer.
-7. Utilize Kotlin's coroutines and flow for asynchronous operations within your logic.
+We welcome contributions to Reaktiv! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more information on how to get started.
 
 ## License
 
-This project is licensed under the Apache License Version 2.0. See the [LICENSE](LICENSE) file for details.
+Reaktiv is released under the Apache License Version 2.0. See the [LICENSE](LICENSE) file for details.

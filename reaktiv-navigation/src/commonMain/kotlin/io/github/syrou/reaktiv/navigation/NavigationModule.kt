@@ -3,7 +3,9 @@ package io.github.syrou.reaktiv.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
+import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Module
+import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
@@ -33,10 +35,26 @@ interface NavigationNode
  * @property enterTransition The transition animation when entering this screen.
  * @property exitTransition The transition animation when exiting this screen.
  * @property requiresAuth Whether this screen requires authentication.
+ *
+ * Example implementation:
+ * ```
+ * object HomeScreen : Screen {
+ *     override val route = "home"
+ *     override val titleResourceId = R.string.home_title
+ *     override val enterTransition = NavTransition.Fade
+ *     override val exitTransition = NavTransition.Fade
+ *     override val requiresAuth = false
+ *
+ *     @Composable
+ *     override fun Content(params: Map<String, Any>) {
+ *         Text("Welcome to the Home Screen")
+ *     }
+ * }
+ * ```
  */
 interface Screen : NavigationNode {
     val route: String
-    val titleResourceId: Int
+    val titleResourceId: Int?
     val enterTransition: NavTransition
     val exitTransition: NavTransition
     val requiresAuth: Boolean
@@ -49,6 +67,15 @@ interface Screen : NavigationNode {
  * Represents a group of screens in the application's navigation structure.
  *
  * @property screens The list of screens in this group.
+ *
+ * Example usage:
+ * ```
+ * val settingsGroup = ScreenGroup(
+ *     ProfileScreen,
+ *     PreferencesScreen,
+ *     PrivacyScreen
+ * )
+ * ```
  */
 open class ScreenGroup(
     val screens: List<Screen>
@@ -58,6 +85,15 @@ open class ScreenGroup(
 
 /**
  * Defines the transition animations for navigation.
+ *
+ * Example usage:
+ * ```
+ * val fadeTransition = NavTransition.Fade
+ * val customTransition = NavTransition.Custom(
+ *     enter = fadeIn() + slideInHorizontally(),
+ *     exit = fadeOut() + slideOutHorizontally()
+ * )
+ * ```
  */
 sealed class NavTransition {
     data object None : NavTransition()
@@ -289,7 +325,9 @@ class NavigationModule private constructor(
         }
     }
 
-    override val logic = NavigationLogic(coroutineScope, initialState.availableScreens)
+    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<NavigationAction> = { dispatch ->
+        NavigationLogic(coroutineScope, initialState.availableScreens, dispatch)
+    }
 
     /**
      * Builder class for creating a NavigationModule instance.
@@ -297,7 +335,7 @@ class NavigationModule private constructor(
     class Builder {
         var startScreen: Screen? = null
         val screens = mutableListOf<Pair<KClass<out Screen>, Screen>>()
-        var coroutineContext = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        private var coroutineContext = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
 
         /**
@@ -330,7 +368,7 @@ class NavigationModule private constructor(
             }
         }
 
-        fun coroutineContext(dispatcher: CoroutineDispatcher){
+        fun coroutineContext(dispatcher: CoroutineDispatcher) {
             coroutineContext = CoroutineScope(dispatcher)
         }
 
@@ -346,7 +384,7 @@ class NavigationModule private constructor(
      * @param block The configuration block for setting up the navigation module.
      * @return A new NavigationModule instance.
      *
-     * Example:
+     * Example usage:
      * ```
      * val navigationModule = NavigationModule.create {
      *     setInitialScreen(HomeScreen)
@@ -368,7 +406,7 @@ class NavigationModule private constructor(
  * @param block The configuration block for setting up the navigation module.
  * @return A new NavigationModule instance.
  *
- * Example:
+ * Example usage:
  * ```
  * val navigationModule = createNavigationModule {
  *     setInitialScreen(HomeScreen)
@@ -377,7 +415,6 @@ class NavigationModule private constructor(
  * }
  * ```
  */
-
 fun createNavigationModule(block: NavigationModule.Builder.() -> Unit): NavigationModule {
     return NavigationModule.create {
         block.invoke(this)

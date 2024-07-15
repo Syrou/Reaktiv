@@ -4,7 +4,7 @@ import io.github.syrou.reaktiv.core.ModuleState
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class PersistenceManager(
+internal class PersistenceManager(
     private val persistenceStrategy: PersistenceStrategy,
     val json: Json = Json {
         ignoreUnknownKeys = true

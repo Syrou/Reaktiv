@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation
 
+import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.Store
 import kotlinx.coroutines.CoroutineScope
@@ -13,7 +14,8 @@ import kotlinx.coroutines.launch
  */
 class NavigationLogic(
     private val coroutineScope: CoroutineScope,
-    private val availableScreens: Map<String, Screen>
+    private val availableScreens: Map<String, Screen>,
+    val dispatch: Dispatch
 ) : ModuleLogic<NavigationAction>() {
 
     private fun routeExists(route: String): Boolean = availableScreens.containsKey(route)
@@ -58,7 +60,7 @@ class NavigationLogic(
         if (action.replaceWith != null && !routeExists(action.replaceWith)) {
             throw RouteNotFoundException(action.replaceWith)
         }
-
+        println("DISPATCHES FROM NAVIGATION LOGIC: $action")
         dispatch(action)
     }
 
