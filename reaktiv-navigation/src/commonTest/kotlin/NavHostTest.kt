@@ -56,7 +56,7 @@ class NavHostTest {
             )
         }
         setContent {
-            NavigationRender(modifier = Modifier.fillMaxSize(), store = store, isAuthenticated = true) { screen, map ->
+            NavigationRender(modifier = Modifier.fillMaxSize(), isAuthenticated = true) { screen, map ->
                 screen.Content(map)
             }
         }

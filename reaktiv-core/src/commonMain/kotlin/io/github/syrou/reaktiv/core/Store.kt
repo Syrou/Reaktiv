@@ -339,6 +339,16 @@ class Store private constructor(
         }
     }
 
+    /**
+     * Checks if there is a previously loaded state.
+     *
+     * Example:
+     * ```
+     * store.hasPersistedState()
+     * ```
+     */
+    suspend fun hasPersistedState(): Boolean = persistenceManager?.hasPersistedState() ?: false
+
     companion object {
         internal fun create(
             coroutineScope: CoroutineScope,

@@ -32,6 +32,11 @@ buildscript {
 
 subprojects {
     apply(plugin = "org.jetbrains.dokka")
+    tasks {
+        withType<PublishToMavenRepository> {
+            dependsOn(withType<Sign>())
+        }
+    }
 }
 
 allprojects {

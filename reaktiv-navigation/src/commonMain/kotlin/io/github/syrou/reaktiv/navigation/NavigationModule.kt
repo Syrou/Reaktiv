@@ -259,10 +259,15 @@ class NavigationModule private constructor(
                         ?: error("No screen found for route: ${action.route}")
                 }
 
-                state.copy(
-                    currentScreen = targetScreen,
-                    backStack = newBackStack + Pair(targetScreen, action.params)
-                )
+                val currentScreen = newBackStack.last()
+                if (currentScreen.first.route == targetScreen.route) {
+                    state
+                } else {
+                    state.copy(
+                        currentScreen = targetScreen,
+                        backStack = newBackStack + Pair(targetScreen, action.params)
+                    )
+                }
             }
 
             is NavigationAction.PopUpTo -> {

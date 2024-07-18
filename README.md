@@ -22,7 +22,7 @@ The Core module provides the fundamental building blocks of the Reaktiv MVLI arc
 - Module system with Logic layer
 - Middleware support
 
-[Learn more about the Core module](./core/README.md)
+[Learn more about the Core module](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-core/README.md)
 
 ### Navigation
 
@@ -33,7 +33,7 @@ The Navigation module extends the Core functionality with a powerful navigation 
 - Navigation state management
 - Animated transitions
 
-[Learn more about the Navigation module](./navigation/README.md)
+[Learn more about the Navigation module](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-navigation/README.md)
 
 ### Compose
 
@@ -43,7 +43,7 @@ The Compose module offers seamless integration with Jetpack Compose, making it e
 - State observation utilities
 - Easy-to-use composables for common Reaktiv patterns
 
-[Learn more about the Compose module](./compose/README.md)
+[Learn more about the Compose module](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-compose/README.md)
 
 ## Getting Started
 
@@ -69,13 +69,9 @@ val store = createStore {
 
 For detailed documentation and usage examples, please refer to the README files of each module:
 
-- [Core Module Documentation](./core/README.md)
-- [Navigation Module Documentation](./navigation/README.md)
-- [Compose Module Documentation](./compose/README.md)
-
-## Contributing
-
-We welcome contributions to Reaktiv! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more information on how to get started.
+- [Core Module Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-core/README.md)
+- [Navigation Module Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-navigation/README.md)
+- [Compose Module Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-compose/README.md)
 
 ## License
 

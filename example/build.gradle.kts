@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform") version "1.9.20"
+    kotlin("plugin.serialization")
 }
 
 group = "me.user"
@@ -34,12 +35,18 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+                implementation("io.ktor:ktor-client-core:2.3.12")
+                implementation("io.ktor:ktor-client-logging:2.3.12")
+                implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
                 implementation(project(":reaktiv-core"))
             }
         }
         val nativeMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+                implementation("io.ktor:ktor-client-curl:2.3.12")
+                //implementation("io.ktor:ktor-client-cio:2.3.12")
             }
         }
         val nativeTest by getting

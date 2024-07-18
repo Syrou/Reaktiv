@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.support.kotlinCompilerOptions
+
 plugins {
     kotlin("multiplatform")
     id("com.android.library")
@@ -7,7 +9,7 @@ plugins {
 }
 
 group = "io.github.syrou"
-version = "0.6.0"
+version = "0.7.5"
 
 repositories {
     mavenCentral()
@@ -41,13 +43,15 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
             }
         }
-        val commonTest by getting{
-            dependencies{
+        val commonTest by getting {
+            dependencies {
                 implementation(kotlin("test"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
             }
         }
     }
+
+    jvmToolchain(17)
 }
 
 android {
@@ -65,7 +69,7 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_18
-        targetCompatibility = JavaVersion.VERSION_18
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }

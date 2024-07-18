@@ -20,6 +20,10 @@ internal class PersistenceManager(
         return json.decodeFromString(serializedState)
     }
 
+    suspend fun hasPersistedState(): Boolean {
+        return persistenceStrategy.hasPersistedState()
+    }
+
     fun copy(json: Json = this.json): PersistenceManager {
         return PersistenceManager(persistenceStrategy, json)
     }

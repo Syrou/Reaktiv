@@ -1,0 +1,48 @@
+name: Publish to Sonatype
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Decode and save GPG key
+        env:
+          GPG_SECRET_KEY_RING_FILE: ${{ secrets.GPG_SECRET_KEY_RING_FILE }}
+        run: |
+          echo $GPG_SECRET_KEY_RING_FILE | base64 --decode > secring.gpg
+
+      - name: Publish to Sonatype
+        env:
+          OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKeyRingFile: secring.gpg
+        run: |
+          ./gradlew publishAllPublicationsToSonatypeRepository --no-daemon --no-parallel
+
+      - name: Clean up GPG key
+        if: always()
+        run: rm secring.gpg

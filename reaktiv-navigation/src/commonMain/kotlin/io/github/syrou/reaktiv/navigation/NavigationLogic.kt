@@ -60,7 +60,6 @@ class NavigationLogic(
         if (action.replaceWith != null && !routeExists(action.replaceWith)) {
             throw RouteNotFoundException(action.replaceWith)
         }
-        println("DISPATCHES FROM NAVIGATION LOGIC: $action")
         dispatch(action)
     }
 
