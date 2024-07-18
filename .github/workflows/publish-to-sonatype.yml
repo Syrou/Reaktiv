@@ -35,7 +35,7 @@ jobs:
           GPG_SECRET_KEY_RING_FILE: ${{ secrets.GPG_SECRET_KEY_RING_FILE }}
         run: |
           echo $GPG_SECRET_KEY_RING_FILE | base64 --decode > secring.gpg
-
+          ls -al
       - name: Publish to Sonatype
         env:
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
