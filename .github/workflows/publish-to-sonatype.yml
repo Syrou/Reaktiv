@@ -8,6 +8,8 @@ on:
 jobs:
   publish:
     runs-on: macos-latest
+    environment: SONATYPE
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -34,9 +36,12 @@ jobs:
         env:
           GPG_SECRET_KEY_RING_FILE: ${{ secrets.GPG_SECRET_KEY_RING_FILE }}
         run: |
-          echo "Length of GPG_SECRET_KEY_RING_FILE: ${#GPG_SECRET_KEY_RING_FILE}"
-          echo $GPG_SECRET_KEY_RING_FILE | base64 --decode > secring.gpg
-          ls -al
+          echo "Current environment: ${{ env.GITHUB_ENV }}"
+          if [ -z "$GPG_SECRET_KEY_RING_FILE" ]; then
+            echo "GPG_SECRET_KEY_RING_FILE is empty or not set"
+          else
+            echo "$GPG_SECRET_KEY_RING_FILE" | base64 --decode > secring.gpg
+          fi
       - name: Publish to Sonatype
         env:
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
