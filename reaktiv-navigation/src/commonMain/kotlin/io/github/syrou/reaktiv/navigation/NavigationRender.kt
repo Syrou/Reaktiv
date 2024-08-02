@@ -26,10 +26,7 @@ import kotlinx.coroutines.Dispatchers
 @Composable
 fun NavigationRender(
     modifier: Modifier,
-    isAuthenticated: Boolean,
-    onAuthenticationRequired: () -> Unit = {},
-    loadingContent: @Composable () -> Unit = { /* Default loading UI */ },
-    screenContent: @Composable (Screen, StringAnyMap) -> Unit = { _, _ -> }
+    screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
 ) {
     val navigationState by selectState<NavigationState>().collectAsState(Dispatchers.Main.immediate)
     var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
@@ -44,19 +41,7 @@ fun NavigationRender(
             getContentTransform(initialState.exitTransition, targetState.enterTransition, isForward)
         }
     ) { screen ->
-        when {
-            navigationState.isLoading -> {
-                loadingContent()
-            }
-
-            screen.requiresAuth && !isAuthenticated -> {
-                onAuthenticationRequired()
-            }
-
-            else -> {
-                screenContent.invoke(screen, navigationState.backStack.last().second)
-            }
-        }
+        screenContent.invoke(screen, navigationState.backStack.last().second, navigationState.isLoading)
     }
 }
 

@@ -50,7 +50,7 @@ kotlin {
     //linuxX64()
     // Windows target
     //mingwX64()
-    val version = "0.8.9" // or any more recent version
+    val version = "0.8.10" // or any more recent version
     val target = "${targetOs}-${targetArch}"
     sourceSets {
         val commonMain by getting {

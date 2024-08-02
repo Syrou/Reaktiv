@@ -348,9 +348,12 @@ class NavigationModule private constructor(
          *
          * @param screen The initial screen to display.
          */
-        inline fun <reified S : Screen> setInitialScreen(screen: S) {
+        inline fun <reified S : Screen> setInitialScreen(screen: S, addToScreenBackStack: Boolean = false) {
             startScreen = screen
-            addScreen(screen)  // Ensure the initial screen is also in the screens list
+            // Ensure the initial screen is also in the screens list
+            if(addToScreenBackStack) {
+                addScreen(screen)
+            }
         }
 
         /**
