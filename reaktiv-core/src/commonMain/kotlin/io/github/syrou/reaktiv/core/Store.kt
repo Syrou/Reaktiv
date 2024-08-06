@@ -202,15 +202,16 @@ class Store private constructor(
 
     private fun initializeModules() {
         modules.forEach { module ->
-            val logic = module.createLogic(this)
             val info = ModuleInfo(
                 module = module,
-                state = MutableStateFlow(module.initialState),
-                logic = logic
+                state = MutableStateFlow(module.initialState)
             )
             moduleInfo[module::class.qualifiedName!!] = info
             moduleInfo[module.initialState::class.qualifiedName!!] = info
-            logic::class.qualifiedName?.let {
+            info.apply {
+                logic = module.createLogic(this@Store)
+            }
+            info.logic!!::class.qualifiedName?.let {
                 moduleInfo[it] = info
             }
         }
