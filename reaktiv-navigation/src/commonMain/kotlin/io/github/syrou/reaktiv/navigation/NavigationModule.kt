@@ -7,6 +7,7 @@ import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import kotlinx.coroutines.CoroutineDispatcher
@@ -330,8 +331,8 @@ class NavigationModule private constructor(
         }
     }
 
-    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<NavigationAction> = { dispatch ->
-        NavigationLogic(coroutineScope, initialState.availableScreens, dispatch)
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor ->
+        NavigationLogic(coroutineScope, initialState.availableScreens, storeAccessor)
     }
 
     /**

@@ -116,7 +116,7 @@ interface Module<S : ModuleState, A : ModuleAction> {
      * @param dispatch The dispatch function to be used by the logic.
      * @return The created ModuleLogic instance.
      */
-    val createLogic: (dispatch: Dispatch) -> ModuleLogic<A>
+    val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<A>
 }
 
 internal data class ModuleInfo(
@@ -139,6 +139,40 @@ typealias Middleware = suspend (
 ) -> Unit
 
 /**
+ * Interface providing access to core Store functionality.
+ * This interface allows modules and their logic classes to interact with the Store
+ * without exposing the entire Store implementation.
+ */
+interface StoreAccessor {
+    /**
+     * Selects the state of a specific module.
+     *
+     * @param S The type of state to select.
+     * @param stateClass The KClass of the state to select.
+     * @return A StateFlow of the selected state.
+     * @throws IllegalStateException if no state is found for the given class.
+     */
+    fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
+
+    /**
+     * Selects the logic of a specific module.
+     *
+     * @param L The type of logic to select.
+     * @param logicClass The KClass of the logic to select.
+     * @return The selected logic instance.
+     * @throws IllegalStateException if no logic is found for the given class.
+     */
+    fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L
+
+    /**
+     * Dispatches an action to be processed by the Store.
+     *
+     * @param action The action to be dispatched.
+     */
+    val dispatch: Dispatch
+}
+
+/**
  * The main store class for managing state and actions in the Reaktiv framework.
  */
 class Store private constructor(
@@ -146,13 +180,17 @@ class Store private constructor(
     private val middlewares: List<Middleware>,
     private val modules: List<Module<ModuleState, ModuleAction>>,
     private val persistenceManager: PersistenceManager?,
-) {
+) : StoreAccessor {
     private val stateUpdateMutex = Mutex()
     private val actionChannel: Channel<ModuleAction> = Channel<ModuleAction>(Channel.UNLIMITED)
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
 
+    /**
+     * A function type alias for dispatching actions in the Reaktiv framework.
+     * This lambda is used for easy integration with Jetpack Compose.
+     */
     @OptIn(DelicateCoroutinesApi::class)
-    val dispatcher: Dispatch = { action ->
+    override val dispatch: Dispatch = { action ->
         if (actionChannel.isClosedForSend) {
             throw IllegalStateException("Store is closed")
         }
@@ -164,7 +202,7 @@ class Store private constructor(
 
     private fun initializeModules() {
         modules.forEach { module ->
-            val logic = module.createLogic(dispatcher)
+            val logic = module.createLogic(this)
             val info = ModuleInfo(
                 module = module,
                 state = MutableStateFlow(module.initialState),
@@ -216,7 +254,7 @@ class Store private constructor(
                     if (innerAction == action) {
                         next(innerAction)
                     } else {
-                        dispatcher(innerAction)
+                        dispatch(innerAction)
                     }
                     moduleInfo[action.moduleTag.qualifiedName]?.state?.value
                         ?: throw IllegalStateException("No state found for module: ${action.moduleTag}")
@@ -250,7 +288,7 @@ class Store private constructor(
      * ```
      */
     @Suppress("UNCHECKED_CAST")
-    fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
+    override fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
         return moduleInfo[stateClass.qualifiedName]?.state as? StateFlow<S>
             ?: throw IllegalStateException("No state found for state class: $stateClass")
     }
@@ -281,7 +319,7 @@ class Store private constructor(
      * ```
      */
     @Suppress("UNCHECKED_CAST")
-    fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L {
+    override fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L {
         return moduleInfo[logicClass.qualifiedName]?.logic as? L
             ?: throw IllegalStateException("No logic found for logic class: $logicClass")
     }

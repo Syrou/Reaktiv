@@ -65,7 +65,7 @@ fun rememberStore(): Store {
 @Composable
 fun rememberDispatcher(): Dispatch {
     val store = rememberStore()
-    return remember { store.dispatcher }
+    return remember { store.dispatch }
 }
 
 /**

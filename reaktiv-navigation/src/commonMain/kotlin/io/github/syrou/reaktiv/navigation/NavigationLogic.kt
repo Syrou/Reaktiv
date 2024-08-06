@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation
 import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.Store
+import io.github.syrou.reaktiv.core.StoreAccessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -15,7 +16,7 @@ import kotlinx.coroutines.launch
 class NavigationLogic(
     private val coroutineScope: CoroutineScope,
     private val availableScreens: Map<String, Screen>,
-    val dispatch: Dispatch
+    val storeAccessor: StoreAccessor
 ) : ModuleLogic<NavigationAction>() {
 
     private fun routeExists(route: String): Boolean = availableScreens.containsKey(route)
@@ -60,7 +61,7 @@ class NavigationLogic(
         if (action.replaceWith != null && !routeExists(action.replaceWith)) {
             throw RouteNotFoundException(action.replaceWith)
         }
-        dispatch(action)
+        storeAccessor.dispatch(action)
     }
 
     /**
@@ -99,7 +100,7 @@ class NavigationLogic(
             throw RouteNotFoundException(action.replaceWith)
         }
 
-        dispatch(action)
+        storeAccessor.dispatch(action)
     }
 
     /**
@@ -111,7 +112,7 @@ class NavigationLogic(
      * ```
      */
     fun navigateBack() {
-        dispatch(NavigationAction.Back)
+        storeAccessor.dispatch(NavigationAction.Back)
     }
 
     /**
@@ -123,7 +124,7 @@ class NavigationLogic(
      * ```
      */
     fun clearBackStack() {
-        dispatch(NavigationAction.ClearBackStack)
+        storeAccessor.dispatch(NavigationAction.ClearBackStack)
     }
 
     /**
@@ -142,7 +143,7 @@ class NavigationLogic(
         if (!routeExists(route)) {
             throw RouteNotFoundException(route)
         }
-        dispatch(NavigationAction.Replace(route, params))
+        storeAccessor.dispatch(NavigationAction.Replace(route, params))
     }
 
     /**
@@ -178,7 +179,7 @@ class NavigationLogic(
         }
         val sanitizedParams = (extractedParams + params).mapValues { (_, value) -> sanitizeParam(value) }
         coroutineScope.launch {
-            dispatch(NavigationAction.SetLoading(true))
+            storeAccessor.dispatch(NavigationAction.SetLoading(true))
             try {
                 if (validate(store, sanitizedParams)) {
                     navigate(finalRoute, sanitizedParams)
@@ -186,7 +187,7 @@ class NavigationLogic(
             } catch (e: Exception) {
                 throw e
             } finally {
-                dispatch(NavigationAction.SetLoading(false))
+                storeAccessor.dispatch(NavigationAction.SetLoading(false))
             }
         }
     }
