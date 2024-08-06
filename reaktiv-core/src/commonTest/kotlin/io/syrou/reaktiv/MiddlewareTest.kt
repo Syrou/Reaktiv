@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.createStore
 import io.syrou.reaktiv.LargeStateModule.LargeAction
 import kotlinx.coroutines.delay
@@ -34,7 +35,7 @@ class MiddlewareTest {
             }
         }
 
-        override val createLogic: (dispatch: Dispatch) -> ModuleLogic<MiddlewareTestAction> = { dispatch: Dispatch ->
+        override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<MiddlewareTestAction> = { storeAccessor: StoreAccessor ->
             ModuleLogic { action -> }
         }
     }
@@ -59,7 +60,7 @@ class MiddlewareTest {
             middlewares(testMiddleware)
         }
 
-        store.dispatcher(MiddlewareTestAction.Increment)
+        store.dispatch(MiddlewareTestAction.Increment)
         advanceUntilIdle() // Allow coroutines to execute// Allow coroutines to execute
 
         assertNotNull(stateBeforeNext)
@@ -95,7 +96,7 @@ class MiddlewareTest {
             middlewares(middleware1, middleware2, middleware3)
         }
 
-        store.dispatcher(MiddlewareTestAction.Increment)
+        store.dispatch(MiddlewareTestAction.Increment)
         advanceUntilIdle() // Allow coroutines to execute
         assertEquals(4, stateSnapshots.size)
         assertEquals(

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.NavTransition
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationLogic
@@ -53,11 +54,11 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
         }
     }
 
-    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<NavigationAction> = { dispatch: Dispatch ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor: StoreAccessor ->
         NavigationLogic(
             CoroutineScope(Dispatchers.Unconfined),
             initialState.availableScreens,
-            dispatch
+            storeAccessor
         )
     }
 }

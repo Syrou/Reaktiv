@@ -91,7 +91,7 @@ class NavHostTest {
             }
         }
 
-        store.selectLogic<NavigationLogic>().dispatch(NavigationAction.SetLoading(true))
+        store.selectLogic<NavigationLogic>().storeAccessor.dispatch(NavigationAction.SetLoading(true))
         waitForIdle()
         this.onRoot().printToLog("Thing")
         onNodeWithText("Loading...").assertIsDisplayed()

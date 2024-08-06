@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.createStore
 import io.syrou.reaktiv.ComplexModule.ComplexAction
 import io.syrou.reaktiv.LargeStateModule.LargeAction
@@ -44,7 +45,7 @@ object TestModule : Module<TestModule.TestState, TestModule.Action> {
         }
     }
 
-    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<Action> = { dispatch: Dispatch ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<Action> = { storeAccessor: StoreAccessor ->
         ModuleLogic { action -> }
     }
 }
@@ -65,7 +66,7 @@ object TestModule2 : Module<TestModule2.TestState2, TestModule2.Action> {
         }
     }
 
-    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<Action> = { dispatch: Dispatch ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<Action> = { storeAccessor: StoreAccessor ->
         ModuleLogic { action -> }
     }
 }
@@ -88,7 +89,7 @@ object ComplexModule : Module<ComplexModule.ComplexState, ComplexModule.ComplexA
             else -> state
         }
     }
-    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<ComplexAction> = { dispatch: Dispatch ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<ComplexAction> = { storeAccessor: StoreAccessor ->
         ModuleLogic { action -> }
     }
 }
@@ -109,7 +110,7 @@ object LargeStateModule : Module<LargeStateModule.LargeState, LargeStateModule.L
             else -> state
         }
     }
-    override val createLogic: (dispatch: Dispatch) -> ModuleLogic<LargeAction> = { dispatch: Dispatch ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<LargeAction> = { storeAccessor: StoreAccessor ->
         ModuleLogic { action -> }
     }
 }
@@ -126,9 +127,9 @@ class StoreTest {
         val jobs = List(1000) { index ->
             launch {
                 if (index % 2 == 0) {
-                    store.dispatcher(TestModule.Action.IncrementAction)
+                    store.dispatch(TestModule.Action.IncrementAction)
                 } else {
-                    store.dispatcher(TestModule.Action.DecrementAction)
+                    store.dispatch(TestModule.Action.DecrementAction)
                 }
             }
         }
@@ -156,7 +157,7 @@ class StoreTest {
         }
 
         repeat(100) {
-            store.dispatcher(TestModule.Action.IncrementAction)
+            store.dispatch(TestModule.Action.IncrementAction)
             advanceUntilIdle()
         }
         job.cancelAndJoin()
@@ -185,7 +186,7 @@ class StoreTest {
 
         val writerJob = launch {
             repeat(1000) {
-                store.dispatcher(TestModule.Action.IncrementAction)
+                store.dispatch(TestModule.Action.IncrementAction)
                 advanceUntilIdle()
             }
         }
@@ -212,7 +213,7 @@ class StoreTest {
         }
 
         repeat(100) {
-            store.dispatcher(TestModule.Action.IncrementAction)
+            store.dispatch(TestModule.Action.IncrementAction)
             advanceUntilIdle()
         }
 
@@ -235,9 +236,9 @@ class StoreTest {
         val jobs = List(1000) { index ->
             launch {
                 if (index % 2 == 0) {
-                    store.dispatcher(TestModule.Action.IncrementAction)
+                    store.dispatch(TestModule.Action.IncrementAction)
                 } else {
-                    store.dispatcher(TestModule2.Action.UpdateAction("a"))
+                    store.dispatch(TestModule2.Action.UpdateAction("a"))
                 }
 
             }
@@ -261,7 +262,7 @@ class StoreTest {
         }
 
         repeat(100) { i ->
-            store.dispatcher(ComplexModule.ComplexAction.UpdateBoth(i, i.toString()))
+            store.dispatch(ComplexModule.ComplexAction.UpdateBoth(i, i.toString()))
             advanceUntilIdle()
         }
 
@@ -281,14 +282,14 @@ class StoreTest {
             coroutineContext(testDispatcher)
         }
 
-        store.dispatcher(TestModule.Action.IncrementAction)
+        store.dispatch(TestModule.Action.IncrementAction)
         advanceUntilIdle()
         assertEquals(1, store.selectState<TestModule.TestState>().value.value)
 
         store.cleanup()
         advanceUntilIdle()
         assertFails {
-            store.dispatcher(TestModule.Action.IncrementAction)
+            store.dispatch(TestModule.Action.IncrementAction)
         }
     }
 
@@ -301,7 +302,7 @@ class StoreTest {
         }
 
         repeat(1000) { i ->
-            store.dispatcher(LargeStateModule.LargeAction.AddItem(10000 + i))
+            store.dispatch(LargeStateModule.LargeAction.AddItem(10000 + i))
             advanceUntilIdle()
         }
 
