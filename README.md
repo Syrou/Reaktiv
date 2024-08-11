@@ -50,9 +50,9 @@ The Compose module offers seamless integration with Jetpack Compose, making it e
 To get started with Reaktiv, add the following dependencies to your project:
 
 ```kotlin
-implementation("io.github.syrou:reaktiv-core:0.6.0")
-implementation("io.github.syrou:reaktiv-navigation:0.6.0")
-implementation("io.github.syrou:reaktiv-compose:0.6.0")
+implementation("io.github.syrou:reaktiv-core:0.7.11")
+implementation("io.github.syrou:reaktiv-navigation:0.7.11")
+implementation("io.github.syrou:reaktiv-compose:0.7.11")
 ```
 
 Then, create your first Reaktiv store:

@@ -50,7 +50,7 @@ object HomeScreen : Screen {
 ```kotlin
 sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     data class Navigate(val route: String, val params: Map<String, Any> = emptyMap()) : NavigationAction()
-    object Back : NavigationAction()
+    data object Back : NavigationAction()
     // ... other navigation actions
 }
 ```
@@ -91,21 +91,21 @@ store.navigate("profile", mapOf("userId" to 123))
 store.navigateBack()
 store.popUpTo("home", inclusive = true)
 ```
+or
+store.navigate(ProfileScreen, mapOf("userId" to 123))
+store.navigateBack()
+store.popUpTo(HomeScreen, inclusive = true)
 
 3. Render the current screen using NavigationRender:
 
 ```kotlin
 @Composable
-fun App(store: Store) {
+fun App() {
     NavigationRender(
         modifier = Modifier.fillMaxSize(),
-        store = store,
-        isAuthenticated = true, // Implement your auth logic
-        loadingContent = { LoadingScreen() },
-        screenContent = { screen, params ->
-            screen.Content(params)
-        }
-    )
+    ) { screen, params, isLoading ->
+        screen.Content(params)
+    }
 }
 ```
 
@@ -127,14 +127,20 @@ object CustomScreen : Screen {
 
 ### Deep Linking
 
-Handle deep links by parsing the URL and navigating to the appropriate screen:
+Handle deep links by parsing the URL and navigating to the appropriate screen, for android this could look like:
 
 ```kotlin
-fun handleDeepLink(url: String) {
-    val (route, params) = parseDeepLink(url)
-    store.navigate(route, params)
-}
+private fun handleDeepLink(intent: Intent, source: String) {
+        if (intent.action == Intent.ACTION_VIEW) {
+            val uri = intent.data
+            if (uri != null) {
+                val path = uri.path // This will give you "/navigation/user/edit/456"
+                store.navigate(path?.replace("/navigation/", "") ?: "")
+            }
+        }
+    }
 ```
+This just allows your deeplinks the be prefixes by /navigation/ but otherwise work like the internal navigation system.
 
 ### Navigation with Validation
 

@@ -148,16 +148,9 @@ fun App(store: Store) {
     StoreProvider(store) {
         NavigationRender(
             modifier = Modifier.fillMaxSize(),
-            isAuthenticated = true,
-            loadingContent = { CircularProgressIndicator() },
-            screenContent = { screen, params ->
-                when (screen) {
-                    is HomeScreen -> HomeContent(params)
-                    is ProfileScreen -> ProfileContent(params)
-                    // ... other screens
-                }
-            }
-        )
+        ) { screen, params, isLoading ->
+            screen.Content(params = params)
+        }
     }
 }
 ```
@@ -192,7 +185,7 @@ object TodoModule : Module<TodoState, TodoAction> {
             is TodoAction.RemoveItem -> state.copy(items = state.items.filterIndexed { index, _ -> index != action.index })
         }
     }
-    override val createLogic: (Dispatch) -> ModuleLogic<TodoAction> = { TodoLogic(it) }
+    override val createLogic: (StoreAccessor) -> ModuleLogic<TodoAction> = { TodoLogic(it) }
 }
 
 // Create the Composable
