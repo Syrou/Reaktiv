@@ -18,12 +18,13 @@ class NavigationModuleTest {
             override val enterTransition = NavTransition.None
             override val exitTransition = NavTransition.None
             override val requiresAuth = false
+
             @Composable
-            override fun Content(params: Map<String, Any>) {}
+            override fun Content(params: Map<String, Any>) {
+            }
         }
         val module = createNavigationModule {
-            startScreen = homeScreen
-            addScreen(homeScreen)
+            setInitialScreen(homeScreen, true, true)
         }
 
         assertEquals(homeScreen, module.initialState.currentScreen)
@@ -34,8 +35,7 @@ class NavigationModuleTest {
     @Test
     fun `reducer handles Navigate action correctly`() {
         val module = createNavigationModule {
-            startScreen = homeScreen
-            addScreen(homeScreen)
+            setInitialScreen(homeScreen, addInitialScreenToAvailableScreens = true, addInitialScreenToBackStack = true)
             addScreen(profileScreen)
             coroutineContext(Dispatchers.Unconfined)
         }

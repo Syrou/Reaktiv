@@ -2,6 +2,8 @@ package io.github.syrou.reaktiv.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import io.github.syrou.reaktiv.core.Dispatch
@@ -9,6 +11,7 @@ import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 
 private val LocalStore = staticCompositionLocalOf<Store> {
@@ -124,6 +127,11 @@ fun StoreProvider(
 inline fun <reified S : ModuleState> selectState(): StateFlow<S> {
     val store = rememberStore()
     return remember { store.selectState<S>() }
+}
+
+@Composable
+inline fun <reified S : ModuleState> composeState(): State<S> {
+    return selectState<S>().collectAsState(Dispatchers.Main.immediate)
 }
 
 /**

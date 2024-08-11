@@ -1,8 +1,6 @@
 package io.github.syrou.reaktiv.navigation
 
-import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.ModuleLogic
-import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -159,7 +157,7 @@ class NavigationLogic(
      * navigationLogic.navigateWithValidation(
      *     route = "checkout",
      *     params = mapOf("cartId" to 456),
-     *     store = myStore
+     *     storeAccessor = myStore
      * ) { store, params ->
      *     val cartId = params["cartId"] as? Int ?: return@navigateWithValidation false
      *     val cartState = store.selectState<CartState>().value
@@ -170,8 +168,8 @@ class NavigationLogic(
     fun navigateWithValidation(
         route: String,
         params: Map<String, Any> = emptyMap(),
-        store: Store,
-        validate: suspend (Store, Map<String, Any>) -> Boolean
+        storeAccessor: StoreAccessor,
+        validate: suspend (StoreAccessor, Map<String, Any>) -> Boolean
     ) {
         val (finalRoute, extractedParams) = extractRouteAndParams(route)
         if (!routeExists(finalRoute)) {
@@ -181,7 +179,7 @@ class NavigationLogic(
         coroutineScope.launch {
             storeAccessor.dispatch(NavigationAction.SetLoading(true))
             try {
-                if (validate(store, sanitizedParams)) {
+                if (validate(storeAccessor, sanitizedParams)) {
                     navigate(finalRoute, sanitizedParams)
                 }
             } catch (e: Exception) {

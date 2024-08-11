@@ -3,7 +3,6 @@ package io.github.syrou.reaktiv.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
-import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
@@ -148,6 +147,19 @@ class NavigationBuilder(
     }
 
     /**
+     * Configures the navigation action to pop up to a specific destination.
+     *
+     * @param screen The screen to pop up to.
+     * @param inclusive Whether to include the specified route in the pop operation.
+     * @return The NavigationBuilder instance for chaining.
+     */
+    fun popUpTo(screen: Screen, inclusive: Boolean = false): NavigationBuilder {
+        this.popUpTo = screen.route
+        this.inclusive = inclusive
+        return this
+    }
+
+    /**
      * Configures the navigation action to replace the current destination.
      *
      * @param route The route to replace with.
@@ -155,6 +167,17 @@ class NavigationBuilder(
      */
     fun replaceWith(route: String): NavigationBuilder {
         this.replaceWith = route
+        return this
+    }
+
+    /**
+     * Configures the navigation action to replace the current destination.
+     *
+     * @param screen The screen to replace with.
+     * @return The NavigationBuilder instance for chaining.
+     */
+    fun replaceWith(screen: Screen): NavigationBuilder {
+        this.replaceWith = screen.route
         return this
     }
 
@@ -182,6 +205,12 @@ class PopUpToBuilder(
         return this
     }
 
+    fun replaceWith(screen: Screen, params: Map<String, Any> = emptyMap()): PopUpToBuilder {
+        this.replaceWith = screen.route
+        this.replaceParams = params
+        return this
+    }
+
     internal fun build(): NavigationAction.PopUpTo {
         return NavigationAction.PopUpTo(
             route = route,
@@ -202,7 +231,8 @@ class PopUpToBuilder(
 class NavigationModule private constructor(
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val initialScreen: Screen,
-    private val screens: List<Pair<KClass<out Screen>, NavigationNode>>
+    private val screens: List<Pair<KClass<out Screen>, NavigationNode>>,
+    private val addInitialScreenToBackStack: Boolean
 ) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
 
     override val initialState: NavigationState by lazy {
@@ -216,12 +246,10 @@ class NavigationModule private constructor(
                 }
             }
         }
-
         availableScreens[initialScreen.route] = initialScreen
-
         NavigationState(
             currentScreen = initialScreen,
-            backStack = listOf(Pair(initialScreen, emptyMap())),
+            backStack = if (addInitialScreenToBackStack) listOf(Pair(initialScreen, emptyMap())) else emptyList(),
             availableScreens = availableScreens
         )
     }
@@ -229,6 +257,11 @@ class NavigationModule private constructor(
     @OptIn(InternalSerializationApi::class)
     override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {
         builder.polymorphic(Screen::class) {
+            //Handle persistence of the initial screen regardless if it is added to available screen or not
+            if (screens.count { it.second == initialScreen } <= 0) {
+                val initialScreen = initialScreen::class
+                subclass(initialScreen as KClass<Screen>, initialScreen.serializer())
+            }
             screens.forEach { (screenClass, screen) ->
                 @Suppress("UNCHECKED_CAST")
                 subclass(screenClass as KClass<Screen>, screenClass.serializer())
@@ -260,8 +293,13 @@ class NavigationModule private constructor(
                         ?: error("No screen found for route: ${action.route}")
                 }
 
-                val currentScreen = newBackStack.last()
-                if (currentScreen.first.route == targetScreen.route) {
+                val currentScreen = newBackStack.lastOrNull()
+                if (currentScreen == null) {
+                    println(
+                        "Reaktiv Navigation warning: Could not find previous backstack entry, are you sure you had one?"
+                    )
+                }
+                if (currentScreen?.first?.route == targetScreen.route) {
                     state
                 } else {
                     state.copy(
@@ -340,6 +378,7 @@ class NavigationModule private constructor(
      */
     class Builder {
         var startScreen: Screen? = null
+        var _addInitialScreenToBackStack: Boolean = false
         val screens = mutableListOf<Pair<KClass<out Screen>, Screen>>()
         private var coroutineContext = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -349,10 +388,15 @@ class NavigationModule private constructor(
          *
          * @param screen The initial screen to display.
          */
-        inline fun <reified S : Screen> setInitialScreen(screen: S, addToScreenBackStack: Boolean = false) {
+        inline fun <reified S : Screen> setInitialScreen(
+            screen: S,
+            addInitialScreenToAvailableScreens: Boolean = false,
+            addInitialScreenToBackStack: Boolean = false
+        ) {
             startScreen = screen
             // Ensure the initial screen is also in the screens list
-            if(addToScreenBackStack) {
+            _addInitialScreenToBackStack = addInitialScreenToBackStack
+            if (addInitialScreenToAvailableScreens) {
                 addScreen(screen)
             }
         }
@@ -383,7 +427,7 @@ class NavigationModule private constructor(
 
         fun build(): NavigationModule {
             requireNotNull(startScreen) { "Initial screen must be set" }
-            return NavigationModule(coroutineContext, startScreen!!, screens)
+            return NavigationModule(coroutineContext, startScreen!!, screens, _addInitialScreenToBackStack)
         }
     }
 

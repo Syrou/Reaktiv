@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.selectState
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +29,7 @@ fun NavigationRender(
     modifier: Modifier,
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
 ) {
-    val navigationState by selectState<NavigationState>().collectAsState(Dispatchers.Main.immediate)
+    val navigationState by composeState<NavigationState>()
     var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     val currentBackStackSize = navigationState.backStack.size
     val isForward = currentBackStackSize > previousBackStackSize
@@ -41,7 +42,7 @@ fun NavigationRender(
             getContentTransform(initialState.exitTransition, targetState.enterTransition, isForward)
         }
     ) { screen ->
-        screenContent.invoke(screen, navigationState.backStack.last().second, navigationState.isLoading)
+        screenContent.invoke(screen, navigationState.backStack.lastOrNull()?.second ?: emptyMap(), navigationState.isLoading)
     }
 }
 
