@@ -1,6 +1,5 @@
 package io.syrou.reaktiv
 
-import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
@@ -8,8 +7,6 @@ import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.createStore
-import io.syrou.reaktiv.ComplexModule.ComplexAction
-import io.syrou.reaktiv.LargeStateModule.LargeAction
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -25,12 +22,13 @@ import kotlin.test.assertTrue
 // Define test module, state, and actions
 
 object TestModule : Module<TestModule.TestState, TestModule.Action> {
-    data class TestState(val value: Int) : ModuleState
+    data class TestState(val value: Int, val text: String) : ModuleState
 
-    override val initialState = TestState(0)
+    override val initialState = TestState(0, "")
 
     sealed class Action : ModuleAction(TestModule::class) {
         data object IncrementAction : Action()
+        data class UpdateText(val value: String) : Action()
         data object DecrementAction : Action()
     }
 
@@ -39,6 +37,8 @@ object TestModule : Module<TestModule.TestState, TestModule.Action> {
             is Action.IncrementAction -> {
                 state.copy(value = state.value + 1)
             }
+
+            is Action.UpdateText -> state.copy(text = action.value)
 
             is Action.DecrementAction -> state.copy(value = state.value - 1)
             else -> state
@@ -89,9 +89,10 @@ object ComplexModule : Module<ComplexModule.ComplexState, ComplexModule.ComplexA
             else -> state
         }
     }
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<ComplexAction> = { storeAccessor: StoreAccessor ->
-        ModuleLogic { action -> }
-    }
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<ComplexAction> =
+        { storeAccessor: StoreAccessor ->
+            ModuleLogic { action -> }
+        }
 }
 
 object LargeStateModule : Module<LargeStateModule.LargeState, LargeStateModule.LargeAction> {
@@ -110,9 +111,10 @@ object LargeStateModule : Module<LargeStateModule.LargeState, LargeStateModule.L
             else -> state
         }
     }
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<LargeAction> = { storeAccessor: StoreAccessor ->
-        ModuleLogic { action -> }
-    }
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<LargeAction> =
+        { storeAccessor: StoreAccessor ->
+            ModuleLogic { action -> }
+        }
 }
 
 class StoreTest {
@@ -164,6 +166,40 @@ class StoreTest {
         advanceUntilIdle()
         assertEquals(101, stateChanges.size, "Should have captured all state changes")
         assertTrue(stateChanges.zipWithNext().all { (a, b) -> b == a + 1 }, "Each state change should increment by 1")
+        store.cleanup()
+    }
+
+    @Test
+    fun testRapidStateAndVerifyDispatchedChanges() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val loggingMiddleware: Middleware = { action, getAllStates, updatedState ->
+            println("---------- Action Dispatched ----------")
+            println("TESTOR - Action: $action")
+            println("TESTOR - State before: ${getAllStates.invoke()}")
+            val newState = updatedState(action)
+            println("TESTOR - State after: $newState")
+            println("---------- End of Action -------------\n")
+        }
+
+        val store = createStore {
+            middlewares(loggingMiddleware)
+            coroutineContext(testDispatcher)
+            module(TestModule)
+        }
+
+        val truth =
+            "abcdefgijklmnopqrstuvwxyz0123456789ABCDEFGHJKILMNOPQRSTUVWXYZabcdefgijklmnopqrstuvwxyz0123456789ABCDEFGHJKILMNOPQRSTUVWXYZ"
+
+
+        repeat(truth.length) { iteration ->
+            val thing = store.selectState<TestModule.TestState>().value.text
+            val update = truth[iteration].toString()
+            store.dispatch(TestModule.Action.UpdateText(thing + update))
+            advanceUntilIdle()
+        }
+        advanceUntilIdle()
+        val completState = store.selectState<TestModule.TestState>().value.text
+        assertEquals(truth, completState, "Should have captured all state changes")
         store.cleanup()
     }
 

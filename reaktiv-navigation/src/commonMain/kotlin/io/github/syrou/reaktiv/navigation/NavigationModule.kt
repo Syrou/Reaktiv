@@ -54,7 +54,7 @@ interface NavigationNode
  */
 interface Screen : NavigationNode {
     val route: String
-    val titleResourceId: Int?
+    val titleResourceId: @Composable ()->String?
     val enterTransition: NavTransition
     val exitTransition: NavTransition
     val requiresAuth: Boolean

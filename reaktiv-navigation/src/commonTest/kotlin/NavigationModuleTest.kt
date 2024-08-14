@@ -14,7 +14,9 @@ class NavigationModuleTest {
     fun `initial state is set correctly`() {
         val homeScreen = object : Screen {
             override val route = "home"
-            override val titleResourceId = 0
+            override val titleResourceId: @Composable ()->String? = {
+                "Home"
+            }
             override val enterTransition = NavTransition.None
             override val exitTransition = NavTransition.None
             override val requiresAuth = false
