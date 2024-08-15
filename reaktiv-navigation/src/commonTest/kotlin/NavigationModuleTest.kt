@@ -1,30 +1,29 @@
-import androidx.compose.runtime.Composable
-import io.github.syrou.reaktiv.navigation.NavTransition
+import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationAction
-import io.github.syrou.reaktiv.navigation.Screen
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.extension.navigate
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import models.deleteScreen
+import models.editScreen
 import models.homeScreen
 import models.profileScreen
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
+import kotlin.test.assertTrue
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 class NavigationModuleTest {
     @Test
     fun `initial state is set correctly`() {
-        val homeScreen = object : Screen {
-            override val route = "home"
-            override val titleResourceId: @Composable ()->String? = {
-                "Home"
-            }
-            override val enterTransition = NavTransition.None
-            override val exitTransition = NavTransition.None
-            override val requiresAuth = false
-
-            @Composable
-            override fun Content(params: Map<String, Any>) {
-            }
-        }
         val module = createNavigationModule {
             setInitialScreen(homeScreen, true, true)
         }
@@ -32,6 +31,55 @@ class NavigationModuleTest {
         assertEquals(homeScreen, module.initialState.currentScreen)
         assertEquals(1, module.initialState.backStack.size)
         assertEquals(homeScreen, module.initialState.backStack.first().first)
+    }
+
+    @Test
+    fun `check that navigate and backstack clear works`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val navigationModule = createNavigationModule {
+            setInitialScreen(homeScreen, true, true)
+            addScreen(profileScreen)
+            addScreen(editScreen)
+            addScreen(deleteScreen)
+        }
+        val store = createStore {
+            module(navigationModule)
+            coroutineContext(Dispatchers.Unconfined)
+        }
+
+        store.navigate("profile")
+        advanceUntilIdle()
+        store.navigate("edit")
+        advanceUntilIdle()
+        var navigationState = store.selectState<NavigationState>().first()
+        assertEquals(3, navigationState.backStack.size)
+        store.navigate("delete") {
+            clearBackStack()
+        }
+        advanceUntilIdle()
+        navigationState = store.selectState<NavigationState>().first()
+        assertEquals(1, navigationState.backStack.size)
+        assertTrue { navigationState.backStack.first().first == deleteScreen }
+
+        assertFails {
+            store.navigate("edit"){
+                clearBackStack()
+                replaceWith("profile")
+            }
+        }
+        advanceUntilIdle()
+        assertFails {
+            store.navigate("edit"){
+                clearBackStack()
+                popUpTo("delete")
+            }
+        }
+        advanceUntilIdle()
+        store.navigate("edit"){
+            popUpTo("delete", true)
+        }
+        advanceUntilIdle()
+        navigationState = store.selectState<NavigationState>().first()
+        assertTrue { navigationState.backStack.first().first == editScreen }
     }
 
     @Test

@@ -52,14 +52,20 @@ class NavigationLogic(
         config?.let { builder.apply(it) }
         val action = builder.build()
 
-        // Additional validation for popUpTo and replaceWith
-        if (action.popUpTo != null && !routeExists(action.popUpTo)) {
-            throw RouteNotFoundException(action.popUpTo)
+        if(action.clearBackStack && action.popUpTo == null && action.replaceWith == null){
+            storeAccessor.dispatch(action)
+        }else if(action.clearBackStack && (action.popUpTo != null || action.replaceWith != null)){
+            throw ClearingBackStackWithOtherOperations
+        } else {
+            // Additional validation for popUpTo and replaceWith
+            if (action.popUpTo != null && !routeExists(action.popUpTo)) {
+                throw RouteNotFoundException(action.popUpTo)
+            }
+            if (action.replaceWith != null && !routeExists(action.replaceWith)) {
+                throw RouteNotFoundException(action.replaceWith)
+            }
+            storeAccessor.dispatch(action)
         }
-        if (action.replaceWith != null && !routeExists(action.replaceWith)) {
-            throw RouteNotFoundException(action.replaceWith)
-        }
-        storeAccessor.dispatch(action)
     }
 
     /**

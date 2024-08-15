@@ -34,3 +34,33 @@ val profileScreen = object : Screen {
     override fun Content(params: Map<String, Any>) {
     }
 }
+
+@Serializable
+val editScreen = object : Screen {
+    override val route = "edit"
+    override val titleResourceId: @Composable ()->String? = {
+        "edit"
+    }
+    override val enterTransition = NavTransition.None
+    override val exitTransition = NavTransition.None
+    override val requiresAuth = true
+
+    @Composable
+    override fun Content(params: Map<String, Any>) {
+    }
+}
+
+@Serializable
+val deleteScreen = object : Screen {
+    override val route = "delete"
+    override val titleResourceId: @Composable ()->String? = {
+        "delete"
+    }
+    override val enterTransition = NavTransition.None
+    override val exitTransition = NavTransition.None
+    override val requiresAuth = true
+
+    @Composable
+    override fun Content(params: Map<String, Any>) {
+    }
+}

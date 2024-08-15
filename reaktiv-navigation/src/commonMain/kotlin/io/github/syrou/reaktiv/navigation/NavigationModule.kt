@@ -21,6 +21,9 @@ import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
 class RouteNotFoundException(route: String) : Exception("No screen found for route: $route")
+object ClearingBackStackWithOtherOperations : Exception(
+    "You can not combine clearing backstack with replaceWith or popUpTo"
+)
 
 /**
  * Represents a navigation node in the application's navigation structure.
@@ -54,7 +57,7 @@ interface NavigationNode
  */
 interface Screen : NavigationNode {
     val route: String
-    val titleResourceId: @Composable ()->String?
+    val titleResourceId: @Composable () -> String?
     val enterTransition: NavTransition
     val exitTransition: NavTransition
     val requiresAuth: Boolean
@@ -132,6 +135,7 @@ class NavigationBuilder(
     private var popUpTo: String? = null
     private var inclusive: Boolean = false
     private var replaceWith: String? = null
+    private var clearBackStack: Boolean = false
 
     /**
      * Configures the navigation action to pop up to a specific destination.
@@ -181,13 +185,19 @@ class NavigationBuilder(
         return this
     }
 
+    fun clearBackStack(): NavigationBuilder {
+        this.clearBackStack = true
+        return this
+    }
+
     internal fun build(): NavigationAction.Navigate {
         return NavigationAction.Navigate(
             route = route,
             params = params,
             popUpTo = popUpTo,
             inclusive = inclusive,
-            replaceWith = replaceWith
+            replaceWith = replaceWith,
+            clearBackStack = clearBackStack
         )
     }
 }
@@ -272,7 +282,8 @@ class NavigationModule private constructor(
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
             is NavigationAction.Navigate -> {
-                var newBackStack = state.backStack
+
+                var newBackStack = if (action.clearBackStack) listOf() else state.backStack
                 // Handle popUpTo
                 if (action.popUpTo != null) {
                     val popIndex = newBackStack.indexOfLast { it.first.route == action.popUpTo }
@@ -294,11 +305,6 @@ class NavigationModule private constructor(
                 }
 
                 val currentScreen = newBackStack.lastOrNull()
-                if (currentScreen == null) {
-                    println(
-                        "Reaktiv Navigation warning: Could not find previous backstack entry, are you sure you had one?"
-                    )
-                }
                 if (currentScreen?.first?.route == targetScreen.route) {
                     state
                 } else {
@@ -350,7 +356,7 @@ class NavigationModule private constructor(
 
             is NavigationAction.ClearBackStack -> {
                 state.copy(
-                    backStack = listOf(state.backStack.first())
+                    backStack = listOf()
                 )
             }
 

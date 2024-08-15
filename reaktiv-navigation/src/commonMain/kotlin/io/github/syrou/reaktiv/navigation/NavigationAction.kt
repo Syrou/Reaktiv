@@ -8,7 +8,8 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
         val params: Map<String, Any> = emptyMap(),
         val popUpTo: String? = null,
         val inclusive: Boolean = false,
-        val replaceWith: String? = null
+        val replaceWith: String? = null,
+        val clearBackStack: Boolean = false
     ) : NavigationAction()
 
     data object Back : NavigationAction()
