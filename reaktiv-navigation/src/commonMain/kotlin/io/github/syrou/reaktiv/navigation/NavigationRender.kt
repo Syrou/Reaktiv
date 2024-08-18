@@ -11,6 +11,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,7 +37,7 @@ fun NavigationRender(
     // Update the previous backstack size for the next recomposition
     previousBackStackSize = currentBackStackSize
     AnimatedContent(
-        modifier = modifier.testTag("AnimatedContent"),
+        modifier = modifier.fillMaxSize().testTag("AnimatedContent"),
         targetState = navigationState.currentScreen,
         transitionSpec = {
             getContentTransform(initialState.exitTransition, targetState.enterTransition, isForward)

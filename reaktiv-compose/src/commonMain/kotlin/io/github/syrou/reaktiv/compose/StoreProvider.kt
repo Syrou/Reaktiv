@@ -2,8 +2,12 @@ package io.github.syrou.reaktiv.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import io.github.syrou.reaktiv.core.Dispatch
@@ -164,4 +168,30 @@ inline fun <reified S : ModuleState> composeState(): State<S> {
 inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L {
     val store = rememberStore()
     return store.selectLogic<L>()
+}
+
+@Composable
+inline fun <reified S : ModuleState, T> onActiveValueChange(
+    crossinline selector: (S) -> T,
+    crossinline onChange: suspend (T) -> Unit
+) {
+    val state by selectState<S>().collectAsState(Dispatchers.Main.immediate)
+    val selectedValue = selector(state)
+
+    val isActive = remember { mutableStateOf(true) }
+    val previousValue = remember { mutableStateOf<T?>(null) }
+
+    DisposableEffect(Unit) {
+        isActive.value = true
+        onDispose {
+            isActive.value = false
+        }
+    }
+
+    LaunchedEffect(selectedValue) {
+        if (isActive.value && previousValue.value != null && previousValue.value != selectedValue) {
+            onChange(selectedValue)
+        }
+        previousValue.value = selectedValue
+    }
 }
