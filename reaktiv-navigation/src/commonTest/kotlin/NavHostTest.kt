@@ -1,7 +1,6 @@
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Text
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -10,23 +9,23 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToLog
 import androidx.compose.ui.test.runComposeUiTest
 import io.github.syrou.reaktiv.compose.StoreProvider
-import io.github.syrou.reaktiv.compose.selectState
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationRender
-import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import models.TestNavigationModule
 import models.homeScreen
-import models.profileScreen
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NavHostTest {
@@ -95,5 +94,39 @@ class NavHostTest {
         waitForIdle()
         this.onRoot().printToLog("Thing")
         onNodeWithText("Loading...").assertIsDisplayed()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun verifyParamsSurvivingNavigation() = runComposeUiTest {
+        val testObject = TestNavigationModule()
+        var startMap = mutableMapOf<String, Any>()
+        val store = createStore {
+            coroutineContext(Dispatchers.Unconfined)
+            module(
+                createNavigationModule {
+                    this.setInitialScreen(homeScreen, true, true)
+                    this.addScreen(testObject.profileScreen)
+                    this.addScreen(testObject.editScreen)
+                }
+            )
+        }
+        setContent {
+            StoreProvider(store) {
+                NavigationRender(modifier = Modifier.fillMaxSize()) { screen, map, isLoading ->
+                    startMap = map.toMutableMap()
+                    screen.Content(map)
+                }
+            }
+        }
+
+        store.navigate(testObject.profileScreen.route, mapOf("test" to "test123"))
+        waitForIdle()
+        store.navigate(testObject.editScreen.route)
+        waitForIdle()
+        assertFalse { startMap.containsKey("test") }
+        store.navigateBack()
+        waitForIdle()
+        assertTrue { startMap.containsKey("test") }
     }
 }

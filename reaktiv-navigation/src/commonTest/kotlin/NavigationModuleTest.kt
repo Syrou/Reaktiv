@@ -3,11 +3,9 @@ import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.job
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import models.deleteScreen
@@ -61,25 +59,48 @@ class NavigationModuleTest {
         assertTrue { navigationState.backStack.first().first == deleteScreen }
 
         assertFails {
-            store.navigate("edit"){
+            store.navigate("edit") {
                 clearBackStack()
                 replaceWith("profile")
             }
         }
         advanceUntilIdle()
         assertFails {
-            store.navigate("edit"){
+            store.navigate("edit") {
                 clearBackStack()
                 popUpTo("delete")
             }
         }
         advanceUntilIdle()
-        store.navigate("edit"){
+        store.navigate("edit") {
             popUpTo("delete", true)
         }
         advanceUntilIdle()
         navigationState = store.selectState<NavigationState>().first()
         assertTrue { navigationState.backStack.first().first == editScreen }
+    }
+
+    @Test
+    fun `test that params survive navigation`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val navigationModule = createNavigationModule {
+            setInitialScreen(homeScreen, true, true)
+            addScreen(profileScreen)
+            addScreen(editScreen)
+            addScreen(deleteScreen)
+        }
+        val store = createStore {
+            module(navigationModule)
+            coroutineContext(Dispatchers.Unconfined)
+        }
+
+        store.navigate(profileScreen.route, mapOf("test" to "test123"))
+        store.navigate(editScreen.route)
+        var navigationState = store.selectState<NavigationState>().first()
+        println("CURRENT BACK STACK: ${navigationState.backStack}")
+        store.navigateBack()
+        navigationState = store.selectState<NavigationState>().first()
+        println("CURRENT NAVIGATION: ${navigationState}")
+        assertTrue { navigationState.backStack.first { it.first == navigationState.currentScreen }.second.isNotEmpty() }
     }
 
     @Test

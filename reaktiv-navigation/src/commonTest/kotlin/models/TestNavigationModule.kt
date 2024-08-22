@@ -45,6 +45,21 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
         }
     }
 
+    val editScreen = object : Screen {
+        override val route = "edit"
+        override val titleResourceId: @Composable ()->String? = {
+            "Edit"
+        }
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val requiresAuth = true
+
+        @Composable
+        override fun Content(params: Map<String, Any>) {
+            Text("Edit Screen")
+        }
+    }
+
     override val initialState = NavigationState(
         currentScreen = homeScreen,
         backStack = listOf(Pair(homeScreen, emptyMap())),
