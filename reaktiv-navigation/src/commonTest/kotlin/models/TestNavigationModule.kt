@@ -2,12 +2,12 @@ package models
 
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.NavTransition
 import io.github.syrou.reaktiv.navigation.NavigationAction
+import io.github.syrou.reaktiv.navigation.NavigationEntry
 import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.Screen
@@ -62,7 +62,7 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
 
     override val initialState = NavigationState(
         currentScreen = homeScreen,
-        backStack = listOf(Pair(homeScreen, emptyMap())),
+        backStack = listOf(NavigationEntry(homeScreen, emptyMap())),
         availableScreens = mapOf("home" to homeScreen, "profile" to profileScreen)
     )
 

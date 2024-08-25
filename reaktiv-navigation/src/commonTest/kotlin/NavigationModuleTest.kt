@@ -28,7 +28,7 @@ class NavigationModuleTest {
 
         assertEquals(homeScreen, module.initialState.currentScreen)
         assertEquals(1, module.initialState.backStack.size)
-        assertEquals(homeScreen, module.initialState.backStack.first().first)
+        assertEquals(homeScreen, module.initialState.backStack.first().screen)
     }
 
     @Test
@@ -56,7 +56,7 @@ class NavigationModuleTest {
         advanceUntilIdle()
         navigationState = store.selectState<NavigationState>().first()
         assertEquals(1, navigationState.backStack.size)
-        assertTrue { navigationState.backStack.first().first == deleteScreen }
+        assertTrue { navigationState.backStack.first().screen == deleteScreen }
 
         assertFails {
             store.navigate("edit") {
@@ -77,7 +77,7 @@ class NavigationModuleTest {
         }
         advanceUntilIdle()
         navigationState = store.selectState<NavigationState>().first()
-        assertTrue { navigationState.backStack.first().first == editScreen }
+        assertTrue { navigationState.backStack.first().screen == editScreen }
     }
 
     @Test
@@ -100,7 +100,7 @@ class NavigationModuleTest {
         store.navigateBack()
         navigationState = store.selectState<NavigationState>().first()
         println("CURRENT NAVIGATION: ${navigationState}")
-        assertTrue { navigationState.backStack.first { it.first == navigationState.currentScreen }.second.isNotEmpty() }
+        assertTrue { navigationState.backStack.first { it.screen == navigationState.currentScreen }.params.isNotEmpty() }
     }
 
     @Test
@@ -117,7 +117,7 @@ class NavigationModuleTest {
 
         assertEquals(profileScreen, newState.currentScreen)
         assertEquals(2, newState.backStack.size)
-        assertEquals(profileScreen, newState.backStack.last().first)
+        assertEquals(profileScreen, newState.backStack.last().screen)
     }
 
     // Add more tests for other actions (Back, PopUpTo, ClearBackStack, Replace, SetLoading)

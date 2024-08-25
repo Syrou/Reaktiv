@@ -60,11 +60,14 @@ interface Screen : NavigationNode {
     val titleResourceId: @Composable () -> String?
     val enterTransition: NavTransition
     val exitTransition: NavTransition
+    val popEnterTransition: NavTransition? get() = null
+    val popExitTransition: NavTransition? get() = null
     val requiresAuth: Boolean
 
     @Composable
     fun Content(params: Map<String, Any>)
 }
+
 
 /**
  * Represents a group of screens in the application's navigation structure.
@@ -100,10 +103,17 @@ open class ScreenGroup(
  */
 sealed class NavTransition {
     data object None : NavTransition()
-    data object Slide : NavTransition()
+    data object SlideInRight : NavTransition()
+    data object SlideOutRight : NavTransition()
+    data object SlideInLeft : NavTransition()
+    data object SlideOutLeft : NavTransition()
+    data object SlideUpBottom : NavTransition()
+    data object SlideOutBottom : NavTransition()
+    data object Hold : NavTransition()
     data object Fade : NavTransition()
     data object Scale : NavTransition()
-    data class Custom(val enter: EnterTransition, val exit: ExitTransition) : NavTransition()
+    data class CustomEnterTransition(val enter: EnterTransition) : NavTransition()
+    data class CustomExitTransitiion(val exit: ExitTransition) : NavTransition()
 }
 
 /**
@@ -117,10 +127,16 @@ sealed class NavTransition {
 @Serializable
 data class NavigationState(
     val currentScreen: Screen,
-    val backStack: List<Pair<Screen, StringAnyMap>>,
+    val backStack: List<NavigationEntry>,
     val availableScreens: Map<String, Screen> = emptyMap(),
     val isLoading: Boolean = false
 ) : ModuleState
+
+@Serializable
+data class NavigationEntry(
+    val screen: Screen,
+    val params: StringAnyMap
+)
 
 /**
  * Builder class for configuring navigation actions.
@@ -153,12 +169,12 @@ class NavigationBuilder(
     /**
      * Configures the navigation action to pop up to a specific destination.
      *
-     * @param screen The screen to pop up to.
+     * @param Screen The screen to pop up to.
      * @param inclusive Whether to include the specified route in the pop operation.
      * @return The NavigationBuilder instance for chaining.
      */
-    fun popUpTo(screen: Screen, inclusive: Boolean = false): NavigationBuilder {
-        this.popUpTo = screen.route
+    fun popUpTo(Screen: Screen, inclusive: Boolean = false): NavigationBuilder {
+        this.popUpTo = Screen.route
         this.inclusive = inclusive
         return this
     }
@@ -177,11 +193,11 @@ class NavigationBuilder(
     /**
      * Configures the navigation action to replace the current destination.
      *
-     * @param screen The screen to replace with.
+     * @param Screen The screen to replace with.
      * @return The NavigationBuilder instance for chaining.
      */
-    fun replaceWith(screen: Screen): NavigationBuilder {
-        this.replaceWith = screen.route
+    fun replaceWith(Screen: Screen): NavigationBuilder {
+        this.replaceWith = Screen.route
         return this
     }
 
@@ -215,8 +231,8 @@ class PopUpToBuilder(
         return this
     }
 
-    fun replaceWith(screen: Screen, params: Map<String, Any> = emptyMap()): PopUpToBuilder {
-        this.replaceWith = screen.route
+    fun replaceWith(Screen: Screen, params: Map<String, Any> = emptyMap()): PopUpToBuilder {
+        this.replaceWith = Screen.route
         this.replaceParams = params
         return this
     }
@@ -259,7 +275,12 @@ class NavigationModule private constructor(
         availableScreens[initialScreen.route] = initialScreen
         NavigationState(
             currentScreen = initialScreen,
-            backStack = if (addInitialScreenToBackStack) listOf(Pair(initialScreen, emptyMap())) else emptyList(),
+            backStack = if (addInitialScreenToBackStack) listOf(
+                NavigationEntry(
+                    screen = initialScreen,
+                    params = emptyMap()
+                )
+            ) else emptyList(),
             availableScreens = availableScreens
         )
     }
@@ -286,7 +307,7 @@ class NavigationModule private constructor(
                 var newBackStack = if (action.clearBackStack) listOf() else state.backStack
                 // Handle popUpTo
                 if (action.popUpTo != null) {
-                    val popIndex = newBackStack.indexOfLast { it.first.route == action.popUpTo }
+                    val popIndex = newBackStack.indexOfLast { it.screen.route == action.popUpTo }
                     if (popIndex != -1) {
                         newBackStack = if (action.inclusive) {
                             newBackStack.subList(0, popIndex)
@@ -304,19 +325,24 @@ class NavigationModule private constructor(
                         ?: error("No screen found for route: ${action.route}")
                 }
 
+                val newEntry = NavigationEntry(
+                    screen = targetScreen,
+                    params = action.params
+                )
+
                 val currentScreen = newBackStack.lastOrNull()
-                if (currentScreen?.first?.route == targetScreen.route) {
+                if (currentScreen?.screen?.route == targetScreen.route) {
                     state
                 } else {
                     state.copy(
                         currentScreen = targetScreen,
-                        backStack = newBackStack + Pair(targetScreen, action.params)
+                        backStack = newBackStack + newEntry
                     )
                 }
             }
 
             is NavigationAction.PopUpTo -> {
-                val targetIndex = state.backStack.indexOfLast { it.first.route == action.route }
+                val targetIndex = state.backStack.indexOfLast { it.screen.route == action.route }
                 if (targetIndex != -1) {
                     var newBackStack = if (action.inclusive) {
                         state.backStack.subList(0, targetIndex)
@@ -324,13 +350,18 @@ class NavigationModule private constructor(
                         state.backStack.subList(0, targetIndex + 1)
                     }
 
-                    var currentScreen = newBackStack.lastOrNull()?.first ?: state.currentScreen
+
+                    var currentScreen = newBackStack.lastOrNull()?.screen ?: state.currentScreen
 
                     if (action.replaceWith != null) {
                         val replaceScreen = state.availableScreens[action.replaceWith]
                             ?: error("No screen found for route: ${action.replaceWith}")
                         currentScreen = replaceScreen
-                        newBackStack = newBackStack.dropLast(1) + Pair(replaceScreen, action.replaceParams)
+                        val newEntry = NavigationEntry(
+                            screen = replaceScreen,
+                            params = action.replaceParams
+                        )
+                        newBackStack = newBackStack.dropLast(1) + newEntry
                     }
 
                     state.copy(
@@ -346,7 +377,7 @@ class NavigationModule private constructor(
                 if (state.backStack.size > 1) {
                     val newBackStack = state.backStack.dropLast(1)
                     state.copy(
-                        currentScreen = newBackStack.last().first,
+                        currentScreen = newBackStack.last().screen,
                         backStack = newBackStack,
                     )
                 } else {
@@ -363,9 +394,13 @@ class NavigationModule private constructor(
             is NavigationAction.Replace -> {
                 val newScreen = state.availableScreens[action.route]
                     ?: error("No screen found for route: ${action.route}")
+                val newEntry = NavigationEntry(
+                    screen = newScreen,
+                    params = action.params
+                )
                 state.copy(
                     currentScreen = newScreen,
-                    backStack = state.backStack.dropLast(1) + Pair(newScreen, action.params),
+                    backStack = state.backStack.dropLast(1) + newEntry,
                 )
             }
 

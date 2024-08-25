@@ -1,6 +1,5 @@
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Text
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -17,7 +16,6 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import models.TestNavigationModule
