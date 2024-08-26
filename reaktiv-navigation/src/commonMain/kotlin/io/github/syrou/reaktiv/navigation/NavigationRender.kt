@@ -96,7 +96,7 @@ private fun getExitAnimation(transition: NavTransition): ExitTransition {
         NavTransition.Hold -> fadeOut(tween(500),targetAlpha = 0.99f)
         NavTransition.Fade -> fadeOut()
         NavTransition.Scale -> scaleOut()
-        is NavTransition.CustomExitTransitiion -> transition.exit
+        is NavTransition.CustomExitTransition -> transition.exit
         else -> ExitTransition.None
     }
 }

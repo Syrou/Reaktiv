@@ -113,7 +113,7 @@ sealed class NavTransition {
     data object Fade : NavTransition()
     data object Scale : NavTransition()
     data class CustomEnterTransition(val enter: EnterTransition) : NavTransition()
-    data class CustomExitTransitiion(val exit: ExitTransition) : NavTransition()
+    data class CustomExitTransition(val exit: ExitTransition) : NavTransition()
 }
 
 /**
