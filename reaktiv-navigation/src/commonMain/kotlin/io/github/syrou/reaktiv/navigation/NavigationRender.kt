@@ -32,9 +32,10 @@ fun NavigationRender(
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
 ) {
     val navigationState by composeState<NavigationState>()
+    var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
-    val currentBackStackSize = navigationState.backStack.size
-    previousBackStackSize = currentBackStackSize
+
+
     // Remember the previous screen
     var previousScreen by remember { mutableStateOf<Screen?>(null) }
     var currentScreen by remember { mutableStateOf<Screen>(navigationState.currentScreen) }
@@ -43,14 +44,17 @@ fun NavigationRender(
     LaunchedEffect(navigationState.currentScreen) {
         previousScreen = currentScreen
         currentScreen = navigationState.currentScreen
+        previousBackStackSize = currentBackStackSize
+        currentBackStackSize = navigationState.backStack.size
     }
     AnimatedContent(
         modifier = modifier.fillMaxSize().testTag("AnimatedContent"),
         targetState = currentScreen,
         transitionSpec = {
+            val isForward = navigationState.backStack.size > previousBackStackSize
             val enterTransition = previousScreen?.popEnterTransition ?: targetState.enterTransition
             val exitTransition = targetState.popExitTransition ?: initialState.exitTransition
-            getContentTransform(exitTransition, enterTransition).apply {
+            getContentTransform(exitTransition, enterTransition, isForward).apply {
                 targetContentZIndex = navigationState.backStack.size.toFloat()
             }
         }
@@ -68,19 +72,26 @@ fun NavigationRender(
 
 private fun getContentTransform(
     exitTransition: NavTransition,
-    enterTransition: NavTransition
+    enterTransition: NavTransition,
+    isForward: Boolean
 ): ContentTransform {
-    val enter = getEnterAnimation(enterTransition)
-    val exit = getExitAnimation(exitTransition)
+    val enter = getEnterAnimation(enterTransition, isForward)
+    val exit = getExitAnimation(exitTransition, isForward)
     return enter togetherWith exit
 }
 
-private fun getEnterAnimation(transition: NavTransition): EnterTransition {
+private fun getEnterAnimation(transition: NavTransition, isForward: Boolean): EnterTransition {
     return when (transition) {
-        NavTransition.SlideInRight -> slideInHorizontally { width -> width }
-        NavTransition.SlideInLeft -> slideInHorizontally { width -> -width }
+        NavTransition.SlideInRight -> {
+            if (isForward) slideInHorizontally { width -> width } else slideInHorizontally { width -> -width }
+        }
+
+        NavTransition.SlideInLeft -> {
+            if (isForward) slideInHorizontally { width -> -width } else slideInHorizontally { width -> width }
+        }
+
         NavTransition.SlideUpBottom -> slideInVertically { height -> height }
-        NavTransition.Hold -> fadeIn(tween(500),initialAlpha = 0.99f)
+        NavTransition.Hold -> fadeIn(tween(500), initialAlpha = 0.99f)
         NavTransition.Fade -> fadeIn()
         NavTransition.Scale -> scaleIn()
         is NavTransition.CustomEnterTransition -> transition.enter
@@ -88,12 +99,18 @@ private fun getEnterAnimation(transition: NavTransition): EnterTransition {
     }
 }
 
-private fun getExitAnimation(transition: NavTransition): ExitTransition {
+private fun getExitAnimation(transition: NavTransition, isForward: Boolean): ExitTransition {
     return when (transition) {
-        NavTransition.SlideOutRight -> slideOutHorizontally { width -> width }
-        NavTransition.SlideOutLeft -> slideOutHorizontally { width -> -width }
+        NavTransition.SlideOutRight -> {
+            if (isForward) slideOutHorizontally { width -> width } else slideOutHorizontally { width -> -width }
+        }
+
+        NavTransition.SlideOutLeft -> {
+            if (isForward) slideOutHorizontally { width -> -width } else slideOutHorizontally { width -> width }
+        }
+
         NavTransition.SlideOutBottom -> slideOutVertically { height -> height }
-        NavTransition.Hold -> fadeOut(tween(500),targetAlpha = 0.99f)
+        NavTransition.Hold -> fadeOut(tween(500), targetAlpha = 0.99f)
         NavTransition.Fade -> fadeOut()
         NavTransition.Scale -> scaleOut()
         is NavTransition.CustomExitTransition -> transition.exit
