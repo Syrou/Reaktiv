@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 val homeScreen = object : Screen {
     override val route = "home"
-    override val titleResourceId: @Composable ()->String? = {
+    override val titleResource: @Composable ()->String? = {
         "Home"
     }
     override val enterTransition = NavTransition.None
@@ -23,7 +23,7 @@ val homeScreen = object : Screen {
 @Serializable
 val profileScreen = object : Screen {
     override val route = "profile"
-    override val titleResourceId: @Composable ()->String? = {
+    override val titleResource: @Composable ()->String? = {
         "Profile"
     }
     override val enterTransition = NavTransition.None
@@ -38,7 +38,7 @@ val profileScreen = object : Screen {
 @Serializable
 val editScreen = object : Screen {
     override val route = "edit"
-    override val titleResourceId: @Composable ()->String? = {
+    override val titleResource: @Composable ()->String? = {
         "edit"
     }
     override val enterTransition = NavTransition.None
@@ -53,7 +53,7 @@ val editScreen = object : Screen {
 @Serializable
 val deleteScreen = object : Screen {
     override val route = "delete"
-    override val titleResourceId: @Composable ()->String? = {
+    override val titleResource: @Composable ()->String? = {
         "delete"
     }
     override val enterTransition = NavTransition.None

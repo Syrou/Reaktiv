@@ -17,7 +17,7 @@ import kotlinx.coroutines.Dispatchers
 class TestNavigationModule : Module<NavigationState, NavigationAction> {
     val homeScreen = object : Screen {
         override val route = "home"
-        override val titleResourceId: @Composable ()->String? = {
+        override val titleResource: @Composable ()->String? = {
             "Home"
         }
         override val enterTransition = NavTransition.None
@@ -32,7 +32,7 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
 
     val profileScreen = object : Screen {
         override val route = "profile"
-        override val titleResourceId: @Composable ()->String? = {
+        override val titleResource: @Composable ()->String? = {
             "Profile"
         }
         override val enterTransition = NavTransition.None
@@ -47,7 +47,7 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
 
     val editScreen = object : Screen {
         override val route = "edit"
-        override val titleResourceId: @Composable ()->String? = {
+        override val titleResource: @Composable ()->String? = {
             "Edit"
         }
         override val enterTransition = NavTransition.None

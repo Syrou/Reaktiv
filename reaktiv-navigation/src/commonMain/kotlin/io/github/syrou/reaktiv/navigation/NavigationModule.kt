@@ -34,7 +34,7 @@ interface NavigationNode
  * Represents a screen in the application's navigation structure.
  *
  * @property route The unique identifier for this screen.
- * @property titleResourceId The resource ID for the screen's title.
+ * @property titleResource The resource ID for the screen's title.
  * @property enterTransition The transition animation when entering this screen.
  * @property exitTransition The transition animation when exiting this screen.
  * @property requiresAuth Whether this screen requires authentication.
@@ -57,7 +57,8 @@ interface NavigationNode
  */
 interface Screen : NavigationNode {
     val route: String
-    val titleResourceId: @Composable () -> String?
+    val titleResource: @Composable () -> String?
+    val actionResource: (@Composable ()->Unit)? get() = null
     val enterTransition: NavTransition
     val exitTransition: NavTransition
     val popEnterTransition: NavTransition? get() = null
