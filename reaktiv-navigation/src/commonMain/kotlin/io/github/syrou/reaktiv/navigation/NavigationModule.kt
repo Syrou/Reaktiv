@@ -25,6 +25,9 @@ object ClearingBackStackWithOtherOperations : Exception(
     "You can not combine clearing backstack with replaceWith or popUpTo"
 )
 
+typealias TitleResource = @Composable (() -> String?)
+typealias ActionResource = @Composable (() -> String)
+
 /**
  * Represents a navigation node in the application's navigation structure.
  */
@@ -57,8 +60,8 @@ interface NavigationNode
  */
 interface Screen : NavigationNode {
     val route: String
-    val titleResource: @Composable () -> String?
-    val actionResource: (@Composable ()->Unit)? get() = null
+    val titleResource: TitleResource?
+    val actionResource: ActionResource? get() = null
     val enterTransition: NavTransition
     val exitTransition: NavTransition
     val popEnterTransition: NavTransition? get() = null
@@ -153,6 +156,7 @@ class NavigationBuilder(
     private var inclusive: Boolean = false
     private var replaceWith: String? = null
     private var clearBackStack: Boolean = false
+    private var forwardParams: Boolean = false
 
     /**
      * Configures the navigation action to pop up to a specific destination.
@@ -202,6 +206,23 @@ class NavigationBuilder(
         return this
     }
 
+    /**
+     * Configures the navigation action to add on the previous params when navigating.
+     * This is useful for params that needs to survive a long navigation chain.
+     * Will always take the latest params and replace any previous params if they share the same key.
+     *
+     * @return The NavigationBuilder instance for chaining.
+     */
+    fun forwardParams(): NavigationBuilder {
+        this.forwardParams = true
+        return this
+    }
+
+    /**
+     * Configures the navigation to clear the backstack after navigation
+     *
+     * @return The NavigationBuilder instance for chaining.
+     */
     fun clearBackStack(): NavigationBuilder {
         this.clearBackStack = true
         return this
@@ -214,7 +235,8 @@ class NavigationBuilder(
             popUpTo = popUpTo,
             inclusive = inclusive,
             replaceWith = replaceWith,
-            clearBackStack = clearBackStack
+            clearBackStack = clearBackStack,
+            forwardParams = forwardParams
         )
     }
 }
@@ -226,14 +248,14 @@ class PopUpToBuilder(
     private var replaceWith: String? = null
     private var replaceParams: Map<String, Any> = emptyMap()
 
+    /**
+     * Configures the popUpTo action to replace the current destination.
+     *
+     * @param route The route to replace with.
+     * @return The PopUpToBuilder instance for chaining.
+     */
     fun replaceWith(route: String, params: Map<String, Any> = emptyMap()): PopUpToBuilder {
         this.replaceWith = route
-        this.replaceParams = params
-        return this
-    }
-
-    fun replaceWith(Screen: Screen, params: Map<String, Any> = emptyMap()): PopUpToBuilder {
-        this.replaceWith = Screen.route
         this.replaceParams = params
         return this
     }
@@ -326,9 +348,16 @@ class NavigationModule private constructor(
                         ?: error("No screen found for route: ${action.route}")
                 }
 
+                val params: StringAnyMap = if (action.forwardParams) {
+                    val previousParams = state.backStack.lastOrNull()?.params ?: emptyMap()
+                    previousParams.plus(action.params)
+                } else {
+                    action.params
+                }
+
                 val newEntry = NavigationEntry(
                     screen = targetScreen,
-                    params = action.params
+                    params = params
                 )
 
                 val currentScreen = newBackStack.lastOrNull()

@@ -9,7 +9,8 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
         val popUpTo: String? = null,
         val inclusive: Boolean = false,
         val replaceWith: String? = null,
-        val clearBackStack: Boolean = false
+        val clearBackStack: Boolean = false,
+        val forwardParams: Boolean = false
     ) : NavigationAction()
 
     data object Back : NavigationAction()
@@ -17,7 +18,7 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
         val route: String,
         val inclusive: Boolean,
         val replaceWith: String? = null,
-        val replaceParams: Map<String, Any> = emptyMap()
+        val replaceParams: Map<String, Any> = emptyMap(),
     ) : NavigationAction()
 
 

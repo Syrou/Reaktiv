@@ -52,8 +52,10 @@ fun NavigationRender(
         targetState = currentScreen,
         transitionSpec = {
             val isForward = navigationState.backStack.size > previousBackStackSize
-            val enterTransition = previousScreen?.popEnterTransition ?: targetState.enterTransition
-            val exitTransition = targetState.popExitTransition ?: initialState.exitTransition
+            val enterTransition = if (!isForward) previousScreen?.popEnterTransition
+                ?: targetState.enterTransition else targetState.enterTransition
+            val exitTransition = if (isForward) targetState.popExitTransition
+                ?: initialState.exitTransition else initialState.exitTransition
             getContentTransform(exitTransition, enterTransition, isForward).apply {
                 targetContentZIndex = navigationState.backStack.size.toFloat()
             }
