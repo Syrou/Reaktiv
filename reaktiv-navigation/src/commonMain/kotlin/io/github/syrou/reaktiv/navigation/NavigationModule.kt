@@ -26,7 +26,7 @@ object ClearingBackStackWithOtherOperations : Exception(
 )
 
 typealias TitleResource = @Composable (() -> String?)
-typealias ActionResource = @Composable (() -> String)
+typealias ActionResource = @Composable (() -> Unit)
 
 /**
  * Represents a navigation node in the application's navigation structure.
