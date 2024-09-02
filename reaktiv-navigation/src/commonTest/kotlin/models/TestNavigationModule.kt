@@ -11,13 +11,14 @@ import io.github.syrou.reaktiv.navigation.NavigationEntry
 import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.Screen
+import io.github.syrou.reaktiv.navigation.TitleResource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
 class TestNavigationModule : Module<NavigationState, NavigationAction> {
     val homeScreen = object : Screen {
         override val route = "home"
-        override val titleResource: @Composable ()->String? = {
+        override val titleResource: TitleResource = {
             "Home"
         }
         override val enterTransition = NavTransition.None
@@ -32,7 +33,7 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
 
     val profileScreen = object : Screen {
         override val route = "profile"
-        override val titleResource: @Composable ()->String? = {
+        override val titleResource: TitleResource = {
             "Profile"
         }
         override val enterTransition = NavTransition.None
@@ -47,7 +48,7 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
 
     val editScreen = object : Screen {
         override val route = "edit"
-        override val titleResource: @Composable ()->String? = {
+        override val titleResource: TitleResource = {
             "Edit"
         }
         override val enterTransition = NavTransition.None
