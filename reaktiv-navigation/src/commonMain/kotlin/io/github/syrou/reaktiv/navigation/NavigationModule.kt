@@ -25,7 +25,7 @@ object ClearingBackStackWithOtherOperations : Exception(
     "You can not combine clearing backstack with replaceWith or popUpTo"
 )
 
-typealias TitleResource = @Composable (() -> String?)
+typealias TitleResource = @Composable (() -> String)
 typealias ActionResource = @Composable (() -> Unit)
 
 /**
@@ -60,7 +60,7 @@ interface NavigationNode
  */
 interface Screen : NavigationNode {
     val route: String
-    val titleResource: TitleResource?
+    val titleResource: TitleResource?  get() = null
     val actionResource: ActionResource? get() = null
     val enterTransition: NavTransition
     val exitTransition: NavTransition
@@ -133,6 +133,7 @@ data class NavigationState(
     val currentScreen: Screen,
     val backStack: List<NavigationEntry>,
     val availableScreens: Map<String, Screen> = emptyMap(),
+    val clearedBackStackWithNavigate: Boolean = false,
     val isLoading: Boolean = false
 ) : ModuleState
 
@@ -349,7 +350,7 @@ class NavigationModule private constructor(
                 }
 
                 val params: StringAnyMap = if (action.forwardParams) {
-                    val previousParams = state.backStack.lastOrNull()?.params ?: emptyMap()
+                    val previousParams = newBackStack.lastOrNull()?.params ?: emptyMap()
                     previousParams.plus(action.params)
                 } else {
                     action.params
@@ -366,7 +367,8 @@ class NavigationModule private constructor(
                 } else {
                     state.copy(
                         currentScreen = targetScreen,
-                        backStack = newBackStack + newEntry
+                        backStack = newBackStack + newEntry,
+                        clearedBackStackWithNavigate = action.clearBackStack
                     )
                 }
             }

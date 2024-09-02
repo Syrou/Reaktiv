@@ -40,24 +40,32 @@ fun NavigationRender(
     var previousScreen by remember { mutableStateOf<Screen?>(null) }
     var currentScreen by remember { mutableStateOf<Screen>(navigationState.currentScreen) }
 
+    LaunchedEffect(navigationState.backStack.size) {
+        previousBackStackSize = currentBackStackSize
+        currentBackStackSize = navigationState.backStack.size
+    }
+
     // Update the remembered previous screen when the current screen changes
     LaunchedEffect(navigationState.currentScreen) {
         previousScreen = currentScreen
         currentScreen = navigationState.currentScreen
-        previousBackStackSize = currentBackStackSize
-        currentBackStackSize = navigationState.backStack.size
     }
     AnimatedContent(
         modifier = modifier.fillMaxSize().testTag("AnimatedContent"),
         targetState = currentScreen,
         transitionSpec = {
-            val isForward = navigationState.backStack.size > previousBackStackSize
+            val isForward = navigationState.clearedBackStackWithNavigate || (navigationState.backStack.size > previousBackStackSize)
             val enterTransition = if (!isForward) previousScreen?.popEnterTransition
                 ?: targetState.enterTransition else targetState.enterTransition
             val exitTransition = if (isForward) targetState.popExitTransition
                 ?: initialState.exitTransition else initialState.exitTransition
             getContentTransform(exitTransition, enterTransition, isForward).apply {
-                targetContentZIndex = navigationState.backStack.size.toFloat()
+                targetContentZIndex =
+                    if (navigationState.clearedBackStackWithNavigate) {
+                        previousBackStackSize++.toFloat()
+                    } else {
+                        navigationState.backStack.size.toFloat()
+                    }
             }
         }
     ) { screen ->
