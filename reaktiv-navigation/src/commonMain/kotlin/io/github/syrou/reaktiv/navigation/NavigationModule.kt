@@ -60,7 +60,7 @@ interface NavigationNode
  */
 interface Screen : NavigationNode {
     val route: String
-    val titleResource: TitleResource?  get() = null
+    val titleResource: TitleResource? get() = null
     val actionResource: ActionResource? get() = null
     val enterTransition: NavTransition
     val exitTransition: NavTransition
@@ -173,19 +173,6 @@ class NavigationBuilder(
     }
 
     /**
-     * Configures the navigation action to pop up to a specific destination.
-     *
-     * @param Screen The screen to pop up to.
-     * @param inclusive Whether to include the specified route in the pop operation.
-     * @return The NavigationBuilder instance for chaining.
-     */
-    fun popUpTo(Screen: Screen, inclusive: Boolean = false): NavigationBuilder {
-        this.popUpTo = Screen.route
-        this.inclusive = inclusive
-        return this
-    }
-
-    /**
      * Configures the navigation action to replace the current destination.
      *
      * @param route The route to replace with.
@@ -193,17 +180,6 @@ class NavigationBuilder(
      */
     fun replaceWith(route: String): NavigationBuilder {
         this.replaceWith = route
-        return this
-    }
-
-    /**
-     * Configures the navigation action to replace the current destination.
-     *
-     * @param Screen The screen to replace with.
-     * @return The NavigationBuilder instance for chaining.
-     */
-    fun replaceWith(Screen: Screen): NavigationBuilder {
-        this.replaceWith = Screen.route
         return this
     }
 
@@ -242,6 +218,24 @@ class NavigationBuilder(
     }
 }
 
+class ClearBackStackBuilder(
+    private var root: String? = null,
+    private var params: StringAnyMap = emptyMap()
+) {
+
+    fun setRoot(route: String, params: StringAnyMap = emptyMap()) {
+        this.root = route
+        this.params = params
+    }
+
+    internal fun build(): NavigationAction.ClearBackStack {
+        return NavigationAction.ClearBackStack(
+            root = root,
+            params = params
+        )
+    }
+}
+
 class PopUpToBuilder(
     var route: String,
     var inclusive: Boolean = false
@@ -275,14 +269,14 @@ class PopUpToBuilder(
  * The main module for handling navigation in the Reaktiv architecture.
  *
  * @property coroutineScope The coroutine context for this module.
- * @property initialScreen The initial screen to display when the app starts.
+ * @property rootScreen The initial screen to display when the app starts.
  * @property screens The list of screens and screen groups in the application.
  */
 class NavigationModule private constructor(
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val initialScreen: Screen,
+    private val rootScreen: Screen,
     private val screens: List<Pair<KClass<out Screen>, NavigationNode>>,
-    private val addInitialScreenToBackStack: Boolean
+    private val addRootScreenToBackStack: Boolean
 ) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
 
     override val initialState: NavigationState by lazy {
@@ -296,12 +290,12 @@ class NavigationModule private constructor(
                 }
             }
         }
-        availableScreens[initialScreen.route] = initialScreen
+        availableScreens[rootScreen.route] = rootScreen
         NavigationState(
-            currentScreen = initialScreen,
-            backStack = if (addInitialScreenToBackStack) listOf(
+            currentScreen = rootScreen,
+            backStack = if (addRootScreenToBackStack) listOf(
                 NavigationEntry(
-                    screen = initialScreen,
+                    screen = rootScreen,
                     params = emptyMap()
                 )
             ) else emptyList(),
@@ -313,8 +307,8 @@ class NavigationModule private constructor(
     override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {
         builder.polymorphic(Screen::class) {
             //Handle persistence of the initial screen regardless if it is added to available screen or not
-            if (screens.count { it.second == initialScreen } <= 0) {
-                val initialScreen = initialScreen::class
+            if (screens.count { it.second == rootScreen } <= 0) {
+                val initialScreen = rootScreen::class
                 subclass(initialScreen as KClass<Screen>, initialScreen.serializer())
             }
             screens.forEach { (screenClass, screen) ->
@@ -418,9 +412,16 @@ class NavigationModule private constructor(
             }
 
             is NavigationAction.ClearBackStack -> {
-                state.copy(
-                    backStack = listOf()
-                )
+                if (action.root != null) {
+                    val currentScreen =
+                        state.availableScreens[action.root] ?: error("No screen found for route: ${action.root}")
+                    state.copy(
+                        currentScreen = currentScreen,
+                        backStack = listOf(NavigationEntry(currentScreen, action.params))
+                    )
+                } else {
+                    state.copy(backStack = listOf())
+                }
             }
 
             is NavigationAction.Replace -> {

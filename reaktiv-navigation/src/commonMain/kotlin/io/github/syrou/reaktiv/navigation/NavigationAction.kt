@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.ModuleAction
+import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 
 sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     data class Navigate(
@@ -22,7 +23,7 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     ) : NavigationAction()
 
 
-    data object ClearBackStack : NavigationAction()
+    data class ClearBackStack(val root: String? = null, val params: StringAnyMap = emptyMap()) : NavigationAction()
     data class Replace(val route: String, val params: Map<String, Any> = emptyMap()) : NavigationAction()
     data class SetLoading(val isLoading: Boolean) : NavigationAction()
 }

@@ -52,9 +52,9 @@ class NavigationLogic(
         config?.let { builder.apply(it) }
         val action = builder.build()
 
-        if(action.clearBackStack && action.popUpTo == null && action.replaceWith == null){
+        if (action.clearBackStack && action.popUpTo == null && action.replaceWith == null) {
             storeAccessor.dispatch(action)
-        }else if(action.clearBackStack && (action.popUpTo != null || action.replaceWith != null)){
+        } else if (action.clearBackStack && (action.popUpTo != null || action.replaceWith != null)) {
             throw ClearingBackStackWithOtherOperations
         } else {
             // Additional validation for popUpTo and replaceWith
@@ -127,8 +127,11 @@ class NavigationLogic(
      * navigationLogic.clearBackStack()
      * ```
      */
-    fun clearBackStack() {
-        storeAccessor.dispatch(NavigationAction.ClearBackStack)
+    fun clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
+        val builder = ClearBackStackBuilder()
+        config?.let { builder.apply(it) }
+        val action = builder.build()
+        storeAccessor.dispatch(action)
     }
 
     /**
