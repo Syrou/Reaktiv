@@ -199,6 +199,64 @@ class NavigationLogic(
         }
     }
 
+    /**
+     * Clears the params for the current visible screen.
+     *
+     * Example:
+     * ```
+     * navigationLogic.clearCurrentScreenParams
+     * ```
+     */
+    fun clearCurrentScreenParams() {
+        storeAccessor.dispatch(NavigationAction.ClearCurrentScreenParams)
+    }
+
+    /**
+     * Clears a param for the current visible screen.
+     *
+     * @param key for which param to be removed from the current visible screen
+     * Example:
+     * ```
+     * navigationLogic.clearCurrentScreenParams("home")
+     * ```
+     */
+    fun clearCurrentScreenParam(key: String) {
+        storeAccessor.dispatch(NavigationAction.ClearCurrentScreenParam(key))
+    }
+
+    /**
+     * Clears the params for a given existing screen route.
+     *
+     * Example:
+     * ```
+     * navigationLogic.clearScreenParams
+     * ```
+     */
+    fun clearScreenParams(route: String) {
+        if (routeExists(route)) {
+            storeAccessor.dispatch(NavigationAction.ClearScreenParams(route))
+        } else {
+            throw RouteNotFoundException(route)
+        }
+    }
+
+    /**
+     * Clears a param for a given existing screen route.
+     *
+     * @param key for which param to be removed from the given screen route
+     * Example:
+     * ```
+     * navigationLogic.clearScreenParam
+     * ```
+     */
+    fun clearScreenParam(route: String, key: String) {
+        if (routeExists(route)) {
+            storeAccessor.dispatch(NavigationAction.ClearScreenParam(route, key))
+        } else {
+            throw RouteNotFoundException(route)
+        }
+    }
+
     private fun extractRouteAndParams(fullRoute: String): Pair<String, Map<String, Any>> {
         val (routePart, queryPart) = fullRoute.split("?", limit = 2).let {
             if (it.size == 2) it[0] to it[1] else it[0] to ""
@@ -213,7 +271,7 @@ class NavigationLogic(
 
     private fun sanitizeParam(value: Any): Any {
         return when (value) {
-            is String -> value.replace(Regex("[^A-Za-z0-9_-]"), "")
+            is String -> value.replace(Regex("[^A-Za-z0-9_\\-&;%#]"), "")
             is Number -> value
             is Boolean -> value
             else -> throw IllegalArgumentException("Unsupported parameter type: ${value::class.simpleName}")

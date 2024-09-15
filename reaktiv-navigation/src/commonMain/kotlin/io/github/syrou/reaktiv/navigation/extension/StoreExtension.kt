@@ -27,6 +27,22 @@ fun StoreAccessor.navigateBack() {
     selectLogic<NavigationLogic>().navigateBack()
 }
 
+fun StoreAccessor.clearCurrentScreenParams() {
+    selectLogic<NavigationLogic>().clearCurrentScreenParams()
+}
+
+fun StoreAccessor.clearCurrentScreenParam(key: String) {
+    selectLogic<NavigationLogic>().clearCurrentScreenParam(key)
+}
+
+fun StoreAccessor.clearScreenParams(route: String) {
+    selectLogic<NavigationLogic>().clearScreenParams(route)
+}
+
+fun StoreAccessor.clearScreenParam(route: String, key: String) {
+    selectLogic<NavigationLogic>().clearScreenParam(route, key)
+}
+
 fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
     selectLogic<NavigationLogic>().clearBackStack(config)
 }

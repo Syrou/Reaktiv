@@ -167,6 +167,7 @@ sealed class AnimationLifecycleState {
  * @property backStack The stack of screens representing the navigation history.
  * @property availableScreens A map of all available screens in the application.
  * @property isLoading Indicates whether a navigation action is in progress.
+ * @property animationLifecycleState Indicates where in the animation lifecycle we are.
  */
 @Serializable
 data class NavigationState(
@@ -484,6 +485,51 @@ class NavigationModule private constructor(
 
             is NavigationAction.UpdateAnimationState -> {
                 state.copy(animationLifecycleState = action.state)
+            }
+
+            is NavigationAction.ClearCurrentScreenParams -> {
+                val updatedBackStack = state.backStack.map { entry ->
+                    if (entry.screen == state.currentScreen) {
+                        entry.copy(params = emptyMap())
+                    } else {
+                        entry
+                    }
+                }
+                state.copy(backStack = updatedBackStack)
+            }
+
+            is NavigationAction.ClearCurrentScreenParam -> {
+                val updatedBackStack = state.backStack.map { entry ->
+                    if (entry.screen == state.currentScreen) {
+                        entry.copy(params = entry.params - action.key)
+                    } else {
+                        entry
+                    }
+                }
+                state.copy(backStack = updatedBackStack)
+            }
+
+            is NavigationAction.ClearScreenParams -> {
+                val updatedBackStack = state.backStack.map { entry ->
+                    if (entry.screen.route == action.route) {
+                        entry.copy(params = emptyMap())
+                    } else {
+                        entry
+                    }
+                }
+                println("ClearScreenParams - new backstack: $updatedBackStack")
+                state.copy(backStack = updatedBackStack)
+            }
+
+            is NavigationAction.ClearScreenParam -> {
+                val updatedBackStack = state.backStack.map { entry ->
+                    if (entry.screen.route == action.route) {
+                        entry.copy(params = entry.params - action.key)
+                    } else {
+                        entry
+                    }
+                }
+                state.copy(backStack = updatedBackStack)
             }
         }
     }
