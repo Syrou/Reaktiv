@@ -269,9 +269,21 @@ class NavigationLogic(
         return Pair(matchingRoute, sanitizedParams)
     }
 
+    private val allowedCharacters = Regex("""%(?![0-9A-Fa-f]{2})|[^a-zA-Z0-9-._~%]""")
     private fun sanitizeParam(value: Any): Any {
         return when (value) {
-            is String -> value.replace(Regex("[^A-Za-z0-9_\\-&;%#]"), "")
+            is String -> {
+                val matches = allowedCharacters.findAll(value)
+                if (matches.any()) {
+                    println("WARNING: Parameter value: $value contains characters that need to be encoded.")
+                    println("Removing non valid characters...")
+                    matches.forEach { match ->
+                        println("'${match.value}' at index ${match.range.first}")
+                    }
+                }
+                value.replace(allowedCharacters, "")
+            }
+
             is Number -> value
             is Boolean -> value
             else -> throw IllegalArgumentException("Unsupported parameter type: ${value::class.simpleName}")

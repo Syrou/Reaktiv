@@ -3,7 +3,6 @@ import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.extension.clearCurrentScreenParams
-import io.github.syrou.reaktiv.navigation.extension.clearScreenParams
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import kotlinx.coroutines.Dispatchers
@@ -95,34 +94,43 @@ class NavigationModuleTest {
             coroutineContext(Dispatchers.Unconfined)
         }
 
-        store.navigate(profileScreen.route, mapOf("test" to "test123"))
+        store.navigate(
+            profileScreen.route,
+            mapOf("test" to "http://www.google.com/?link=http://www.yahoo.com?value=foobar")
+        )
         store.navigate(editScreen.route)
         store.navigateBack()
         val navigationState = store.selectState<NavigationState>().first()
+        println("backstack: ${navigationState.backStack}")
+        assertEquals(
+            navigationState.backStack.first { it.screen == profileScreen }.params["test"],
+            "httpwww.google.comlinkhttpwww.yahoo.comvaluefoobar"
+        )
         assertTrue { navigationState.backStack.first { it.screen == navigationState.currentScreen }.params.isNotEmpty() }
     }
 
     @Test
-    fun `test that params can be removed from the current screen`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-        val navigationModule = createNavigationModule {
-            setInitialScreen(homeScreen, true, true)
-            addScreen(profileScreen)
-            addScreen(editScreen)
-            addScreen(deleteScreen)
-        }
-        val store = createStore {
-            module(navigationModule)
-            coroutineContext(Dispatchers.Unconfined)
-        }
+    fun `test that params can be removed from the current screen`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val navigationModule = createNavigationModule {
+                setInitialScreen(homeScreen, true, true)
+                addScreen(profileScreen)
+                addScreen(editScreen)
+                addScreen(deleteScreen)
+            }
+            val store = createStore {
+                module(navigationModule)
+                coroutineContext(Dispatchers.Unconfined)
+            }
 
-        store.navigate(profileScreen.route, mapOf("test" to "test123"))
-        store.navigate(editScreen.route)
-        var navigationState = store.selectState<NavigationState>().first()
-        store.navigateBack()
-        store.clearCurrentScreenParams()
-        navigationState = store.selectState<NavigationState>().first()
-        assertTrue { navigationState.backStack.first { it.screen == navigationState.currentScreen }.params.isEmpty() }
-    }
+            store.navigate(profileScreen.route, mapOf("test" to "test123"))
+            store.navigate(editScreen.route)
+            var navigationState = store.selectState<NavigationState>().first()
+            store.navigateBack()
+            store.clearCurrentScreenParams()
+            navigationState = store.selectState<NavigationState>().first()
+            assertTrue { navigationState.backStack.first { it.screen == navigationState.currentScreen }.params.isEmpty() }
+        }
 
 
     @Test
