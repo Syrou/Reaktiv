@@ -27,13 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberDispatcher
-import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -74,8 +68,8 @@ fun NavigationRender(
     val dispatch = rememberDispatcher()
 
     // Remember the previous screen
-    var previousScreen by remember { mutableStateOf<Screen?>(null) }
-    var currentScreen by remember { mutableStateOf<Screen>(navigationState.currentScreen) }
+    var previousEntry by remember { mutableStateOf<NavigationEntry?>(null) }
+    var currentEntry by remember { mutableStateOf<NavigationEntry>(navigationState.currentEntry) }
 
     LaunchedEffect(navigationState.backStack.size) {
         previousBackStackSize = currentBackStackSize
@@ -83,31 +77,30 @@ fun NavigationRender(
     }
 
     // Update the remembered previous screen when the current screen changes
-    LaunchedEffect(navigationState.currentScreen) {
+    LaunchedEffect(navigationState.currentEntry) {
         val isForward = navigationState.clearedBackStackWithNavigate ||
                 (navigationState.backStack.size > previousBackStackSize)
         if (!isForward) {
-            previousScreen = currentScreen
-            currentScreen = navigationState.currentScreen
+            previousEntry = currentEntry
+            currentEntry = navigationState.currentEntry
         }
 
-        handleAnimationStateUpdate(dispatch, previousScreen, navigationState.currentScreen)
         if (isForward) {
-            previousScreen = currentScreen
-            currentScreen = navigationState.currentScreen
+            previousEntry = currentEntry
+            currentEntry = navigationState.currentEntry
         }
     }
 
     AnimatedContent(
         modifier = modifier.fillMaxSize().testTag("AnimatedContent"),
-        targetState = currentScreen,
+        targetState = currentEntry,
         transitionSpec = {
             val isForward = navigationState.clearedBackStackWithNavigate ||
                     (navigationState.backStack.size > previousBackStackSize)
-            val enterTransition = if (!isForward) previousScreen?.popEnterTransition
-                ?: targetState.enterTransition else targetState.enterTransition
-            val exitTransition = if (isForward) targetState.popExitTransition
-                ?: initialState.exitTransition else initialState.exitTransition
+            val enterTransition = if (!isForward) previousEntry?.screen?.popEnterTransition
+                ?: targetState.screen.enterTransition else targetState.screen.enterTransition
+            val exitTransition = if (isForward) targetState.screen.popExitTransition
+                ?: initialState.screen.exitTransition else initialState.screen.exitTransition
             getContentTransform(exitTransition, enterTransition, isForward).apply {
                 targetContentZIndex =
                     if (navigationState.clearedBackStackWithNavigate) {
@@ -117,66 +110,12 @@ fun NavigationRender(
                     }
             }
         }
-    ) { screen ->
-        val params by remember(screen.route) {
-            mutableStateOf(navigationState.backStack.firstOrNull() { it.screen == screen }?.params ?: emptyMap())
-        }
-
+    ) { entry ->
         screenContent.invoke(
-            screen,
-            params,
+            entry.screen,
+            entry.params,
             navigationState.isLoading
         )
-    }
-}
-
-private fun CoroutineScope.handleAnimationStateUpdate(
-    dispatch: (ModuleAction) -> Unit,
-    previousScreen: Screen?,
-    currentScreen: Screen
-) {
-    if (previousScreen != currentScreen) {
-        if (previousScreen != null) {
-            launch(Dispatchers.Default) {
-                dispatch(
-                    NavigationAction.UpdateAnimationState(
-                        AnimationLifecycleState.Exiting(
-                            exitingRoute = previousScreen!!.route,
-                            enteringRoute = currentScreen.route
-                        )
-                    )
-                )
-                delay(previousScreen!!.exitTransition.durationMillis.toLong())
-                dispatch(
-                    NavigationAction.UpdateAnimationState(
-                        AnimationLifecycleState.Exited(
-                            exitedRoute = previousScreen!!.route,
-                        )
-                    )
-                )
-            }
-        }
-
-        launch(Dispatchers.Default) {
-            dispatch(
-                NavigationAction.UpdateAnimationState(
-                    AnimationLifecycleState.Entering(enteringRoute = currentScreen.route)
-                )
-            )
-            delay(currentScreen.enterTransition.durationMillis.toLong())
-            dispatch(
-                NavigationAction.UpdateAnimationState(
-                    AnimationLifecycleState.Entered(enteredRoute = currentScreen.route)
-                )
-            )
-
-            delay(50) // Short delay before setting to Idle
-            dispatch(
-                NavigationAction.UpdateAnimationState(
-                    AnimationLifecycleState.Idle(currentRoute = currentScreen.route)
-                )
-            )
-        }
     }
 }
 

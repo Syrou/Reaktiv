@@ -26,7 +26,6 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     data class ClearBackStack(val root: String? = null, val params: StringAnyMap = emptyMap()) : NavigationAction()
     data class Replace(val route: String, val params: Map<String, Any> = emptyMap()) : NavigationAction()
     data class SetLoading(val isLoading: Boolean) : NavigationAction()
-    data class UpdateAnimationState(val state: AnimationLifecycleState) : NavigationAction()
     data object ClearCurrentScreenParams : NavigationAction()
     data class ClearCurrentScreenParam(val key: String) : NavigationAction()
     data class ClearScreenParams(val route: String) : NavigationAction()

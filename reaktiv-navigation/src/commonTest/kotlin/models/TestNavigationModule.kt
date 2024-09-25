@@ -62,23 +62,30 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
     }
 
     override val initialState = NavigationState(
-        currentScreen = homeScreen,
+        currentEntry = NavigationEntry(homeScreen, emptyMap()),
         backStack = listOf(NavigationEntry(homeScreen, emptyMap())),
         availableScreens = mapOf("home" to homeScreen, "profile" to profileScreen)
     )
 
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
-            is NavigationAction.Navigate -> state.copy(currentScreen = state.availableScreens[action.route]!!)
+            is NavigationAction.Navigate -> state.copy(
+                currentEntry = NavigationEntry(
+                    state.availableScreens[action.route]!!,
+                    emptyMap()
+                )
+            )
+
             else -> state
         }
     }
 
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor: StoreAccessor ->
-        NavigationLogic(
-            CoroutineScope(Dispatchers.Unconfined),
-            initialState.availableScreens,
-            storeAccessor
-        )
-    }
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> =
+        { storeAccessor: StoreAccessor ->
+            NavigationLogic(
+                CoroutineScope(Dispatchers.Unconfined),
+                initialState.availableScreens,
+                storeAccessor
+            )
+        }
 }

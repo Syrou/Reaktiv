@@ -163,20 +163,18 @@ sealed class AnimationLifecycleState {
 /**
  * Represents the state of the navigation system.
  *
- * @property currentScreen The currently active screen.
+ * @property currentEntry The currently active screen.
  * @property backStack The stack of screens representing the navigation history.
  * @property availableScreens A map of all available screens in the application.
  * @property isLoading Indicates whether a navigation action is in progress.
- * @property animationLifecycleState Indicates where in the animation lifecycle we are.
  */
 @Serializable
 data class NavigationState(
-    val currentScreen: Screen,
+    val currentEntry: NavigationEntry,
     val backStack: List<NavigationEntry>,
     val availableScreens: Map<String, Screen> = emptyMap(),
     val clearedBackStackWithNavigate: Boolean = false,
     val isLoading: Boolean = false,
-    val animationLifecycleState: AnimationLifecycleState = AnimationLifecycleState.Idle()
 ) : ModuleState
 
 @Serializable
@@ -334,7 +332,10 @@ class NavigationModule private constructor(
         }
         availableScreens[rootScreen.route] = rootScreen
         NavigationState(
-            currentScreen = rootScreen,
+            currentEntry = NavigationEntry(
+                screen = rootScreen,
+                params = emptyMap()
+            ),
             backStack = if (addRootScreenToBackStack) listOf(
                 NavigationEntry(
                     screen = rootScreen,
@@ -397,12 +398,12 @@ class NavigationModule private constructor(
                     params = params
                 )
 
-                val currentScreen = newBackStack.lastOrNull()
-                if (currentScreen?.screen?.route == targetScreen.route) {
+                val currentEntry = newBackStack.lastOrNull()
+                if (currentEntry == newEntry) {
                     state
                 } else {
                     state.copy(
-                        currentScreen = targetScreen,
+                        currentEntry = newEntry,
                         backStack = newBackStack + newEntry,
                         clearedBackStackWithNavigate = action.clearBackStack
                     )
@@ -419,21 +420,16 @@ class NavigationModule private constructor(
                     }
 
 
-                    var currentScreen = newBackStack.lastOrNull()?.screen ?: state.currentScreen
-
+                    var currentEntry = newBackStack.lastOrNull() ?: state.currentEntry
                     if (action.replaceWith != null) {
                         val replaceScreen = state.availableScreens[action.replaceWith]
                             ?: error("No screen found for route: ${action.replaceWith}")
-                        currentScreen = replaceScreen
-                        val newEntry = NavigationEntry(
-                            screen = replaceScreen,
-                            params = action.replaceParams
-                        )
-                        newBackStack = newBackStack.dropLast(1) + newEntry
+                        currentEntry = currentEntry.copy(screen = replaceScreen, params = action.replaceParams)
+                        newBackStack = newBackStack.dropLast(1) + currentEntry
                     }
 
                     state.copy(
-                        currentScreen = currentScreen,
+                        currentEntry = currentEntry,
                         backStack = newBackStack,
                     )
                 } else {
@@ -445,7 +441,7 @@ class NavigationModule private constructor(
                 if (state.backStack.size > 1) {
                     val newBackStack = state.backStack.dropLast(1)
                     state.copy(
-                        currentScreen = newBackStack.last().screen,
+                        currentEntry = newBackStack.last(),
                         backStack = newBackStack,
                     )
                 } else {
@@ -458,7 +454,7 @@ class NavigationModule private constructor(
                     val currentScreen =
                         state.availableScreens[action.root] ?: error("No screen found for route: ${action.root}")
                     state.copy(
-                        currentScreen = currentScreen,
+                        currentEntry = NavigationEntry(currentScreen, action.params),
                         backStack = listOf(NavigationEntry(currentScreen, action.params))
                     )
                 } else {
@@ -474,7 +470,7 @@ class NavigationModule private constructor(
                     params = action.params
                 )
                 state.copy(
-                    currentScreen = newScreen,
+                    currentEntry = newEntry,
                     backStack = state.backStack.dropLast(1) + newEntry,
                 )
             }
@@ -483,13 +479,9 @@ class NavigationModule private constructor(
                 state.copy(isLoading = action.isLoading)
             }
 
-            is NavigationAction.UpdateAnimationState -> {
-                state.copy(animationLifecycleState = action.state)
-            }
-
             is NavigationAction.ClearCurrentScreenParams -> {
                 val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen == state.currentScreen) {
+                    if (entry.screen == state.currentEntry.screen) {
                         entry.copy(params = emptyMap())
                     } else {
                         entry
@@ -500,7 +492,7 @@ class NavigationModule private constructor(
 
             is NavigationAction.ClearCurrentScreenParam -> {
                 val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen == state.currentScreen) {
+                    if (entry.screen == state.currentEntry.screen) {
                         entry.copy(params = entry.params - action.key)
                     } else {
                         entry

@@ -27,7 +27,7 @@ class NavigationModuleTest {
             setInitialScreen(homeScreen, true, true)
         }
 
-        assertEquals(homeScreen, module.initialState.currentScreen)
+        assertEquals(homeScreen, module.initialState.currentEntry.screen)
         assertEquals(1, module.initialState.backStack.size)
         assertEquals(homeScreen, module.initialState.backStack.first().screen)
     }
@@ -35,7 +35,11 @@ class NavigationModuleTest {
     @Test
     fun `check that navigate and backstack clear works`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
         val navigationModule = createNavigationModule {
-            setInitialScreen(homeScreen, true, true)
+            setInitialScreen(
+                homeScreen,
+                addInitialScreenToAvailableScreens = true,
+                addInitialScreenToBackStack = true
+            )
             addScreen(profileScreen)
             addScreen(editScreen)
             addScreen(deleteScreen)
@@ -106,7 +110,7 @@ class NavigationModuleTest {
             navigationState.backStack.first { it.screen == profileScreen }.params["test"],
             "httpwww.google.comlinkhttpwww.yahoo.comvaluefoobar"
         )
-        assertTrue { navigationState.backStack.first { it.screen == navigationState.currentScreen }.params.isNotEmpty() }
+        assertTrue { navigationState.backStack.first { it.screen == navigationState.currentEntry.screen }.params.isNotEmpty() }
     }
 
     @Test
@@ -129,7 +133,7 @@ class NavigationModuleTest {
             store.navigateBack()
             store.clearCurrentScreenParams()
             navigationState = store.selectState<NavigationState>().first()
-            assertTrue { navigationState.backStack.first { it.screen == navigationState.currentScreen }.params.isEmpty() }
+            assertTrue { navigationState.backStack.first { it.screen == navigationState.currentEntry.screen }.params.isEmpty() }
         }
 
 
@@ -145,7 +149,7 @@ class NavigationModuleTest {
 
         val newState = module.reducer(initialState, action)
 
-        assertEquals(profileScreen, newState.currentScreen)
+        assertEquals(profileScreen, newState.currentEntry.screen)
         assertEquals(2, newState.backStack.size)
         assertEquals(profileScreen, newState.backStack.last().screen)
     }
