@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.createStore
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -172,7 +173,7 @@ class StoreTest {
     @Test
     fun testRapidStateAndVerifyDispatchedChanges() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
-        val loggingMiddleware: Middleware = { action, getAllStates, updatedState ->
+        val loggingMiddleware: Middleware = { action, getAllStates, dispatch, updatedState ->
             println("---------- Action Dispatched ----------")
             println("TESTOR - Action: $action")
             println("TESTOR - State before: ${getAllStates.invoke()}")
@@ -192,7 +193,7 @@ class StoreTest {
 
 
         repeat(truth.length) { iteration ->
-            val thing = store.selectState<TestModule.TestState>().value.text
+            val thing = store.selectState<TestModule.TestState>().first().text
             val update = truth[iteration].toString()
             store.dispatch(TestModule.Action.UpdateText(thing + update))
             advanceUntilIdle()
@@ -237,7 +238,7 @@ class StoreTest {
     @Test
     fun testMiddlewareExecution() = runTest {
         var middlewareExecutions = 0
-        val testMiddleware: Middleware = { action, _, next ->
+        val testMiddleware: Middleware = { action, _, _, next ->
             middlewareExecutions++
             next(action)
         }

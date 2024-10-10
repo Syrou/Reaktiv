@@ -46,7 +46,7 @@ class MiddlewareTest {
         var stateBeforeNext: MiddlewareTestState? = null
         var stateAfterNext: MiddlewareTestState? = null
 
-        val testMiddleware: Middleware = { action, getState, next ->
+        val testMiddleware: Middleware = { action, getState, dispatch, next ->
             val initialState = getState()[MiddlewareTestState::class.qualifiedName] as MiddlewareTestState
             stateBeforeNext = initialState
             val result = next(action)
@@ -74,17 +74,17 @@ class MiddlewareTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val stateSnapshots = mutableListOf<MiddlewareTestState>()
 
-        val middleware1: Middleware = { action, getState, next ->
+        val middleware1: Middleware = { action, getState, dispatch, next ->
             stateSnapshots.add(getState()[MiddlewareTestState::class.qualifiedName] as MiddlewareTestState)
             next(action)
         }
 
-        val middleware2: Middleware = { action, getAllStates, updatedState ->
+        val middleware2: Middleware = { action, getAllStates, dispatch, updatedState ->
             stateSnapshots.add(getAllStates()[MiddlewareTestState::class.qualifiedName] as MiddlewareTestState)
             updatedState(action)
         }
 
-        val middleware3: Middleware = { action, getAllStates, updatedState ->
+        val middleware3: Middleware = { action, getAllStates, dispatch, updatedState ->
             stateSnapshots.add(getAllStates()[MiddlewareTestState::class.qualifiedName] as MiddlewareTestState)
             val result = updatedState(action)
             stateSnapshots.add(getAllStates()[MiddlewareTestState::class.qualifiedName] as MiddlewareTestState)

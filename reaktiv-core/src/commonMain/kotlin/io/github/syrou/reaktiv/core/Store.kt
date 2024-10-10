@@ -11,6 +11,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -135,7 +136,8 @@ internal data class ModuleInfo(
 typealias Middleware = suspend (
     action: ModuleAction,
     getAllStates: suspend () -> Map<String, ModuleState>,
-    updatedState: suspend (ModuleAction) -> ModuleState
+    dispatch: Dispatch,
+    updatedState: suspend (ModuleAction) -> ModuleState,
 ) -> Unit
 
 /**
@@ -208,12 +210,12 @@ class Store private constructor(
             )
             moduleInfo[module::class.qualifiedName!!] = info
             moduleInfo[module.initialState::class.qualifiedName!!] = info
-            info.apply {
-                logic = module.createLogic(this@Store)
-            }
-            info.logic!!::class.qualifiedName?.let {
-                moduleInfo[it] = info
-            }
+        }
+
+        modules.forEach { module ->
+            val info = moduleInfo[module::class.qualifiedName!!]!!
+            info.logic = module.createLogic(this)
+            info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
         }
     }
 
@@ -251,7 +253,7 @@ class Store private constructor(
 
         return middlewares.foldRight(baseHandler) { middleware, next ->
             { action: ModuleAction ->
-                middleware(action, ::getAllStates) { innerAction ->
+                middleware(action, ::getAllStates, dispatch) { innerAction ->
                     if (innerAction == action) {
                         next(innerAction)
                     } else {

@@ -12,6 +12,7 @@ fun StoreAccessor.navigate(
     params: Map<String, Any> = emptyMap(),
     config: (NavigationBuilder.() -> Unit)? = null
 ) {
+    this.dispatch
     this.selectLogic<NavigationLogic>().navigate(route, params, config)
 }
 
