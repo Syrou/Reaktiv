@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -240,7 +241,7 @@ class Store private constructor(
     private suspend fun createMiddlewareChain(): suspend (ModuleAction) -> Unit {
         val baseHandler: suspend (ModuleAction) -> Unit = { action ->
             val info = moduleInfo[action.moduleTag.qualifiedName]
-                ?: throw IllegalArgumentException("No module found for action: ${action::class}")
+                ?: throw IllegalArgumentException("No module found for action: ${action::class.qualifiedName}")
 
             val currentState = info.state.value
 
@@ -292,8 +293,11 @@ class Store private constructor(
      */
     @Suppress("UNCHECKED_CAST")
     override fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
-        return moduleInfo[stateClass.qualifiedName]?.state as? StateFlow<S>
-            ?: throw IllegalStateException("No state found for state class: $stateClass")
+        return moduleInfo[stateClass.qualifiedName]?.state?.asStateFlow() as? StateFlow<S>
+            ?: run {
+                val mapped = moduleInfo.map { it.key }
+                throw IllegalStateException("No state found for state class: ${stateClass.qualifiedName}, available states: $mapped")
+            }
     }
 
     /**
