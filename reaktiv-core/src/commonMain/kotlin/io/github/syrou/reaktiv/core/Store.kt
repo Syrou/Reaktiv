@@ -12,11 +12,11 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -269,7 +269,7 @@ class Store private constructor(
 
     private suspend fun updateState(stateClass: String, newState: ModuleState) {
         stateUpdateMutex.withLock {
-            moduleInfo[stateClass]?.state?.value = newState
+            moduleInfo[stateClass]?.state?.update { newState }
         }
     }
 
@@ -293,11 +293,19 @@ class Store private constructor(
      */
     @Suppress("UNCHECKED_CAST")
     override fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
-        return moduleInfo[stateClass.qualifiedName]?.state?.asStateFlow() as? StateFlow<S>
-            ?: run {
-                val mapped = moduleInfo.map { it.key }
-                throw IllegalStateException("No state found for state class: ${stateClass.qualifiedName}, available states: $mapped")
-            }
+        val retrievedState = moduleInfo[stateClass.qualifiedName]?.state
+        val stateExists = retrievedState != null
+        val mapped = moduleInfo.map { it.key }
+        return retrievedState?.asStateFlow() as? StateFlow<S> ?: run {
+            throw IllegalStateException(
+                """
+                    No state found for state class: ${stateClass.qualifiedName},
+                    retrievedState: $retrievedState,
+                    stateExists: $stateExists,
+                    available states: $mapped   
+                """.trimIndent()
+            )
+        }
     }
 
     /**

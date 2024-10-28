@@ -1,5 +1,5 @@
 plugins {
-    kotlin("multiplatform") version "1.9.20"
+    kotlin("multiplatform") version "2.0.21"
     kotlin("plugin.serialization")
 }
 
@@ -34,7 +34,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
                 implementation("io.ktor:ktor-client-core:2.3.12")
                 implementation("io.ktor:ktor-client-logging:2.3.12")
                 implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
@@ -44,7 +44,7 @@ kotlin {
         }
         val nativeMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
                 implementation("io.ktor:ktor-client-curl:2.3.12")
                 //implementation("io.ktor:ktor-client-cio:2.3.12")
             }
