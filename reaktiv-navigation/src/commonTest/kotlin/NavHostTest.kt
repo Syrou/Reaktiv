@@ -1,5 +1,6 @@
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Text
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -10,12 +11,12 @@ import androidx.compose.ui.test.runComposeUiTest
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationAction
-import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationRender
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import models.TestNavigationModule
@@ -54,7 +55,10 @@ class NavHostTest {
         }
         setContent {
             StoreProvider(store) {
-                NavigationRender(modifier = Modifier.fillMaxSize()) { screen, map, isLoading ->
+                NavigationRender(
+                    modifier = Modifier.fillMaxSize(),
+                    initialScreen = testObject.homeScreen
+                ) { screen, map, isLoading ->
                     screen.Content(map)
                 }
             }
@@ -78,7 +82,8 @@ class NavHostTest {
         setContent {
             StoreProvider(store) {
                 NavigationRender(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    initialScreen = homeScreen
                 ) { screen, param, isLoading ->
                     screen.Content(param)
                     if (isLoading) {
@@ -88,7 +93,7 @@ class NavHostTest {
             }
         }
 
-        store.selectLogic<NavigationLogic>().storeAccessor.dispatch(NavigationAction.SetLoading(true))
+        store.dispatch(NavigationAction.SetLoading(true))
         waitForIdle()
         this.onRoot().printToLog("Thing")
         onNodeWithText("Loading...").assertIsDisplayed()
@@ -110,21 +115,31 @@ class NavHostTest {
             )
         }
         setContent {
+            val coroutineScope = rememberCoroutineScope()
             StoreProvider(store) {
-                NavigationRender(modifier = Modifier.fillMaxSize()) { screen, map, isLoading ->
+                NavigationRender(
+                    modifier = Modifier.fillMaxSize(),
+                    initialScreen = homeScreen
+                ) { screen, map, isLoading ->
                     startMap = map.toMutableMap()
                     screen.Content(map)
                 }
             }
         }
-
-        store.navigate(testObject.profileScreen.route, mapOf("test" to "test123"))
+        store.launch {
+            store.navigate(testObject.profileScreen.route, mapOf("test" to "test123"))
+        }
         waitForIdle()
-        store.navigate(testObject.editScreen.route)
+        store.launch {
+            store.navigate(testObject.editScreen.route)
+        }
         waitForIdle()
         assertFalse { startMap.containsKey("test") }
-        store.navigateBack()
+        store.launch {
+            store.navigateBack()
+        }
         waitForIdle()
+        println("WHAT - startMap: $startMap")
         assertTrue { startMap.containsKey("test") }
     }
 }

@@ -509,7 +509,6 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                println("ClearScreenParams - new backstack: $updatedBackStack")
                 state.copy(backStack = updatedBackStack)
             }
 

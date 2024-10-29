@@ -12,6 +12,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -146,7 +147,8 @@ typealias Middleware = suspend (
  * This interface allows modules and their logic classes to interact with the Store
  * without exposing the entire Store implementation.
  */
-interface StoreAccessor {
+abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
+    override val coroutineContext: CoroutineContext = scope.coroutineContext
     /**
      * Selects the state of a specific module.
      *
@@ -155,7 +157,7 @@ interface StoreAccessor {
      * @return A StateFlow of the selected state.
      * @throws IllegalStateException if no state is found for the given class.
      */
-    fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
+    abstract suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
 
     /**
      * Selects the logic of a specific module.
@@ -165,14 +167,13 @@ interface StoreAccessor {
      * @return The selected logic instance.
      * @throws IllegalStateException if no logic is found for the given class.
      */
-    fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L
+    abstract suspend fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L
 
     /**
      * Dispatches an action to be processed by the Store.
      *
-     * @param action The action to be dispatched.
      */
-    val dispatch: Dispatch
+    abstract val dispatch: Dispatch
 }
 
 /**
@@ -183,10 +184,12 @@ class Store private constructor(
     private val middlewares: List<Middleware>,
     private val modules: List<Module<ModuleState, ModuleAction>>,
     private val persistenceManager: PersistenceManager?,
-) : StoreAccessor {
+) : StoreAccessor(coroutineScope) {
     private val stateUpdateMutex = Mutex()
     private val actionChannel: Channel<ModuleAction> = Channel<ModuleAction>(Channel.UNLIMITED)
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
+    private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
 
     /**
      * A function type alias for dispatching actions in the Reaktiv framework.
@@ -198,12 +201,12 @@ class Store private constructor(
             throw IllegalStateException("Store is closed")
         }
 
-        coroutineScope.launch(coroutineScope.coroutineContext) {
+        launch {
             actionChannel.send(action)
         }
     }
 
-    private fun initializeModules() {
+    private suspend fun initializeModules() = stateUpdateMutex.withLock {
         modules.forEach { module ->
             val info = ModuleInfo(
                 module = module,
@@ -218,16 +221,17 @@ class Store private constructor(
             info.logic = module.createLogic(this)
             info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
         }
+        _initialized.update { true }
     }
 
     init {
-        initializeModules()
-        coroutineScope.launch {
+        launch {
+            initializeModules()
             processActionChannel()
         }
     }
 
-    private suspend fun processActionChannel() = withContext(coroutineScope.coroutineContext) {
+    private suspend fun processActionChannel() = withContext(coroutineContext) {
         for (action in actionChannel) {
             processAction(action)
         }
@@ -241,13 +245,13 @@ class Store private constructor(
     private suspend fun createMiddlewareChain(): suspend (ModuleAction) -> Unit {
         val baseHandler: suspend (ModuleAction) -> Unit = { action ->
             val info = moduleInfo[action.moduleTag.qualifiedName]
-                ?: throw IllegalArgumentException("No module found for action: ${action::class.qualifiedName}")
+                ?: throw IllegalArgumentException("No module found for action: ${action::class}")
 
             val currentState = info.state.value
-
             val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
             updateState(newState::class.qualifiedName!!, newState)
-            coroutineScope.launch(coroutineScope.coroutineContext) {
+
+            launch {
                 info.logic?.invoke(action)
             }
         }
@@ -267,16 +271,12 @@ class Store private constructor(
         }
     }
 
-    private suspend fun updateState(stateClass: String, newState: ModuleState) {
-        stateUpdateMutex.withLock {
-            moduleInfo[stateClass]?.state?.update { newState }
-        }
+    private suspend fun updateState(stateClass: String, newState: ModuleState) = stateUpdateMutex.withLock {
+        moduleInfo[stateClass]?.state?.value = newState
     }
 
-    private suspend fun getAllStates(): Map<String, ModuleState> {
-        stateUpdateMutex.withLock {
-            return moduleInfo.values.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
-        }
+    private suspend fun getAllStates(): Map<String, ModuleState> = stateUpdateMutex.withLock {
+        return@withLock moduleInfo.values.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
     }
 
     /**
@@ -292,19 +292,24 @@ class Store private constructor(
      * ```
      */
     @Suppress("UNCHECKED_CAST")
-    override fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
+    override suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
+        initialized.first { it }
+        stateUpdateMutex.lock()
         val retrievedState = moduleInfo[stateClass.qualifiedName]?.state
         val stateExists = retrievedState != null
         val mapped = moduleInfo.map { it.key }
-        return retrievedState?.asStateFlow() as? StateFlow<S> ?: run {
-            throw IllegalStateException(
-                """
+        try {
+            return moduleInfo[stateClass.qualifiedName]?.state?.asStateFlow() as? StateFlow<S>
+                ?: throw IllegalStateException(
+                    """
                     No state found for state class: ${stateClass.qualifiedName},
                     retrievedState: $retrievedState,
                     stateExists: $stateExists,
                     available states: $mapped   
                 """.trimIndent()
-            )
+                )
+        } finally {
+            stateUpdateMutex.unlock()
         }
     }
 
@@ -319,7 +324,7 @@ class Store private constructor(
      * val counterState: StateFlow<CounterState> = store.selectState()
      * ```
      */
-    inline fun <reified S : ModuleState> selectState(): StateFlow<S> = selectState(S::class)
+    suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = selectState(S::class)
 
     /**
      * Selects the logic of a specific module.
@@ -334,9 +339,15 @@ class Store private constructor(
      * ```
      */
     @Suppress("UNCHECKED_CAST")
-    override fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L {
-        return moduleInfo[logicClass.qualifiedName]?.logic as? L
-            ?: throw IllegalStateException("No logic found for logic class: $logicClass")
+    override suspend fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L {
+        initialized.first { it }
+        stateUpdateMutex.lock()
+        try {
+            return moduleInfo[logicClass.qualifiedName]?.logic as? L
+                ?: throw IllegalStateException("No logic found for logic class: $logicClass")
+        } finally {
+            stateUpdateMutex.unlock()
+        }
     }
 
     /**
@@ -350,7 +361,7 @@ class Store private constructor(
      * val counterLogic: CounterLogic = store.selectLogic()
      * ```
      */
-    inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = selectLogic(L::class)
+    suspend inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = selectLogic(L::class)
 
     /**
      * Cleans up resources used by the store.

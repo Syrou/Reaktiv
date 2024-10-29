@@ -6,5 +6,5 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import kotlinx.coroutines.flow.StateFlow
 
-inline fun <reified S : ModuleState> StoreAccessor.selectState(): StateFlow<S> = this.selectState(S::class)
-inline fun <reified L : ModuleLogic<out ModuleAction>> StoreAccessor.selectLogic(): L = selectLogic(L::class)
+suspend inline fun <reified S : ModuleState> StoreAccessor.selectState(): StateFlow<S> = this.selectState(S::class)
+suspend inline fun <reified L : ModuleLogic<out ModuleAction>> StoreAccessor.selectLogic(): L = selectLogic(L::class)

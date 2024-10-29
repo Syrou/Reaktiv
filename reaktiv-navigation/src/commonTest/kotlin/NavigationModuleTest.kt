@@ -6,6 +6,8 @@ import io.github.syrou.reaktiv.navigation.extension.clearCurrentScreenParams
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -32,6 +34,7 @@ class NavigationModuleTest {
         assertEquals(homeScreen, module.initialState.backStack.first().screen)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class, InternalCoroutinesApi::class)
     @Test
     fun `check that navigate and backstack clear works`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
         val navigationModule = createNavigationModule {

@@ -4,10 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import io.github.syrou.reaktiv.core.Dispatch
@@ -16,7 +18,11 @@ import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 
 private val LocalStore = staticCompositionLocalOf<Store> {
     error("You need to wrap your Preview Composable in StoreProvider and assign a  store")
@@ -29,7 +35,7 @@ private val LocalStore = staticCompositionLocalOf<Store> {
  *
  * @return The current [Store] instance.
  *
- * @throws IllegalStateException if used outside of a [StoreProvider].
+ * @throws IllegalStateException if used outside a [StoreProvider].
  *
  * Example usage:
  * ```
@@ -54,7 +60,7 @@ fun rememberStore(): Store {
  *
  * @return The [Dispatch] function from the current [Store].
  *
- * @throws IllegalStateException if used outside of a [StoreProvider].
+ * @throws IllegalStateException if used outside a [StoreProvider].
  *
  * Example usage:
  * ```
@@ -115,7 +121,7 @@ fun StoreProvider(
  * @param S The type of [ModuleState] to be selected.
  * @return A [StateFlow] of the selected [ModuleState].
  *
- * @throws IllegalStateException if used outside of a [StoreProvider].
+ * @throws IllegalStateException if used outside a [StoreProvider].
  *
  * Example usage:
  * ```
@@ -128,54 +134,27 @@ fun StoreProvider(
  * ```
  */
 @Composable
-inline fun <reified S : ModuleState> selectState(): StateFlow<S> {
+inline fun <reified S : ModuleState> selectState(initialValue: S): StateFlow<S> {
     val store = rememberStore()
-    return remember { store.selectState<S>() }
+    val stateFlow = produceState<StateFlow<S>>(initialValue = MutableStateFlow(initialValue)) {
+        value = store.selectState<S>()
+    }
+
+    return stateFlow.value
 }
 
 @Composable
-inline fun <reified S : ModuleState> composeState(): State<S> {
-    return selectState<S>().collectAsState(Dispatchers.Main.immediate)
-}
-
-/**
- * Selects and provides a specific [ModuleLogic] from the current [Store].
- *
- * @param L The type of [ModuleLogic] to be selected.
- * @return The selected [ModuleLogic] instance.
- *
- * @throws IllegalStateException if used outside of a [StoreProvider].
- *
- * Example usage:
- * ```
- * @Composable
- * fun CounterButtons() {
- *     val counterLogic = selectLogic<CounterLogic>()
- *     val dispatch = rememberDispatcher()
- *
- *     Row {
- *         Button(onClick = { dispatch(counterLogic.increment()) }) {
- *             Text("+")
- *         }
- *         Button(onClick = { dispatch(counterLogic.decrement()) }) {
- *             Text("-")
- *         }
- *     }
- * }
- * ```
- */
-@Composable
-inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L {
-    val store = rememberStore()
-    return store.selectLogic<L>()
+inline fun <reified S : ModuleState> composeState(initialValue: S): State<S> {
+    return selectState<S>(initialValue).collectAsState(Dispatchers.Main.immediate)
 }
 
 @Composable
 inline fun <reified S : ModuleState, T> onActiveValueChange(
+    initialValue: S,
     crossinline selector: (S) -> T,
     crossinline onChange: suspend (T) -> Unit
 ) {
-    val state by selectState<S>().collectAsState(Dispatchers.Main.immediate)
+    val state by selectState<S>(initialValue).collectAsState(Dispatchers.Main.immediate)
     val selectedValue = selector(state)
 
     val isActive = remember { mutableStateOf(true) }

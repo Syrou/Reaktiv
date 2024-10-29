@@ -6,56 +6,59 @@ import io.github.syrou.reaktiv.navigation.ClearBackStackBuilder
 import io.github.syrou.reaktiv.navigation.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.PopUpToBuilder
+import kotlinx.coroutines.coroutineScope
 
-fun StoreAccessor.navigate(
+
+suspend fun StoreAccessor.navigate(
     route: String,
     params: Map<String, Any> = emptyMap(),
     config: (NavigationBuilder.() -> Unit)? = null
-) {
-    this.dispatch
-    this.selectLogic<NavigationLogic>().navigate(route, params, config)
+) = coroutineScope {
+    selectLogic<NavigationLogic>().navigate(route, params, config)
 }
 
-fun StoreAccessor.popUpTo(
+suspend fun StoreAccessor.popUpTo(
     route: String,
     inclusive: Boolean = false,
     config: (PopUpToBuilder.() -> Unit)? = null
-) {
+) = coroutineScope {
     selectLogic<NavigationLogic>().popUpTo(route, inclusive, config)
 }
 
-fun StoreAccessor.navigateBack() {
+suspend fun StoreAccessor.navigateBack() = coroutineScope {
     selectLogic<NavigationLogic>().navigateBack()
 }
 
-fun StoreAccessor.clearCurrentScreenParams() {
+suspend fun StoreAccessor.clearCurrentScreenParams() = coroutineScope {
     selectLogic<NavigationLogic>().clearCurrentScreenParams()
 }
 
-fun StoreAccessor.clearCurrentScreenParam(key: String) {
+suspend fun StoreAccessor.clearCurrentScreenParam(key: String) = coroutineScope {
     selectLogic<NavigationLogic>().clearCurrentScreenParam(key)
 }
 
-fun StoreAccessor.clearScreenParams(route: String) {
+suspend fun StoreAccessor.clearScreenParams(route: String) = coroutineScope {
     selectLogic<NavigationLogic>().clearScreenParams(route)
 }
 
-fun StoreAccessor.clearScreenParam(route: String, key: String) {
+suspend fun StoreAccessor.clearScreenParam(route: String, key: String) = coroutineScope {
     selectLogic<NavigationLogic>().clearScreenParam(route, key)
 }
 
-fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
+suspend fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) = coroutineScope {
     selectLogic<NavigationLogic>().clearBackStack(config)
 }
 
-fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
+
+suspend fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = emptyMap()) = coroutineScope {
     selectLogic<NavigationLogic>().replaceWith(route, params)
 }
 
-fun StoreAccessor.navigateWithValidation(
+suspend fun StoreAccessor.navigateWithValidation(
     route: String,
     params: Map<String, Any> = emptyMap(),
     validate: suspend (StoreAccessor, Map<String, Any>) -> Boolean
-) {
-    selectLogic<NavigationLogic>().navigateWithValidation(route, params, this, validate)
+) = coroutineScope {
+    selectLogic<NavigationLogic>().navigateWithValidation(route, params, this@navigateWithValidation, validate)
 }
+
