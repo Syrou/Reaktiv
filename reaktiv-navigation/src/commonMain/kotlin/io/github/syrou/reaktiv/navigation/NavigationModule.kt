@@ -3,17 +3,15 @@ package io.github.syrou.reaktiv.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
+import io.github.syrou.reaktiv.compose.selectState
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
-import io.github.syrou.reaktiv.navigation.AnimationLifecycleState.Entered
-import io.github.syrou.reaktiv.navigation.AnimationLifecycleState.Entering
-import io.github.syrou.reaktiv.navigation.AnimationLifecycleState.Exited
-import io.github.syrou.reaktiv.navigation.AnimationLifecycleState.Exiting
-import io.github.syrou.reaktiv.navigation.AnimationLifecycleState.Idle
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -130,34 +128,6 @@ sealed class NavTransition(open val durationMillis: Int = DEFAULT_ANIMATION_DURA
     companion object {
         const val DEFAULT_ANIMATION_DURATION = 300
     }
-}
-
-
-/**
- * Represents the different states of the navigation animation lifecycle.
- *
- * @property Idle No animation is currently playing. This is the default state and the state after all animations have completed.
- * @property Entering The enter animation for a new screen is starting and in progress.
- * @property Entered The enter animation has completed, and the new screen is fully visible.
- * @property Exiting The exit animation for the current screen is starting and in progress.
- * @property Exited The exit animation has completed, and the previous screen is no longer visible.
- */
-@Serializable
-sealed class AnimationLifecycleState {
-    @Serializable
-    data class Idle(val currentRoute: String? = null) : AnimationLifecycleState()
-
-    @Serializable
-    data class Entering(val enteringRoute: String) : AnimationLifecycleState()
-
-    @Serializable
-    data class Entered(val enteredRoute: String) : AnimationLifecycleState()
-
-    @Serializable
-    data class Exiting(val exitingRoute: String, val enteringRoute: String) : AnimationLifecycleState()
-
-    @Serializable
-    data class Exited(val exitedRoute: String) : AnimationLifecycleState()
 }
 
 /**
