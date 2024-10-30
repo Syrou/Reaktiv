@@ -57,7 +57,6 @@ class NavHostTest {
             StoreProvider(store) {
                 NavigationRender(
                     modifier = Modifier.fillMaxSize(),
-                    initialScreen = testObject.homeScreen
                 ) { screen, map, isLoading ->
                     screen.Content(map)
                 }
@@ -83,7 +82,6 @@ class NavHostTest {
             StoreProvider(store) {
                 NavigationRender(
                     modifier = Modifier.fillMaxSize(),
-                    initialScreen = homeScreen
                 ) { screen, param, isLoading ->
                     screen.Content(param)
                     if (isLoading) {
@@ -115,11 +113,9 @@ class NavHostTest {
             )
         }
         setContent {
-            val coroutineScope = rememberCoroutineScope()
             StoreProvider(store) {
                 NavigationRender(
                     modifier = Modifier.fillMaxSize(),
-                    initialScreen = homeScreen
                 ) { screen, map, isLoading ->
                     startMap = map.toMutableMap()
                     screen.Content(map)

@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -13,16 +12,11 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import io.github.syrou.reaktiv.core.Dispatch
-import io.github.syrou.reaktiv.core.ModuleAction
-import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 
 private val LocalStore = staticCompositionLocalOf<Store> {
     error("You need to wrap your Preview Composable in StoreProvider and assign a  store")
@@ -136,11 +130,16 @@ fun StoreProvider(
 @Composable
 inline fun <reified S : ModuleState> selectState(initialValue: S): StateFlow<S> {
     val store = rememberStore()
-    val stateFlow = produceState<StateFlow<S>>(initialValue = MutableStateFlow(initialValue)) {
-        value = store.selectState<S>()
+    val stateFlow by produceState<StateFlow<S>>(initialValue = MutableStateFlow(initialValue)) {
+        value = store.selectStateNonSuspend<S>()
     }
+    return stateFlow
+}
 
-    return stateFlow.value
+@Composable
+inline fun <reified S : ModuleState> selectState(): StateFlow<S> {
+    val store = rememberStore()
+    return remember { store.selectStateNonSuspend<S>() }
 }
 
 @Composable
@@ -149,12 +148,16 @@ inline fun <reified S : ModuleState> composeState(initialValue: S): State<S> {
 }
 
 @Composable
+inline fun <reified S : ModuleState> composeState(): State<S> {
+    return selectState<S>().collectAsState(Dispatchers.Main.immediate)
+}
+
+@Composable
 inline fun <reified S : ModuleState, T> onActiveValueChange(
-    initialValue: S,
     crossinline selector: (S) -> T,
     crossinline onChange: suspend (T) -> Unit
 ) {
-    val state by selectState<S>(initialValue).collectAsState(Dispatchers.Main.immediate)
+    val state by composeState<S>()
     val selectedValue = selector(state)
 
     val isActive = remember { mutableStateOf(true) }

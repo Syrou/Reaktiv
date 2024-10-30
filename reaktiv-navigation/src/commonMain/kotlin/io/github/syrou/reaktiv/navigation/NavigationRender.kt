@@ -60,13 +60,9 @@ private fun getSpringSpecForFloat(durationMillis: Int) = spring<Float>(
 @Composable
 fun NavigationRender(
     modifier: Modifier,
-    initialScreen: Screen,
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
 ) {
-    val navigationState by composeState<NavigationState>(NavigationState(
-        currentEntry = NavigationEntry(initialScreen, emptyMap()),
-        backStack = emptyList()
-    ))
+    val navigationState by composeState<NavigationState>()
     var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
 

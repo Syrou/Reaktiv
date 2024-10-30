@@ -149,6 +149,7 @@ typealias Middleware = suspend (
  */
 abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     override val coroutineContext: CoroutineContext = scope.coroutineContext
+
     /**
      * Selects the state of a specific module.
      *
@@ -189,7 +190,7 @@ class Store private constructor(
     private val actionChannel: Channel<ModuleAction> = Channel<ModuleAction>(Channel.UNLIMITED)
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
+    val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
 
     /**
      * A function type alias for dispatching actions in the Reaktiv framework.
@@ -295,22 +296,24 @@ class Store private constructor(
     override suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
         initialized.first { it }
         stateUpdateMutex.lock()
-        val retrievedState = moduleInfo[stateClass.qualifiedName]?.state
-        val stateExists = retrievedState != null
-        val mapped = moduleInfo.map { it.key }
         try {
-            return moduleInfo[stateClass.qualifiedName]?.state?.asStateFlow() as? StateFlow<S>
-                ?: throw IllegalStateException(
-                    """
-                    No state found for state class: ${stateClass.qualifiedName},
-                    retrievedState: $retrievedState,
-                    stateExists: $stateExists,
-                    available states: $mapped   
-                """.trimIndent()
-                )
+            return selectStateNonSuspend(stateClass)
         } finally {
             stateUpdateMutex.unlock()
         }
+    }
+
+    fun <S : ModuleState> selectStateNonSuspend(stateClass: KClass<S>): StateFlow<S> {
+        val retrievedState = moduleInfo[stateClass.qualifiedName]?.state
+        val stateExists = retrievedState != null
+        return moduleInfo[stateClass.qualifiedName]?.state?.asStateFlow() as? StateFlow<S>
+            ?: throw IllegalStateException(
+                """
+                    No state found for state class: ${stateClass.qualifiedName},
+                    retrievedState: $retrievedState,
+                    stateExists: $stateExists 
+                """.trimIndent()
+            )
     }
 
     /**
@@ -325,6 +328,8 @@ class Store private constructor(
      * ```
      */
     suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = selectState(S::class)
+
+    inline fun <reified S : ModuleState> selectStateNonSuspend(): StateFlow<S> = selectStateNonSuspend(S::class)
 
     /**
      * Selects the logic of a specific module.
