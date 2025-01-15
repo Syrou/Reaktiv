@@ -1,6 +1,5 @@
 package io.syrou.reaktiv
 
-import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
@@ -8,12 +7,9 @@ import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.createStore
-import io.syrou.reaktiv.LargeStateModule.LargeAction
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -35,9 +31,10 @@ class MiddlewareTest {
             }
         }
 
-        override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<MiddlewareTestAction> = { storeAccessor: StoreAccessor ->
-            ModuleLogic { action -> }
-        }
+        override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<MiddlewareTestAction> =
+            { storeAccessor: StoreAccessor ->
+                ModuleLogic { action -> }
+            }
     }
 
     @Test

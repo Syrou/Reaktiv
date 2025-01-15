@@ -138,7 +138,7 @@ internal data class ModuleInfo(
 typealias Middleware = suspend (
     action: ModuleAction,
     getAllStates: suspend () -> Map<String, ModuleState>,
-    dispatch: Dispatch,
+    storeAccessor: StoreAccessor,
     updatedState: suspend (ModuleAction) -> ModuleState,
 ) -> Unit
 
@@ -259,7 +259,7 @@ class Store private constructor(
 
         return middlewares.foldRight(baseHandler) { middleware, next ->
             { action: ModuleAction ->
-                middleware(action, ::getAllStates, dispatch) { innerAction ->
+                middleware(action, ::getAllStates, this) { innerAction ->
                     if (innerAction == action) {
                         next(innerAction)
                     } else {
