@@ -62,3 +62,11 @@ suspend fun StoreAccessor.navigateWithValidation(
     selectLogic<NavigationLogic>().navigateWithValidation(route, params, this@navigateWithValidation, validate)
 }
 
+suspend fun StoreAccessor.navigateToChild(
+    parentPath: String,
+    childSegment: String,
+    params: Map<String, Any> = emptyMap()
+) = coroutineScope {
+    selectLogic<NavigationLogic>().navigateToChild(parentPath, childSegment, params)
+}
+

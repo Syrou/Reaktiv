@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation
 
+import io.github.syrou.reaktiv.navigation.NavigationAction
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
@@ -9,12 +10,15 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
+import io.github.syrou.reaktiv.navigation.NavigationLogic
+import io.github.syrou.reaktiv.navigation.util.PathUtil
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
@@ -142,13 +146,79 @@ data class NavigationState(
     val availableScreens: Map<String, Screen> = emptyMap(),
     val clearedBackStackWithNavigate: Boolean = false,
     val isLoading: Boolean = false,
-) : ModuleState
+) : ModuleState {
+    fun buildNavigationTree(): NavigationState {
+        // Create ID to entry map for lookup
+        val entryMap = backStack.associateBy { it.id }
+
+        // Create copies to modify (since original entries are immutable)
+        val updatedEntries = backStack.map { it.copy() }
+        val updatedEntryMap = updatedEntries.associateBy { it.id }
+
+        // Set up parent/child references
+        updatedEntries.forEach { entry ->
+            val parentPath = entry.parentPath
+            if (parentPath.isNotEmpty()) {
+                entry.parent = updatedEntryMap[parentPath]
+                // Set bidirectional relationship
+                entry.parent?.child = entry
+            }
+        }
+
+        // Update current entry with references
+        val updatedCurrentEntry = updatedEntries.find { it.path == currentEntry.path }
+            ?: currentEntry.copy()
+
+        return copy(currentEntry = updatedCurrentEntry, backStack = updatedEntries)
+    }
+}
 
 @Serializable
 data class NavigationEntry(
     val screen: Screen,
-    val params: StringAnyMap
-)
+    val params: StringAnyMap,
+    val id: String? = null,       // Unique identifier for this entry (route)
+    @Transient
+    var parent: NavigationEntry? = null, // Transient to avoid serialization cycles
+    @Transient
+    var child: NavigationEntry? = null   // Transient to avoid serialization cycles
+) {
+    val path: String get() = screen.route
+
+    val parentPath: String get() = PathUtil.getParentPath(path)
+
+    val pathSegments: List<String> get() = PathUtil.getPathSegments(path)
+
+    fun hasChild(): Boolean = child?.id != null
+
+    fun hasParent(): Boolean = parent?.id != null
+
+    fun isDirectChildOf(parentPath: String): Boolean = parent?.path == parentPath
+
+    fun pathStartsWith(prefix: String): Boolean = path == prefix || path.startsWith("$prefix/")
+
+    override fun hashCode(): Int {
+        var result = screen.hashCode()
+        result = 31 * result + params.hashCode()
+        result = 31 * result + path.hashCode()
+        // Don't include parent and child references
+        return result
+    }
+
+    // Override equals to avoid circular references
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is NavigationEntry) return false
+
+        if (screen != other.screen) return false
+        if (params != other.params) return false
+        if (path != other.path) return false
+        // Don't compare parent and child references
+
+        return true
+    }
+
+}
 
 /**
  * Builder class for configuring navigation actions.
@@ -331,8 +401,8 @@ class NavigationModule private constructor(
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
             is NavigationAction.Navigate -> {
-
                 var newBackStack = if (action.clearBackStack) listOf() else state.backStack
+
                 // Handle popUpTo
                 if (action.popUpTo != null) {
                     val popIndex = newBackStack.indexOfLast { it.screen.route == action.popUpTo }
@@ -360,20 +430,55 @@ class NavigationModule private constructor(
                     action.params
                 }
 
+                // Create new entry with proper IDs
                 val newEntry = NavigationEntry(
                     screen = targetScreen,
                     params = params
                 )
 
-                val currentEntry = newBackStack.lastOrNull()
-                if (currentEntry == newEntry) {
-                    state
+                val result = state.copy(
+                    currentEntry = newEntry,
+                    backStack = newBackStack + newEntry,
+                    clearedBackStackWithNavigate = action.clearBackStack
+                )
+
+                // Build tree structure before returning
+                result.buildNavigationTree()
+            }
+
+            is NavigationAction.Back -> {
+                if (state.backStack.size > 1) {
+                    // Check if current entry has a parent
+                    val currentEntry = state.currentEntry
+
+                    if (currentEntry.hasParent()) {
+                        // If it has a parent, navigate back to the parent
+                        val parentEntry = currentEntry.parent
+
+                        if (parentEntry != null) {
+                            val newBackStack = state.backStack.dropLast(1)
+                            state.copy(
+                                currentEntry = parentEntry,
+                                backStack = newBackStack
+                            ).buildNavigationTree()
+                        } else {
+                            // Standard back behavior if parent not found
+                            val newBackStack = state.backStack.dropLast(1)
+                            state.copy(
+                                currentEntry = newBackStack.last(),
+                                backStack = newBackStack
+                            ).buildNavigationTree()
+                        }
+                    } else {
+                        // Standard back behavior
+                        val newBackStack = state.backStack.dropLast(1)
+                        state.copy(
+                            currentEntry = newBackStack.last(),
+                            backStack = newBackStack
+                        ).buildNavigationTree()
+                    }
                 } else {
-                    state.copy(
-                        currentEntry = newEntry,
-                        backStack = newBackStack + newEntry,
-                        clearedBackStackWithNavigate = action.clearBackStack
-                    )
+                    state
                 }
             }
 
@@ -386,31 +491,26 @@ class NavigationModule private constructor(
                         state.backStack.subList(0, targetIndex + 1)
                     }
 
-
                     var currentEntry = newBackStack.lastOrNull() ?: state.currentEntry
                     if (action.replaceWith != null) {
                         val replaceScreen = state.availableScreens[action.replaceWith]
                             ?: error("No screen found for route: ${action.replaceWith}")
-                        currentEntry = currentEntry.copy(screen = replaceScreen, params = action.replaceParams)
-                        newBackStack = newBackStack.dropLast(1) + currentEntry
+
+                        // Create a new entry for the replacement - no IDs needed
+                        val newEntry = NavigationEntry(
+                            screen = replaceScreen,
+                            params = action.replaceParams
+                        )
+
+                        newBackStack = newBackStack.dropLast(1)
+                        currentEntry = newEntry
+                        newBackStack = newBackStack + newEntry
                     }
 
                     state.copy(
                         currentEntry = currentEntry,
-                        backStack = newBackStack,
-                    )
-                } else {
-                    state
-                }
-            }
-
-            is NavigationAction.Back -> {
-                if (state.backStack.size > 1) {
-                    val newBackStack = state.backStack.dropLast(1)
-                    state.copy(
-                        currentEntry = newBackStack.last(),
-                        backStack = newBackStack,
-                    )
+                        backStack = newBackStack
+                    ).buildNavigationTree()
                 } else {
                     state
                 }
@@ -418,28 +518,38 @@ class NavigationModule private constructor(
 
             is NavigationAction.ClearBackStack -> {
                 if (action.root != null) {
-                    val currentScreen =
-                        state.availableScreens[action.root] ?: error("No screen found for route: ${action.root}")
-                    state.copy(
-                        currentEntry = NavigationEntry(currentScreen, action.params),
-                        backStack = listOf(NavigationEntry(currentScreen, action.params))
+                    val rootScreen = state.availableScreens[action.root]
+                        ?: error("No screen found for route: ${action.root}")
+                    val rootEntry = NavigationEntry(
+                        screen = rootScreen,
+                        params = action.params
                     )
+                    state.copy(
+                        currentEntry = rootEntry,
+                        backStack = listOf(rootEntry)
+                    ).buildNavigationTree()
                 } else {
-                    state.copy(backStack = listOf())
+                    state.copy(backStack = listOf()).buildNavigationTree()
                 }
             }
 
             is NavigationAction.Replace -> {
                 val newScreen = state.availableScreens[action.route]
                     ?: error("No screen found for route: ${action.route}")
+
+                // Create new entry - no need for parent/child IDs
                 val newEntry = NavigationEntry(
                     screen = newScreen,
                     params = action.params
                 )
+
+                // Simply replace the last entry
+                val newBackStack = state.backStack.dropLast(1) + newEntry
+
                 state.copy(
                     currentEntry = newEntry,
-                    backStack = state.backStack.dropLast(1) + newEntry,
-                )
+                    backStack = newBackStack
+                ).buildNavigationTree()
             }
 
             is NavigationAction.SetLoading -> {
@@ -454,7 +564,7 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                state.copy(backStack = updatedBackStack).buildNavigationTree()
             }
 
             is NavigationAction.ClearCurrentScreenParam -> {
@@ -465,7 +575,7 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                state.copy(backStack = updatedBackStack).buildNavigationTree()
             }
 
             is NavigationAction.ClearScreenParams -> {
@@ -476,7 +586,7 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                state.copy(backStack = updatedBackStack).buildNavigationTree()
             }
 
             is NavigationAction.ClearScreenParam -> {
@@ -487,7 +597,7 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                state.copy(backStack = updatedBackStack).buildNavigationTree()
             }
         }
     }

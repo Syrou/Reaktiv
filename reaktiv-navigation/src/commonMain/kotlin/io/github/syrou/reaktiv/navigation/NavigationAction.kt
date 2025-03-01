@@ -11,7 +11,9 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
         val inclusive: Boolean = false,
         val replaceWith: String? = null,
         val clearBackStack: Boolean = false,
-        val forwardParams: Boolean = false
+        val forwardParams: Boolean = false,
+        val id: String = "",
+        val parent: NavigationEntry? = null
     ) : NavigationAction()
 
     data object Back : NavigationAction()
