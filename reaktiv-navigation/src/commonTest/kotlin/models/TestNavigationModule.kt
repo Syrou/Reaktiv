@@ -83,7 +83,6 @@ class TestNavigationModule : Module<NavigationState, NavigationAction> {
     override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> =
         { storeAccessor: StoreAccessor ->
             NavigationLogic(
-                CoroutineScope(Dispatchers.Unconfined),
                 initialState.availableScreens,
                 storeAccessor
             )
