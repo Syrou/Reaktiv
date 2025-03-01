@@ -67,9 +67,13 @@ interface Screen : NavigationNode {
     val popEnterTransition: NavTransition? get() = null
     val popExitTransition: NavTransition? get() = null
     val requiresAuth: Boolean
+    val isContainer: Boolean get() = false
 
     @Composable
-    fun Content(params: Map<String, Any>)
+    fun Content(
+        params: Map<String, Any>,
+        showDefaultContent: @Composable () -> Boolean
+    )
 }
 
 
@@ -137,18 +141,126 @@ sealed class NavTransition(open val durationMillis: Int = DEFAULT_ANIMATION_DURA
  */
 @Serializable
 data class NavigationState(
-    val currentEntry: NavigationEntry,
+    val rootEntry: NavigationEntry,
     val backStack: List<NavigationEntry>,
     val availableScreens: Map<String, Screen> = emptyMap(),
     val clearedBackStackWithNavigate: Boolean = false,
     val isLoading: Boolean = false,
-) : ModuleState
+) : ModuleState {
+
+    /**
+     * Returns true if the entry with the given route is active in the current navigation path.
+     */
+    fun isRouteActive(route: String): Boolean {
+        return rootEntry.containsRoute(route)
+    }
+
+    /**
+     * Finds the entry with the given route in the active navigation path, or null if not found.
+     */
+    fun findEntryByRoute(route: String): NavigationEntry? {
+        return rootEntry.findEntryWithRoute(route)
+    }
+
+    /**
+     * Returns true if there is an active child under the entry with the given route.
+     */
+    fun hasActiveChildUnder(parentRoute: String): Boolean {
+        val entry = findEntryByRoute(parentRoute)
+        return entry?.hasChild() == true
+    }
+
+    /**
+     * Gets the active child under the entry with the given route, or null if none exists.
+     */
+    fun getActiveChildUnder(parentRoute: String): NavigationEntry? {
+        val entry = findEntryByRoute(parentRoute)
+        return entry?.childEntry
+    }
+}
 
 @Serializable
 data class NavigationEntry(
     val screen: Screen,
-    val params: StringAnyMap
-)
+    val params: StringAnyMap,
+    val id: String? = null,       // Unique identifier for this entry (route)
+    val childEntry: NavigationEntry? = null  // Active child entry, if any
+) {
+    /**
+     * The route path of this entry.
+     */
+    val path: String get() = screen.route
+
+    /**
+     * Returns true if this entry has a child entry.
+     */
+    fun hasChild(): Boolean {
+        return childEntry != null
+    }
+
+    /**
+     * Returns true if this entry has a child with the given route.
+     */
+    fun hasChildWithRoute(route: String): Boolean {
+        return childEntry?.path == route
+    }
+
+    /**
+     * Returns true if this entry or any of its descendants has the given route.
+     */
+    fun containsRoute(route: String): Boolean {
+        if (path == route) return true
+
+        var current = childEntry
+        while (current != null) {
+            if (current.path == route) return true
+            current = current.childEntry
+        }
+
+        return false
+    }
+
+    /**
+     * Gets the deepest active entry in this navigation tree.
+     */
+    fun getDeepestActiveEntry(): NavigationEntry {
+        var current = this
+        while (current.childEntry != null) {
+            current = current.childEntry!!
+        }
+        return current
+    }
+
+    /**
+     * Gets all child entries as a flat list, starting with the direct child.
+     */
+    fun getAllChildren(): List<NavigationEntry> {
+        val result = mutableListOf<NavigationEntry>()
+        var current = childEntry
+        while (current != null) {
+            result.add(current)
+            current = current.childEntry
+        }
+        return result
+    }
+
+    /**
+     * Finds a child or descendant entry with the specified route, or null if not found.
+     */
+    fun findEntryWithRoute(route: String): NavigationEntry? {
+        // First check if this entry matches the route
+        if (path == route) return this
+
+        // Base case: no child entry
+        if (childEntry == null) return null
+
+        // Check if the direct child matches
+        if (childEntry.path == route) return childEntry
+
+        // Recursively search in the child's hierarchy
+        return childEntry.findEntryWithRoute(route)
+    }
+}
 
 /**
  * Builder class for configuring navigation actions.
@@ -280,7 +392,6 @@ class PopUpToBuilder(
  * @property screens The list of screens and screen groups in the application.
  */
 class NavigationModule private constructor(
-    private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val rootScreen: Screen,
     private val screens: List<Pair<KClass<out Screen>, NavigationNode>>,
     private val addRootScreenToBackStack: Boolean
@@ -298,17 +409,17 @@ class NavigationModule private constructor(
             }
         }
         availableScreens[rootScreen.route] = rootScreen
+        // Create initial root entry
+        val rootEntry = NavigationEntry(
+            screen = rootScreen,
+            params = emptyMap(),
+            id = rootScreen.route,
+            childEntry = null
+        )
+
         NavigationState(
-            currentEntry = NavigationEntry(
-                screen = rootScreen,
-                params = emptyMap()
-            ),
-            backStack = if (addRootScreenToBackStack) listOf(
-                NavigationEntry(
-                    screen = rootScreen,
-                    params = emptyMap()
-                )
-            ) else emptyList(),
+            rootEntry = rootEntry,
+            backStack = if (addRootScreenToBackStack) listOf(rootEntry) else emptyList(),
             availableScreens = availableScreens
         )
     }
@@ -330,115 +441,11 @@ class NavigationModule private constructor(
 
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
-            is NavigationAction.Navigate -> {
-
-                var newBackStack = if (action.clearBackStack) listOf() else state.backStack
-                // Handle popUpTo
-                if (action.popUpTo != null) {
-                    val popIndex = newBackStack.indexOfLast { it.screen.route == action.popUpTo }
-                    if (popIndex != -1) {
-                        newBackStack = if (action.inclusive) {
-                            newBackStack.subList(0, popIndex)
-                        } else {
-                            newBackStack.subList(0, popIndex + 1)
-                        }
-                    }
-                }
-
-                val targetScreen = if (action.replaceWith != null) {
-                    state.availableScreens[action.replaceWith]
-                        ?: error("No screen found for route: ${action.replaceWith}")
-                } else {
-                    state.availableScreens[action.route]
-                        ?: error("No screen found for route: ${action.route}")
-                }
-
-                val params: StringAnyMap = if (action.forwardParams) {
-                    val previousParams = newBackStack.lastOrNull()?.params ?: emptyMap()
-                    previousParams.plus(action.params)
-                } else {
-                    action.params
-                }
-
-                val newEntry = NavigationEntry(
-                    screen = targetScreen,
-                    params = params
-                )
-
-                val currentEntry = newBackStack.lastOrNull()
-                if (currentEntry == newEntry) {
-                    state
-                } else {
-                    state.copy(
-                        currentEntry = newEntry,
-                        backStack = newBackStack + newEntry,
-                        clearedBackStackWithNavigate = action.clearBackStack
-                    )
-                }
-            }
-
-            is NavigationAction.PopUpTo -> {
-                val targetIndex = state.backStack.indexOfLast { it.screen.route == action.route }
-                if (targetIndex != -1) {
-                    var newBackStack = if (action.inclusive) {
-                        state.backStack.subList(0, targetIndex)
-                    } else {
-                        state.backStack.subList(0, targetIndex + 1)
-                    }
-
-
-                    var currentEntry = newBackStack.lastOrNull() ?: state.currentEntry
-                    if (action.replaceWith != null) {
-                        val replaceScreen = state.availableScreens[action.replaceWith]
-                            ?: error("No screen found for route: ${action.replaceWith}")
-                        currentEntry = currentEntry.copy(screen = replaceScreen, params = action.replaceParams)
-                        newBackStack = newBackStack.dropLast(1) + currentEntry
-                    }
-
-                    state.copy(
-                        currentEntry = currentEntry,
-                        backStack = newBackStack,
-                    )
-                } else {
-                    state
-                }
-            }
-
-            is NavigationAction.Back -> {
-                if (state.backStack.size > 1) {
-                    val newBackStack = state.backStack.dropLast(1)
-                    state.copy(
-                        currentEntry = newBackStack.last(),
-                        backStack = newBackStack,
-                    )
-                } else {
-                    state
-                }
-            }
-
-            is NavigationAction.ClearBackStack -> {
-                if (action.root != null) {
-                    val currentScreen =
-                        state.availableScreens[action.root] ?: error("No screen found for route: ${action.root}")
-                    state.copy(
-                        currentEntry = NavigationEntry(currentScreen, action.params),
-                        backStack = listOf(NavigationEntry(currentScreen, action.params))
-                    )
-                } else {
-                    state.copy(backStack = listOf())
-                }
-            }
-
-            is NavigationAction.Replace -> {
-                val newScreen = state.availableScreens[action.route]
-                    ?: error("No screen found for route: ${action.route}")
-                val newEntry = NavigationEntry(
-                    screen = newScreen,
-                    params = action.params
-                )
+            is NavigationAction.NavigateState -> {
                 state.copy(
-                    currentEntry = newEntry,
-                    backStack = state.backStack.dropLast(1) + newEntry,
+                    rootEntry = action.rootEntry,
+                    backStack = action.backStack,
+                    clearedBackStackWithNavigate = action.clearedBackStack
                 )
             }
 
@@ -446,54 +453,12 @@ class NavigationModule private constructor(
                 state.copy(isLoading = action.isLoading)
             }
 
-            is NavigationAction.ClearCurrentScreenParams -> {
-                val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen == state.currentEntry.screen) {
-                        entry.copy(params = emptyMap())
-                    } else {
-                        entry
-                    }
-                }
-                state.copy(backStack = updatedBackStack)
-            }
-
-            is NavigationAction.ClearCurrentScreenParam -> {
-                val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen == state.currentEntry.screen) {
-                        entry.copy(params = entry.params - action.key)
-                    } else {
-                        entry
-                    }
-                }
-                state.copy(backStack = updatedBackStack)
-            }
-
-            is NavigationAction.ClearScreenParams -> {
-                val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen.route == action.route) {
-                        entry.copy(params = emptyMap())
-                    } else {
-                        entry
-                    }
-                }
-                state.copy(backStack = updatedBackStack)
-            }
-
-            is NavigationAction.ClearScreenParam -> {
-                val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen.route == action.route) {
-                        entry.copy(params = entry.params - action.key)
-                    } else {
-                        entry
-                    }
-                }
-                state.copy(backStack = updatedBackStack)
-            }
+            else -> state
         }
     }
 
     override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor ->
-        NavigationLogic(coroutineScope, initialState.availableScreens, storeAccessor)
+        NavigationLogic(initialState.availableScreens, storeAccessor)
     }
 
     /**
@@ -550,7 +515,7 @@ class NavigationModule private constructor(
 
         fun build(): NavigationModule {
             requireNotNull(startScreen) { "Initial screen must be set" }
-            return NavigationModule(coroutineContext, startScreen!!, screens, _addInitialScreenToBackStack)
+            return NavigationModule(startScreen!!, screens, _addInitialScreenToBackStack)
         }
     }
 

@@ -26,23 +26,23 @@ suspend fun StoreAccessor.popUpTo(
 }
 
 suspend fun StoreAccessor.navigateBack() = coroutineScope {
-    selectLogic<NavigationLogic>().navigateBack()
+    selectLogic<NavigationLogic>().prepareBackAction()
 }
 
 suspend fun StoreAccessor.clearCurrentScreenParams() = coroutineScope {
-    selectLogic<NavigationLogic>().clearCurrentScreenParams()
+    selectLogic<NavigationLogic>().prepareClearCurrentScreenParamsAction()
 }
 
 suspend fun StoreAccessor.clearCurrentScreenParam(key: String) = coroutineScope {
-    selectLogic<NavigationLogic>().clearCurrentScreenParam(key)
+    selectLogic<NavigationLogic>().prepareClearCurrentScreenParamAction(key)
 }
 
 suspend fun StoreAccessor.clearScreenParams(route: String) = coroutineScope {
-    selectLogic<NavigationLogic>().clearScreenParams(route)
+    selectLogic<NavigationLogic>().prepareClearScreenParamsAction(route)
 }
 
 suspend fun StoreAccessor.clearScreenParam(route: String, key: String) = coroutineScope {
-    selectLogic<NavigationLogic>().clearScreenParam(route, key)
+    selectLogic<NavigationLogic>().prepareClearScreenParamAction(route, key)
 }
 
 suspend fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) = coroutineScope {
