@@ -11,7 +11,6 @@ internal class PersistenceManager(
     }
 ) {
     suspend fun persistState(state: Map<String, ModuleState>) {
-        println("TRYING TO PERSIST STATE MAP: $state")
         val serializedState = json.encodeToString(state)
         persistenceStrategy.saveState(serializedState)
     }
