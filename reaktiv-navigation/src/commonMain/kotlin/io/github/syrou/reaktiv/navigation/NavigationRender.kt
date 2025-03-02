@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import io.github.syrou.reaktiv.compose.composeState
+import io.github.syrou.reaktiv.compose.rememberDispatcher
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import kotlin.math.PI
 import kotlin.math.pow
@@ -70,116 +71,85 @@ fun NavigationRender(
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
 ) {
     val navigationState by composeState<NavigationState>()
-    println("DEBUG [NavigationRender] for basePath='$basePath', exclusive=$exclusive")
-    println("DEBUG [NavigationRender] Current entry: ${navigationState.currentEntry.path}")
-
-    // Build tree structure
-    val treeState = remember(navigationState) { navigationState.buildNavigationTree() }
-    val handledPaths = LocalHandledPaths.current
-    println("DEBUG [NavigationRender] Currently handled paths: $handledPaths")
+    val dispatch = rememberDispatcher()
 
     // Track animation state
-    var currentBackStackSize by remember { mutableStateOf(treeState.backStack.size) }
-    var previousBackStackSize by remember { mutableStateOf(treeState.backStack.size) }
+    var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
+    var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousEntry by remember { mutableStateOf<NavigationEntry?>(null) }
-    var currentEntry by remember { mutableStateOf<NavigationEntry>(treeState.currentEntry) }
+    var currentEntry by remember { mutableStateOf<NavigationEntry?>(null) }
 
-    LaunchedEffect(treeState.backStack.size) {
+    // Debug navigation state
+    LaunchedEffect(navigationState) {
+        println("DEBUG [NavigationRender:$basePath] backStack size: ${navigationState.backStack.size}")
+        println("DEBUG [NavigationRender:$basePath] backStack entries: ${navigationState.backStack.map { it.path }}")
+        println("DEBUG [NavigationRender:$basePath] current entry: ${navigationState.currentEntry.path}")
+        println("DEBUG [NavigationRender:$basePath] path handlers: ${navigationState.exclusivePathHandlers}")
+    }
+
+    // Register/unregister path handler in the state
+    LaunchedEffect(basePath, exclusive) {
+        println("DEBUG [NavigationRender:$basePath] registering handler, exclusive: $exclusive")
+        dispatch(NavigationAction.RegisterPathHandler(basePath, exclusive, persistent = true))
+    }
+
+    // Update animation tracking
+    LaunchedEffect(navigationState.backStack.size) {
         previousBackStackSize = currentBackStackSize
-        currentBackStackSize = treeState.backStack.size
+        currentBackStackSize = navigationState.backStack.size
     }
 
-    // Register exclusive paths
-    DisposableEffect(basePath) {
-        val pathsToAdd = mutableSetOf<String>()
-        if (exclusive && basePath.isNotEmpty()) {
-            pathsToAdd.add(basePath)
-            treeState.availableScreens.keys.forEach { route ->
-                if (route.startsWith("$basePath/")) {
-                    pathsToAdd.add(route)
-                }
-            }
-            handledPaths.addAll(pathsToAdd)
-        }
-        onDispose {
-            handledPaths.removeAll(pathsToAdd)
-        }
+    // Get the entry to display using the state method
+    val entryToDisplay = navigationState.getEntryToDisplay(basePath)
+    println("DEBUG [NavigationRender:$basePath] entryToDisplay: ${entryToDisplay?.path}")
+
+    // Update entry tracking for animations
+    LaunchedEffect(entryToDisplay) {
+        previousEntry = currentEntry
+        currentEntry = entryToDisplay
     }
 
-    // KEY FIX: Check if current entry is handled by another NavigationRender
-    val isCurrentEntryHandled = handledPaths.any { path ->
-        navigationState.currentEntry.path.startsWith(path)
-    }
+    Box(modifier = modifier.fillMaxSize()) {
+        if (entryToDisplay != null) {
+            println("DEBUG [NavigationRender:$basePath] rendering screen: ${entryToDisplay.screen.route}")
 
-    // Determine what to show
-    val entryToDisplay = when {
-        // If we're not at root level, show children as normal
-        basePath.isNotEmpty() -> {
-            val directChildren = treeState.backStack.filter { entry ->
-                entry.parentPath == basePath
-            }
-            directChildren.lastOrNull()
-        }
+            // AnimatedContent for transitions
+            AnimatedContent(
+                modifier = Modifier.fillMaxSize().testTag("AnimatedContent"),
+                targetState = entryToDisplay,
+                transitionSpec = {
+                    val isForward = navigationState.clearedBackStackWithNavigate ||
+                            (navigationState.backStack.size > previousBackStackSize)
 
-        // For root level, respect handled paths
-        isCurrentEntryHandled -> {
-            // Find the top-level entry that should handle the current path
-            val handledPath = handledPaths.first { path ->
-                navigationState.currentEntry.path.startsWith(path)
-            }
-            // Get the entry for this handled path
-            treeState.backStack.find { it.path == handledPath }
-        }
+                    // Animation setup (unchanged)
+                    val enterTransition = if (!isForward)
+                        previousEntry?.screen?.popEnterTransition ?: targetState.screen.enterTransition
+                    else
+                        targetState.screen.enterTransition
 
-        // Default root behavior - show current entry
-        else -> {
-            treeState.currentEntry
-        }
-    }
+                    val exitTransition = if (isForward)
+                        targetState.screen.popExitTransition ?: initialState.screen.exitTransition
+                    else
+                        initialState.screen.exitTransition
 
-    println("DEBUG [NavigationRender] Ready to render, entryToDisplay=${entryToDisplay?.path}")
-
-    // Always provide composition local
-    CompositionLocalProvider(LocalHandledPaths provides handledPaths) {
-        Box(modifier = modifier.fillMaxSize()) {
-            if (entryToDisplay != null) {
-                // Update entry tracking for animations
-                LaunchedEffect(entryToDisplay) {
-                    val isForward = treeState.clearedBackStackWithNavigate ||
-                            (treeState.backStack.size > previousBackStackSize)
-
-                    previousEntry = currentEntry
-                    currentEntry = entryToDisplay
-                }
-
-                // Restored AnimatedContent with animations
-                AnimatedContent(
-                    modifier = Modifier.fillMaxSize().testTag("AnimatedContent"),
-                    targetState = entryToDisplay,
-                    transitionSpec = {
-                        val isForward = treeState.clearedBackStackWithNavigate ||
-                                (treeState.backStack.size > previousBackStackSize)
-                        val enterTransition = if (!isForward) previousEntry?.screen?.popEnterTransition
-                            ?: targetState.screen.enterTransition else targetState.screen.enterTransition
-                        val exitTransition = if (isForward) targetState.screen.popExitTransition
-                            ?: initialState.screen.exitTransition else initialState.screen.exitTransition
-                        getContentTransform(exitTransition, enterTransition, isForward).apply {
-                            targetContentZIndex =
-                                if (treeState.clearedBackStackWithNavigate) {
-                                    previousBackStackSize++.toFloat()
-                                } else {
-                                    treeState.backStack.size.toFloat()
-                                }
+                    getContentTransform(exitTransition, enterTransition, isForward).apply {
+                        targetContentZIndex = if (navigationState.clearedBackStackWithNavigate) {
+                            previousBackStackSize++.toFloat()
+                        } else {
+                            navigationState.backStack.size.toFloat()
                         }
                     }
-                ) { entry ->
-                    screenContent.invoke(
-                        entry.screen,
-                        entry.params,
-                        treeState.isLoading
-                    )
                 }
+            ) { entry ->
+                println("DEBUG [NavigationRender:$basePath] rendering content for: ${entry.path}")
+                screenContent.invoke(
+                    entry.screen,
+                    entry.params,
+                    navigationState.isLoading
+                )
             }
+        } else {
+            println("DEBUG [NavigationRender:$basePath] nothing to display!")
         }
     }
 }

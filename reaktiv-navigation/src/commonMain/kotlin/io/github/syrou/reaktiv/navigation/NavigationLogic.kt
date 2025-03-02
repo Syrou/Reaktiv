@@ -2,9 +2,11 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.util.PathUtil
 import io.github.syrou.reaktiv.navigation.util.UrlUtil
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -19,70 +21,163 @@ class NavigationLogic(
     val storeAccessor: StoreAccessor
 ) : ModuleLogic<NavigationAction>() {
 
-    private fun routeExists(route: String): Boolean = availableScreens.containsKey(route)
+    private fun routeExists(route: String): Boolean {
+        val exists = availableScreens.containsKey(route)
+        println("DEBUG [NavigationLogic.routeExists] route: '$route', exists: $exists")
+        return exists
+    }
 
+    /**
+     * Navigates to a specified route.
+     */
     fun navigate(
         route: String,
         params: Map<String, Any> = emptyMap(),
         config: (NavigationBuilder.() -> Unit)? = null
     ) {
+        println("DEBUG [NavigationLogic.navigate] to route: '$route', params: $params")
+
         val (finalRoute, extractedParams) = extractRouteAndParams(route)
+        println("DEBUG [NavigationLogic.navigate] finalRoute: '$finalRoute', extractedParams: $extractedParams")
+
         if (!routeExists(finalRoute)) {
+            println("DEBUG [NavigationLogic.navigate] ROUTE NOT FOUND: '$finalRoute'")
             throw RouteNotFoundException(finalRoute)
         }
 
         val preparedParams = (extractedParams + params).mapValues { (_, value) -> prepareParam(value) }
         val builder = NavigationBuilder(finalRoute, preparedParams)
         config?.let { builder.apply(it) }
-        val action = builder.build()
 
-        // Simple validation and dispatch - no need for ID handling
-        if (action.clearBackStack && action.popUpTo == null && action.replaceWith == null) {
-            storeAccessor.dispatch(action)
-        } else if (action.clearBackStack && (action.popUpTo != null || action.replaceWith != null)) {
-            throw ClearingBackStackWithOtherOperations
+        // Get navigation state for debugging
+        coroutineScope.launch {
+            println("DEBUG [NavigationLogic.navigate] getting current state for debugging")
+            val currentState = storeAccessor.selectState<NavigationState>().first()
+            println("DEBUG [NavigationLogic.navigate] current path: '${currentState.currentEntry.path}'")
+            println("DEBUG [NavigationLogic.navigate] backStack: ${currentState.backStack.map { it.path }}")
+
+            // Determine parent path and entry
+            val parentPath = PathUtil.getParentPath(finalRoute)
+            println("DEBUG [NavigationLogic.navigate] parentPath: '$parentPath'")
+
+            val parentEntry = if (parentPath.isNotEmpty()) {
+                val foundParent = currentState.backStack.find { it.path == parentPath }
+                println("DEBUG [NavigationLogic.navigate] found parent: ${foundParent?.path}")
+                foundParent
+            } else null
+
+            // Build the action
+            val action = builder.build().copy(parent = parentEntry)
+            println("DEBUG [NavigationLogic.navigate] dispatching action: $action")
+
+            // Validation and dispatch (unchanged)
+            if (action.clearBackStack && action.popUpTo == null && action.replaceWith == null) {
+                storeAccessor.dispatch(action)
+            } else if (action.clearBackStack && (action.popUpTo != null || action.replaceWith != null)) {
+                throw ClearingBackStackWithOtherOperations
+            } else {
+                if (action.popUpTo != null && !routeExists(action.popUpTo)) {
+                    throw RouteNotFoundException(action.popUpTo)
+                }
+                if (action.replaceWith != null && !routeExists(action.replaceWith)) {
+                    throw RouteNotFoundException(action.replaceWith)
+                }
+                storeAccessor.dispatch(action)
+            }
+        }
+    }
+
+    /**
+     * Navigates to a child screen in nested navigation.
+     */
+    fun navigateToChild(parentPath: String, childSegment: String, params: Map<String, Any> = emptyMap()) {
+        println("DEBUG [NavigationLogic.navigateToChild] parentPath: '$parentPath', childSegment: '$childSegment'")
+
+        val fullPath = if (parentPath.endsWith("/")) {
+            "$parentPath$childSegment"
         } else {
-            if (action.popUpTo != null && !routeExists(action.popUpTo)) {
-                throw RouteNotFoundException(action.popUpTo)
+            "$parentPath/$childSegment"
+        }
+
+        println("DEBUG [NavigationLogic.navigateToChild] fullPath: '$fullPath'")
+
+        coroutineScope.launch {
+            println("DEBUG [NavigationLogic.navigateToChild] getting current state")
+            val currentState = storeAccessor.selectState<NavigationState>().first()
+            println("DEBUG [NavigationLogic.navigateToChild] current path: '${currentState.currentEntry.path}'")
+            println("DEBUG [NavigationLogic.navigateToChild] backStack: ${currentState.backStack.map { it.path }}")
+
+            val parentEntry = currentState.backStack.find { it.path == parentPath }
+            println("DEBUG [NavigationLogic.navigateToChild] found parent: ${parentEntry?.path}")
+
+            if (parentEntry == null) {
+                println("DEBUG [NavigationLogic.navigateToChild] PARENT NOT FOUND: '$parentPath'")
+                throw RouteNotFoundException("Parent path not found: $parentPath")
             }
-            if (action.replaceWith != null && !routeExists(action.replaceWith)) {
-                throw RouteNotFoundException(action.replaceWith)
+
+            if (!routeExists(fullPath)) {
+                println("DEBUG [NavigationLogic.navigateToChild] ROUTE NOT FOUND: '$fullPath'")
+                throw RouteNotFoundException(fullPath)
             }
+
+            val preparedParams = params.mapValues { (_, value) -> prepareParam(value) }
+
+            // Set the parent reference in the action
+            val action = NavigationAction.Navigate(
+                route = fullPath,
+                params = preparedParams,
+                parent = parentEntry
+            )
+
+            println("DEBUG [NavigationLogic.navigateToChild] dispatching action: $action")
             storeAccessor.dispatch(action)
         }
     }
 
-    fun navigateToChild(parentPath: String, childSegment: String, params: Map<String, Any> = emptyMap()) {
-        navigate("$parentPath/$childSegment", params)
-    }
-
     private fun extractRouteAndParams(fullRoute: String): Pair<String, Map<String, Any>> {
+        println("DEBUG [NavigationLogic.extractRouteAndParams] fullRoute: '$fullRoute'")
+
         val (routePart, queryPart) = fullRoute.split("?", limit = 2).let {
             if (it.size == 2) it[0] to it[1] else it[0] to ""
         }
 
+        println("DEBUG [NavigationLogic.extractRouteAndParams] routePart: '$routePart', queryPart: '$queryPart'")
+
         val (matchingRoute, pathParams) = extractPathParameters(routePart)
         val queryParams = extractQueryParameters(queryPart)
+
+        println("DEBUG [NavigationLogic.extractRouteAndParams] matchingRoute: '$matchingRoute', pathParams: $pathParams, queryParams: $queryParams")
 
         return Pair(matchingRoute, pathParams + queryParams)
     }
 
     private fun extractPathParameters(path: String): Pair<String, Map<String, Any>> {
+        println("DEBUG [NavigationLogic.extractPathParameters] path: '$path'")
+
         val parts = path.split("/")
+        println("DEBUG [NavigationLogic.extractPathParameters] parts: $parts")
+
         val params = mutableMapOf<String, Any>()
 
         val matchingRoutes = availableScreens.keys.filter { route ->
-            PathUtil.matchPath(route, path)
+            val matches = PathUtil.matchPath(route, path)
+            println("DEBUG [NavigationLogic.extractPathParameters] checking route: '$route', matches: $matches")
+            matches
         }
+
+        println("DEBUG [NavigationLogic.extractPathParameters] matchingRoutes: $matchingRoutes")
 
         val matchingRoute = matchingRoutes.firstOrNull()
             ?: throw RouteNotFoundException(path)
+
+        println("DEBUG [NavigationLogic.extractPathParameters] selected matchingRoute: '$matchingRoute'")
 
         val routeParts = matchingRoute.split("/")
         routeParts.zip(parts).forEach { (routePart, actualPart) ->
             if (PathUtil.isParameterSegment(routePart)) {
                 val paramName = PathUtil.extractParameterName(routePart)
                 params[paramName] = actualPart
+                println("DEBUG [NavigationLogic.extractPathParameters] extracted param: '$paramName' = '$actualPart'")
             }
         }
 
@@ -90,21 +185,39 @@ class NavigationLogic(
     }
 
     private fun extractQueryParameters(query: String): Map<String, Any> {
-        return query.split("&")
+        if (query.isEmpty()) return emptyMap()
+
+        println("DEBUG [NavigationLogic.extractQueryParameters] query: '$query'")
+
+        val params = query.split("&")
             .filter { it.isNotEmpty() }
             .associate { param ->
                 val (key, value) = param.split("=", limit = 2).let {
                     if (it.size == 2) it[0] to it[1] else it[0] to ""
                 }
+                println("DEBUG [NavigationLogic.extractQueryParameters] param: '$key' = '$value'")
                 key to UrlUtil.decodeURIComponent(value)
             }
+
+        println("DEBUG [NavigationLogic.extractQueryParameters] params: $params")
+        return params
     }
 
     private fun prepareParam(value: Any): Any {
         return when (value) {
-            is String -> UrlUtil.encodeURIComponent(value)
-            is Number, Boolean -> value
-            else -> throw IllegalArgumentException("Unsupported parameter type: ${value::class.simpleName}")
+            is String -> {
+                val encoded = UrlUtil.encodeURIComponent(value)
+                println("DEBUG [NavigationLogic.prepareParam] encoded '$value' to '$encoded'")
+                encoded
+            }
+            is Number, Boolean -> {
+                println("DEBUG [NavigationLogic.prepareParam] keeping as is: $value")
+                value
+            }
+            else -> {
+                println("DEBUG [NavigationLogic.prepareParam] UNSUPPORTED TYPE: ${value::class.simpleName}")
+                throw IllegalArgumentException("Unsupported parameter type: ${value::class.simpleName}")
+            }
         }
     }
 

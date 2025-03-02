@@ -32,4 +32,19 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     data class ClearCurrentScreenParam(val key: String) : NavigationAction()
     data class ClearScreenParams(val route: String) : NavigationAction()
     data class ClearScreenParam(val route: String, val key: String) : NavigationAction()
+    /**
+     * Action to register a path handler. Used by NavigationRender.
+     */
+    data class RegisterPathHandler(
+        val path: String,
+        val exclusive: Boolean,
+        val persistent: Boolean = false
+    ) : NavigationAction()
+
+    /**
+     * Action to unregister a path handler. Used by NavigationRender.
+     */
+    data class UnregisterPathHandler(
+        val path: String
+    ) : NavigationAction()
 }

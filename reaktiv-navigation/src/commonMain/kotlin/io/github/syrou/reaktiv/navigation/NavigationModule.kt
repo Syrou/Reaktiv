@@ -1,6 +1,5 @@
 package io.github.syrou.reaktiv.navigation
 
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
@@ -10,7 +9,6 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
-import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.util.PathUtil
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -146,30 +144,153 @@ data class NavigationState(
     val availableScreens: Map<String, Screen> = emptyMap(),
     val clearedBackStackWithNavigate: Boolean = false,
     val isLoading: Boolean = false,
+    val exclusivePathHandlers: Map<String, Boolean> = emptyMap(),
+    val persistentHandlers: Set<String> = emptySet()
 ) : ModuleState {
-    fun buildNavigationTree(): NavigationState {
-        // Create ID to entry map for lookup
-        val entryMap = backStack.associateBy { it.id }
+    /**
+     * Determines which entry should be displayed at a specific rendering level.
+     * This logic is moved from NavigationRender.
+     */
+    fun getEntryToDisplay(basePath: String): NavigationEntry? {
+        println("DEBUG [getEntryToDisplay] called with basePath: '$basePath'")
+        println("DEBUG [getEntryToDisplay] current path: '${currentEntry.path}'")
+        println("DEBUG [getEntryToDisplay] backStack: ${backStack.map { it.path }}")
+        println("DEBUG [getEntryToDisplay] exclusivePathHandlers: $exclusivePathHandlers")
+        println("DEBUG [getEntryToDisplay] persistentHandlers: $persistentHandlers")
 
-        // Create copies to modify (since original entries are immutable)
-        val updatedEntries = backStack.map { it.copy() }
-        val updatedEntryMap = updatedEntries.associateBy { it.id }
+        // If we're not at root level, show children at this level
+        if (basePath.isNotEmpty()) {
+            val activeChild = getActiveChildAtLevel(basePath)
+            println("DEBUG [getEntryToDisplay] activeChild for '$basePath': ${activeChild?.path}")
+            return activeChild
+        }
 
-        // Set up parent/child references
-        updatedEntries.forEach { entry ->
-            val parentPath = entry.parentPath
-            if (parentPath.isNotEmpty()) {
-                entry.parent = updatedEntryMap[parentPath]
-                // Set bidirectional relationship
-                entry.parent?.child = entry
+        // For root level, handle exclusive paths
+        val isCurrentEntryHandledExclusively = isPathHandledExclusively(currentEntry.path)
+        println("DEBUG [getEntryToDisplay] isCurrentEntryHandledExclusively: $isCurrentEntryHandledExclusively")
+
+        if (isCurrentEntryHandledExclusively) {
+            // Get the top-level path that should handle this entry
+            val handlerPath = findExclusiveHandler(currentEntry.path)
+            println("DEBUG [getEntryToDisplay] handlerPath: $handlerPath")
+
+            if (handlerPath != null) {
+                // Return the entry for this path
+                val handlerEntry = backStack.find { it.path == handlerPath }
+                println("DEBUG [getEntryToDisplay] handlerEntry: ${handlerEntry?.path}")
+                return handlerEntry
             }
         }
 
-        // Update current entry with references
-        val updatedCurrentEntry = updatedEntries.find { it.path == currentEntry.path }
-            ?: currentEntry.copy()
+        // Default: show current entry
+        println("DEBUG [getEntryToDisplay] returning default currentEntry: ${currentEntry.path}")
+        return currentEntry
+    }
 
-        return copy(currentEntry = updatedCurrentEntry, backStack = updatedEntries)
+    /**
+     * Gets the active child at a specific path level.
+     */
+    private fun getActiveChildAtLevel(parentPath: String): NavigationEntry? {
+        println("DEBUG [getActiveChildAtLevel] parentPath: '$parentPath'")
+
+        // Find all direct children
+        val allChildren = backStack.filter { entry ->
+            val entryParentPath = PathUtil.getParentPath(entry.path)
+            val isChild = entryParentPath == parentPath
+            println("DEBUG [getActiveChildAtLevel] entry: ${entry.path}, entryParentPath: '$entryParentPath', isChild: $isChild")
+            isChild
+        }
+
+        // Get the most recent one
+        val lastChild = allChildren.lastOrNull()
+        println("DEBUG [getActiveChildAtLevel] found ${allChildren.size} children, last: ${lastChild?.path}")
+
+        // If a child is the current entry, prioritize it
+        val currentEntryAsChild = if (PathUtil.getParentPath(currentEntry.path) == parentPath) {
+            println("DEBUG [getActiveChildAtLevel] current entry is a child of '$parentPath'")
+            currentEntry
+        } else null
+
+        val result = currentEntryAsChild ?: lastChild
+        println("DEBUG [getActiveChildAtLevel] result: ${result?.path}")
+
+        return result
+    }
+
+    /**
+     * Checks if a path is handled exclusively by a different renderer.
+     */
+    private fun isPathHandledExclusively(path: String): Boolean {
+        val exclusiveHandlers = exclusivePathHandlers.entries
+            .filter { it.value } // Only consider exclusive handlers
+
+        println("DEBUG [isPathHandledExclusively] path: '$path', exclusiveHandlers: $exclusiveHandlers")
+
+        val result = exclusiveHandlers.any { (handlerPath, _) ->
+            val isHandled = path.startsWith(handlerPath) && path != handlerPath
+            println("DEBUG [isPathHandledExclusively] checking handler: '$handlerPath', isHandled: $isHandled")
+            isHandled
+        }
+
+        println("DEBUG [isPathHandledExclusively] result: $result")
+        return result
+    }
+
+    /**
+     * Finds the exclusive handler for a path.
+     */
+    private fun findExclusiveHandler(path: String): String? {
+        val exclusiveHandlers = exclusivePathHandlers.entries
+            .filter { it.value } // Only consider exclusive handlers
+            .map { it.key }
+
+        println("DEBUG [findExclusiveHandler] path: '$path', exclusiveHandlers: $exclusiveHandlers")
+
+        val result = exclusiveHandlers.firstOrNull { handlerPath ->
+            val isHandler = path.startsWith(handlerPath) && path != handlerPath
+            println("DEBUG [findExclusiveHandler] checking handler: '$handlerPath', isHandler: $isHandler")
+            isHandler
+        }
+
+        println("DEBUG [findExclusiveHandler] result: $result")
+        return result
+    }
+
+    /**
+     * Registers a path handler. If exclusive, it will handle all child paths.
+     */
+    fun withPathHandler(path: String, exclusive: Boolean, persistent: Boolean = false): NavigationState {
+        println("DEBUG [withPathHandler] registering path: '$path', exclusive: $exclusive, persistent: $persistent")
+        val updatedHandlers = exclusivePathHandlers.toMutableMap()
+        updatedHandlers[path] = exclusive
+
+        val updatedPersistentHandlers = if (persistent) {
+            persistentHandlers + path
+        } else {
+            persistentHandlers
+        }
+
+        return copy(
+            exclusivePathHandlers = updatedHandlers,
+            persistentHandlers = updatedPersistentHandlers
+        )
+    }
+
+    /**
+     * Unregisters a path handler.
+     */
+    fun withoutPathHandler(path: String): NavigationState {
+        println("DEBUG [withoutPathHandler] unregistering path: '$path'")
+
+        // Don't unregister persistent handlers
+        if (persistentHandlers.contains(path)) {
+            println("DEBUG [withoutPathHandler] path '$path' is persistent, not unregistering")
+            return this
+        }
+
+        val updatedHandlers = exclusivePathHandlers.toMutableMap()
+        updatedHandlers.remove(path)
+        return copy(exclusivePathHandlers = updatedHandlers)
     }
 }
 
@@ -401,40 +522,63 @@ class NavigationModule private constructor(
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
             is NavigationAction.Navigate -> {
-                var newBackStack = if (action.clearBackStack) listOf() else state.backStack
+                println("DEBUG [NavigationReducer] Navigate: route='${action.route}', params=${action.params}")
+                println("DEBUG [NavigationReducer] Navigate: parent=${action.parent?.path}")
+
+                var newBackStack = if (action.clearBackStack) {
+                    println("DEBUG [NavigationReducer] clearing backstack")
+                    listOf()
+                } else state.backStack
 
                 // Handle popUpTo
                 if (action.popUpTo != null) {
+                    println("DEBUG [NavigationReducer] popUpTo: ${action.popUpTo}, inclusive: ${action.inclusive}")
                     val popIndex = newBackStack.indexOfLast { it.screen.route == action.popUpTo }
+                    println("DEBUG [NavigationReducer] popIndex: $popIndex")
+
                     if (popIndex != -1) {
                         newBackStack = if (action.inclusive) {
+                            println("DEBUG [NavigationReducer] popping inclusive to index $popIndex")
                             newBackStack.subList(0, popIndex)
                         } else {
+                            println("DEBUG [NavigationReducer] popping non-inclusive to index $popIndex")
                             newBackStack.subList(0, popIndex + 1)
                         }
                     }
                 }
 
                 val targetScreen = if (action.replaceWith != null) {
+                    println("DEBUG [NavigationReducer] replacing with: ${action.replaceWith}")
                     state.availableScreens[action.replaceWith]
                         ?: error("No screen found for route: ${action.replaceWith}")
                 } else {
+                    println("DEBUG [NavigationReducer] using route: ${action.route}")
                     state.availableScreens[action.route]
                         ?: error("No screen found for route: ${action.route}")
                 }
 
+                println("DEBUG [NavigationReducer] targetScreen: ${targetScreen.route}")
+
                 val params: StringAnyMap = if (action.forwardParams) {
+                    println("DEBUG [NavigationReducer] forwarding params")
                     val previousParams = newBackStack.lastOrNull()?.params ?: emptyMap()
                     previousParams.plus(action.params)
                 } else {
                     action.params
                 }
 
-                // Create new entry with proper IDs
+                println("DEBUG [NavigationReducer] final params: $params")
+
+                // Create new entry
                 val newEntry = NavigationEntry(
                     screen = targetScreen,
-                    params = params
+                    params = params,
+                    id = action.route
                 )
+
+                println("DEBUG [NavigationReducer] newEntry: ${newEntry.path}")
+                println("DEBUG [NavigationReducer] current backStack: ${newBackStack.map { it.path }}")
+                println("DEBUG [NavigationReducer] adding to backStack: ${newEntry.path}")
 
                 val result = state.copy(
                     currentEntry = newEntry,
@@ -442,42 +586,51 @@ class NavigationModule private constructor(
                     clearedBackStackWithNavigate = action.clearBackStack
                 )
 
-                // Build tree structure before returning
-                result.buildNavigationTree()
+                println("DEBUG [NavigationReducer] new backStack: ${result.backStack.map { it.path }}")
+                println("DEBUG [NavigationReducer] new currentEntry: ${result.currentEntry.path}")
+
+                result
             }
 
             is NavigationAction.Back -> {
+                println("DEBUG [NavigationReducer] Back")
+
                 if (state.backStack.size > 1) {
-                    // Check if current entry has a parent
-                    val currentEntry = state.currentEntry
+                    println("DEBUG [NavigationReducer] backStack size: ${state.backStack.size}")
 
-                    if (currentEntry.hasParent()) {
-                        // If it has a parent, navigate back to the parent
-                        val parentEntry = currentEntry.parent
+                    // Determine what entry to go back to based on paths
+                    val currentPath = state.currentEntry.path
+                    val parentPath = PathUtil.getParentPath(currentPath)
 
-                        if (parentEntry != null) {
-                            val newBackStack = state.backStack.dropLast(1)
-                            state.copy(
-                                currentEntry = parentEntry,
-                                backStack = newBackStack
-                            ).buildNavigationTree()
-                        } else {
-                            // Standard back behavior if parent not found
-                            val newBackStack = state.backStack.dropLast(1)
-                            state.copy(
-                                currentEntry = newBackStack.last(),
-                                backStack = newBackStack
-                            ).buildNavigationTree()
+                    println("DEBUG [NavigationReducer] currentPath: '$currentPath', parentPath: '$parentPath'")
+
+                    // Find the entry to go back to
+                    val targetEntry = if (parentPath.isNotEmpty()) {
+                        // Try to find parent in backstack
+                        val parentEntry = state.backStack.findLast { it.path == parentPath }
+                        println("DEBUG [NavigationReducer] found parent entry: ${parentEntry?.path}")
+
+                        parentEntry ?: run {
+                            println("DEBUG [NavigationReducer] parent not found, using standard back behavior")
+                            state.backStack[state.backStack.lastIndex - 1]
                         }
                     } else {
-                        // Standard back behavior
-                        val newBackStack = state.backStack.dropLast(1)
-                        state.copy(
-                            currentEntry = newBackStack.last(),
-                            backStack = newBackStack
-                        ).buildNavigationTree()
+                        println("DEBUG [NavigationReducer] using standard back behavior (no parent)")
+                        state.backStack[state.backStack.lastIndex - 1]
                     }
+
+                    println("DEBUG [NavigationReducer] target entry: ${targetEntry.path}")
+
+                    // Remove current entry and set target as current
+                    val newBackStack = state.backStack.filter { it.path != currentPath }
+                    println("DEBUG [NavigationReducer] new backStack: ${newBackStack.map { it.path }}")
+
+                    state.copy(
+                        currentEntry = targetEntry,
+                        backStack = newBackStack
+                    )
                 } else {
+                    println("DEBUG [NavigationReducer] backStack too small, no change")
                     state
                 }
             }
@@ -496,10 +649,11 @@ class NavigationModule private constructor(
                         val replaceScreen = state.availableScreens[action.replaceWith]
                             ?: error("No screen found for route: ${action.replaceWith}")
 
-                        // Create a new entry for the replacement - no IDs needed
+                        // Create a new entry for the replacement
                         val newEntry = NavigationEntry(
                             screen = replaceScreen,
-                            params = action.replaceParams
+                            params = action.replaceParams,
+                            id = action.replaceWith
                         )
 
                         newBackStack = newBackStack.dropLast(1)
@@ -510,7 +664,7 @@ class NavigationModule private constructor(
                     state.copy(
                         currentEntry = currentEntry,
                         backStack = newBackStack
-                    ).buildNavigationTree()
+                    )
                 } else {
                     state
                 }
@@ -522,14 +676,15 @@ class NavigationModule private constructor(
                         ?: error("No screen found for route: ${action.root}")
                     val rootEntry = NavigationEntry(
                         screen = rootScreen,
-                        params = action.params
+                        params = action.params,
+                        id = action.root
                     )
                     state.copy(
                         currentEntry = rootEntry,
                         backStack = listOf(rootEntry)
-                    ).buildNavigationTree()
+                    )
                 } else {
-                    state.copy(backStack = listOf()).buildNavigationTree()
+                    state.copy(backStack = listOf())
                 }
             }
 
@@ -537,19 +692,22 @@ class NavigationModule private constructor(
                 val newScreen = state.availableScreens[action.route]
                     ?: error("No screen found for route: ${action.route}")
 
-                // Create new entry - no need for parent/child IDs
+                // Create new entry
                 val newEntry = NavigationEntry(
                     screen = newScreen,
-                    params = action.params
+                    params = action.params,
+                    id = action.route
                 )
 
-                // Simply replace the last entry
-                val newBackStack = state.backStack.dropLast(1) + newEntry
+                // Replace in the backstack
+                val newBackStack = state.backStack.map {
+                    if (it == state.currentEntry) newEntry else it
+                }
 
                 state.copy(
                     currentEntry = newEntry,
                     backStack = newBackStack
-                ).buildNavigationTree()
+                )
             }
 
             is NavigationAction.SetLoading -> {
@@ -564,7 +722,10 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack).buildNavigationTree()
+                state.copy(
+                    currentEntry = state.currentEntry.copy(params = emptyMap()),
+                    backStack = updatedBackStack
+                )
             }
 
             is NavigationAction.ClearCurrentScreenParam -> {
@@ -575,7 +736,10 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack).buildNavigationTree()
+                state.copy(
+                    currentEntry = state.currentEntry.copy(params = state.currentEntry.params - action.key),
+                    backStack = updatedBackStack
+                )
             }
 
             is NavigationAction.ClearScreenParams -> {
@@ -586,7 +750,16 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack).buildNavigationTree()
+                val updatedCurrentEntry = if (state.currentEntry.screen.route == action.route) {
+                    state.currentEntry.copy(params = emptyMap())
+                } else {
+                    state.currentEntry
+                }
+
+                state.copy(
+                    currentEntry = updatedCurrentEntry,
+                    backStack = updatedBackStack
+                )
             }
 
             is NavigationAction.ClearScreenParam -> {
@@ -597,7 +770,39 @@ class NavigationModule private constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack).buildNavigationTree()
+                val updatedCurrentEntry = if (state.currentEntry.screen.route == action.route) {
+                    state.currentEntry.copy(params = state.currentEntry.params - action.key)
+                } else {
+                    state.currentEntry
+                }
+
+                state.copy(
+                    currentEntry = updatedCurrentEntry,
+                    backStack = updatedBackStack
+                )
+            }
+
+            is NavigationAction.RegisterPathHandler -> {
+                println("DEBUG [NavigationReducer] RegisterPathHandler: path='${action.path}', exclusive=${action.exclusive}, persistent=${action.persistent}")
+                println("DEBUG [NavigationReducer] current handlers: ${state.exclusivePathHandlers}")
+                println("DEBUG [NavigationReducer] current persistent handlers: ${state.persistentHandlers}")
+
+                val result = state.withPathHandler(action.path, action.exclusive, action.persistent)
+                println("DEBUG [NavigationReducer] new handlers: ${result.exclusivePathHandlers}")
+                println("DEBUG [NavigationReducer] new persistent handlers: ${result.persistentHandlers}")
+
+                result
+            }
+
+            is NavigationAction.UnregisterPathHandler -> {
+                println("DEBUG [NavigationReducer] UnregisterPathHandler: path='${action.path}'")
+                println("DEBUG [NavigationReducer] current handlers: ${state.exclusivePathHandlers}")
+                println("DEBUG [NavigationReducer] current persistent handlers: ${state.persistentHandlers}")
+
+                val result = state.withoutPathHandler(action.path)
+                println("DEBUG [NavigationReducer] new handlers: ${result.exclusivePathHandlers}")
+
+                result
             }
         }
     }
