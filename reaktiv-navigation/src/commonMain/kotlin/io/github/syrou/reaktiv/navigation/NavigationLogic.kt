@@ -2,230 +2,456 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.util.PathUtil
 import io.github.syrou.reaktiv.navigation.util.UrlUtil
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 /**
  * Handles the logic for navigation actions in the Reaktiv architecture.
  *
- * @property coroutineScope The CoroutineScope for this logic.
  * @property availableScreens A map of all available screens in the application.
  */
-class NavigationLogic(
-    private val coroutineScope: CoroutineScope,
+internal class NavigationLogic(
     private val availableScreens: Map<String, Screen>,
     val storeAccessor: StoreAccessor
 ) : ModuleLogic<NavigationAction>() {
+    /**
+     * Helper method to ensure parent paths exist in a navigation operation.
+     */
+    private fun ensureParentPathsExist(
+        path: String,
+        currentBackStack: List<NavigationEntry>,
+        insertBeforeEntry: NavigationEntry? = null
+    ): List<NavigationEntry> {
+        val pathSegments = path.split("/")
 
-    private fun routeExists(route: String): Boolean {
-        val exists = availableScreens.containsKey(route)
-        println("DEBUG [NavigationLogic.routeExists] route: '$route', exists: $exists")
-        return exists
+        // If not a nested path, return original backstack
+        if (pathSegments.size <= 1) {
+            return currentBackStack
+        }
+
+        var newBackStack = currentBackStack
+        var currentPath = ""
+
+        // Add all parent paths
+        for (i in 0..<pathSegments.size - 1) {
+            if (i > 0) currentPath += "/"
+            currentPath += pathSegments[i]
+
+            // Skip if already in backstack
+            if (newBackStack.any { it.path == currentPath }) {
+                continue
+            }
+            println("DEBUG - AVAILABLE SCREENS: $availableScreens")
+            val parentScreen = availableScreens[currentPath] ?: availableScreens[path]
+            ?: error("No screen found for parent path: $currentPath or direct path: ${availableScreens[path]}")
+
+            val parentEntry = NavigationEntry(
+                screen = parentScreen,
+                params = emptyMap(),
+                id = currentPath
+            )
+
+            // If we're doing a replace operation, insert at specific position
+            newBackStack = if (insertBeforeEntry != null) {
+                val insertIndex = newBackStack.indexOf(insertBeforeEntry)
+                if (insertIndex >= 0) {
+                    newBackStack.subList(0, insertIndex) +
+                            parentEntry +
+                            newBackStack.subList(insertIndex, newBackStack.size)
+                } else {
+                    newBackStack + parentEntry
+                }
+            } else {
+                // Otherwise just add to the end
+                newBackStack + parentEntry
+            }
+        }
+
+        return newBackStack
     }
+
+    /**
+     * Helper method to create a NavigationEntry for a path.
+     */
+    private fun createEntryForPath(
+        path: String,
+        params: Map<String, Any> = emptyMap()
+    ): NavigationEntry {
+        val screen = availableScreens[path] ?: error("No screen found for route: $path")
+
+        return NavigationEntry(
+            screen = screen,
+            params = params,
+            id = path
+        )
+    }
+
+    /**
+     * Prepares a Navigate action for the reducer.
+     */
+    private suspend fun prepareNavigateAction(
+        route: String,
+        params: Map<String, Any>,
+        popUpTo: String?,
+        inclusive: Boolean,
+        replaceWith: String?,
+        clearBackStack: Boolean,
+        forwardParams: Boolean
+    ) {
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+
+        var newBackStack = if (clearBackStack) listOf() else currentState.backStack
+
+        // Handle popUpTo
+        if (popUpTo != null) {
+            val popIndex = newBackStack.indexOfLast { it.screen.route == popUpTo }
+            if (popIndex != -1) {
+                newBackStack = if (inclusive) {
+                    newBackStack.subList(0, popIndex)
+                } else {
+                    newBackStack.subList(0, popIndex + 1)
+                }
+            }
+        }
+
+        val targetRoute = replaceWith ?: route
+
+        val finalParams: StringAnyMap = if (forwardParams) {
+            val previousParams = newBackStack.lastOrNull()?.params ?: emptyMap()
+            previousParams.plus(params)
+        } else {
+            params
+        }
+
+        // Create new entry
+        val newEntry = createEntryForPath(targetRoute, finalParams)
+
+        // Ensure parent paths exist in backstack
+        newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
+
+        // Add the new entry
+        newBackStack = newBackStack + newEntry
+
+        // Create enhanced action with prepared backstack
+        val enhancedAction = NavigationAction.NavigateState(
+            currentEntry = newEntry,
+            backStack = newBackStack,
+            clearedBackStack = clearBackStack
+        )
+
+        storeAccessor.dispatch(enhancedAction)
+    }
+
+    /**
+     * Prepares a Back action for the reducer.
+     */
+    internal suspend fun prepareBackAction() {
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+        if (currentState.backStack.size <= 1) return
+
+        // Find current entry index
+        val currentIndex = currentState.backStack.indexOf(currentState.currentEntry)
+        if (currentIndex <= 0) return
+
+        // Get previous entry
+        val newEntry = currentState.backStack[currentIndex - 1]
+
+        // Create backstack without current entry
+        val newBackStack = currentState.backStack.filter { it != currentState.currentEntry }
+
+        // Dispatch prepared state
+        storeAccessor.dispatch(
+            NavigationAction.NavigateState(
+                currentEntry = newEntry,
+                backStack = newBackStack,
+                clearedBackStack = false
+            )
+        )
+    }
+
+    /**
+     * Prepares a PopUpTo action for the reducer.
+     */
+    suspend fun preparePopUpToAction(
+        route: String,
+        inclusive: Boolean,
+        replaceWith: String?,
+        replaceParams: Map<String, Any>
+    ) {
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+
+        val targetIndex = currentState.backStack.indexOfLast { it.screen.route == route }
+        if (targetIndex == -1) return
+
+        var newBackStack = if (inclusive) {
+            currentState.backStack.subList(0, targetIndex)
+        } else {
+            currentState.backStack.subList(0, targetIndex + 1)
+        }
+
+        var newEntry = newBackStack.lastOrNull() ?: currentState.currentEntry
+
+        if (replaceWith != null) {
+            // Create new entry for replacement
+            newEntry = createEntryForPath(replaceWith, replaceParams)
+
+            // Ensure parent paths exist
+            newBackStack = ensureParentPathsExist(replaceWith, newBackStack)
+
+            // Add replacement entry
+            newBackStack = newBackStack + newEntry
+        }
+
+        // Dispatch prepared state
+        storeAccessor.dispatch(
+            NavigationAction.NavigateState(
+                currentEntry = newEntry,
+                backStack = newBackStack,
+                clearedBackStack = false
+            )
+        )
+    }
+
+    /**
+     * Prepares a ClearBackStack action for the reducer.
+     */
+    private suspend fun prepareClearBackStackAction(
+        root: String?,
+        params: Map<String, Any>
+    ) {
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+
+        if (root == null) {
+            // Just clear the backstack
+            storeAccessor.dispatch(
+                NavigationAction.NavigateState(
+                    currentEntry = currentState.currentEntry,
+                    backStack = listOf(),
+                    clearedBackStack = true
+                )
+            )
+            return
+        }
+
+        // Create root entry
+        val rootEntry = createEntryForPath(root, params)
+
+        // Start with empty backstack
+        var newBackStack = listOf<NavigationEntry>()
+
+        // Ensure parent paths exist
+        newBackStack = ensureParentPathsExist(root, newBackStack)
+
+        // Add root entry
+        newBackStack = newBackStack + rootEntry
+
+        // Dispatch prepared state
+        storeAccessor.dispatch(
+            NavigationAction.NavigateState(
+                currentEntry = rootEntry,
+                backStack = newBackStack,
+                clearedBackStack = true
+            )
+        )
+    }
+
+    /**
+     * Prepares a Replace action for the reducer.
+     */
+    private suspend fun prepareReplaceAction(
+        route: String,
+        params: Map<String, Any>
+    ) {
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+
+        // Create new entry for replacement
+        val newEntry = createEntryForPath(route, params)
+
+        // Get the entry being replaced
+        val replacedEntry = currentState.currentEntry
+
+        // Ensure parent paths exist, inserting before the replaced entry
+        var newBackStack = ensureParentPathsExist(
+            route,
+            currentState.backStack,
+            insertBeforeEntry = replacedEntry
+        )
+
+        // Replace the current entry in the backstack
+        newBackStack = newBackStack.map {
+            if (it == replacedEntry) newEntry else it
+        }
+
+        // Dispatch prepared state
+        storeAccessor.dispatch(
+            NavigationAction.NavigateState(
+                currentEntry = newEntry,
+                backStack = newBackStack,
+                clearedBackStack = false
+            )
+        )
+    }
+
+    /**
+     * Prepares a ClearCurrentScreenParams action for the reducer.
+     */
+    internal suspend fun prepareClearCurrentScreenParamsAction() {
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+        val updatedBackStack = currentState.backStack.map { entry ->
+            if (entry.screen == currentState.currentEntry.screen) {
+                entry.copy(params = emptyMap())
+            } else {
+                entry
+            }
+        }
+
+        storeAccessor.dispatch(
+            NavigationAction.NavigateState(
+                currentEntry = currentState.currentEntry.copy(params = emptyMap()),
+                backStack = updatedBackStack,
+                clearedBackStack = false
+            )
+        )
+    }
+
+    /**
+     * Prepares a ClearCurrentScreenParam action for the reducer.
+     */
+    internal suspend fun prepareClearCurrentScreenParamAction(key: String) {
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+        val updatedBackStack = currentState.backStack.map { entry ->
+            if (entry.screen == currentState.currentEntry.screen) {
+                entry.copy(params = entry.params - key)
+            } else {
+                entry
+            }
+        }
+
+        storeAccessor.dispatch(
+            NavigationAction.NavigateState(
+                currentEntry = currentState.currentEntry.copy(params = currentState.currentEntry.params - key),
+                backStack = updatedBackStack,
+                clearedBackStack = false
+            )
+        )
+    }
+
+    /**
+     * Prepares a ClearScreenParams action for the reducer.
+     */
+    internal suspend fun prepareClearScreenParamsAction(route: String) {
+        if (!routeExists(route)) {
+            throw RouteNotFoundException(route)
+        }
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+        val updatedBackStack = currentState.backStack.map { entry ->
+            if (entry.screen.route == route) {
+                entry.copy(params = emptyMap())
+            } else {
+                entry
+            }
+        }
+
+        val updatedCurrentEntry = if (currentState.currentEntry.screen.route == route) {
+            currentState.currentEntry.copy(params = emptyMap())
+        } else {
+            currentState.currentEntry
+        }
+
+        storeAccessor.dispatch(
+            NavigationAction.NavigateState(
+                currentEntry = updatedCurrentEntry,
+                backStack = updatedBackStack,
+                clearedBackStack = false
+            )
+        )
+    }
+
+    /**
+     * Prepares a ClearScreenParam action for the reducer.
+     */
+    suspend fun prepareClearScreenParamAction(route: String, key: String) {
+        if (!routeExists(route)) {
+            throw RouteNotFoundException(route)
+        }
+
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+
+        val updatedBackStack = currentState.backStack.map { entry ->
+            if (entry.screen.route == route) {
+                entry.copy(params = entry.params - key)
+            } else {
+                entry
+            }
+        }
+
+        val updatedCurrentEntry = if (currentState.currentEntry.screen.route == route) {
+            currentState.currentEntry.copy(params = currentState.currentEntry.params - key)
+        } else {
+            currentState.currentEntry
+        }
+
+        storeAccessor.dispatch(
+            NavigationAction.NavigateState(
+                currentEntry = updatedCurrentEntry,
+                backStack = updatedBackStack,
+                clearedBackStack = false
+            )
+        )
+    }
+
+    // Public navigation methods that interface with the UI
 
     /**
      * Navigates to a specified route.
      */
-    fun navigate(
+    suspend fun navigate(
         route: String,
         params: Map<String, Any> = emptyMap(),
         config: (NavigationBuilder.() -> Unit)? = null
     ) {
-        println("DEBUG [NavigationLogic.navigate] to route: '$route', params: $params")
-
         val (finalRoute, extractedParams) = extractRouteAndParams(route)
-        println("DEBUG [NavigationLogic.navigate] finalRoute: '$finalRoute', extractedParams: $extractedParams")
-
         if (!routeExists(finalRoute)) {
-            println("DEBUG [NavigationLogic.navigate] ROUTE NOT FOUND: '$finalRoute'")
             throw RouteNotFoundException(finalRoute)
         }
 
         val preparedParams = (extractedParams + params).mapValues { (_, value) -> prepareParam(value) }
         val builder = NavigationBuilder(finalRoute, preparedParams)
         config?.let { builder.apply(it) }
+        val action = builder.build()
 
-        // Get navigation state for debugging
-        coroutineScope.launch {
-            println("DEBUG [NavigationLogic.navigate] getting current state for debugging")
-            val currentState = storeAccessor.selectState<NavigationState>().first()
-            println("DEBUG [NavigationLogic.navigate] current path: '${currentState.currentEntry.path}'")
-            println("DEBUG [NavigationLogic.navigate] backStack: ${currentState.backStack.map { it.path }}")
-
-            // Determine parent path and entry
-            val parentPath = PathUtil.getParentPath(finalRoute)
-            println("DEBUG [NavigationLogic.navigate] parentPath: '$parentPath'")
-
-            val parentEntry = if (parentPath.isNotEmpty()) {
-                val foundParent = currentState.backStack.find { it.path == parentPath }
-                println("DEBUG [NavigationLogic.navigate] found parent: ${foundParent?.path}")
-                foundParent
-            } else null
-
-            // Build the action
-            val action = builder.build().copy(parent = parentEntry)
-            println("DEBUG [NavigationLogic.navigate] dispatching action: $action")
-
-            // Validation and dispatch (unchanged)
-            if (action.clearBackStack && action.popUpTo == null && action.replaceWith == null) {
-                storeAccessor.dispatch(action)
-            } else if (action.clearBackStack && (action.popUpTo != null || action.replaceWith != null)) {
-                throw ClearingBackStackWithOtherOperations
-            } else {
-                if (action.popUpTo != null && !routeExists(action.popUpTo)) {
-                    throw RouteNotFoundException(action.popUpTo)
-                }
-                if (action.replaceWith != null && !routeExists(action.replaceWith)) {
-                    throw RouteNotFoundException(action.replaceWith)
-                }
-                storeAccessor.dispatch(action)
-            }
+        // Validation
+        if (action.clearBackStack && (action.popUpTo != null || action.replaceWith != null)) {
+            throw ClearingBackStackWithOtherOperations
         }
+
+        if (action.popUpTo != null && !routeExists(action.popUpTo)) {
+            throw RouteNotFoundException(action.popUpTo)
+        }
+
+        if (action.replaceWith != null && !routeExists(action.replaceWith)) {
+            throw RouteNotFoundException(action.replaceWith)
+        }
+
+        // Prepare enhanced action
+        prepareNavigateAction(
+            route = action.route,
+            params = action.params,
+            popUpTo = action.popUpTo,
+            inclusive = action.inclusive,
+            replaceWith = action.replaceWith,
+            clearBackStack = action.clearBackStack,
+            forwardParams = action.forwardParams
+        )
     }
 
     /**
-     * Navigates to a child screen in nested navigation.
+     * Pops up to a specific route in the navigation stack.
      */
-    fun navigateToChild(parentPath: String, childSegment: String, params: Map<String, Any> = emptyMap()) {
-        println("DEBUG [NavigationLogic.navigateToChild] parentPath: '$parentPath', childSegment: '$childSegment'")
-
-        val fullPath = if (parentPath.endsWith("/")) {
-            "$parentPath$childSegment"
-        } else {
-            "$parentPath/$childSegment"
-        }
-
-        println("DEBUG [NavigationLogic.navigateToChild] fullPath: '$fullPath'")
-
-        coroutineScope.launch {
-            println("DEBUG [NavigationLogic.navigateToChild] getting current state")
-            val currentState = storeAccessor.selectState<NavigationState>().first()
-            println("DEBUG [NavigationLogic.navigateToChild] current path: '${currentState.currentEntry.path}'")
-            println("DEBUG [NavigationLogic.navigateToChild] backStack: ${currentState.backStack.map { it.path }}")
-
-            val parentEntry = currentState.backStack.find { it.path == parentPath }
-            println("DEBUG [NavigationLogic.navigateToChild] found parent: ${parentEntry?.path}")
-
-            if (parentEntry == null) {
-                println("DEBUG [NavigationLogic.navigateToChild] PARENT NOT FOUND: '$parentPath'")
-                throw RouteNotFoundException("Parent path not found: $parentPath")
-            }
-
-            if (!routeExists(fullPath)) {
-                println("DEBUG [NavigationLogic.navigateToChild] ROUTE NOT FOUND: '$fullPath'")
-                throw RouteNotFoundException(fullPath)
-            }
-
-            val preparedParams = params.mapValues { (_, value) -> prepareParam(value) }
-
-            // Set the parent reference in the action
-            val action = NavigationAction.Navigate(
-                route = fullPath,
-                params = preparedParams,
-                parent = parentEntry
-            )
-
-            println("DEBUG [NavigationLogic.navigateToChild] dispatching action: $action")
-            storeAccessor.dispatch(action)
-        }
-    }
-
-    private fun extractRouteAndParams(fullRoute: String): Pair<String, Map<String, Any>> {
-        println("DEBUG [NavigationLogic.extractRouteAndParams] fullRoute: '$fullRoute'")
-
-        val (routePart, queryPart) = fullRoute.split("?", limit = 2).let {
-            if (it.size == 2) it[0] to it[1] else it[0] to ""
-        }
-
-        println("DEBUG [NavigationLogic.extractRouteAndParams] routePart: '$routePart', queryPart: '$queryPart'")
-
-        val (matchingRoute, pathParams) = extractPathParameters(routePart)
-        val queryParams = extractQueryParameters(queryPart)
-
-        println("DEBUG [NavigationLogic.extractRouteAndParams] matchingRoute: '$matchingRoute', pathParams: $pathParams, queryParams: $queryParams")
-
-        return Pair(matchingRoute, pathParams + queryParams)
-    }
-
-    private fun extractPathParameters(path: String): Pair<String, Map<String, Any>> {
-        println("DEBUG [NavigationLogic.extractPathParameters] path: '$path'")
-
-        val parts = path.split("/")
-        println("DEBUG [NavigationLogic.extractPathParameters] parts: $parts")
-
-        val params = mutableMapOf<String, Any>()
-
-        val matchingRoutes = availableScreens.keys.filter { route ->
-            val matches = PathUtil.matchPath(route, path)
-            println("DEBUG [NavigationLogic.extractPathParameters] checking route: '$route', matches: $matches")
-            matches
-        }
-
-        println("DEBUG [NavigationLogic.extractPathParameters] matchingRoutes: $matchingRoutes")
-
-        val matchingRoute = matchingRoutes.firstOrNull()
-            ?: throw RouteNotFoundException(path)
-
-        println("DEBUG [NavigationLogic.extractPathParameters] selected matchingRoute: '$matchingRoute'")
-
-        val routeParts = matchingRoute.split("/")
-        routeParts.zip(parts).forEach { (routePart, actualPart) ->
-            if (PathUtil.isParameterSegment(routePart)) {
-                val paramName = PathUtil.extractParameterName(routePart)
-                params[paramName] = actualPart
-                println("DEBUG [NavigationLogic.extractPathParameters] extracted param: '$paramName' = '$actualPart'")
-            }
-        }
-
-        return matchingRoute to params
-    }
-
-    private fun extractQueryParameters(query: String): Map<String, Any> {
-        if (query.isEmpty()) return emptyMap()
-
-        println("DEBUG [NavigationLogic.extractQueryParameters] query: '$query'")
-
-        val params = query.split("&")
-            .filter { it.isNotEmpty() }
-            .associate { param ->
-                val (key, value) = param.split("=", limit = 2).let {
-                    if (it.size == 2) it[0] to it[1] else it[0] to ""
-                }
-                println("DEBUG [NavigationLogic.extractQueryParameters] param: '$key' = '$value'")
-                key to UrlUtil.decodeURIComponent(value)
-            }
-
-        println("DEBUG [NavigationLogic.extractQueryParameters] params: $params")
-        return params
-    }
-
-    private fun prepareParam(value: Any): Any {
-        return when (value) {
-            is String -> {
-                val encoded = UrlUtil.encodeURIComponent(value)
-                println("DEBUG [NavigationLogic.prepareParam] encoded '$value' to '$encoded'")
-                encoded
-            }
-            is Number, Boolean -> {
-                println("DEBUG [NavigationLogic.prepareParam] keeping as is: $value")
-                value
-            }
-            else -> {
-                println("DEBUG [NavigationLogic.prepareParam] UNSUPPORTED TYPE: ${value::class.simpleName}")
-                throw IllegalArgumentException("Unsupported parameter type: ${value::class.simpleName}")
-            }
-        }
-    }
-
-    fun navigateBack() {
-        storeAccessor.dispatch(NavigationAction.Back)
-    }
-
-    fun popUpTo(
+    suspend fun popUpTo(
         route: String,
         inclusive: Boolean = false,
         config: (PopUpToBuilder.() -> Unit)? = null
@@ -233,6 +459,7 @@ class NavigationLogic(
         if (!routeExists(route)) {
             throw RouteNotFoundException(route)
         }
+
         val builder = PopUpToBuilder(route, inclusive)
         config?.let { builder.apply(it) }
         val action = builder.build()
@@ -241,24 +468,15 @@ class NavigationLogic(
             throw RouteNotFoundException(action.replaceWith)
         }
 
-        storeAccessor.dispatch(action)
+        preparePopUpToAction(
+            route = action.route,
+            inclusive = action.inclusive,
+            replaceWith = action.replaceWith,
+            replaceParams = action.replaceParams
+        )
     }
 
-    fun clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
-        val builder = ClearBackStackBuilder()
-        config?.let { builder.apply(it) }
-        val action = builder.build()
-        storeAccessor.dispatch(action)
-    }
-
-    fun replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
-        if (!routeExists(route)) {
-            throw RouteNotFoundException(route)
-        }
-        storeAccessor.dispatch(NavigationAction.Replace(route, params))
-    }
-
-    fun navigateWithValidation(
+    suspend fun navigateWithValidation(
         route: String,
         params: Map<String, Any> = emptyMap(),
         storeAccessor: StoreAccessor,
@@ -269,39 +487,90 @@ class NavigationLogic(
             throw RouteNotFoundException(finalRoute)
         }
         val preparedParams = (extractedParams + params).mapValues { (_, value) -> prepareParam(value) }
-        coroutineScope.launch {
-            storeAccessor.dispatch(NavigationAction.SetLoading(true))
-            try {
-                if (validate(storeAccessor, preparedParams)) {
-                    navigate(finalRoute, preparedParams)
-                }
-            } finally {
-                storeAccessor.dispatch(NavigationAction.SetLoading(false))
+
+        storeAccessor.dispatch(NavigationAction.SetLoading(true))
+        try {
+            if (validate(storeAccessor, preparedParams)) {
+                navigate(finalRoute, preparedParams)
+            }
+        } finally {
+            storeAccessor.dispatch(NavigationAction.SetLoading(false))
+        }
+    }
+
+    /**
+     * Clears the navigation back stack.
+     */
+    suspend fun clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
+        val builder = ClearBackStackBuilder()
+        config?.let { builder.apply(it) }
+        val action = builder.build()
+
+        prepareClearBackStackAction(action.root, action.params)
+    }
+
+    /**
+     * Replaces the current screen with another.
+     */
+    suspend fun replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
+        if (!routeExists(route)) {
+            throw RouteNotFoundException(route)
+        }
+
+        prepareReplaceAction(route, params)
+    }
+
+    private fun routeExists(route: String): Boolean = availableScreens.containsKey(route)
+
+    private fun extractRouteAndParams(fullRoute: String): Pair<String, Map<String, Any>> {
+        val (routePart, queryPart) = fullRoute.split("?", limit = 2).let {
+            if (it.size == 2) it[0] to it[1] else it[0] to ""
+        }
+
+        val (matchingRoute, pathParams) = extractPathParameters(routePart)
+        val queryParams = extractQueryParameters(queryPart)
+
+        return Pair(matchingRoute, pathParams + queryParams)
+    }
+
+    private fun extractPathParameters(path: String): Pair<String, Map<String, Any>> {
+        val parts = path.split("/")
+        val params = mutableMapOf<String, Any>()
+
+        val matchingRoutes = availableScreens.keys.filter { route ->
+            PathUtil.matchPath(route, path)
+        }
+
+        val matchingRoute = matchingRoutes.firstOrNull()
+            ?: throw RouteNotFoundException(path)
+
+        val routeParts = matchingRoute.split("/")
+        routeParts.zip(parts).forEach { (routePart, actualPart) ->
+            if (PathUtil.isParameterSegment(routePart)) {
+                val paramName = PathUtil.extractParameterName(routePart)
+                params[paramName] = actualPart
             }
         }
+
+        return matchingRoute to params
     }
 
-    fun clearCurrentScreenParams() {
-        storeAccessor.dispatch(NavigationAction.ClearCurrentScreenParams)
+    private fun extractQueryParameters(query: String): Map<String, Any> {
+        return query.split("&")
+            .filter { it.isNotEmpty() }
+            .associate { param ->
+                val (key, value) = param.split("=", limit = 2).let {
+                    if (it.size == 2) it[0] to it[1] else it[0] to ""
+                }
+                key to UrlUtil.decodeURIComponent(value)
+            }
     }
 
-    fun clearCurrentScreenParam(key: String) {
-        storeAccessor.dispatch(NavigationAction.ClearCurrentScreenParam(key))
-    }
-
-    fun clearScreenParams(route: String) {
-        if (routeExists(route)) {
-            storeAccessor.dispatch(NavigationAction.ClearScreenParams(route))
-        } else {
-            throw RouteNotFoundException(route)
-        }
-    }
-
-    fun clearScreenParam(route: String, key: String) {
-        if (routeExists(route)) {
-            storeAccessor.dispatch(NavigationAction.ClearScreenParam(route, key))
-        } else {
-            throw RouteNotFoundException(route)
+    private fun prepareParam(value: Any): Any {
+        return when (value) {
+            is String -> UrlUtil.encodeURIComponent(value)
+            is Number, Boolean -> value
+            else -> throw IllegalArgumentException("Unsupported parameter type: ${value::class.simpleName}")
         }
     }
 }
