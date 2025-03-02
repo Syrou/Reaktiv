@@ -67,11 +67,9 @@ private val LocalHandledPaths = compositionLocalOf { mutableSetOf<String>() }
 fun NavigationRender(
     modifier: Modifier = Modifier,
     basePath: String = "",
-    exclusive: Boolean = false,
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
 ) {
     val navigationState by composeState<NavigationState>()
-    val dispatch = rememberDispatcher()
 
     // Track animation state
     var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
@@ -79,29 +77,14 @@ fun NavigationRender(
     var previousEntry by remember { mutableStateOf<NavigationEntry?>(null) }
     var currentEntry by remember { mutableStateOf<NavigationEntry?>(null) }
 
-    // Debug navigation state
-    LaunchedEffect(navigationState) {
-        println("DEBUG [NavigationRender:$basePath] backStack size: ${navigationState.backStack.size}")
-        println("DEBUG [NavigationRender:$basePath] backStack entries: ${navigationState.backStack.map { it.path }}")
-        println("DEBUG [NavigationRender:$basePath] current entry: ${navigationState.currentEntry.path}")
-        println("DEBUG [NavigationRender:$basePath] path handlers: ${navigationState.exclusivePathHandlers}")
-    }
-
-    // Register/unregister path handler in the state
-    LaunchedEffect(basePath, exclusive) {
-        println("DEBUG [NavigationRender:$basePath] registering handler, exclusive: $exclusive")
-        dispatch(NavigationAction.RegisterPathHandler(basePath, exclusive, persistent = true))
-    }
-
     // Update animation tracking
     LaunchedEffect(navigationState.backStack.size) {
         previousBackStackSize = currentBackStackSize
         currentBackStackSize = navigationState.backStack.size
     }
 
-    // Get the entry to display using the state method
+    // Get the entry to display using the state method - no registration needed
     val entryToDisplay = navigationState.getEntryToDisplay(basePath)
-    println("DEBUG [NavigationRender:$basePath] entryToDisplay: ${entryToDisplay?.path}")
 
     // Update entry tracking for animations
     LaunchedEffect(entryToDisplay) {
@@ -111,8 +94,6 @@ fun NavigationRender(
 
     Box(modifier = modifier.fillMaxSize()) {
         if (entryToDisplay != null) {
-            println("DEBUG [NavigationRender:$basePath] rendering screen: ${entryToDisplay.screen.route}")
-
             // AnimatedContent for transitions
             AnimatedContent(
                 modifier = Modifier.fillMaxSize().testTag("AnimatedContent"),
@@ -141,15 +122,12 @@ fun NavigationRender(
                     }
                 }
             ) { entry ->
-                println("DEBUG [NavigationRender:$basePath] rendering content for: ${entry.path}")
                 screenContent.invoke(
                     entry.screen,
                     entry.params,
                     navigationState.isLoading
                 )
             }
-        } else {
-            println("DEBUG [NavigationRender:$basePath] nothing to display!")
         }
     }
 }
