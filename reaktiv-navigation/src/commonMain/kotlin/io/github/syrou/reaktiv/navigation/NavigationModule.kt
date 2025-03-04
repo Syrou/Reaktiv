@@ -150,6 +150,7 @@ data class NavigationState(
      */
     fun getEntryToDisplay(basePath: String): NavigationEntry? {
         // If we're not at root level, show children at this level
+        if (basePath == currentEntry.path) return null
         if (basePath.isNotEmpty()) {
             return getActiveChildAtLevel(basePath)
         }
@@ -159,14 +160,11 @@ data class NavigationState(
         val segments = currentPath.split("/")
 
         // If path has multiple segments, it might belong to a nested navigation
-        println("HERPADERPA - CURRENTPATH: $currentPath")
-        println("HERPADERPA - SEGMENTS: $segments")
         if (segments.size > 1) {
             val topLevelPath = segments[0]
 
             // Check if this top-level path exists in backstack
             val topLevelEntry = backStack.find { it.path == topLevelPath }
-            println("HERPADERPA - TOP LEVEL ENTRY: ${topLevelEntry?.path}")
             // If top level path exists and it's not the current entry,
             // pass control to that level's NavigationRender
             if (topLevelEntry != null && currentPath != topLevelPath) {
@@ -183,14 +181,12 @@ data class NavigationState(
      */
     private fun getActiveChildAtLevel(parentPath: String): NavigationEntry? {
         // Check if current entry is a direct child of this path
-        println("HERPADERPA - PARENT PATH: $parentPath")
         val currentIsChild = currentEntry.path.startsWith("$parentPath/") &&
                 !currentEntry.path.substring(parentPath.length + 1).contains('/')
 
-        println("HERPADERPA - CURRENT CHILD: $currentIsChild")
 
         if (currentIsChild) {
-            //return currentEntry
+            return currentEntry
         }
 
         // Find the most recent direct child in backstack
@@ -198,7 +194,6 @@ data class NavigationState(
             entry.path.startsWith("$parentPath/") &&
                     !entry.path.substring(parentPath.length + 1).contains('/')
         }
-        println("HERPADERPA - CHILD BACKSTACK: $backStack")
         return backStack
     }
 }

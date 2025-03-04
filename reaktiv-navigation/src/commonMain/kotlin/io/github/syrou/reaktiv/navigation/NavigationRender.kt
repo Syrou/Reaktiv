@@ -61,12 +61,11 @@ private fun getSpringSpecForFloat(durationMillis: Int) = spring<Float>(
     stiffness = estimateSpringParametersForFloat(durationMillis).first
 )
 
-private val LocalHandledPaths = compositionLocalOf { mutableSetOf<String>() }
-
 @Composable
 fun NavigationRender(
     modifier: Modifier = Modifier,
     basePath: String = "",
+    defaultNestedContent: @Composable () -> Unit = {},
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
 ) {
     val navigationState by composeState<NavigationState>()
@@ -128,6 +127,8 @@ fun NavigationRender(
                     navigationState.isLoading
                 )
             }
+        }else{
+            defaultNestedContent.invoke()
         }
     }
 }

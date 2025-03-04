@@ -20,12 +20,21 @@ internal class NavigationLogic(
     /**
      * Helper method to ensure parent paths exist in a navigation operation.
      */
+    private fun extractPathSegmentsWithRegex(path: String): List<String> {
+        val segmentPattern = Regex("([^/]+/\\{[^}]+\\})|([^/]+(?=/))|([^/]+\$)")
+
+        return segmentPattern.findAll(path)
+            .map { it.value }
+            .filter { it.isNotEmpty() }
+            .toList()
+    }
+
     private fun ensureParentPathsExist(
         path: String,
         currentBackStack: List<NavigationEntry>,
         insertBeforeEntry: NavigationEntry? = null
     ): List<NavigationEntry> {
-        val pathSegments = path.split("/")
+        val pathSegments = extractPathSegmentsWithRegex(path)
 
         // If not a nested path, return original backstack
         if (pathSegments.size <= 1) {
@@ -44,9 +53,7 @@ internal class NavigationLogic(
             if (newBackStack.any { it.path == currentPath }) {
                 continue
             }
-            println("DEBUG - AVAILABLE SCREENS: $availableScreens")
-            val parentScreen = availableScreens[currentPath] ?: availableScreens[path]
-            ?: error("No screen found for parent path: $currentPath or direct path: ${availableScreens[path]}")
+            val parentScreen = availableScreens[currentPath] ?: error("No screen found for parent path: $currentPath")
 
             val parentEntry = NavigationEntry(
                 screen = parentScreen,
@@ -128,10 +135,8 @@ internal class NavigationLogic(
 
         // Create new entry
         val newEntry = createEntryForPath(targetRoute, finalParams)
-
         // Ensure parent paths exist in backstack
         newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
-
         // Add the new entry
         newBackStack = newBackStack + newEntry
 
