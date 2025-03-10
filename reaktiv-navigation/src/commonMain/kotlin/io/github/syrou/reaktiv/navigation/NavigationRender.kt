@@ -61,77 +61,79 @@ private fun getSpringSpecForFloat(durationMillis: Int) = spring<Float>(
     stiffness = estimateSpringParametersForFloat(durationMillis).first
 )
 
+/**
+ * Renders a screen with animations, and handles nested navigation if the screen is a container.
+ */
 @Composable
 fun NavigationRender(
     modifier: Modifier = Modifier,
-    basePath: String = "",
-    defaultNestedContent: @Composable () -> Unit = {},
-    screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
+    navigationEntry: NavigationEntry? = null
 ) {
     val navigationState by composeState<NavigationState>()
 
     // Track animation state
-    var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
-    var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousEntry by remember { mutableStateOf<NavigationEntry?>(null) }
     var currentEntry by remember { mutableStateOf<NavigationEntry?>(null) }
+    var isForward by remember { mutableStateOf(true) }
 
-    // Update animation tracking
-    LaunchedEffect(navigationState.backStack.size) {
-        previousBackStackSize = currentBackStackSize
-        currentBackStackSize = navigationState.backStack.size
-    }
-
-    // Get the entry to display using the state method - no registration needed
-    val entryToDisplay = navigationState.getEntryToDisplay(basePath)
+    // Get the current entry from the state
+    val entry = navigationEntry ?: navigationState.rootEntry
 
     // Update entry tracking for animations
-    LaunchedEffect(entryToDisplay) {
+    if (entry != currentEntry) {
+        // Determine navigation direction for animations
+        val previousIndex = navigationState.backStack.indexOfFirst { it == previousEntry }
+        val currentIndex = navigationState.backStack.indexOfFirst { it == entry }
+        isForward = currentIndex > previousIndex || previousEntry == null
+
         previousEntry = currentEntry
-        currentEntry = entryToDisplay
+        currentEntry = entry
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        if (entryToDisplay != null) {
-            // AnimatedContent for transitions
-            AnimatedContent(
-                modifier = Modifier.fillMaxSize().testTag("AnimatedContent"),
-                targetState = entryToDisplay,
-                transitionSpec = {
-                    val isForward = navigationState.clearedBackStackWithNavigate ||
-                            (navigationState.backStack.size > previousBackStackSize)
+        // AnimatedContent for transitions between screens
+        AnimatedContent(
+            modifier = Modifier.fillMaxSize().testTag("AnimatedContent"),
+            targetState = entry,
+            transitionSpec = {
+                // Animation setup
+                val enterTransition = if (!isForward)
+                    previousEntry?.screen?.popEnterTransition ?: targetState.screen.enterTransition
+                else
+                    targetState.screen.enterTransition
 
-                    // Animation setup (unchanged)
-                    val enterTransition = if (!isForward)
-                        previousEntry?.screen?.popEnterTransition ?: targetState.screen.enterTransition
-                    else
-                        targetState.screen.enterTransition
+                val exitTransition = if (isForward)
+                    targetState.screen.popExitTransition ?: initialState.screen.exitTransition
+                else
+                    initialState.screen.exitTransition
 
-                    val exitTransition = if (isForward)
-                        targetState.screen.popExitTransition ?: initialState.screen.exitTransition
-                    else
-                        initialState.screen.exitTransition
-
-                    getContentTransform(exitTransition, enterTransition, isForward).apply {
-                        targetContentZIndex = if (navigationState.clearedBackStackWithNavigate) {
-                            previousBackStackSize++.toFloat()
-                        } else {
-                            navigationState.backStack.size.toFloat()
-                        }
+                getContentTransform(exitTransition, enterTransition, isForward)
+            }
+        ) { currentEntry ->
+            // Render the screen content
+            if (currentEntry.screen.isContainer && currentEntry.hasChild()) {
+                // For container screens with children, provide a child navigation composable
+                currentEntry.screen.Content(
+                    params = currentEntry.params,
+                    childNavigation = {
+                        // Child navigation render - will show the child entry
+                        NavigationRender(
+                            modifier = Modifier.fillMaxSize(),
+                            currentEntry.childEntry
+                        )
                     }
-                }
-            ) { entry ->
-                screenContent.invoke(
-                    entry.screen,
-                    entry.params,
-                    navigationState.isLoading
+                )
+            } else {
+                // For regular screens or containers without children
+                currentEntry.screen.Content(
+                    params = currentEntry.params,
+                    childNavigation = {}
                 )
             }
-        }else{
-            defaultNestedContent.invoke()
         }
     }
 }
+
 
 private fun getContentTransform(
     exitTransition: NavTransition,

@@ -6,7 +6,7 @@ import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 
     data class NavigateState(
-        val currentEntry: NavigationEntry,
+        val rootEntry: NavigationEntry,
         val backStack: List<NavigationEntry>,
         val clearedBackStack: Boolean = false
     ) : NavigationAction()

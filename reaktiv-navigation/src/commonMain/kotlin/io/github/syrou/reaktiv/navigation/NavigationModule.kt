@@ -9,7 +9,6 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
-import io.github.syrou.reaktiv.navigation.util.PathUtil
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,9 +67,13 @@ interface Screen : NavigationNode {
     val popEnterTransition: NavTransition? get() = null
     val popExitTransition: NavTransition? get() = null
     val requiresAuth: Boolean
+    val isContainer: Boolean get() = false
 
     @Composable
-    fun Content(params: Map<String, Any>)
+    fun Content(
+        params: Map<String, Any>,
+        childNavigation: @Composable () -> Unit
+    )
 }
 
 
@@ -138,63 +141,41 @@ sealed class NavTransition(open val durationMillis: Int = DEFAULT_ANIMATION_DURA
  */
 @Serializable
 data class NavigationState(
-    val currentEntry: NavigationEntry,
+    val rootEntry: NavigationEntry,
     val backStack: List<NavigationEntry>,
     val availableScreens: Map<String, Screen> = emptyMap(),
     val clearedBackStackWithNavigate: Boolean = false,
     val isLoading: Boolean = false,
 ) : ModuleState {
+
     /**
-     * Determines which entry should be displayed at a specific rendering level.
-     * This uses only the path structure to determine nesting - no registration needed.
+     * Returns true if the entry with the given route is active in the current navigation path.
      */
-    fun getEntryToDisplay(basePath: String): NavigationEntry? {
-        // If we're not at root level, show children at this level
-        if (basePath == currentEntry.path) return null
-        if (basePath.isNotEmpty()) {
-            return getActiveChildAtLevel(basePath)
-        }
-
-        // For root level, check if current path belongs to a nested navigation
-        val currentPath = currentEntry.path
-        val segments = currentPath.split("/")
-
-        // If path has multiple segments, it might belong to a nested navigation
-        if (segments.size > 1) {
-            val topLevelPath = segments[0]
-
-            // Check if this top-level path exists in backstack
-            val topLevelEntry = backStack.find { it.path == topLevelPath }
-            // If top level path exists and it's not the current entry,
-            // pass control to that level's NavigationRender
-            if (topLevelEntry != null && currentPath != topLevelPath) {
-                return topLevelEntry
-            }
-        }
-
-        // Default: show current entry
-        return currentEntry
+    fun isRouteActive(route: String): Boolean {
+        return rootEntry.containsRoute(route)
     }
 
     /**
-     * Gets the active child at a specific path level.
+     * Finds the entry with the given route in the active navigation path, or null if not found.
      */
-    private fun getActiveChildAtLevel(parentPath: String): NavigationEntry? {
-        // Check if current entry is a direct child of this path
-        val currentIsChild = currentEntry.path.startsWith("$parentPath/") &&
-                !currentEntry.path.substring(parentPath.length + 1).contains('/')
+    fun findEntryByRoute(route: String): NavigationEntry? {
+        return rootEntry.findEntryWithRoute(route)
+    }
 
+    /**
+     * Returns true if there is an active child under the entry with the given route.
+     */
+    fun hasActiveChildUnder(parentRoute: String): Boolean {
+        val entry = findEntryByRoute(parentRoute)
+        return entry?.hasChild() == true
+    }
 
-        if (currentIsChild) {
-            return currentEntry
-        }
-
-        // Find the most recent direct child in backstack
-        val backStack = backStack.findLast { entry ->
-            entry.path.startsWith("$parentPath/") &&
-                    !entry.path.substring(parentPath.length + 1).contains('/')
-        }
-        return backStack
+    /**
+     * Gets the active child under the entry with the given route, or null if none exists.
+     */
+    fun getActiveChildUnder(parentRoute: String): NavigationEntry? {
+        val entry = findEntryByRoute(parentRoute)
+        return entry?.childEntry
     }
 }
 
@@ -203,9 +184,81 @@ data class NavigationEntry(
     val screen: Screen,
     val params: StringAnyMap,
     val id: String? = null,       // Unique identifier for this entry (route)
+    val childEntry: NavigationEntry? = null  // Active child entry, if any
 ) {
+    /**
+     * The route path of this entry.
+     */
     val path: String get() = screen.route
-    val parentPath: String get() = PathUtil.getParentPath(path)
+
+    /**
+     * Returns true if this entry has a child entry.
+     */
+    fun hasChild(): Boolean {
+        return childEntry != null
+    }
+
+    /**
+     * Returns true if this entry has a child with the given route.
+     */
+    fun hasChildWithRoute(route: String): Boolean {
+        return childEntry?.path == route
+    }
+
+    /**
+     * Returns true if this entry or any of its descendants has the given route.
+     */
+    fun containsRoute(route: String): Boolean {
+        if (path == route) return true
+
+        var current = childEntry
+        while (current != null) {
+            if (current.path == route) return true
+            current = current.childEntry
+        }
+
+        return false
+    }
+
+    /**
+     * Gets the deepest active entry in this navigation tree.
+     */
+    fun getDeepestActiveEntry(): NavigationEntry {
+        var current = this
+        while (current.childEntry != null) {
+            current = current.childEntry!!
+        }
+        return current
+    }
+
+    /**
+     * Gets all child entries as a flat list, starting with the direct child.
+     */
+    fun getAllChildren(): List<NavigationEntry> {
+        val result = mutableListOf<NavigationEntry>()
+        var current = childEntry
+        while (current != null) {
+            result.add(current)
+            current = current.childEntry
+        }
+        return result
+    }
+
+    /**
+     * Finds a child or descendant entry with the specified route, or null if not found.
+     */
+    fun findEntryWithRoute(route: String): NavigationEntry? {
+        if (path == route) return this
+
+        var current = childEntry
+        while (current != null) {
+            if (current.path == route) {
+                return current
+            }
+            current = current.childEntry
+        }
+        return null
+    }
 }
 
 /**
@@ -355,17 +408,17 @@ class NavigationModule private constructor(
             }
         }
         availableScreens[rootScreen.route] = rootScreen
+        // Create initial root entry
+        val rootEntry = NavigationEntry(
+            screen = rootScreen,
+            params = emptyMap(),
+            id = rootScreen.route,
+            childEntry = null
+        )
+
         NavigationState(
-            currentEntry = NavigationEntry(
-                screen = rootScreen,
-                params = emptyMap()
-            ),
-            backStack = if (addRootScreenToBackStack) listOf(
-                NavigationEntry(
-                    screen = rootScreen,
-                    params = emptyMap()
-                )
-            ) else emptyList(),
+            rootEntry = rootEntry,
+            backStack = if (addRootScreenToBackStack) listOf(rootEntry) else emptyList(),
             availableScreens = availableScreens
         )
     }
@@ -389,7 +442,7 @@ class NavigationModule private constructor(
         when (action) {
             is NavigationAction.NavigateState -> {
                 state.copy(
-                    currentEntry = action.currentEntry,
+                    rootEntry = action.rootEntry,
                     backStack = action.backStack,
                     clearedBackStackWithNavigate = action.clearedBackStack
                 )

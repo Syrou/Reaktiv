@@ -99,6 +99,10 @@ internal class NavigationLogic(
     /**
      * Prepares a Navigate action for the reducer.
      */
+    /**
+     * Prepares a Navigate action for the reducer with support for nested navigation.
+     * Only dispatches NavigationAction.NavigateState once at the end.
+     */
     private suspend fun prepareNavigateAction(
         route: String,
         params: Map<String, Any>,
@@ -109,8 +113,8 @@ internal class NavigationLogic(
         forwardParams: Boolean
     ) {
         val currentState = storeAccessor.selectState<NavigationState>().first()
-
-        var newBackStack = if (clearBackStack) listOf() else currentState.backStack
+        var newBackStack = if (clearBackStack) listOf() else currentState.backStack + currentState.rootEntry
+        var rootEntry = currentState.rootEntry
 
         // Handle popUpTo
         if (popUpTo != null) {
@@ -125,7 +129,6 @@ internal class NavigationLogic(
         }
 
         val targetRoute = replaceWith ?: route
-
         val finalParams: StringAnyMap = if (forwardParams) {
             val previousParams = newBackStack.lastOrNull()?.params ?: emptyMap()
             previousParams.plus(params)
@@ -133,21 +136,147 @@ internal class NavigationLogic(
             params
         }
 
-        // Create new entry
-        val newEntry = createEntryForPath(targetRoute, finalParams)
-        // Ensure parent paths exist in backstack
-        newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
-        // Add the new entry
-        newBackStack = newBackStack + newEntry
+        // Create the new entry for the target route
+        val targetEntry = createEntryForPath(targetRoute, finalParams)
 
-        // Create enhanced action with prepared backstack
+        // Process nested navigation when applicable
+        if (isNestedRoute(targetRoute)) {
+            // Find the parent route that would contain this route
+            val parentRoute = findParentRoute(targetRoute)
+
+            if (parentRoute != null) {
+                // Find the parent entry in the current navigation hierarchy
+                val parentEntry = rootEntry.findEntryWithRoute(parentRoute)
+
+                if (parentEntry != null && parentEntry.screen.isContainer) {
+                    // Create an updated hierarchy with the new child entry
+                    rootEntry = updateNavigationHierarchy(rootEntry, parentRoute, targetEntry)
+                } else {
+                    // If we couldn't find a suitable parent, treat it as regular navigation
+                    // Ensure parent paths exist in backstack
+                    newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
+                    // Add the new entry to backstack if it's not already there
+                    if (!newBackStack.any { it.screen.route == targetRoute }) {
+                        newBackStack = newBackStack + targetEntry
+                    }
+                    // For non-nested navigation, the target entry becomes the root
+                    rootEntry = targetEntry
+                }
+            } else {
+                // If we couldn't determine a parent, treat it as regular navigation
+                newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
+                if (!newBackStack.any { it.screen.route == targetRoute }) {
+                    newBackStack = newBackStack + targetEntry
+                }
+                rootEntry = targetEntry
+            }
+        } else {
+            // For regular (non-nested) navigation
+            newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
+            if (!newBackStack.any { it.screen.route == targetRoute }) {
+                newBackStack = newBackStack + targetEntry
+            }
+            rootEntry = targetEntry
+        }
+
+        // Create enhanced action with prepared backstack - dispatch only once
         val enhancedAction = NavigationAction.NavigateState(
-            currentEntry = newEntry,
+            rootEntry = rootEntry,
             backStack = newBackStack,
             clearedBackStack = clearBackStack
         )
 
         storeAccessor.dispatch(enhancedAction)
+    }
+
+    /**
+     * Determines if a route is nested (contains path separators).
+     */
+    private fun isNestedRoute(route: String): Boolean {
+        return route.contains("/")
+    }
+
+    /**
+     * Finds the parent route for a nested route.
+     * For example, for "home/profile/edit", it would return "home/profile".
+     */
+    private fun findParentRoute(route: String): String? {
+        val lastSlashIndex = route.lastIndexOf('/')
+        if (lastSlashIndex <= 0) return null
+        return route.substring(0, lastSlashIndex)
+    }
+
+    /**
+     * Updates the navigation hierarchy to include the new child entry at the specified parent route.
+     *
+     * @param currentRoot The current root entry
+     * @param parentRoute The route of the parent entry that should receive the child
+     * @param newChildEntry The new child entry to add
+     * @return The updated root entry with the new navigation hierarchy
+     */
+    private fun updateNavigationHierarchy(
+        currentRoot: NavigationEntry,
+        parentRoute: String,
+        newChildEntry: NavigationEntry
+    ): NavigationEntry {
+        // If the current root is the parent, attach the child directly
+        if (currentRoot.path == parentRoute) {
+            return currentRoot.copy(childEntry = newChildEntry)
+        }
+
+        // Otherwise, recursively update the child hierarchy
+        if (currentRoot.hasChild()) {
+            val updatedChild = updateNavigationHierarchy(currentRoot.childEntry!!, parentRoute, newChildEntry)
+            return currentRoot.copy(childEntry = updatedChild)
+        }
+
+        // If we get here, the parent wasn't found in the hierarchy - return unchanged
+        return currentRoot
+    }
+
+    /**
+     * Helper method to ensure parent paths exist in a navigation operation.
+     * This is used for the backstack to ensure that parent containers are included.
+     */
+    private fun ensureParentPathsExist(
+        path: String,
+        currentBackStack: List<NavigationEntry>
+    ): List<NavigationEntry> {
+        val pathSegments = extractPathSegmentsWithRegex(path)
+
+        // If not a nested path, return original backstack
+        if (pathSegments.size <= 1) {
+            return currentBackStack
+        }
+
+        val newBackStack = currentBackStack.toMutableList()
+        var currentPath = ""
+
+        // Add all parent paths to backstack
+        for (i in 0..<pathSegments.size - 1) {
+            if (i > 0) currentPath += "/"
+            currentPath += pathSegments[i]
+
+            // Skip if already in backstack
+            if (newBackStack.any { it.screen.route == currentPath }) {
+                continue
+            }
+
+            val parentScreen = availableScreens[currentPath] ?: error("No screen found for parent path: $currentPath")
+
+            // Only add to backstack if it's a container screen
+            if (parentScreen.isContainer) {
+                val parentEntry = NavigationEntry(
+                    screen = parentScreen,
+                    params = emptyMap(),
+                    id = currentPath
+                )
+
+                newBackStack.add(parentEntry)
+            }
+        }
+
+        return newBackStack
     }
 
     /**
@@ -158,19 +287,19 @@ internal class NavigationLogic(
         if (currentState.backStack.size <= 1) return
 
         // Find current entry index
-        val currentIndex = currentState.backStack.indexOf(currentState.currentEntry)
+        val currentIndex = currentState.backStack.indexOf(currentState.rootEntry)
         if (currentIndex <= 0) return
 
         // Get previous entry
         val newEntry = currentState.backStack[currentIndex - 1]
 
         // Create backstack without current entry
-        val newBackStack = currentState.backStack.filter { it != currentState.currentEntry }
+        val newBackStack = currentState.backStack.filter { it != currentState.rootEntry }
 
         // Dispatch prepared state
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
-                currentEntry = newEntry,
+                rootEntry = newEntry,
                 backStack = newBackStack,
                 clearedBackStack = false
             )
@@ -197,7 +326,7 @@ internal class NavigationLogic(
             currentState.backStack.subList(0, targetIndex + 1)
         }
 
-        var newEntry = newBackStack.lastOrNull() ?: currentState.currentEntry
+        var newEntry = newBackStack.lastOrNull() ?: currentState.rootEntry
 
         if (replaceWith != null) {
             // Create new entry for replacement
@@ -213,7 +342,7 @@ internal class NavigationLogic(
         // Dispatch prepared state
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
-                currentEntry = newEntry,
+                rootEntry = newEntry,
                 backStack = newBackStack,
                 clearedBackStack = false
             )
@@ -233,7 +362,7 @@ internal class NavigationLogic(
             // Just clear the backstack
             storeAccessor.dispatch(
                 NavigationAction.NavigateState(
-                    currentEntry = currentState.currentEntry,
+                    rootEntry = currentState.rootEntry,
                     backStack = listOf(),
                     clearedBackStack = true
                 )
@@ -256,7 +385,7 @@ internal class NavigationLogic(
         // Dispatch prepared state
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
-                currentEntry = rootEntry,
+                rootEntry = rootEntry,
                 backStack = newBackStack,
                 clearedBackStack = true
             )
@@ -276,7 +405,7 @@ internal class NavigationLogic(
         val newEntry = createEntryForPath(route, params)
 
         // Get the entry being replaced
-        val replacedEntry = currentState.currentEntry
+        val replacedEntry = currentState.rootEntry
 
         // Ensure parent paths exist, inserting before the replaced entry
         var newBackStack = ensureParentPathsExist(
@@ -293,7 +422,7 @@ internal class NavigationLogic(
         // Dispatch prepared state
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
-                currentEntry = newEntry,
+                rootEntry = newEntry,
                 backStack = newBackStack,
                 clearedBackStack = false
             )
@@ -306,7 +435,7 @@ internal class NavigationLogic(
     internal suspend fun prepareClearCurrentScreenParamsAction() {
         val currentState = storeAccessor.selectState<NavigationState>().first()
         val updatedBackStack = currentState.backStack.map { entry ->
-            if (entry.screen == currentState.currentEntry.screen) {
+            if (entry.screen == currentState.rootEntry.screen) {
                 entry.copy(params = emptyMap())
             } else {
                 entry
@@ -315,7 +444,7 @@ internal class NavigationLogic(
 
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
-                currentEntry = currentState.currentEntry.copy(params = emptyMap()),
+                rootEntry = currentState.rootEntry.copy(params = emptyMap()),
                 backStack = updatedBackStack,
                 clearedBackStack = false
             )
@@ -328,7 +457,7 @@ internal class NavigationLogic(
     internal suspend fun prepareClearCurrentScreenParamAction(key: String) {
         val currentState = storeAccessor.selectState<NavigationState>().first()
         val updatedBackStack = currentState.backStack.map { entry ->
-            if (entry.screen == currentState.currentEntry.screen) {
+            if (entry.screen == currentState.rootEntry.screen) {
                 entry.copy(params = entry.params - key)
             } else {
                 entry
@@ -337,7 +466,7 @@ internal class NavigationLogic(
 
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
-                currentEntry = currentState.currentEntry.copy(params = currentState.currentEntry.params - key),
+                rootEntry = currentState.rootEntry.copy(params = currentState.rootEntry.params - key),
                 backStack = updatedBackStack,
                 clearedBackStack = false
             )
@@ -360,15 +489,15 @@ internal class NavigationLogic(
             }
         }
 
-        val updatedCurrentEntry = if (currentState.currentEntry.screen.route == route) {
-            currentState.currentEntry.copy(params = emptyMap())
+        val updatedCurrentEntry = if (currentState.rootEntry.screen.route == route) {
+            currentState.rootEntry.copy(params = emptyMap())
         } else {
-            currentState.currentEntry
+            currentState.rootEntry
         }
 
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
-                currentEntry = updatedCurrentEntry,
+                rootEntry = updatedCurrentEntry,
                 backStack = updatedBackStack,
                 clearedBackStack = false
             )
@@ -393,15 +522,15 @@ internal class NavigationLogic(
             }
         }
 
-        val updatedCurrentEntry = if (currentState.currentEntry.screen.route == route) {
-            currentState.currentEntry.copy(params = currentState.currentEntry.params - key)
+        val updatedCurrentEntry = if (currentState.rootEntry.screen.route == route) {
+            currentState.rootEntry.copy(params = currentState.rootEntry.params - key)
         } else {
-            currentState.currentEntry
+            currentState.rootEntry
         }
 
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
-                currentEntry = updatedCurrentEntry,
+                rootEntry = updatedCurrentEntry,
                 backStack = updatedBackStack,
                 clearedBackStack = false
             )
