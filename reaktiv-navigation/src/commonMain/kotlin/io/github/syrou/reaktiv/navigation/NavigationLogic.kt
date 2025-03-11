@@ -113,6 +113,9 @@ internal class NavigationLogic(
         forwardParams: Boolean
     ) {
         val currentState = storeAccessor.selectState<NavigationState>().first()
+        println ("HERPADERPA - prepareNavigateAction - current entry: ${currentState.rootEntry}")
+        println("HARKELDARKEL - prepareNavigateAction - route: $route")
+        println("HARKELDARKEL - prepareNavigateAction - clearBackStack: $clearBackStack")
         var newBackStack = if (clearBackStack) listOf() else currentState.backStack + currentState.rootEntry
         var rootEntry = currentState.rootEntry
 
@@ -143,39 +146,28 @@ internal class NavigationLogic(
         if (isNestedRoute(targetRoute)) {
             // Find the parent route that would contain this route
             val parentRoute = findParentRoute(targetRoute)
-
+            println("HERPADERPA - prepareNavigateAction - parentRoute: $parentRoute")
             if (parentRoute != null) {
                 // Find the parent entry in the current navigation hierarchy
                 val parentEntry = rootEntry.findEntryWithRoute(parentRoute)
-
+                println("HERPADERPA - prepareNavigateAction - parentEntry: $parentEntry")
                 if (parentEntry != null && parentEntry.screen.isContainer) {
                     // Create an updated hierarchy with the new child entry
                     rootEntry = updateNavigationHierarchy(rootEntry, parentRoute, targetEntry)
+                    println("HERPADERPA - prepareNavigateAction - rootEntry: $rootEntry")
+                    println("HERPADERPA - prepareNavigateAction - backstack: $newBackStack")
+                    //newBackStack = newBackStack + rootEntry
+                    println("HERPADERPA - prepareNavigateAction - after backstack: $newBackStack")
                 } else {
-                    // If we couldn't find a suitable parent, treat it as regular navigation
-                    // Ensure parent paths exist in backstack
-                    newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
-                    // Add the new entry to backstack if it's not already there
-                    if (!newBackStack.any { it.screen.route == targetRoute }) {
-                        newBackStack = newBackStack + targetEntry
-                    }
                     // For non-nested navigation, the target entry becomes the root
                     rootEntry = targetEntry
                 }
             } else {
                 // If we couldn't determine a parent, treat it as regular navigation
-                newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
-                if (!newBackStack.any { it.screen.route == targetRoute }) {
-                    newBackStack = newBackStack + targetEntry
-                }
                 rootEntry = targetEntry
             }
         } else {
             // For regular (non-nested) navigation
-            newBackStack = ensureParentPathsExist(targetRoute, newBackStack)
-            if (!newBackStack.any { it.screen.route == targetRoute }) {
-                newBackStack = newBackStack + targetEntry
-            }
             rootEntry = targetEntry
         }
 
@@ -284,18 +276,25 @@ internal class NavigationLogic(
      */
     internal suspend fun prepareBackAction() {
         val currentState = storeAccessor.selectState<NavigationState>().first()
-        if (currentState.backStack.size <= 1) return
+        println("HERPADERPA - prepareBackAction - backStack: ${currentState.backStack.size}")
+        currentState.backStack.forEach {
+            println("HERPADERPA - prepareBackAction - backStack entry: $it")
+        }
+        // Handle regular back navigation
+        if (currentState.backStack.isEmpty()) return
 
         // Find current entry index
-        val currentIndex = currentState.backStack.indexOf(currentState.rootEntry)
-        if (currentIndex <= 0) return
+        //val currentIndex = currentState.backStack.indexOf(currentState.rootEntry)
+        //if (currentIndex <= 0) return
 
         // Get previous entry
-        val newEntry = currentState.backStack[currentIndex - 1]
+        val newEntry = currentState.backStack[currentState.backStack.size-1]
 
         // Create backstack without current entry
-        val newBackStack = currentState.backStack.filter { it != currentState.rootEntry }
-
+        //val newEntry = currentState.backStack.last()
+        val newBackStack = currentState.backStack.dropLast(1)
+        println("HERPADERPA - prepareBackAction - newEntry: $newEntry")
+        println("HERPADERPA - prepareBackAction - newBackStack: $newBackStack")
         // Dispatch prepared state
         storeAccessor.dispatch(
             NavigationAction.NavigateState(
@@ -304,6 +303,24 @@ internal class NavigationLogic(
                 clearedBackStack = false
             )
         )
+    }
+
+    /**
+     * Helper function to navigate back within a nested navigation hierarchy.
+     * It removes the deepest child first when back is pressed.
+     */
+    private fun navigateBackInNestedHierarchy(entry: NavigationEntry): NavigationEntry {
+        // If the entry doesn't have a child, return it unchanged
+        if (!entry.hasChild()) return entry
+
+        // If the child has a child, recursively navigate back in the child's hierarchy
+        if (entry.childEntry!!.hasChild()) {
+            val updatedChild = navigateBackInNestedHierarchy(entry.childEntry!!)
+            return entry.copy(childEntry = updatedChild)
+        }
+
+        // If the child has no child (it's a leaf node), remove it and return
+        return entry.copy(childEntry = null)
     }
 
     /**

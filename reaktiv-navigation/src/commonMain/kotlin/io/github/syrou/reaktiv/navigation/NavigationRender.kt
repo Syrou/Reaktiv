@@ -70,25 +70,30 @@ fun NavigationRender(
     navigationEntry: NavigationEntry? = null
 ) {
     val navigationState by composeState<NavigationState>()
-
+    println("LFASKLDASD - NavigationRender - Incomming Nav Entry: $navigationEntry")
     // Track animation state
+    var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
+    var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousEntry by remember { mutableStateOf<NavigationEntry?>(null) }
     var currentEntry by remember { mutableStateOf<NavigationEntry?>(null) }
-    var isForward by remember { mutableStateOf(true) }
+
+    // Update animation tracking
+    LaunchedEffect(navigationState.backStack.size) {
+        previousBackStackSize = currentBackStackSize
+        currentBackStackSize = navigationState.backStack.size
+    }
+
 
     // Get the current entry from the state
     val entry = navigationEntry ?: navigationState.rootEntry
-
-    // Update entry tracking for animations
-    if (entry != currentEntry) {
-        // Determine navigation direction for animations
-        val previousIndex = navigationState.backStack.indexOfFirst { it == previousEntry }
-        val currentIndex = navigationState.backStack.indexOfFirst { it == entry }
-        isForward = currentIndex > previousIndex || previousEntry == null
-
+    LaunchedEffect(entry) {
         previousEntry = currentEntry
         currentEntry = entry
     }
+
+    //println("LFASKLDASD - NavigationRender - isForward: $isForward")
+    println("LFASKLDASD - NavigationRender - previousEntry: $previousEntry")
+    println("LFASKLDASD - NavigationRender - currentEntry: $currentEntry")
 
     Box(modifier = modifier.fillMaxSize()) {
         // AnimatedContent for transitions between screens
@@ -96,7 +101,10 @@ fun NavigationRender(
             modifier = Modifier.fillMaxSize().testTag("AnimatedContent"),
             targetState = entry,
             transitionSpec = {
-                // Animation setup
+                val isForward = navigationState.clearedBackStackWithNavigate ||
+                        (navigationState.backStack.size > previousBackStackSize)
+
+                // Animation setup (unchanged)
                 val enterTransition = if (!isForward)
                     previousEntry?.screen?.popEnterTransition ?: targetState.screen.enterTransition
                 else
@@ -107,7 +115,13 @@ fun NavigationRender(
                 else
                     initialState.screen.exitTransition
 
-                getContentTransform(exitTransition, enterTransition, isForward)
+                getContentTransform(exitTransition, enterTransition, isForward).apply {
+                    targetContentZIndex = if (navigationState.clearedBackStackWithNavigate) {
+                        previousBackStackSize++.toFloat()
+                    } else {
+                        navigationState.backStack.size.toFloat()
+                    }
+                }
             }
         ) { currentEntry ->
             // Render the screen content

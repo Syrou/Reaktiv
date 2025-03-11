@@ -248,16 +248,17 @@ data class NavigationEntry(
      * Finds a child or descendant entry with the specified route, or null if not found.
      */
     fun findEntryWithRoute(route: String): NavigationEntry? {
+        // First check if this entry matches the route
         if (path == route) return this
 
-        var current = childEntry
-        while (current != null) {
-            if (current.path == route) {
-                return current
-            }
-            current = current.childEntry
-        }
-        return null
+        // Base case: no child entry
+        if (childEntry == null) return null
+
+        // Check if the direct child matches
+        if (childEntry.path == route) return childEntry
+
+        // Recursively search in the child's hierarchy
+        return childEntry.findEntryWithRoute(route)
     }
 }
 
