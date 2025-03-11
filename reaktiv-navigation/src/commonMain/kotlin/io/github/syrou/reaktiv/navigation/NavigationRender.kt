@@ -67,10 +67,14 @@ private fun getSpringSpecForFloat(durationMillis: Int) = spring<Float>(
 @Composable
 fun NavigationRender(
     modifier: Modifier = Modifier,
-    navigationEntry: NavigationEntry? = null
+    navigationEntry: NavigationEntry? = null,
+    tempEntry: NavigationEntry? = null,
+    depth: Int = 1
 ) {
     val navigationState by composeState<NavigationState>()
     println("LFASKLDASD - NavigationRender - Incomming Nav Entry: $navigationEntry")
+    println("LFASKLDASD - NavigationRender - Incomming tempEntry Entry: $tempEntry")
+    println("LFASKLDASD - NavigationRender - depth: $depth")
     // Track animation state
     var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
@@ -94,6 +98,7 @@ fun NavigationRender(
     //println("LFASKLDASD - NavigationRender - isForward: $isForward")
     println("LFASKLDASD - NavigationRender - previousEntry: $previousEntry")
     println("LFASKLDASD - NavigationRender - currentEntry: $currentEntry")
+    println("LFASKLDASD - NavigationRender - ===================================")
 
     Box(modifier = modifier.fillMaxSize()) {
         // AnimatedContent for transitions between screens
@@ -133,7 +138,9 @@ fun NavigationRender(
                         // Child navigation render - will show the child entry
                         NavigationRender(
                             modifier = Modifier.fillMaxSize(),
-                            currentEntry.childEntry
+                            currentEntry.childEntry,
+                            currentEntry,
+                            depth+1
                         )
                     }
                 )
