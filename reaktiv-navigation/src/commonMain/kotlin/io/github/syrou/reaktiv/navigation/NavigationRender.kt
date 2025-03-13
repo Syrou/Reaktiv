@@ -15,23 +15,17 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import io.github.syrou.reaktiv.compose.composeState
-import io.github.syrou.reaktiv.compose.rememberDispatcher
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import kotlin.math.PI
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -61,20 +55,61 @@ private fun getSpringSpecForFloat(durationMillis: Int) = spring<Float>(
     stiffness = estimateSpringParametersForFloat(durationMillis).first
 )
 
+@Composable
+@Stable
+fun NestedNavigationRender(
+    modifier: Modifier = Modifier,
+    navigationEntry: NavigationEntry,
+    previousNavigationEntry: NavigationEntry? = null,
+    depth: Int = 1
+) {
+    var previousEntry by remember { mutableStateOf<NavigationEntry?>(previousNavigationEntry) }
+    var currentEntry by remember { mutableStateOf<NavigationEntry?>(null) }
+    LaunchedEffect(navigationEntry) {
+        previousEntry = previousNavigationEntry ?: currentEntry
+        currentEntry = navigationEntry
+    }
+
+    println("LFASKLDASD - NestedNavigationRender - previousEntry: $previousEntry")
+    println("LFASKLDASD - NestedNavigationRender - currentEntry: $currentEntry")
+    println("LFASKLDASD - NestedNavigationRender - depth: $depth")
+    println("LFASKLDASD - NestedNavigationRender - ===================================")
+
+    //Box(modifier = modifier) {
+    if (currentEntry?.screen?.isContainer == true && currentEntry?.hasChild() == true) {
+        // For container screens with children, provide a child navigation composable
+        currentEntry?.screen?.Content(
+            params = currentEntry?.params ?: emptyMap(),
+            childNavigation = {
+                // Child navigation render - will show the child entry
+                NestedNavigationRender(
+                    modifier = Modifier.fillMaxSize(),
+                    currentEntry?.childEntry!!,
+                    previousEntry?.childEntry ?: previousEntry,
+                    depth + 1
+                )
+            }
+        )
+    } else {
+        // For regular screens or containers without children
+        currentEntry?.screen?.Content(
+            params = currentEntry?.params ?: emptyMap(),
+            childNavigation = {}
+        )
+    }
+    //}
+}
+
 /**
  * Renders a screen with animations, and handles nested navigation if the screen is a container.
  */
+
 @Composable
 fun NavigationRender(
     modifier: Modifier = Modifier,
-    navigationEntry: NavigationEntry? = null,
-    tempEntry: NavigationEntry? = null,
-    depth: Int = 1
 ) {
     val navigationState by composeState<NavigationState>()
-    println("LFASKLDASD - NavigationRender - Incomming Nav Entry: $navigationEntry")
-    println("LFASKLDASD - NavigationRender - Incomming tempEntry Entry: $tempEntry")
-    println("LFASKLDASD - NavigationRender - depth: $depth")
+
     // Track animation state
     var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
@@ -89,7 +124,7 @@ fun NavigationRender(
 
 
     // Get the current entry from the state
-    val entry = navigationEntry ?: navigationState.rootEntry
+    val entry = navigationState.rootEntry
     LaunchedEffect(entry) {
         previousEntry = currentEntry
         currentEntry = entry
@@ -100,10 +135,37 @@ fun NavigationRender(
     println("LFASKLDASD - NavigationRender - currentEntry: $currentEntry")
     println("LFASKLDASD - NavigationRender - ===================================")
 
-    Box(modifier = modifier.fillMaxSize()) {
-        // AnimatedContent for transitions between screens
+    //Box(modifier = modifier.fillMaxSize()) {
+    // AnimatedContent for transitions between screens
+    // Render the screen content
+    if (currentEntry?.screen?.isContainer == true && currentEntry?.hasChild() == true) {
+        // For container screens with children, provide a child navigation composable
+        currentEntry?.screen?.Content(
+            params = currentEntry?.params ?: emptyMap(),
+            childNavigation = {
+                // Child navigation render - will show the child entry
+                AnimatedContent(
+                    modifier = modifier,
+                    targetState = currentEntry?.childEntry,
+                    transitionSpec = {
+                        val enterTransition = targetState?.screen?.enterTransition
+                        val exitTransition = initialState?.screen?.exitTransition
+                        getContentTransform(exitTransition, enterTransition, true)
+                    }
+                ) {
+                    NestedNavigationRender(
+                        modifier = modifier,
+                        it!!,
+                        previousEntry?.childEntry,
+                        1
+                    )
+                }
+            }
+        )
+    } else {
+        // For regular screens or containers without children
         AnimatedContent(
-            modifier = Modifier.fillMaxSize().testTag("AnimatedContent"),
+            modifier = modifier,
             targetState = entry,
             transitionSpec = {
                 val isForward = navigationState.clearedBackStackWithNavigate ||
@@ -128,37 +190,20 @@ fun NavigationRender(
                     }
                 }
             }
-        ) { currentEntry ->
-            // Render the screen content
-            if (currentEntry.screen.isContainer && currentEntry.hasChild()) {
-                // For container screens with children, provide a child navigation composable
-                currentEntry.screen.Content(
-                    params = currentEntry.params,
-                    childNavigation = {
-                        // Child navigation render - will show the child entry
-                        NavigationRender(
-                            modifier = Modifier.fillMaxSize(),
-                            currentEntry.childEntry,
-                            currentEntry,
-                            depth+1
-                        )
-                    }
-                )
-            } else {
-                // For regular screens or containers without children
-                currentEntry.screen.Content(
-                    params = currentEntry.params,
-                    childNavigation = {}
-                )
-            }
+        ) {
+            it.screen.Content(
+                params = currentEntry?.params ?: emptyMap(),
+                childNavigation = {}
+            )
         }
     }
+    //}
 }
 
 
 private fun getContentTransform(
-    exitTransition: NavTransition,
-    enterTransition: NavTransition,
+    exitTransition: NavTransition?,
+    enterTransition: NavTransition?,
     isForward: Boolean
 ): ContentTransform {
     val enter = getEnterAnimation(enterTransition, isForward)
@@ -166,7 +211,7 @@ private fun getContentTransform(
     return enter togetherWith exit
 }
 
-private fun getEnterAnimation(transition: NavTransition, isForward: Boolean): EnterTransition {
+private fun getEnterAnimation(transition: NavTransition?, isForward: Boolean): EnterTransition {
     return when (transition) {
         is NavTransition.SlideInRight -> {
             val spec = getSpringSpecForIntOffset(transition.durationMillis)
@@ -211,7 +256,7 @@ private fun getEnterAnimation(transition: NavTransition, isForward: Boolean): En
     }
 }
 
-private fun getExitAnimation(transition: NavTransition, isForward: Boolean): ExitTransition {
+private fun getExitAnimation(transition: NavTransition?, isForward: Boolean): ExitTransition {
     return when (transition) {
         is NavTransition.SlideOutRight -> {
             val spec = getSpringSpecForIntOffset(transition.durationMillis)

@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
@@ -180,10 +181,12 @@ data class NavigationState(
 }
 
 @Serializable
+@Stable
 data class NavigationEntry(
     val screen: Screen,
     val params: StringAnyMap,
     val id: String? = null,       // Unique identifier for this entry (route)
+    @Stable
     val childEntry: NavigationEntry? = null  // Active child entry, if any
 ) {
     /**
