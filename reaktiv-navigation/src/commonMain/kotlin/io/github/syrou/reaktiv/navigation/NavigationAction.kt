@@ -8,6 +8,7 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     data class NavigateState(
         val rootEntry: NavigationEntry,
         val backStack: List<NavigationEntry>,
+        val nestedBackStack: List<NavigationEntry>,
         val clearedBackStack: Boolean = false
     ) : NavigationAction()
 

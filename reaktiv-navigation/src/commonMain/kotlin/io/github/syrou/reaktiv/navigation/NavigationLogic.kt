@@ -113,11 +113,11 @@ internal class NavigationLogic(
         forwardParams: Boolean
     ) {
         val currentState = storeAccessor.selectState<NavigationState>().first()
-        println ("HERPADERPA - prepareNavigateAction - current entry: ${currentState.rootEntry}")
+        println("HERPADERPA - prepareNavigateAction - current entry: ${currentState.rootEntry}")
         println("HARKELDARKEL - prepareNavigateAction - route: $route")
         println("HARKELDARKEL - prepareNavigateAction - clearBackStack: $clearBackStack")
-        var newBackStack = if (clearBackStack) listOf() else currentState.backStack + currentState.rootEntry
-        var rootEntry = currentState.rootEntry
+        var newBackStack = if (clearBackStack) listOf() else currentState.backStack
+        var newNestedBackStack = if (clearBackStack) listOf() else currentState.nestedBackStack
 
         // Handle popUpTo
         if (popUpTo != null) {
@@ -141,40 +141,34 @@ internal class NavigationLogic(
 
         // Create the new entry for the target route
         val targetEntry = createEntryForPath(targetRoute, finalParams)
-
+        var mutableNestedBackStack = newNestedBackStack.toMutableList()
         // Process nested navigation when applicable
+        var rootEntry = currentState.rootEntry
+        val nestedDepth = currentState.nestedBackStack.size
         if (isNestedRoute(targetRoute)) {
-            // Find the parent route that would contain this route
-            val parentRoute = findParentRoute(targetRoute)
-            println("HERPADERPA - prepareNavigateAction - parentRoute: $parentRoute")
-            if (parentRoute != null) {
-                // Find the parent entry in the current navigation hierarchy
-                val parentEntry = rootEntry.findEntryWithRoute(parentRoute)
-                println("HERPADERPA - prepareNavigateAction - parentEntry: $parentEntry")
-                if (parentEntry != null && parentEntry.screen.isContainer) {
-                    // Create an updated hierarchy with the new child entry
-                    rootEntry = updateNavigationHierarchy(rootEntry, parentRoute, targetEntry)
-                    println("HERPADERPA - prepareNavigateAction - rootEntry: $rootEntry")
-                    println("HERPADERPA - prepareNavigateAction - backstack: $newBackStack")
-                    //newBackStack = newBackStack + rootEntry
-                    println("HERPADERPA - prepareNavigateAction - after backstack: $newBackStack")
-                } else {
-                    // For non-nested navigation, the target entry becomes the root
-                    rootEntry = targetEntry
-                }
-            } else {
-                // If we couldn't determine a parent, treat it as regular navigation
-                rootEntry = targetEntry
+            val depth = targetRoute.count { it == '/' }
+            println("HERPADERPA - target route depth: $depth")
+            println("HERPADERPA - previous nested depth: $nestedDepth")
+            if(nestedDepth < depth) {
+                mutableNestedBackStack = (newNestedBackStack + targetEntry).toMutableList()
+            }else if(depth == nestedDepth){
+                mutableNestedBackStack[depth-1] = targetEntry
             }
         } else {
-            // For regular (non-nested) navigation
             rootEntry = targetEntry
+            newBackStack + targetEntry
         }
+
+        newNestedBackStack.forEach {
+            println("HERPADERPA - prepareNavigateAction - newNestedBackStack: $it")
+        }
+        println("HERPADERPA - prepareNavigateAction new rootEntry: $rootEntry")
 
         // Create enhanced action with prepared backstack - dispatch only once
         val enhancedAction = NavigationAction.NavigateState(
             rootEntry = rootEntry,
             backStack = newBackStack,
+            nestedBackStack = mutableNestedBackStack,
             clearedBackStack = clearBackStack
         )
 
@@ -277,9 +271,7 @@ internal class NavigationLogic(
     internal suspend fun prepareBackAction() {
         val currentState = storeAccessor.selectState<NavigationState>().first()
         println("HERPADERPA - prepareBackAction - backStack: ${currentState.backStack.size}")
-        currentState.backStack.forEach {
-            println("HERPADERPA - prepareBackAction - backStack entry: $it")
-        }
+
         // Handle regular back navigation
         if (currentState.backStack.isEmpty()) return
 
@@ -288,11 +280,21 @@ internal class NavigationLogic(
         //if (currentIndex <= 0) return
 
         // Get previous entry
-        val newEntry = currentState.backStack[currentState.backStack.size-1]
+        val newEntry = if (currentState.nestedBackStack.isEmpty()) {
+            currentState.backStack[currentState.backStack.size - 1]
+        } else {
+            currentState.nestedBackStack[currentState.nestedBackStack.size - 1]
+        }
 
         // Create backstack without current entry
+        var newBackStack = currentState.backStack
+        var newNestedBackStack = currentState.nestedBackStack
         //val newEntry = currentState.backStack.last()
-        val newBackStack = currentState.backStack.dropLast(1)
+        if (currentState.nestedBackStack.isEmpty()) {
+            newBackStack = currentState.backStack.dropLast(1)
+        } else {
+            newNestedBackStack = currentState.nestedBackStack.dropLast(1)
+        }
         println("HERPADERPA - prepareBackAction - newEntry: $newEntry")
         println("HERPADERPA - prepareBackAction - newBackStack: $newBackStack")
         // Dispatch prepared state
@@ -300,6 +302,7 @@ internal class NavigationLogic(
             NavigationAction.NavigateState(
                 rootEntry = newEntry,
                 backStack = newBackStack,
+                nestedBackStack = newNestedBackStack,
                 clearedBackStack = false
             )
         )
@@ -361,6 +364,7 @@ internal class NavigationLogic(
             NavigationAction.NavigateState(
                 rootEntry = newEntry,
                 backStack = newBackStack,
+                nestedBackStack = currentState.nestedBackStack,
                 clearedBackStack = false
             )
         )
@@ -381,6 +385,7 @@ internal class NavigationLogic(
                 NavigationAction.NavigateState(
                     rootEntry = currentState.rootEntry,
                     backStack = listOf(),
+                    nestedBackStack = currentState.nestedBackStack,
                     clearedBackStack = true
                 )
             )
@@ -404,6 +409,7 @@ internal class NavigationLogic(
             NavigationAction.NavigateState(
                 rootEntry = rootEntry,
                 backStack = newBackStack,
+                nestedBackStack = currentState.nestedBackStack,
                 clearedBackStack = true
             )
         )
@@ -441,6 +447,7 @@ internal class NavigationLogic(
             NavigationAction.NavigateState(
                 rootEntry = newEntry,
                 backStack = newBackStack,
+                nestedBackStack = currentState.nestedBackStack,
                 clearedBackStack = false
             )
         )
@@ -463,6 +470,7 @@ internal class NavigationLogic(
             NavigationAction.NavigateState(
                 rootEntry = currentState.rootEntry.copy(params = emptyMap()),
                 backStack = updatedBackStack,
+                nestedBackStack = currentState.nestedBackStack,
                 clearedBackStack = false
             )
         )
@@ -485,6 +493,7 @@ internal class NavigationLogic(
             NavigationAction.NavigateState(
                 rootEntry = currentState.rootEntry.copy(params = currentState.rootEntry.params - key),
                 backStack = updatedBackStack,
+                nestedBackStack = currentState.nestedBackStack,
                 clearedBackStack = false
             )
         )
@@ -516,6 +525,7 @@ internal class NavigationLogic(
             NavigationAction.NavigateState(
                 rootEntry = updatedCurrentEntry,
                 backStack = updatedBackStack,
+                nestedBackStack = currentState.nestedBackStack,
                 clearedBackStack = false
             )
         )
@@ -549,6 +559,7 @@ internal class NavigationLogic(
             NavigationAction.NavigateState(
                 rootEntry = updatedCurrentEntry,
                 backStack = updatedBackStack,
+                nestedBackStack = currentState.nestedBackStack,
                 clearedBackStack = false
             )
         )

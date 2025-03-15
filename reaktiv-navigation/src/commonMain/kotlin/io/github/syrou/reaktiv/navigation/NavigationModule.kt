@@ -144,6 +144,7 @@ sealed class NavTransition(open val durationMillis: Int = DEFAULT_ANIMATION_DURA
 data class NavigationState(
     val rootEntry: NavigationEntry,
     val backStack: List<NavigationEntry>,
+    val nestedBackStack: List<NavigationEntry>,
     val availableScreens: Map<String, Screen> = emptyMap(),
     val clearedBackStackWithNavigate: Boolean = false,
     val isLoading: Boolean = false,
@@ -423,6 +424,7 @@ class NavigationModule private constructor(
         NavigationState(
             rootEntry = rootEntry,
             backStack = if (addRootScreenToBackStack) listOf(rootEntry) else emptyList(),
+            nestedBackStack = emptyList(),
             availableScreens = availableScreens
         )
     }
@@ -448,6 +450,7 @@ class NavigationModule private constructor(
                 state.copy(
                     rootEntry = action.rootEntry,
                     backStack = action.backStack,
+                    nestedBackStack = action.nestedBackStack,
                     clearedBackStackWithNavigate = action.clearedBackStack
                 )
             }
