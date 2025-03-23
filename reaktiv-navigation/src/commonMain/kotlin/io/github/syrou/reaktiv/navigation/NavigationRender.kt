@@ -18,10 +18,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,8 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import io.github.syrou.reaktiv.compose.composeState
-import io.github.syrou.reaktiv.compose.rememberDispatcher
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import kotlin.math.PI
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -68,12 +63,10 @@ private fun getSpringSpecForFloat(durationMillis: Int) = spring<Float>(
 fun NavigationRender(
     modifier: Modifier = Modifier,
     navigationEntry: NavigationEntry? = null,
-    tempEntry: NavigationEntry? = null,
     depth: Int = 1
 ) {
     val navigationState by composeState<NavigationState>()
     println("LFASKLDASD - NavigationRender - Incomming Nav Entry: $navigationEntry")
-    println("LFASKLDASD - NavigationRender - Incomming tempEntry Entry: $tempEntry")
     println("LFASKLDASD - NavigationRender - depth: $depth")
     // Track animation state
     var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
@@ -134,21 +127,21 @@ fun NavigationRender(
                 // For container screens with children, provide a child navigation composable
                 currentEntry.screen.Content(
                     params = currentEntry.params,
-                    childNavigation = {
+                    showDefaultContent = {
                         // Child navigation render - will show the child entry
                         NavigationRender(
                             modifier = Modifier.fillMaxSize(),
                             currentEntry.childEntry,
-                            currentEntry,
-                            depth+1
+                            depth + 1
                         )
+                        false
                     }
                 )
             } else {
                 // For regular screens or containers without children
                 currentEntry.screen.Content(
                     params = currentEntry.params,
-                    childNavigation = {}
+                    showDefaultContent = { true }
                 )
             }
         }

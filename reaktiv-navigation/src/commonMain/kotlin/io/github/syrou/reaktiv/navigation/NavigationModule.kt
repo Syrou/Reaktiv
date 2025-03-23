@@ -72,7 +72,7 @@ interface Screen : NavigationNode {
     @Composable
     fun Content(
         params: Map<String, Any>,
-        childNavigation: @Composable () -> Unit
+        showDefaultContent: @Composable () -> Boolean
     )
 }
 
