@@ -7,8 +7,8 @@ plugins {
     id("com.android.application") apply false
     id("com.android.library") apply false
     id("org.jetbrains.dokka") version "1.9.20"
-    id("org.jetbrains.compose") version "1.7.0-alpha01"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"
+    id("org.jetbrains.compose") version "1.7.3"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
 }
 
 buildscript {
