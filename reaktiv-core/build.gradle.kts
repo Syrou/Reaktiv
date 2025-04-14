@@ -3,7 +3,7 @@ import org.gradle.kotlin.dsl.support.kotlinCompilerOptions
 plugins {
     kotlin("multiplatform")
     id("com.android.library")
-    id("kotlinx-atomicfu")
+    id("org.jetbrains.kotlinx.atomicfu")
     kotlin("plugin.serialization")
     id("convention.publication")
     id("io.github.syrou.version")
