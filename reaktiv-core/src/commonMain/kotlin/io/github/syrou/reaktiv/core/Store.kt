@@ -3,11 +3,13 @@ package io.github.syrou.reaktiv.core
 import io.github.syrou.reaktiv.core.persistance.PersistenceManager
 import io.github.syrou.reaktiv.core.persistance.PersistenceStrategy
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -228,6 +230,19 @@ class Store private constructor(
     init {
         launch {
             initializeModules()
+            processActionChannel()
+        }
+    }
+
+    /**
+     * Helper method to cancel any coroutine scope operations, and restart the store operations
+     */
+    fun reset() {
+        if (!initialized.value) {
+            throw IllegalArgumentException("Reset can not be called until the Store has been constructed!")
+        }
+        coroutineContext.cancelChildren(CancellationException("Store Reset"))
+        launch {
             processActionChannel()
         }
     }
