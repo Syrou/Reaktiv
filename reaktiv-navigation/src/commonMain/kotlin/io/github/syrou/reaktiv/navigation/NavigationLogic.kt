@@ -2,15 +2,15 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.dsl.ClearBackStackBuilder
+import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
+import io.github.syrou.reaktiv.navigation.dsl.PopUpToBuilder
+import io.github.syrou.reaktiv.navigation.exception.ClearingBackStackWithOtherOperations
+import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-/**
- * Handles the logic for navigation actions in the Reaktiv architecture.
- *
- * @property coroutineScope The CoroutineScope for this logic.
- * @property availableScreens A map of all available screens in the application.
- */
 class NavigationLogic(
     private val coroutineScope: CoroutineScope,
     private val availableScreens: Map<String, Screen>,
@@ -19,25 +19,6 @@ class NavigationLogic(
 
     private fun routeExists(route: String): Boolean = availableScreens.containsKey(route)
 
-    /**
-     * Navigates to a specified route with optional parameters and configuration.
-     *
-     * @param route The destination route.
-     * @param params The parameters to pass to the destination.
-     * @param config An optional configuration block for the navigation action.
-     * @throws RouteNotFoundException if the specified route doesn't exist.
-     *
-     * Example:
-     * ```
-     * navigationLogic.navigate(
-     *     route = "profile",
-     *     params = mapOf("userId" to 123),
-     *     config = {
-     *         popUpTo("home")
-     *     }
-     * )
-     * ```
-     */
     fun navigate(
         route: String,
         params: Map<String, Any> = emptyMap(),
@@ -68,25 +49,6 @@ class NavigationLogic(
         }
     }
 
-    /**
-     * Pops the back stack up to a specified route.
-     *
-     * @param route The route to pop up to.
-     * @param inclusive Whether to include the specified route in the pop operation.
-     * @param config An optional configuration block for the pop-up-to action.
-     * @throws RouteNotFoundException if the specified route doesn't exist.
-     *
-     * Example:
-     * ```
-     * navigationLogic.popUpTo(
-     *     route = "home",
-     *     inclusive = true,
-     *     config = {
-     *         replaceWith("dashboard")
-     *     }
-     * )
-     * ```
-     */
     fun popUpTo(
         route: String,
         inclusive: Boolean = false,
@@ -107,26 +69,10 @@ class NavigationLogic(
         storeAccessor.dispatch(action)
     }
 
-    /**
-     * Navigates back to the previous screen in the back stack.
-     *
-     * Example:
-     * ```
-     * navigationLogic.navigateBack()
-     * ```
-     */
     fun navigateBack() {
         storeAccessor.dispatch(NavigationAction.Back)
     }
 
-    /**
-     * Clears the entire back stack, leaving only the current screen.
-     *
-     * Example:
-     * ```
-     * navigationLogic.clearBackStack()
-     * ```
-     */
     fun clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
         val builder = ClearBackStackBuilder()
         config?.let { builder.apply(it) }
@@ -134,18 +80,6 @@ class NavigationLogic(
         storeAccessor.dispatch(action)
     }
 
-    /**
-     * Replaces the current screen with a new one.
-     *
-     * @param route The route of the screen to replace with.
-     * @param params The parameters to pass to the new screen.
-     * @throws RouteNotFoundException if the specified route doesn't exist.
-     *
-     * Example:
-     * ```
-     * navigationLogic.replaceWith("settings", mapOf("theme" to "dark"))
-     * ```
-     */
     fun replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
         if (!routeExists(route)) {
             throw RouteNotFoundException(route)
@@ -153,27 +87,6 @@ class NavigationLogic(
         storeAccessor.dispatch(NavigationAction.Replace(route, params))
     }
 
-    /**
-     * Navigates to a specified route with validation.
-     *
-     * @param route The destination route.
-     * @param params The parameters to pass to the destination.
-     * @param store The Reaktiv store instance.
-     * @param validate A suspend function that performs validation before navigation.
-     *
-     * Example:
-     * ```
-     * navigationLogic.navigateWithValidation(
-     *     route = "checkout",
-     *     params = mapOf("cartId" to 456),
-     *     storeAccessor = myStore
-     * ) { store, params ->
-     *     val cartId = params["cartId"] as? Int ?: return@navigateWithValidation false
-     *     val cartState = store.selectState<CartState>().value
-     *     cartState.items.isNotEmpty() && cartState.totalAmount > 0
-     * }
-     * ```
-     */
     fun navigateWithValidation(
         route: String,
         params: Map<String, Any> = emptyMap(),
@@ -199,39 +112,14 @@ class NavigationLogic(
         }
     }
 
-    /**
-     * Clears the params for the current visible screen.
-     *
-     * Example:
-     * ```
-     * navigationLogic.clearCurrentScreenParams
-     * ```
-     */
     fun clearCurrentScreenParams() {
         storeAccessor.dispatch(NavigationAction.ClearCurrentScreenParams)
     }
 
-    /**
-     * Clears a param for the current visible screen.
-     *
-     * @param key for which param to be removed from the current visible screen
-     * Example:
-     * ```
-     * navigationLogic.clearCurrentScreenParams("home")
-     * ```
-     */
     fun clearCurrentScreenParam(key: String) {
         storeAccessor.dispatch(NavigationAction.ClearCurrentScreenParam(key))
     }
 
-    /**
-     * Clears the params for a given existing screen route.
-     *
-     * Example:
-     * ```
-     * navigationLogic.clearScreenParams
-     * ```
-     */
     fun clearScreenParams(route: String) {
         if (routeExists(route)) {
             storeAccessor.dispatch(NavigationAction.ClearScreenParams(route))
@@ -240,15 +128,6 @@ class NavigationLogic(
         }
     }
 
-    /**
-     * Clears a param for a given existing screen route.
-     *
-     * @param key for which param to be removed from the given screen route
-     * Example:
-     * ```
-     * navigationLogic.clearScreenParam
-     * ```
-     */
     fun clearScreenParam(route: String, key: String) {
         if (routeExists(route)) {
             storeAccessor.dispatch(NavigationAction.ClearScreenParam(route, key))

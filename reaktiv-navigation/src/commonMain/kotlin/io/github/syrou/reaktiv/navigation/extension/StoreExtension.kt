@@ -2,10 +2,10 @@ package io.github.syrou.reaktiv.navigation.extension
 
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectLogic
-import io.github.syrou.reaktiv.navigation.ClearBackStackBuilder
-import io.github.syrou.reaktiv.navigation.NavigationBuilder
+import io.github.syrou.reaktiv.navigation.dsl.ClearBackStackBuilder
+import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.NavigationLogic
-import io.github.syrou.reaktiv.navigation.PopUpToBuilder
+import io.github.syrou.reaktiv.navigation.dsl.PopUpToBuilder
 import kotlinx.coroutines.coroutineScope
 
 
