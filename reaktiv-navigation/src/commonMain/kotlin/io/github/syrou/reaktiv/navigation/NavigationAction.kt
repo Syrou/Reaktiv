@@ -1,33 +1,34 @@
 package io.github.syrou.reaktiv.navigation
 
+import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 
 sealed class NavigationAction : ModuleAction(NavigationModule::class) {
-    data class Navigate(
-        val route: String,
-        val params: Map<String, Any> = emptyMap(),
-        val popUpTo: String? = null,
-        val inclusive: Boolean = false,
-        val replaceWith: String? = null,
-        val clearBackStack: Boolean = false,
-        val forwardParams: Boolean = false
-    ) : NavigationAction()
+    // Core action for atomic state updates
+    data class BatchUpdate(
+        val currentEntry: NavigationEntry? = null,
+        val backStack: List<NavigationEntry>? = null
+    ) : NavigationAction(), HighPriorityAction
 
-    data object Back : NavigationAction()
-    data class PopUpTo(
-        val route: String,
-        val inclusive: Boolean,
-        val replaceWith: String? = null,
-        val replaceParams: Map<String, Any> = emptyMap(),
-    ) : NavigationAction()
+    data class Back(
+        val currentEntry: NavigationEntry? = null,
+        val backStack: List<NavigationEntry>? = null
+    ) : NavigationAction(), HighPriorityAction
 
+    data class ClearBackstack(
+        val currentEntry: NavigationEntry? = null,
+        val backStack: List<NavigationEntry>? = null
+    ) : NavigationAction(), HighPriorityAction
 
-    data class ClearBackStack(val root: String? = null, val params: StringAnyMap = emptyMap()) : NavigationAction()
-    data class Replace(val route: String, val params: Map<String, Any> = emptyMap()) : NavigationAction()
-    data class SetLoading(val isLoading: Boolean) : NavigationAction()
-    data object ClearCurrentScreenParams : NavigationAction()
-    data class ClearCurrentScreenParam(val key: String) : NavigationAction()
-    data class ClearScreenParams(val route: String) : NavigationAction()
-    data class ClearScreenParam(val route: String, val key: String) : NavigationAction()
+    // Parameter management actions
+    data object ClearCurrentScreenParams : NavigationAction(), HighPriorityAction
+    data class ClearCurrentScreenParam(val key: String) : NavigationAction(), HighPriorityAction
+    data class ClearScreenParams(val route: String) : NavigationAction(), HighPriorityAction
+    data class ClearScreenParam(val route: String, val key: String) : NavigationAction(), HighPriorityAction
+
+    // Legacy actions for compatibility
+    data class UpdateCurrentEntry(val entry: NavigationEntry) : NavigationAction(), HighPriorityAction
+    data class UpdateBackStack(val backStack: List<NavigationEntry>) : NavigationAction(), HighPriorityAction
 }

@@ -3,252 +3,323 @@ package io.github.syrou.reaktiv.navigation
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
-import io.github.syrou.reaktiv.navigation.definition.NavigationNode
-import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.dsl.Builder
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.navigation.definition.Navigatable
+import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.definition.StartDestination
+import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.RouteResolution
+import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
-open class ScreenGroup(
-    val screens: List<Screen>
-) : NavigationNode {
-    constructor(vararg screens: Screen) : this(screens.toList())
-}
 
 class NavigationModule internal constructor(
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val rootScreen: Screen,
-    private val screens: List<Pair<KClass<out Screen>, NavigationNode>>,
-    private val addRootScreenToBackStack: Boolean
+    private val rootGraph: NavigationGraph
 ) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
+    private val precomputedData: PrecomputedNavigationData by lazy {
+        PrecomputedNavigationData.create(rootGraph)
+    }
 
     override val initialState: NavigationState by lazy {
-        val availableScreens = mutableMapOf<String, Screen>()
+        createInitialState()
+    }
 
-        screens.forEach { node ->
-            when (node.second) {
-                is Screen -> availableScreens[(node.second as Screen).route] = node.second as Screen
-                is ScreenGroup -> (node.second as ScreenGroup).screens.forEach { screen ->
-                    availableScreens[screen.route] = screen
-                }
+    private fun createInitialState(): NavigationState {
+        ReaktivDebug.nav("🚀 Creating  initial navigation state")
+
+        // Resolve the start destination using precomputed resolver
+        val resolution = when (val dest = rootGraph.startDestination) {
+            is StartDestination.DirectScreen -> {
+                RouteResolution(
+                    targetNavigatable = dest.screen,
+                    targetGraphId = rootGraph.route,
+                    extractedParams = emptyMap(),
+                    navigationGraphId = rootGraph.route
+                )
+            }
+            is StartDestination.GraphReference -> {
+                precomputedData.routeResolver.resolve(dest.graphId)
+                    ?: throw IllegalStateException("Could not resolve root graph reference to '${dest.graphId}'")
             }
         }
-        availableScreens[rootScreen.route] = rootScreen
-        NavigationState(
-            currentEntry = NavigationEntry(
-                screen = rootScreen,
-                params = emptyMap()
-            ),
-            backStack = if (addRootScreenToBackStack) listOf(
-                NavigationEntry(
-                    screen = rootScreen,
-                    params = emptyMap()
-                )
-            ) else emptyList(),
-            availableScreens = availableScreens
+
+        val effectiveGraphId = resolution.getEffectiveGraphId()
+
+        // Create initial entry with precomputed data
+        val initialEntry = NavigationEntry(
+            navigatable = resolution.targetNavigatable,
+            params = emptyMap(),
+            graphId = effectiveGraphId
+        )
+
+        return NavigationState(
+            currentEntry = initialEntry,
+            backStack = listOf(initialEntry),
+            precomputedData = precomputedData
         )
     }
 
     @OptIn(InternalSerializationApi::class)
     override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {
-        builder.polymorphic(Screen::class) {
-            //Handle persistence of the initial screen regardless if it is added to available screen or not
-            if (screens.count { it.second == rootScreen } <= 0) {
-                val initialScreen = rootScreen::class
-                subclass(initialScreen as KClass<Screen>, initialScreen.serializer())
+        builder.polymorphic(Navigatable::class) {
+            fun registerGraphNavigatables(graph: NavigationGraph) {
+                graph.navigatables.forEach { navigatable ->
+                    try {
+                        @Suppress("UNCHECKED_CAST")
+                        subclass(
+                            navigatable::class as KClass<Navigatable>,
+                            navigatable::class.serializer() as KSerializer<Navigatable>
+                        )
+                    } catch (e: Exception) {
+                        ReaktivDebug.warn("Could not register serializer for navigatable ${navigatable.route}: ${e.message}")
+                    }
+                }
+                graph.nestedGraphs.forEach { registerGraphNavigatables(it) }
             }
-            screens.forEach { (screenClass, screen) ->
-                @Suppress("UNCHECKED_CAST")
-                subclass(screenClass as KClass<Screen>, screenClass.serializer())
-            }
+            registerGraphNavigatables(rootGraph)
         }
     }
 
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
-            is NavigationAction.Navigate -> {
-
-                var newBackStack = if (action.clearBackStack) listOf() else state.backStack
-                // Handle popUpTo
-                if (action.popUpTo != null) {
-                    val popIndex = newBackStack.indexOfLast { it.screen.route == action.popUpTo }
-                    if (popIndex != -1) {
-                        newBackStack = if (action.inclusive) {
-                            newBackStack.subList(0, popIndex)
-                        } else {
-                            newBackStack.subList(0, popIndex + 1)
-                        }
-                    }
-                }
-
-                val targetScreen = if (action.replaceWith != null) {
-                    state.availableScreens[action.replaceWith]
-                        ?: error("No screen found for route: ${action.replaceWith}")
-                } else {
-                    state.availableScreens[action.route]
-                        ?: error("No screen found for route: ${action.route}")
-                }
-
-                val params: StringAnyMap = if (action.forwardParams) {
-                    val previousParams = newBackStack.lastOrNull()?.params ?: emptyMap()
-                    previousParams.plus(action.params)
-                } else {
-                    action.params
-                }
-
-                val newEntry = NavigationEntry(
-                    screen = targetScreen,
-                    params = params
+            is NavigationAction.BatchUpdate -> {
+                state.copy(
+                    currentEntry = action.currentEntry ?: state.currentEntry,
+                    backStack = action.backStack ?: state.backStack,
                 )
-
-                val currentEntry = newBackStack.lastOrNull()
-                if (currentEntry == newEntry) {
-                    state
-                } else {
-                    state.copy(
-                        currentEntry = newEntry,
-                        backStack = newBackStack + newEntry,
-                        clearedBackStackWithNavigate = action.clearBackStack
-                    )
-                }
-            }
-
-            is NavigationAction.PopUpTo -> {
-                val targetIndex = state.backStack.indexOfLast { it.screen.route == action.route }
-                if (targetIndex != -1) {
-                    var newBackStack = if (action.inclusive) {
-                        state.backStack.subList(0, targetIndex)
-                    } else {
-                        state.backStack.subList(0, targetIndex + 1)
-                    }
-
-
-                    var currentEntry = newBackStack.lastOrNull() ?: state.currentEntry
-                    if (action.replaceWith != null) {
-                        val replaceScreen = state.availableScreens[action.replaceWith]
-                            ?: error("No screen found for route: ${action.replaceWith}")
-                        currentEntry = currentEntry.copy(screen = replaceScreen, params = action.replaceParams)
-                        newBackStack = newBackStack.dropLast(1) + currentEntry
-                    }
-
-                    state.copy(
-                        currentEntry = currentEntry,
-                        backStack = newBackStack,
-                    )
-                } else {
-                    state
-                }
             }
 
             is NavigationAction.Back -> {
-                if (state.backStack.size > 1) {
-                    val newBackStack = state.backStack.dropLast(1)
-                    state.copy(
-                        currentEntry = newBackStack.last(),
-                        backStack = newBackStack,
-                    )
-                } else {
-                    state
-                }
-            }
-
-            is NavigationAction.ClearBackStack -> {
-                if (action.root != null) {
-                    val currentScreen =
-                        state.availableScreens[action.root] ?: error("No screen found for route: ${action.root}")
-                    state.copy(
-                        currentEntry = NavigationEntry(currentScreen, action.params),
-                        backStack = listOf(NavigationEntry(currentScreen, action.params))
-                    )
-                } else {
-                    state.copy(backStack = listOf())
-                }
-            }
-
-            is NavigationAction.Replace -> {
-                val newScreen = state.availableScreens[action.route]
-                    ?: error("No screen found for route: ${action.route}")
-                val newEntry = NavigationEntry(
-                    screen = newScreen,
-                    params = action.params
-                )
                 state.copy(
-                    currentEntry = newEntry,
-                    backStack = state.backStack.dropLast(1) + newEntry,
+                    currentEntry = action.currentEntry ?: state.currentEntry,
+                    backStack = action.backStack ?: state.backStack,
                 )
             }
 
-            is NavigationAction.SetLoading -> {
-                state.copy(isLoading = action.isLoading)
+            is NavigationAction.ClearBackstack -> {
+                state.copy(
+                    currentEntry = action.currentEntry ?: state.currentEntry,
+                    backStack = action.backStack ?: state.backStack,
+                )
             }
 
             is NavigationAction.ClearCurrentScreenParams -> {
-                val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen == state.currentEntry.screen) {
-                        entry.copy(params = emptyMap())
-                    } else {
-                        entry
-                    }
-                }
-                state.copy(backStack = updatedBackStack)
+                val updatedEntry = state.currentEntry.copy(params = emptyMap())
+                val updatedBackStack = state.backStack.dropLast(1) + updatedEntry
+                state.copy(
+                    currentEntry = updatedEntry,
+                    backStack = updatedBackStack
+                )
             }
 
             is NavigationAction.ClearCurrentScreenParam -> {
-                val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen == state.currentEntry.screen) {
-                        entry.copy(params = entry.params - action.key)
-                    } else {
-                        entry
-                    }
-                }
-                state.copy(backStack = updatedBackStack)
+                val updatedEntry = state.currentEntry.copy(
+                    params = state.currentEntry.params - action.key
+                )
+                val updatedBackStack = state.backStack.dropLast(1) + updatedEntry
+                state.copy(
+                    currentEntry = updatedEntry,
+                    backStack = updatedBackStack
+                )
             }
 
             is NavigationAction.ClearScreenParams -> {
                 val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen.route == action.route) {
+                    if (entry.navigatable.route == action.route) {
                         entry.copy(params = emptyMap())
                     } else {
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                val updatedCurrentEntry = if (state.currentEntry.navigatable.route == action.route) {
+                    state.currentEntry.copy(params = emptyMap())
+                } else {
+                    state.currentEntry
+                }
+                state.copy(
+                    currentEntry = updatedCurrentEntry,
+                    backStack = updatedBackStack
+                )
             }
 
             is NavigationAction.ClearScreenParam -> {
                 val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen.route == action.route) {
+                    if (entry.navigatable.route == action.route) {
                         entry.copy(params = entry.params - action.key)
                     } else {
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                val updatedCurrentEntry = if (state.currentEntry.navigatable.route == action.route) {
+                    state.currentEntry.copy(params = state.currentEntry.params - action.key)
+                } else {
+                    state.currentEntry
+                }
+                state.copy(
+                    currentEntry = updatedCurrentEntry,
+                    backStack = updatedBackStack
+                )
             }
+
+            // Legacy actions - maintain compatibility
+            is NavigationAction.UpdateCurrentEntry -> {
+                val updatedBackStack = state.backStack.dropLast(1) + action.entry
+                state.copy(
+                    currentEntry = action.entry,
+                    backStack = updatedBackStack
+                )
+            }
+
+            is NavigationAction.UpdateBackStack -> {
+                val newCurrentEntry = action.backStack.lastOrNull() ?: state.currentEntry
+                state.copy(
+                    currentEntry = newCurrentEntry,
+                    backStack = action.backStack
+                )
+            }
+
+            else -> state
         }
     }
 
     override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor ->
-        NavigationLogic(coroutineScope, initialState.availableScreens, storeAccessor)
+        NavigationLogic(storeAccessor = storeAccessor, precomputedData = precomputedData)
     }
 
     companion object {
-        inline fun create(block: Builder.() -> Unit): NavigationModule {
-            return Builder().apply(block).build()
+        inline fun create(block: GraphBasedBuilder.() -> Unit): NavigationModule {
+            return GraphBasedBuilder().apply(block).build()
         }
     }
 }
 
-fun createNavigationModule(block: Builder.() -> Unit): NavigationModule {
+data class PrecomputedNavigationData(
+    val routeResolver: RouteResolver,
+    val availableNavigatables: Map<String, Navigatable>,
+    val graphDefinitions: Map<String, NavigationGraph>,
+    val allNavigatables: Map<String, Navigatable>,
+    val graphHierarchies: Map<String, List<String>>,
+    val navigatableToGraph: Map<Navigatable, String>,
+    val routeToNavigatable: Map<String, Navigatable>,
+    val navigatableToFullPath: Map<Navigatable, String>,
+) {
+    companion object {
+        fun create(rootGraph: NavigationGraph): PrecomputedNavigationData {
+            val graphDefinitions = mutableMapOf<String, NavigationGraph>()
+            val availableNavigatables = mutableMapOf<String, Navigatable>()
+            val allNavigatables = mutableMapOf<String, Navigatable>()
+            val navigatableToGraph = mutableMapOf<Navigatable, String>()
+            val routeToNavigatable = mutableMapOf<String, Navigatable>()
+            val navigatableToFullPath = mutableMapOf<Navigatable, String>() // CRITICAL: Build the missing lookup table
+
+            // Build parent graph lookup first for hierarchy calculations
+            val parentGraphLookup = mutableMapOf<String, String>()
+
+            // Collect all graphs and navigatables in one pass
+            fun collectGraphs(graph: NavigationGraph) {
+                graphDefinitions[graph.route] = graph
+
+                // Build parent lookup for nested graphs
+                graph.nestedGraphs.forEach { nestedGraph ->
+                    parentGraphLookup[nestedGraph.route] = graph.route
+                }
+
+                // Root graph navigatables are globally accessible
+                if (graph.route == "root") {
+                    graph.navigatables.forEach { navigatable ->
+                        availableNavigatables[navigatable.route] = navigatable
+                        routeToNavigatable[navigatable.route] = navigatable
+                        // Root level navigatables have simple paths
+                        navigatableToFullPath[navigatable] = navigatable.route
+                    }
+                }
+
+                // All navigatables go into the comprehensive map
+                graph.navigatables.forEach { navigatable ->
+                    allNavigatables[navigatable.route] = navigatable
+                    navigatableToGraph[navigatable] = graph.route
+                    routeToNavigatable[navigatable.route] = navigatable
+
+                    // Build full path for this navigatable
+                    if (graph.route != "root") {
+                        val graphPath = buildGraphPathToRoot(graph.route, parentGraphLookup)
+                        val fullPath = if (graphPath.isEmpty()) {
+                            navigatable.route
+                        } else {
+                            "$graphPath/${navigatable.route}"
+                        }
+                        navigatableToFullPath[navigatable] = fullPath
+                    }
+                    // Root navigatables already handled above
+                }
+
+                // Process nested graphs
+                graph.nestedGraphs.forEach { collectGraphs(it) }
+            }
+
+            collectGraphs(rootGraph)
+
+            // Create  route resolver with all precomputed data
+            val routeResolver = RouteResolver.create(graphDefinitions)
+
+            // Build graph hierarchies
+            val graphHierarchies = mutableMapOf<String, List<String>>()
+            for (graphId in graphDefinitions.keys) {
+                val hierarchy = mutableListOf<String>()
+                var currentGraphId: String? = graphId
+
+                while (currentGraphId != null && currentGraphId != "root") {
+                    hierarchy.add(0, currentGraphId)
+                    currentGraphId = parentGraphLookup[currentGraphId]
+                }
+
+                graphHierarchies[graphId] = hierarchy
+            }
+
+            ReaktivDebug.nav("🎯 Precomputed ${allNavigatables.size} navigatables across ${graphDefinitions.size} graphs")
+            ReaktivDebug.nav("📍 Built ${navigatableToFullPath.size} navigatable-to-path mappings for NavigationTarget resolution")
+
+            return PrecomputedNavigationData(
+                routeResolver = routeResolver,
+                availableNavigatables = availableNavigatables,
+                graphDefinitions = graphDefinitions,
+                allNavigatables = allNavigatables,
+                graphHierarchies = graphHierarchies,
+                navigatableToGraph = navigatableToGraph,
+                routeToNavigatable = routeToNavigatable,
+                navigatableToFullPath = navigatableToFullPath // Now properly populated!
+            )
+        }
+
+        
+        private fun buildGraphPathToRoot(graphId: String, parentLookup: Map<String, String>): String {
+            if (graphId == "root") return ""
+
+            val pathSegments = mutableListOf<String>()
+            var currentGraphId: String? = graphId
+
+            while (currentGraphId != null && currentGraphId != "root") {
+                pathSegments.add(0, currentGraphId)
+                currentGraphId = parentLookup[currentGraphId]
+            }
+
+            return pathSegments.joinToString("/")
+        }
+    }
+}
+
+fun createNavigationModule(block: GraphBasedBuilder.() -> Unit): NavigationModule {
     return NavigationModule.create {
         block.invoke(this)
     }

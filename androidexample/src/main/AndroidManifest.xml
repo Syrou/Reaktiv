@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
+          package="eu.syrou.androidexample">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+            android:name="eu.syrou.androidexample.CustomApplication"
+            android:allowBackup="true"
+            android:label="@string/app_name"
+            android:icon="@drawable/poedex"
+            android:supportsRtl="true"
+            android:theme="@style/Theme.PoEGo"
+            tools:replace="android:appComponentFactory"
+            android:appComponentFactory="androidx.core.app.CoreComponentFactory" tools:targetApi="p">
+        <activity android:name=".MainActivity" android:launchMode="singleTask" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="poedex"
+                      android:host="poedex.com"
+                      android:pathPattern="/navigation/*"
+                />
+            </intent-filter>
+        </activity>
+        <!-- Disable WorkManager's default initialization -->
+        <provider
+                android:name="androidx.startup.InitializationProvider"
+                android:authorities="${applicationId}.androidx-startup"
+                tools:node="remove">
+        </provider>
+
+    </application>
+</manifest>

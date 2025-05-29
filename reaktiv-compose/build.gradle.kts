@@ -14,9 +14,7 @@ repositories {
 }
 
 kotlin {
-    // Targets
     /*js {
-        // Configuration for JavaScript target
     }*/
     androidTarget {
         publishLibraryVariants("release")
@@ -26,13 +24,7 @@ kotlin {
     macosX64()
     iosArm64()
     iosSimulatorArm64()
-
-    // Apply the default hierarchy explicitly. It'll create, for example, the iosMain source set:
     applyDefaultHierarchyTemplate()
-    // Linux target
-    //linuxX64()
-    // Windows target
-    //mingwX64()
 
     sourceSets {
         val commonMain by getting {
@@ -42,7 +34,7 @@ kotlin {
                 implementation(compose.material)
                 implementation(compose.components.resources)
                 implementation(project(":reaktiv-core"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             }
         }
     }
@@ -52,7 +44,7 @@ kotlin {
 
 android {
     namespace = "io.github.syrou"
-    compileSdk = 34
+    compileSdk = 35
 
     sourceSets {
         named("main") {

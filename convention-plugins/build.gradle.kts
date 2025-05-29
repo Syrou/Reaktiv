@@ -8,7 +8,6 @@ gradlePlugin {
             id = "io.github.syrou.version"
             implementationClass = "VersionPlugin"
         }
-        // Your other custom plugins...
     }
 }
 

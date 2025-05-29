@@ -26,7 +26,6 @@ kotlin {
     nativeTarget.apply {
         binaries {
             executable {
-                //freeCompilerArgs += listOf("-no-default-libs", "-nostdlib")
                 entryPoint = "mainExample"
             }
         }
@@ -46,7 +45,6 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
                 implementation("io.ktor:ktor-client-curl:2.3.12")
-                //implementation("io.ktor:ktor-client-cio:2.3.12")
             }
         }
         val nativeTest by getting

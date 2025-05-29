@@ -16,37 +16,31 @@ repositories {
 }
 
 kotlin {
-    // Targets
     androidTarget {
         publishLibraryVariants("release")
     }
     jvm()
     /*js {
-        // Configuration for JavaScript target
     }*/
     macosArm64()
     macosX64()
     iosArm64()
     iosSimulatorArm64()
-
-    // Apply the default hierarchy explicitly. It'll create, for example, the iosMain source set:
     applyDefaultHierarchyTemplate()
-    // Linux target
     linuxX64()
-    // Windows target
     mingwX64()
 
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
             }
         }
     }
@@ -56,7 +50,7 @@ kotlin {
 
 android {
     namespace = "io.github.syrou"
-    compileSdk = 34
+    compileSdk = 35
 
     sourceSets {
         named("main") {

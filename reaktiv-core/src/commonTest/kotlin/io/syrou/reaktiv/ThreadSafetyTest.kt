@@ -20,8 +20,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertTrue
 
-// Define test module, state, and actions
-
 object TestModule : Module<TestModule.TestState, TestModule.Action> {
     data class TestState(val value: Int, val text: String) : ModuleState
 
@@ -71,8 +69,6 @@ object TestModule2 : Module<TestModule2.TestState2, TestModule2.Action> {
         ModuleLogic { action -> }
     }
 }
-
-// Additional data classes for the new tests
 object ComplexModule : Module<ComplexModule.ComplexState, ComplexModule.ComplexAction> {
     data class ComplexState(val count: Int, val text: String) : ModuleState
     sealed class ComplexAction : ModuleAction(ComplexModule::class) {
