@@ -1,4 +1,4 @@
-package io.github.syrou.reaktiv.navigation
+package io.github.syrou.reaktiv.navigation.transition
 
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition

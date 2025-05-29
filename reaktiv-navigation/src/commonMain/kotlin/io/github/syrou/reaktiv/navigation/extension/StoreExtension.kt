@@ -13,7 +13,7 @@ suspend fun StoreAccessor.navigate(
     route: String,
     params: Map<String, Any> = emptyMap(),
     config: (NavigationBuilder.() -> Unit)? = null
-) = coroutineScope {
+) {
     selectLogic<NavigationLogic>().navigate(route, params, config)
 }
 
@@ -21,36 +21,35 @@ suspend fun StoreAccessor.popUpTo(
     route: String,
     inclusive: Boolean = false,
     config: (PopUpToBuilder.() -> Unit)? = null
-) = coroutineScope {
+) {
     selectLogic<NavigationLogic>().popUpTo(route, inclusive, config)
 }
 
-suspend fun StoreAccessor.navigateBack() = coroutineScope {
+suspend fun StoreAccessor.navigateBack() {
     selectLogic<NavigationLogic>().navigateBack()
 }
 
-suspend fun StoreAccessor.clearCurrentScreenParams() = coroutineScope {
+suspend fun StoreAccessor.clearCurrentScreenParams() {
     selectLogic<NavigationLogic>().clearCurrentScreenParams()
 }
 
-suspend fun StoreAccessor.clearCurrentScreenParam(key: String) = coroutineScope {
+suspend fun StoreAccessor.clearCurrentScreenParam(key: String) {
     selectLogic<NavigationLogic>().clearCurrentScreenParam(key)
 }
 
-suspend fun StoreAccessor.clearScreenParams(route: String) = coroutineScope {
+suspend fun StoreAccessor.clearScreenParams(route: String) {
     selectLogic<NavigationLogic>().clearScreenParams(route)
 }
 
-suspend fun StoreAccessor.clearScreenParam(route: String, key: String) = coroutineScope {
+suspend fun StoreAccessor.clearScreenParam(route: String, key: String) {
     selectLogic<NavigationLogic>().clearScreenParam(route, key)
 }
 
-suspend fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) = coroutineScope {
+suspend fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
     selectLogic<NavigationLogic>().clearBackStack(config)
 }
 
-
-suspend fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = emptyMap()) = coroutineScope {
+suspend fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
     selectLogic<NavigationLogic>().replaceWith(route, params)
 }
 
@@ -58,7 +57,6 @@ suspend fun StoreAccessor.navigateWithValidation(
     route: String,
     params: Map<String, Any> = emptyMap(),
     validate: suspend (StoreAccessor, Map<String, Any>) -> Boolean
-) = coroutineScope {
-    selectLogic<NavigationLogic>().navigateWithValidation(route, params, this@navigateWithValidation, validate)
+) {
+    selectLogic<NavigationLogic>().navigateWithValidation(route, params, this, validate)
 }
-

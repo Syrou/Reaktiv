@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.navigation.NavTransition
+import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationEntry
 import io.github.syrou.reaktiv.navigation.NavigationLogic

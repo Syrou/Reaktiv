@@ -1,4 +1,4 @@
-package io.github.syrou.reaktiv.navigation
+package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,21 +10,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.transition.getContentTransform
 
 @Composable
-fun NavigationRender(
+fun FlatNavigationRender(
     modifier: Modifier,
-    screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
+    navigationState: NavigationState,
+    screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit
 ) {
-    val navigationState by composeState<NavigationState>()
     var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
-
-    // Remember the previous screen
     var previousEntry by remember { mutableStateOf<NavigationEntry?>(null) }
     var currentEntry by remember { mutableStateOf<NavigationEntry>(navigationState.currentEntry) }
 
@@ -33,7 +32,6 @@ fun NavigationRender(
         currentBackStackSize = navigationState.backStack.size
     }
 
-    // Update the remembered previous screen when the current screen changes
     LaunchedEffect(navigationState.currentEntry) {
         val isForward = navigationState.clearedBackStackWithNavigate ||
                 (navigationState.backStack.size > previousBackStackSize)
@@ -41,7 +39,6 @@ fun NavigationRender(
             previousEntry = currentEntry
             currentEntry = navigationState.currentEntry
         }
-
         if (isForward) {
             previousEntry = currentEntry
             currentEntry = navigationState.currentEntry

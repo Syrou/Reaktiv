@@ -3,192 +3,209 @@ package io.github.syrou.reaktiv.navigation
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
+import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.NavigationNode
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.dsl.Builder
+import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
-open class ScreenGroup(
-    val screens: List<Screen>
-) : NavigationNode {
-    constructor(vararg screens: Screen) : this(screens.toList())
-}
-
 class NavigationModule internal constructor(
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val rootScreen: Screen,
+    // Existing parameters for backward compatibility
+    private val rootScreen: Screen?,
     private val screens: List<Pair<KClass<out Screen>, NavigationNode>>,
-    private val addRootScreenToBackStack: Boolean
+    private val addRootScreenToBackStack: Boolean,
+    // New parameters for graph support
+    private val rootGraph: NavigationGraph? = null,
+    private val isNestedNavigation: Boolean = false
 ) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
 
     override val initialState: NavigationState by lazy {
+        if (isNestedNavigation && rootGraph != null) {
+            createNestedNavigationState()
+        } else {
+            createFlatNavigationState()
+        }
+    }
+
+    private fun createFlatNavigationState(): NavigationState {
         val availableScreens = mutableMapOf<String, Screen>()
 
-        screens.forEach { node ->
-            when (node.second) {
-                is Screen -> availableScreens[(node.second as Screen).route] = node.second as Screen
-                is ScreenGroup -> (node.second as ScreenGroup).screens.forEach { screen ->
+        screens.forEach { (_, node) ->
+            when (node) {
+                is Screen -> availableScreens[node.route] = node
+                is ScreenGroup -> node.screens.forEach { screen ->
                     availableScreens[screen.route] = screen
                 }
             }
         }
+
+        requireNotNull(rootScreen) { "Root screen is required for flat navigation" }
         availableScreens[rootScreen.route] = rootScreen
-        NavigationState(
-            currentEntry = NavigationEntry(
-                screen = rootScreen,
-                params = emptyMap()
-            ),
-            backStack = if (addRootScreenToBackStack) listOf(
-                NavigationEntry(
-                    screen = rootScreen,
-                    params = emptyMap()
-                )
-            ) else emptyList(),
-            availableScreens = availableScreens
+
+        val rootEntry = NavigationEntry(rootScreen, emptyMap())
+
+        return NavigationState(
+            currentEntry = rootEntry,
+            backStack = if (addRootScreenToBackStack) {
+                listOf(rootEntry)
+            } else {
+                emptyList()
+            },
+            availableScreens = availableScreens,
+            isNestedNavigation = false
+        )
+    }
+
+    private fun createNestedNavigationState(): NavigationState {
+        requireNotNull(rootGraph) { "Root graph is required for nested navigation" }
+
+        val graphDefinitions = mutableMapOf<String, NavigationGraph>()
+        val graphStates = mutableMapOf<String, GraphState>()
+        val availableScreens = mutableMapOf<String, Screen>()
+
+        // Recursively collect all graphs and their screens
+        fun collectGraphs(graph: NavigationGraph) {
+            graphDefinitions[graph.graphId] = graph
+
+            // Collect all screens from this graph
+            graph.screens.forEach { screen ->
+                availableScreens[screen.route] = screen
+            }
+
+            // Initialize graph state
+            val initialEntry = NavigationEntry(graph.startScreen, emptyMap())
+            graphStates[graph.graphId] = GraphState(
+                graphId = graph.graphId,
+                currentEntry = initialEntry,
+                backStack = listOf(initialEntry),
+                isActive = graph.graphId == rootGraph.graphId
+            )
+
+            // Process nested graphs
+            graph.nestedGraphs.forEach { nestedGraph ->
+                collectGraphs(nestedGraph)
+            }
+        }
+
+        collectGraphs(rootGraph)
+
+        val rootEntry = NavigationEntry(rootGraph.startScreen, emptyMap())
+
+        return NavigationState(
+            currentEntry = rootEntry,
+            backStack = listOf(rootEntry),
+            availableScreens = availableScreens,
+            activeGraphId = rootGraph.graphId,
+            graphStates = graphStates,
+            graphDefinitions = graphDefinitions,
+            globalBackStack = listOf(rootEntry),
+            isNestedNavigation = true
         )
     }
 
     @OptIn(InternalSerializationApi::class)
     override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {
         builder.polymorphic(Screen::class) {
-            //Handle persistence of the initial screen regardless if it is added to available screen or not
-            if (screens.count { it.second == rootScreen } <= 0) {
-                val initialScreen = rootScreen::class
-                subclass(initialScreen as KClass<Screen>, initialScreen.serializer())
-            }
-            screens.forEach { (screenClass, screen) ->
-                @Suppress("UNCHECKED_CAST")
-                subclass(screenClass as KClass<Screen>, screenClass.serializer())
+            if (isNestedNavigation && rootGraph != null) {
+                fun registerGraphScreens(graph: NavigationGraph) {
+                    graph.screens.forEach { screen ->
+                        try {
+                            @Suppress("UNCHECKED_CAST")
+                            subclass(
+                                screen::class as KClass<Screen>,
+                                screen::class.serializer() as KSerializer<Screen>
+                            )
+                        } catch (e: Exception) {
+                            // Continue with other screens if one fails
+                        }
+                    }
+                    graph.nestedGraphs.forEach { registerGraphScreens(it) }
+                }
+                registerGraphScreens(rootGraph)
+            } else {
+                // Register root screen if not already in screens list
+                if (rootScreen != null && screens.none { it.second == rootScreen }) {
+                    try {
+                        @Suppress("UNCHECKED_CAST")
+                        subclass(
+                            rootScreen::class as KClass<Screen>,
+                            rootScreen::class.serializer() as KSerializer<Screen>
+                        )
+                    } catch (e: Exception) {
+                        // Continue if serializer registration fails
+                    }
+                }
+
+                screens.forEach { (screenClass, node) ->
+                    when (node) {
+                        is Screen -> {
+                            try {
+                                @Suppress("UNCHECKED_CAST")
+                                subclass(screenClass as KClass<Screen>, screenClass.serializer())
+                            } catch (e: Exception) {
+                                // Continue with other screens
+                            }
+                        }
+                        is ScreenGroup -> {
+                            node.screens.forEach { screen ->
+                                try {
+                                    @Suppress("UNCHECKED_CAST")
+                                    subclass(
+                                        screen::class as KClass<Screen>,
+                                        screen::class.serializer() as KSerializer<Screen>
+                                    )
+                                } catch (e: Exception) {
+                                    // Continue with other screens
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
+    /**
+     * Simplified reducer - focuses on atomic state updates
+     */
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
-            is NavigationAction.Navigate -> {
+            is NavigationAction.UpdateCurrentEntry -> state.copy(currentEntry = action.entry)
+            is NavigationAction.UpdateBackStack -> state.copy(backStack = action.backStack)
+            is NavigationAction.UpdateActiveGraph -> state.copy(activeGraphId = action.graphId)
+            is NavigationAction.UpdateGlobalBackStack -> state.copy(globalBackStack = action.globalBackStack)
+            is NavigationAction.SetClearedBackStackFlag -> state.copy(clearedBackStackWithNavigate = action.cleared)
+            is NavigationAction.SetLoading -> state.copy(isLoading = action.isLoading)
 
-                var newBackStack = if (action.clearBackStack) listOf() else state.backStack
-                // Handle popUpTo
-                if (action.popUpTo != null) {
-                    val popIndex = newBackStack.indexOfLast { it.screen.route == action.popUpTo }
-                    if (popIndex != -1) {
-                        newBackStack = if (action.inclusive) {
-                            newBackStack.subList(0, popIndex)
-                        } else {
-                            newBackStack.subList(0, popIndex + 1)
-                        }
-                    }
-                }
-
-                val targetScreen = if (action.replaceWith != null) {
-                    state.availableScreens[action.replaceWith]
-                        ?: error("No screen found for route: ${action.replaceWith}")
-                } else {
-                    state.availableScreens[action.route]
-                        ?: error("No screen found for route: ${action.route}")
-                }
-
-                val params: StringAnyMap = if (action.forwardParams) {
-                    val previousParams = newBackStack.lastOrNull()?.params ?: emptyMap()
-                    previousParams.plus(action.params)
-                } else {
-                    action.params
-                }
-
-                val newEntry = NavigationEntry(
-                    screen = targetScreen,
-                    params = params
-                )
-
-                val currentEntry = newBackStack.lastOrNull()
-                if (currentEntry == newEntry) {
-                    state
-                } else {
-                    state.copy(
-                        currentEntry = newEntry,
-                        backStack = newBackStack + newEntry,
-                        clearedBackStackWithNavigate = action.clearBackStack
-                    )
-                }
-            }
-
-            is NavigationAction.PopUpTo -> {
-                val targetIndex = state.backStack.indexOfLast { it.screen.route == action.route }
-                if (targetIndex != -1) {
-                    var newBackStack = if (action.inclusive) {
-                        state.backStack.subList(0, targetIndex)
-                    } else {
-                        state.backStack.subList(0, targetIndex + 1)
-                    }
-
-
-                    var currentEntry = newBackStack.lastOrNull() ?: state.currentEntry
-                    if (action.replaceWith != null) {
-                        val replaceScreen = state.availableScreens[action.replaceWith]
-                            ?: error("No screen found for route: ${action.replaceWith}")
-                        currentEntry = currentEntry.copy(screen = replaceScreen, params = action.replaceParams)
-                        newBackStack = newBackStack.dropLast(1) + currentEntry
-                    }
-
-                    state.copy(
-                        currentEntry = currentEntry,
-                        backStack = newBackStack,
-                    )
-                } else {
-                    state
-                }
-            }
-
-            is NavigationAction.Back -> {
-                if (state.backStack.size > 1) {
-                    val newBackStack = state.backStack.dropLast(1)
-                    state.copy(
-                        currentEntry = newBackStack.last(),
-                        backStack = newBackStack,
-                    )
-                } else {
-                    state
-                }
-            }
-
-            is NavigationAction.ClearBackStack -> {
-                if (action.root != null) {
-                    val currentScreen =
-                        state.availableScreens[action.root] ?: error("No screen found for route: ${action.root}")
-                    state.copy(
-                        currentEntry = NavigationEntry(currentScreen, action.params),
-                        backStack = listOf(NavigationEntry(currentScreen, action.params))
-                    )
-                } else {
-                    state.copy(backStack = listOf())
-                }
-            }
-
-            is NavigationAction.Replace -> {
-                val newScreen = state.availableScreens[action.route]
-                    ?: error("No screen found for route: ${action.route}")
-                val newEntry = NavigationEntry(
-                    screen = newScreen,
-                    params = action.params
-                )
+            is NavigationAction.UpdateGraphState -> {
                 state.copy(
-                    currentEntry = newEntry,
-                    backStack = state.backStack.dropLast(1) + newEntry,
+                    graphStates = state.graphStates + (action.graphId to action.graphState)
                 )
             }
 
-            is NavigationAction.SetLoading -> {
-                state.copy(isLoading = action.isLoading)
+            is NavigationAction.BatchUpdate -> {
+                state.copy(
+                    currentEntry = action.currentEntry ?: state.currentEntry,
+                    backStack = action.backStack ?: state.backStack,
+                    activeGraphId = action.activeGraphId ?: state.activeGraphId,
+                    graphStates = action.graphStates ?: state.graphStates,
+                    globalBackStack = action.globalBackStack ?: state.globalBackStack,
+                    clearedBackStackWithNavigate = action.clearedBackStackWithNavigate
+                        ?: state.clearedBackStackWithNavigate
+                )
             }
 
             is NavigationAction.ClearCurrentScreenParams -> {
@@ -199,7 +216,24 @@ class NavigationModule internal constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                val updatedCurrentEntry = state.currentEntry.copy(params = emptyMap())
+
+                if (state.isNestedNavigation) {
+                    val updatedGraphState = state.activeGraphState.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack
+                    )
+                    state.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack,
+                        graphStates = state.graphStates + (state.activeGraphId to updatedGraphState)
+                    )
+                } else {
+                    state.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack
+                    )
+                }
             }
 
             is NavigationAction.ClearCurrentScreenParam -> {
@@ -210,7 +244,24 @@ class NavigationModule internal constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                val updatedCurrentEntry = state.currentEntry.copy(params = state.currentEntry.params - action.key)
+
+                if (state.isNestedNavigation) {
+                    val updatedGraphState = state.activeGraphState.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack
+                    )
+                    state.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack,
+                        graphStates = state.graphStates + (state.activeGraphId to updatedGraphState)
+                    )
+                } else {
+                    state.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack
+                    )
+                }
             }
 
             is NavigationAction.ClearScreenParams -> {
@@ -221,7 +272,42 @@ class NavigationModule internal constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                val updatedCurrentEntry = if (state.currentEntry.screen.route == action.route) {
+                    state.currentEntry.copy(params = emptyMap())
+                } else {
+                    state.currentEntry
+                }
+
+                if (state.isNestedNavigation) {
+                    val updatedGraphStates = state.graphStates.mapValues { (_, graphState) ->
+                        val updatedGraphBackStack = graphState.backStack.map { entry ->
+                            if (entry.screen.route == action.route) {
+                                entry.copy(params = emptyMap())
+                            } else {
+                                entry
+                            }
+                        }
+                        val updatedGraphCurrentEntry = if (graphState.currentEntry.screen.route == action.route) {
+                            graphState.currentEntry.copy(params = emptyMap())
+                        } else {
+                            graphState.currentEntry
+                        }
+                        graphState.copy(
+                            currentEntry = updatedGraphCurrentEntry,
+                            backStack = updatedGraphBackStack
+                        )
+                    }
+                    state.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack,
+                        graphStates = updatedGraphStates
+                    )
+                } else {
+                    state.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack
+                    )
+                }
             }
 
             is NavigationAction.ClearScreenParam -> {
@@ -232,24 +318,78 @@ class NavigationModule internal constructor(
                         entry
                     }
                 }
-                state.copy(backStack = updatedBackStack)
+                val updatedCurrentEntry = if (state.currentEntry.screen.route == action.route) {
+                    state.currentEntry.copy(params = state.currentEntry.params - action.key)
+                } else {
+                    state.currentEntry
+                }
+
+                if (state.isNestedNavigation) {
+                    val updatedGraphStates = state.graphStates.mapValues { (_, graphState) ->
+                        val updatedGraphBackStack = graphState.backStack.map { entry ->
+                            if (entry.screen.route == action.route) {
+                                entry.copy(params = entry.params - action.key)
+                            } else {
+                                entry
+                            }
+                        }
+                        val updatedGraphCurrentEntry = if (graphState.currentEntry.screen.route == action.route) {
+                            graphState.currentEntry.copy(params = graphState.currentEntry.params - action.key)
+                        } else {
+                            graphState.currentEntry
+                        }
+                        graphState.copy(
+                            currentEntry = updatedGraphCurrentEntry,
+                            backStack = updatedGraphBackStack
+                        )
+                    }
+                    state.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack,
+                        graphStates = updatedGraphStates
+                    )
+                } else {
+                    state.copy(
+                        currentEntry = updatedCurrentEntry,
+                        backStack = updatedBackStack
+                    )
+                }
             }
+
+            // Complex navigation actions are handled by NavigationLogic
+            else -> state
         }
     }
 
     override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor ->
-        NavigationLogic(coroutineScope, initialState.availableScreens, storeAccessor)
+        NavigationLogic(
+            coroutineScope = coroutineScope,
+            availableScreens = initialState.allAvailableScreens,
+            storeAccessor = storeAccessor,
+            graphDefinitions = initialState.graphDefinitions,
+            isNestedNavigation = isNestedNavigation
+        )
     }
 
     companion object {
         inline fun create(block: Builder.() -> Unit): NavigationModule {
             return Builder().apply(block).build()
         }
+
+        inline fun createWithGraphs(block: GraphBasedBuilder.() -> Unit): NavigationModule {
+            return GraphBasedBuilder().apply(block).build()
+        }
     }
 }
 
 fun createNavigationModule(block: Builder.() -> Unit): NavigationModule {
     return NavigationModule.create {
+        block.invoke(this)
+    }
+}
+
+fun createGraphNavigationModule(block: GraphBasedBuilder.() -> Unit): NavigationModule {
+    return NavigationModule.createWithGraphs {
         block.invoke(this)
     }
 }
