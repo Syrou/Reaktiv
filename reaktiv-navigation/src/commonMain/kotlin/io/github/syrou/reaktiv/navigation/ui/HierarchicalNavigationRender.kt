@@ -20,7 +20,7 @@ fun HierarchicalNavigationRender(
     val navigationState by composeState<NavigationState>()
     
     println("DEBUG: HierarchicalNavigationRender called")
-    println("DEBUG: Navigation state - isNested: ${navigationState.isNestedNavigation}, activeGraph: ${navigationState.activeGraphId}")
+    println("DEBUG: Navigation state - activeGraph: ${navigationState.activeGraphId}")
     
     val hierarchy = GraphHierarchyResolver.resolveHierarchy(navigationState)
     

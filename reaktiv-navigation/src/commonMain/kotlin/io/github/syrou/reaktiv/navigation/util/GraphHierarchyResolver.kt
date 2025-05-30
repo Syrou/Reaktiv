@@ -7,10 +7,6 @@ import io.github.syrou.reaktiv.navigation.model.GraphHierarchy
 object GraphHierarchyResolver {
 
     fun resolveHierarchy(navigationState: NavigationState): GraphHierarchy? {
-        if (!navigationState.isNestedNavigation) {
-            println("DEBUG: Not nested navigation")
-            return null
-        }
 
         val activeGraphId = navigationState.activeGraphId
         val graphDefinitions = navigationState.graphDefinitions

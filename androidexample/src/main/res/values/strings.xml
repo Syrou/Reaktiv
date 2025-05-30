@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Poedex</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="title_activity_deep_link">DeepLinkActivity</string>
+</resources>

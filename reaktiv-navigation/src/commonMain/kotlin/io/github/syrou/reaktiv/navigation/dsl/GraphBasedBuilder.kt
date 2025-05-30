@@ -10,26 +10,22 @@ import kotlinx.coroutines.SupervisorJob
 class GraphBasedBuilder {
     private var rootGraph: NavigationGraph? = null
     private var coroutineContext = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    
+
     fun rootGraph(block: NavigationGraphBuilder.() -> Unit) {
         val builder = NavigationGraphBuilder("root")
         builder.apply(block)
         rootGraph = builder.build()
     }
-    
+
     fun coroutineContext(dispatcher: CoroutineDispatcher) {
         coroutineContext = CoroutineScope(dispatcher)
     }
-    
+
     fun build(): NavigationModule {
         requireNotNull(rootGraph) { "Root graph must be defined" }
         return NavigationModule(
             coroutineScope = coroutineContext,
-            rootScreen = null,
-            screens = emptyList(),
-            addRootScreenToBackStack = false,
-            rootGraph = rootGraph,
-            isNestedNavigation = true
+            rootGraph = rootGraph!!
         )
     }
 }

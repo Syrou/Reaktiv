@@ -15,7 +15,7 @@ class NavigationGraphBuilder(
     private val nestedGraphs = mutableListOf<NavigationGraph>()
     private var parentGraph: NavigationGraph? = null
     private var graphEnterBehavior: GraphEnterBehavior = GraphEnterBehavior.ResumeOrStart
-    private var retainState: Boolean = true
+    private var retainState: Boolean = false
     private var graphLayout: (@Composable (@Composable () -> Unit) -> Unit)? = null
 
     fun startScreen(screen: Screen) {

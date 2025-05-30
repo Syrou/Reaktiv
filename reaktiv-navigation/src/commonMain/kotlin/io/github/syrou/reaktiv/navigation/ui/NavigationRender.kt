@@ -15,24 +15,13 @@ fun NavigationRender(
     enableDebug: Boolean = false,
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit = { _, _, _ -> }
 ) {
-    val navigationState by composeState<NavigationState>()
 
     if (enableDebug) {
         NavigationDebugger()
     }
 
-    println("DEBUG: NavigationRender - isNested: ${navigationState.isNestedNavigation}")
-
-    if (navigationState.isNestedNavigation) {
-        HierarchicalNavigationRender(
-            modifier = modifier,
-            screenContent = screenContent
-        )
-    } else {
-        FlatNavigationRender(
-            modifier = modifier,
-            navigationState = navigationState,
-            screenContent = screenContent
-        )
-    }
+    HierarchicalNavigationRender(
+        modifier = modifier,
+        screenContent = screenContent
+    )
 }

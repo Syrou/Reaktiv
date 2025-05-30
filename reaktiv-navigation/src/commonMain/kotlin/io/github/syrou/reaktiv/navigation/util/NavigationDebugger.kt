@@ -15,7 +15,6 @@ fun NavigationDebugger() {
     
     LaunchedEffect(navigationState) {
         println("=== Navigation Debug Info ===")
-        println("Is nested navigation: ${navigationState.isNestedNavigation}")
         println("Active graph ID: ${navigationState.activeGraphId}")
         println("Current screen: ${navigationState.currentEntry.screen.route}")
         println("Available graphs: ${navigationState.graphDefinitions.keys}")

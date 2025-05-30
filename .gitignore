@@ -28,5 +28,4 @@ shared/shared.podspec
 *.iml
 *.ipr
 *.hprof
-androidexample
 .kotlin
