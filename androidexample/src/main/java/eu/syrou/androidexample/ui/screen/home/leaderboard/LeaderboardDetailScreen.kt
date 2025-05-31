@@ -76,7 +76,7 @@ object LeaderboardDetailScreen : Screen {
                     Button(
                         onClick = {
                             scope.launch {
-                                store.navigate("home/leaderboard/stats/individual")
+                                    store.navigate("home/leaderboard/stats/individual")
                             }
                         }
                     ) {
@@ -94,7 +94,7 @@ object LeaderboardDetailScreen : Screen {
                         .padding(vertical = 2.dp)
                         .clickable {
                             scope.launch {
-                                store.navigate("home/leaderboard/player/$index")
+                                store.navigate("home/leaderboard/player/${index+1}")
                             }
                         }
                 ) {

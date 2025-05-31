@@ -56,15 +56,21 @@ class NavigationLogic(
 
         val effectiveGraphId = resolution.getEffectiveGraphId()
 
-        // Simple encoding of parameters
-        val encodedParams = encodeSimpleParameters(resolution.extractedParams + params)
+        println("DEBUG: 🔍 Extracted path parameters: ${resolution.extractedParams}")
+        println("DEBUG: 📝 Passed parameters: $params")
+
+        val mergedParams = resolution.extractedParams + params
+        println("DEBUG: 🔗 Merged parameters: ${mergedParams.keys}")
+
+        // Simple encoding of merged parameters
+        val encodedParams = encodeSimpleParameters(mergedParams)
 
         println("DEBUG: 🔐 Simple encoded parameters: $encodedParams")
 
         // Create navigation entry
         val newEntry = NavigationEntry(
             screen = resolution.targetScreen,
-            params = encodedParams,
+            params = encodedParams, // Now includes both path and passed params
             graphId = effectiveGraphId
         )
 
@@ -103,10 +109,6 @@ class NavigationLogic(
         }
     }
 
-    // ==========================================
-    // TYPE-SAFE NAVIGATION METHODS (New)
-    // ==========================================
-
     /**
      * Navigate with type-safe parameter encoding using kotlinx.serialization
      */
@@ -140,15 +142,21 @@ class NavigationLogic(
 
         val effectiveGraphId = resolution.getEffectiveGraphId()
 
-        // Type-safe encoding of parameters
-        val encodedParams = encodeTypeSafeParameters(typedParams)
+        println("DEBUG: 🔍 Extracted path parameters: ${resolution.extractedParams}")
+        println("DEBUG: 📝 Typed parameters: ${typedParams.keys}")
+
+        val mergedParams = resolution.extractedParams + typedParams
+        println("DEBUG: 🔗 Merged parameters: ${mergedParams.keys}")
+
+        // Type-safe encoding of merged parameters
+        val encodedParams = encodeTypeSafeParameters(mergedParams)
 
         println("DEBUG: 🔐 Type-safe encoded parameters: ${encodedParams.keys}")
 
         // Create navigation entry
         val newEntry = NavigationEntry(
             screen = resolution.targetScreen,
-            params = encodedParams,
+            params = encodedParams, // Now includes both path and typed params
             graphId = effectiveGraphId
         )
 
@@ -178,12 +186,21 @@ class NavigationLogic(
         ) ?: throw RouteNotFoundException("Could not resolve route: $route")
 
         // For validation, we need to extract the actual values from TypedParam wrappers
-        val rawParams = resolution.extractedParams + extractRawValues(typedParams)
+        println("DEBUG: 🔍 Extracted path parameters: ${resolution.extractedParams}")
+        println("DEBUG: 📝 Typed parameters: ${typedParams.keys}")
+
+        val mergedParams = resolution.extractedParams + typedParams
+        println("DEBUG: 🔗 Merged parameters: ${mergedParams.keys}")
+
+        // Type-safe encoding of merged parameters
+        val encodedParams = encodeTypeSafeParameters(mergedParams)
+
+        println("DEBUG: 🔐 Type-safe encoded parameters: ${encodedParams.keys}")
 
         storeAccessor.dispatch(NavigationAction.SetLoading(true))
 
         try {
-            if (validate(storeAccessor, rawParams)) {
+            if (validate(storeAccessor, encodedParams)) {
                 navigateTypeSafe(route, params, config)
             }
         } finally {

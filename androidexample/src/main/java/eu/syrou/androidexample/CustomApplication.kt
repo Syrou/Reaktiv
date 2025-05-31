@@ -22,6 +22,8 @@ import eu.syrou.androidexample.ui.screen.UserManagementScreens
 import eu.syrou.androidexample.ui.screen.VideosListScreen
 import eu.syrou.androidexample.ui.screen.home.leaderboard.LeaderboardDetailScreen
 import eu.syrou.androidexample.ui.screen.home.leaderboard.LeaderboardListScreen
+import eu.syrou.androidexample.ui.screen.home.leaderboard.PlayerProfileScreen
+import eu.syrou.androidexample.ui.screen.home.leaderboard.StatsDetailScreen
 import eu.syrou.androidexample.ui.screen.home.news.NewsListScreen
 import eu.syrou.androidexample.ui.screen.home.news.NewsScreen
 import eu.syrou.androidexample.ui.screen.home.workspace.WorkspaceScreen
@@ -104,7 +106,7 @@ class CustomApplication : Application() {
 
                         graph("leaderboard") {
                             startScreen(LeaderboardListScreen)
-                            screens(LeaderboardDetailScreen)
+                            screens(LeaderboardDetailScreen, PlayerProfileScreen, StatsDetailScreen)
                         }
                     }
 

@@ -21,10 +21,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.syrou.androidexample.domain.model.PlayerProfile
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.extension.navigateTypeSafe
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -101,7 +103,12 @@ object LeaderboardListScreen : Screen {
                         .padding(vertical = 2.dp)
                         .clickable {
                             scope.launch {
-                                store.navigate("home/leaderboard/player/$index")
+                                store.navigateTypeSafe("home/leaderboard/player/${index + 1}") {
+                                    put<PlayerProfile>("profile", createMockPlayerProfile((index + 1).toString(), 99))
+                                    putString("source", "leaderboard_list")
+                                    putInt("originalRank", index + 1)
+                                    putBoolean("fromLeaderboard", true)
+                                }
                             }
                         }
                 ) {
