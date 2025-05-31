@@ -28,6 +28,9 @@ class NavigationLogic(
     /**
      * Main navigation method - handles all navigation cases with single clear path
      */
+    /**
+     * Main navigation method with proper layout context preservation
+     */
     suspend fun navigate(
         route: String,
         params: Map<String, Any> = emptyMap(),
@@ -55,16 +58,21 @@ class NavigationLogic(
             availableScreens = currentState.availableScreens
         ) ?: throw RouteNotFoundException("Could not resolve route: $route")
 
-        println("DEBUG: ✅ Route resolved to graph: ${resolution.targetGraphId}, screen: ${resolution.targetScreen.route}")
+        // Use the effective graph ID to preserve layout context
+        val effectiveGraphId = resolution.getEffectiveGraphId()
+
+        println("DEBUG: ✅ Route resolved to screen: ${resolution.targetScreen.route}")
+        println("DEBUG: 📍 Target graph: ${resolution.targetGraphId}, Navigation graph: ${resolution.navigationGraphId}")
+        println("DEBUG: 🎨 Effective graph ID for layouts: $effectiveGraphId")
 
         // Merge all parameters
         val allParams = (resolution.extractedParams + params).mapValues(::sanitizeParam)
 
-        // Create new navigation entry
+        // Create new navigation entry with effective graph ID
         val newEntry = NavigationEntry(
             screen = resolution.targetScreen,
             params = allParams,
-            graphId = resolution.targetGraphId
+            graphId = effectiveGraphId  // This ensures layouts work correctly
         )
 
         // Calculate new back stack based on configuration
@@ -119,21 +127,16 @@ class NavigationLogic(
         config: NavigationConfig,
         currentState: NavigationState
     ): List<NavigationEntry> {
-
         return when {
             config.clearBackStack -> {
                 println("DEBUG: 🧹 Clearing back stack - starting fresh")
-                // Start completely fresh
                 listOf(newEntry)
             }
-
             config.popUpTo != null -> {
                 println("DEBUG: 📤 Pop up to: ${config.popUpTo}, inclusive: ${config.inclusive}")
-                // Find the target screen to pop up to
                 val popIndex = currentBackStack.indexOfLast { entry ->
                     entry.screen.route == config.popUpTo
                 }
-
                 if (popIndex != -1) {
                     val baseStack = if (config.inclusive) {
                         currentBackStack.take(popIndex)
@@ -143,26 +146,20 @@ class NavigationLogic(
                     baseStack + newEntry
                 } else {
                     println("DEBUG: ⚠️ PopUpTo target '${config.popUpTo}' not found in back stack")
-                    // Target not found, just add to current stack
                     currentBackStack + newEntry
                 }
             }
-
             config.replaceWith != null -> {
                 println("DEBUG: 🔄 Replace current entry")
-                // Replace current entry
                 currentBackStack.dropLast(1) + newEntry
             }
-
             else -> {
                 println("DEBUG: ➕ Normal navigation - add to stack")
-                // Normal navigation - add to stack
                 val finalParams = if (config.forwardParams && currentBackStack.isNotEmpty()) {
                     currentBackStack.last().params + newEntry.params
                 } else {
                     newEntry.params
                 }
-
                 currentBackStack + newEntry.copy(params = finalParams)
             }
         }

@@ -4,11 +4,13 @@ import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
-import io.github.syrou.reaktiv.navigation.definition.MutableNavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.RouteResolution
+import io.github.syrou.reaktiv.navigation.util.SimpleRouteResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,12 +41,12 @@ class NavigationModule internal constructor(
         fun collectGraphs(graph: NavigationGraph) {
             graphDefinitions[graph.graphId] = graph
 
+            // Debug: Print graph info
+            println("DEBUG: 📊 Collected graph '${graph.graphId}' with layout: ${graph.layout != null}")
+
             // Collect all screens from this graph
             graph.screens.forEach { screen ->
-                // Only add non-placeholder screens
-                if (!screen.route.startsWith("__placeholder_")) {
-                    availableScreens[screen.route] = screen
-                }
+                availableScreens[screen.route] = screen
             }
 
             // Process nested graphs
@@ -56,17 +58,41 @@ class NavigationModule internal constructor(
         collectGraphs(rootGraph)
 
         // Resolve the actual start screen for the root graph
-        val actualStartScreen = resolveStartScreen(rootGraph, graphDefinitions)
-        val actualGraphId = getActualGraphIdForScreen(actualStartScreen, graphDefinitions)
+        val resolution = when (val dest = rootGraph.startDestination) {
+            is StartDestination.DirectScreen -> {
+                println("DEBUG: 🎯 Root graph uses direct screen: ${dest.screen.route}")
+                RouteResolution(
+                    targetScreen = dest.screen,
+                    targetGraphId = rootGraph.graphId,
+                    extractedParams = emptyMap(),
+                    navigationGraphId = rootGraph.graphId
+                )
+            }
 
-        println("DEBUG: 🚀 Initial navigation - Root graph: ${rootGraph.graphId}")
-        println("DEBUG: 🎯 Resolved start screen: ${actualStartScreen.route} in graph: $actualGraphId")
+            is StartDestination.GraphReference -> {
+                println("DEBUG: 🔗 Root graph references: ${dest.graphId}")
+                val result = SimpleRouteResolver.resolve(
+                    route = dest.graphId,
+                    graphDefinitions = graphDefinitions,
+                    availableScreens = availableScreens
+                )
+                result?.copy(navigationGraphId = rootGraph.graphId)
+                    ?: throw IllegalStateException("Could not resolve root graph reference to '${dest.graphId}'")
+            }
+        }
 
-        // Create initial entry with resolved screen and correct graph ID
+        val effectiveGraphId = resolution.getEffectiveGraphId()
+
+        println("DEBUG: 🚀 Initial navigation:")
+        println("DEBUG: 🎯 Start screen: ${resolution.targetScreen.route}")
+        println("DEBUG: 📍 Target graph: ${resolution.targetGraphId}")
+        println("DEBUG: 🎨 Effective graph: $effectiveGraphId")
+
+        // Create initial entry with effective graph ID
         val initialEntry = NavigationEntry(
-            screen = actualStartScreen,
+            screen = resolution.targetScreen,
             params = emptyMap(),
-            graphId = actualGraphId
+            graphId = effectiveGraphId
         )
 
         return NavigationState(
@@ -79,58 +105,37 @@ class NavigationModule internal constructor(
     }
 
     /**
-     * Resolve the actual start screen for a graph, handling startGraph references
+     * Find which graph actually contains the screen
      */
-    private fun resolveStartScreen(graph: NavigationGraph, graphDefinitions: Map<String, NavigationGraph>): Screen {
-        if (graph is MutableNavigationGraph && graph.usesStartGraph()) {
-            val startGraphId = graph.startGraphId
-            if (startGraphId != null) {
-                println("DEBUG: 🔗 Resolving startGraph reference from '${graph.graphId}' to '$startGraphId'")
-
-                val referencedGraph = graphDefinitions[startGraphId] ?: graph.findNestedGraph(startGraphId)
-                if (referencedGraph != null) {
-                    // Recursively resolve the referenced graph's start screen
-                    return resolveStartScreen(referencedGraph, graphDefinitions)
-                } else {
-                    println("DEBUG: ⚠️ Warning: Referenced graph '$startGraphId' not found, using placeholder")
-                }
-            }
-        }
-
-        return graph.startScreen
-    }
-
-    /**
-     * Get the actual graph ID where a screen belongs
-     */
-    private fun getActualGraphIdForScreen(screen: Screen, graphDefinitions: Map<String, NavigationGraph>): String {
+    private fun findActualGraphIdForScreen(
+        screen: Screen,
+        graphDefinitions: Map<String, NavigationGraph>
+    ): String {
         // Find which graph actually contains this screen
         for ((graphId, graph) in graphDefinitions) {
             if (graph.getAllScreens().containsKey(screen.route)) {
                 return graphId
             }
         }
-
         // Default to root if not found
         return "root"
     }
 
+    // Remove the old placeholder-related serialization code
     @OptIn(InternalSerializationApi::class)
     override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {
         builder.polymorphic(Screen::class) {
             fun registerGraphScreens(graph: NavigationGraph) {
                 graph.screens.forEach { screen ->
                     try {
-                        // Skip placeholder screens
-                        if (!screen.route.startsWith("__placeholder_")) {
-                            @Suppress("UNCHECKED_CAST")
-                            subclass(
-                                screen::class as KClass<Screen>,
-                                screen::class.serializer() as KSerializer<Screen>
-                            )
-                        }
+                        @Suppress("UNCHECKED_CAST")
+                        subclass(
+                            screen::class as KClass<Screen>,
+                            screen::class.serializer() as KSerializer<Screen>
+                        )
                     } catch (e: Exception) {
                         // Continue with other screens if one fails
+                        println("Warning: Could not register serializer for screen ${screen.route}: ${e.message}")
                     }
                 }
                 graph.nestedGraphs.forEach { registerGraphScreens(it) }

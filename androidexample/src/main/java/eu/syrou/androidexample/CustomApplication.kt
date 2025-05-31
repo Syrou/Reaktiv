@@ -14,7 +14,6 @@ import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import eu.syrou.androidexample.reaktiv.twitchstreams.TwitchStreamsModule
 import eu.syrou.androidexample.reaktiv.videos.VideosModule
 import eu.syrou.androidexample.ui.scaffold.HomeNavigationScaffold
-import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.screen.SplashScreen
 import eu.syrou.androidexample.ui.screen.SplashScreen2
 import eu.syrou.androidexample.ui.screen.StreamsListScreen
@@ -65,25 +64,18 @@ class CustomApplication : Application() {
         module(
             createNavigationModule {
                 rootGraph {
-                    retainState(false)
                     startScreen(SplashScreen)
                     screens(
                         SplashScreen2,
-                        SettingsScreen,
+                        //SettingsScreen,
                         TwitchAuthWebViewScreen,
                         VideosListScreen,
                         StreamsListScreen,
                     )
 
                     graph("home") {
-                        retainState(false)
                         //startScreen(NewsScreen)
                         startGraph("news")
-                        /*screens(
-                            LeaderboardListScreen,
-                            WorkspaceScreen,
-                        )*/
-                        enterBehavior(GraphEnterBehavior.ResumeOrStart)
                         layout { content ->
                             HomeNavigationScaffold(content)
                         }
@@ -91,14 +83,10 @@ class CustomApplication : Application() {
                         graph("news") {
                             startScreen(NewsScreen)
                             screens(NewsListScreen)
-                            enterBehavior(GraphEnterBehavior.ResumeOrStart)
-                            retainState(false)
                         }
 
                         graph("workspace") {
                             startScreen(WorkspaceScreen)
-                            enterBehavior(GraphEnterBehavior.ResumeOrStart)
-                            retainState(false)
 
                             graph("projects") {
                                 startScreen(ProjectOverviewScreen)
@@ -108,8 +96,6 @@ class CustomApplication : Application() {
                                     ProjectFilesScreen,
                                     ProjectSettingsScreen
                                 )
-                                enterBehavior(GraphEnterBehavior.ResumeOrStart)
-                                retainState(false)
                                 layout { content ->
                                     ProjectTabLayout(content)
                                 }
@@ -119,8 +105,6 @@ class CustomApplication : Application() {
                         graph("leaderboard") {
                             startScreen(LeaderboardListScreen)
                             screens(LeaderboardDetailScreen)
-                            enterBehavior(GraphEnterBehavior.ResumeOrStart)
-                            retainState(false)
                         }
                     }
 

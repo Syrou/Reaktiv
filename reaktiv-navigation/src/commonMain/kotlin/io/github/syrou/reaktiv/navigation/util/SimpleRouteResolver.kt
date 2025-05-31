@@ -1,9 +1,10 @@
 package io.github.syrou.reaktiv.navigation.util
 
-import io.github.syrou.reaktiv.navigation.definition.MutableNavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
+import io.github.syrou.reaktiv.navigation.model.ScreenResolution
 
 object SimpleRouteResolver {
 
@@ -28,11 +29,7 @@ object SimpleRouteResolver {
     }
 
     /**
-     * Resolve a route as a graph path
-     * Examples:
-     * - "home" -> find home graph, use its start screen (may be startGraph reference)
-     * - "home/workspace" -> find workspace graph in home, use its start screen
-     * - "home/workspace/projects/overview" -> find projects graph, find overview screen
+     * Resolve a route as a graph path with proper layout context tracking
      */
     private fun resolveGraphPath(
         segments: List<String>,
@@ -44,6 +41,7 @@ object SimpleRouteResolver {
         // Start from root and traverse the graph hierarchy
         var currentGraph = graphDefinitions["root"] ?: return null
         var segmentIndex = 0
+        var navigationGraphId: String? = null  // Track the graph we're navigating to
 
         // Traverse through graph segments
         while (segmentIndex < segments.size) {
@@ -55,6 +53,7 @@ object SimpleRouteResolver {
             if (nestedGraph != null) {
                 // Found a graph with this name
                 currentGraph = nestedGraph
+                navigationGraphId = nestedGraph.graphId  // This is the graph being navigated to
                 segmentIndex++
 
                 // Check if we have more segments
@@ -64,13 +63,15 @@ object SimpleRouteResolver {
                 } else {
                     // This is the final segment - it's a graph name
                     // Resolve the start screen for this graph
-                    val startScreen = resolveGraphStartScreen(currentGraph, graphDefinitions)
-                    if (startScreen != null) {
-                        println("DEBUG: ✅ Resolved graph path '$segments' to graph '${currentGraph.graphId}' with start screen '${startScreen.route}'")
+                    val screenResolution = resolveGraphStartScreen(currentGraph, graphDefinitions)
+                    if (screenResolution != null) {
+                        println("DEBUG: ✅ Resolved graph path '$segments' to screen '${screenResolution.screen.route}' (nav graph: $navigationGraphId, target graph: ${screenResolution.actualGraphId})")
+
                         return RouteResolution(
-                            targetScreen = startScreen,
-                            targetGraphId = getActualGraphId(currentGraph, startScreen, graphDefinitions),
-                            extractedParams = emptyMap()
+                            targetScreen = screenResolution.screen,
+                            targetGraphId = screenResolution.actualGraphId,
+                            extractedParams = emptyMap(),
+                            navigationGraphId = navigationGraphId  // Preserve the navigation context
                         )
                     }
                 }
@@ -84,11 +85,10 @@ object SimpleRouteResolver {
                     return RouteResolution(
                         targetScreen = screenMatch.first,
                         targetGraphId = currentGraph.graphId,
-                        extractedParams = screenMatch.second
+                        extractedParams = screenMatch.second,
+                        navigationGraphId = navigationGraphId
                     )
                 }
-
-                // Screen not found in current graph
                 break
             }
         }
@@ -97,67 +97,36 @@ object SimpleRouteResolver {
     }
 
     /**
-     * Resolve the start screen for a graph, handling startGraph references
+     * Resolve the start screen for a graph, handling graph references
+     * Returns both the screen and the graph where it actually belongs
      */
     private fun resolveGraphStartScreen(
         graph: NavigationGraph,
         graphDefinitions: Map<String, NavigationGraph>
-    ): Screen? {
+    ): ScreenResolution? {
 
-        // Check if this graph uses startGraph reference
-        if (graph is MutableNavigationGraph && graph.usesStartGraph()) {
-            val startGraphId = graph.startGraphId
-            if (startGraphId != null) {
-                println("DEBUG: 🔗 Graph '${graph.graphId}' uses startGraph reference to '$startGraphId'")
+        return when (val dest = graph.startDestination) {
+            is StartDestination.DirectScreen -> {
+                println("DEBUG: 🎯 Direct screen: ${dest.screen.route}")
+                ScreenResolution(
+                    screen = dest.screen,
+                    actualGraphId = graph.graphId  // Screen belongs to this graph
+                )
+            }
 
-                // Find the referenced graph
-                val referencedGraph = findGraphById(startGraphId, graphDefinitions)
+            is StartDestination.GraphReference -> {
+                println("DEBUG: 🔗 Graph reference from '${graph.graphId}' to '${dest.graphId}'")
+
+                val referencedGraph = graphDefinitions[dest.graphId]
                 if (referencedGraph != null) {
                     // Recursively resolve the referenced graph's start screen
-                    return resolveGraphStartScreen(referencedGraph, graphDefinitions)
+                    resolveGraphStartScreen(referencedGraph, graphDefinitions)
                 } else {
-                    println("DEBUG: ⚠️ Referenced graph '$startGraphId' not found")
+                    println("DEBUG: ⚠️ Warning: Referenced graph '${dest.graphId}' not found")
+                    null
                 }
             }
         }
-
-        // Use the graph's direct start screen
-        return graph.startScreen
-    }
-
-    /**
-     * Get the actual graph ID where the screen belongs
-     * This is important for layout rendering
-     */
-    private fun getActualGraphId(
-        currentGraph: NavigationGraph,
-        targetScreen: Screen,
-        graphDefinitions: Map<String, NavigationGraph>
-    ): String {
-
-        // If current graph uses startGraph, find where the screen actually belongs
-        if (currentGraph is MutableNavigationGraph && currentGraph.usesStartGraph()) {
-            val startGraphId = currentGraph.startGraphId
-            if (startGraphId != null) {
-                val referencedGraph = findGraphById(startGraphId, graphDefinitions)
-                if (referencedGraph != null && referencedGraph.getAllScreens().containsKey(targetScreen.route)) {
-                    return referencedGraph.graphId
-                }
-            }
-        }
-
-        // Default to current graph
-        return currentGraph.graphId
-    }
-
-    /**
-     * Find a graph by ID in the entire graph hierarchy
-     */
-    private fun findGraphById(
-        graphId: String,
-        graphDefinitions: Map<String, NavigationGraph>
-    ): NavigationGraph? {
-        return graphDefinitions[graphId]
     }
 
     /**
@@ -195,7 +164,7 @@ object SimpleRouteResolver {
             println("DEBUG: ✅ Found screen '$route' in flat screens")
             return RouteResolution(
                 targetScreen = screen,
-                targetGraphId = "root", // Default to root for flat screens
+                targetGraphId = "root",
                 extractedParams = emptyMap()
             )
         }
@@ -229,6 +198,7 @@ object SimpleRouteResolver {
                         val paramName = screenPart.substring(1, screenPart.length - 1)
                         params[paramName] = routePart
                     }
+
                     else -> {
                         matches = false
                         break

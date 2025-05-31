@@ -17,7 +17,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 object NewsScreen : Screen {
-    override val route: String = "news"
+    override val route: String = "overview"
     override val titleResource: TitleResource = {
         "Home"
     }
