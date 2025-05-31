@@ -58,5 +58,5 @@ suspend fun StoreAccessor.navigateWithValidation(
     params: Map<String, Any> = emptyMap(),
     validate: suspend (StoreAccessor, Map<String, Any>) -> Boolean
 ) {
-    selectLogic<NavigationLogic>().navigateWithValidation(route, params, this, validate)
+    selectLogic<NavigationLogic>().navigateWithValidation(route, params, validate)
 }

@@ -8,22 +8,19 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.Screen
 
 /**
- * Recursively composes layouts from outer to inner
+ * Compose layouts hierarchically from outer to inner
  */
 @Composable
-fun ComposeHierarchicalLayouts(
+fun ComposeLayoutsHierarchically(
     layoutGraphs: List<NavigationGraph>,
     modifier: Modifier,
     navigationState: NavigationState,
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit,
     currentIndex: Int = 0
 ) {
-    println("DEBUG: ComposeHierarchicalLayouts - index: $currentIndex, total: ${layoutGraphs.size}")
-
     if (currentIndex >= layoutGraphs.size) {
-        println("DEBUG: Reached end of layouts, rendering final content")
-        // Base case: render the actual content
-        GraphNavigationContent(
+        // Base case: render the actual screen content
+        SimpleNavigationContent(
             modifier = modifier,
             navigationState = navigationState,
             screenContent = screenContent
@@ -32,26 +29,11 @@ fun ComposeHierarchicalLayouts(
     }
 
     val currentGraph = layoutGraphs[currentIndex]
-    val layout = currentGraph.layout
+    val layout = currentGraph.layout!!
 
-    println("DEBUG: Processing graph: ${currentGraph.graphId}, has layout: ${layout != null}")
-
-    if (layout != null) {
-        // Apply current layout and recurse for nested layouts
-        layout {
-            println("DEBUG: Applying layout for graph: ${currentGraph.graphId}")
-            ComposeHierarchicalLayouts(
-                layoutGraphs = layoutGraphs,
-                modifier = modifier,
-                navigationState = navigationState,
-                screenContent = screenContent,
-                currentIndex = currentIndex + 1
-            )
-        }
-    } else {
-        // This shouldn't happen since we filtered for layout graphs, but handle it gracefully
-        println("DEBUG: WARNING - Graph ${currentGraph.graphId} in layoutGraphs but has no layout")
-        ComposeHierarchicalLayouts(
+    // Apply current layout and recurse for nested layouts
+    layout {
+        ComposeLayoutsHierarchically(
             layoutGraphs = layoutGraphs,
             modifier = modifier,
             navigationState = navigationState,

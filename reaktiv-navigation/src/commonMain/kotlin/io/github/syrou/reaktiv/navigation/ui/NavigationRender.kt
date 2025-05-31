@@ -1,14 +1,14 @@
 package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
-import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
 
+/**
+ * Updated NavigationRender that works with simplified NavigationState
+ */
 @Composable
 fun NavigationRender(
     modifier: Modifier,
@@ -20,7 +20,8 @@ fun NavigationRender(
         NavigationDebugger()
     }
 
-    HierarchicalNavigationRender(
+    // Use simplified navigation rendering
+    SimplifiedNavigationRender(
         modifier = modifier,
         screenContent = screenContent
     )

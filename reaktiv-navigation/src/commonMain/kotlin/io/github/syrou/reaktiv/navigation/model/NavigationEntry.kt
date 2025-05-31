@@ -7,5 +7,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class NavigationEntry(
     val screen: Screen,
-    val params: StringAnyMap
+    val params: StringAnyMap,
+    val graphId: String // New: Track which graph this entry belongs to
 )

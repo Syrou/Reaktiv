@@ -78,10 +78,11 @@ class CustomApplication : Application() {
                     graph("home") {
                         retainState(false)
                         startScreen(NewsScreen)
-                        screens(
+                        //startGraph("news")
+                        /*screens(
                             LeaderboardListScreen,
                             WorkspaceScreen,
-                        )
+                        )*/
                         enterBehavior(GraphEnterBehavior.ResumeOrStart)
                         layout { content ->
                             HomeNavigationScaffold(content)

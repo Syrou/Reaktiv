@@ -8,30 +8,21 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class NavigationState(
-    // Core navigation properties - simplified for graph-only navigation
+    // Core navigation properties - single source of truth
     val currentEntry: NavigationEntry,
-    val backStack: List<NavigationEntry>,
+    val backStack: List<NavigationEntry>, // Single back stack - no more multiple overlapping stacks
     val availableScreens: Map<String, Screen> = emptyMap(),
-    val clearedBackStackWithNavigate: Boolean = false,
     val isLoading: Boolean = false,
 
-    // Graph state management - always true now since we removed flat navigation
-    val activeGraphId: String = "root",
-    val graphStates: Map<String, GraphState> = emptyMap(),
+    // Graph definitions for nested navigation
     val graphDefinitions: Map<String, NavigationGraph> = emptyMap(),
-    val globalBackStack: List<NavigationEntry> = emptyList(),
 ) : ModuleState {
 
     /**
-     * Get the current active graph state with proper fallback handling
+     * Get current active graph ID from current entry
      */
-    val activeGraphState: GraphState
-        get() = graphStates[activeGraphId] ?: GraphState(
-            graphId = activeGraphId,
-            currentEntry = currentEntry,
-            backStack = backStack,
-            isActive = true
-        )
+    val activeGraphId: String
+        get() = currentEntry.graphId
 
     /**
      * Get all available screens including from graphs
@@ -48,7 +39,7 @@ data class NavigationState(
      * Check if we can navigate back
      */
     val canGoBack: Boolean
-        get() = activeGraphState.backStack.size > 1 || globalBackStack.size > 1
+        get() = backStack.size > 1
 
     /**
      * Find which graph contains a specific screen route
@@ -74,32 +65,14 @@ data class NavigationState(
     }
 
     /**
-     * Get the current graph definition
+     * Get the current active graph definition
      */
     val activeGraph: NavigationGraph?
         get() = graphDefinitions[activeGraphId]
 
     /**
-     * Check if a graph has retained state
+     * Get navigation history as readable string for debugging
      */
-    fun hasRetainedState(graphId: String): Boolean {
-        return graphStates[graphId]?.retainedState?.isNotEmpty() == true
-    }
-
-    /**
-     * Get retained state for a graph
-     */
-    fun getRetainedState(graphId: String): Map<String, Any> {
-        return graphStates[graphId]?.retainedState ?: emptyMap()
-    }
-
-    /**
-     * Get all inactive graphs that retain state
-     */
-    val retainedGraphs: List<String>
-        get() = graphStates.filter { (graphId, graphState) ->
-            !graphState.isActive &&
-                    graphDefinitions[graphId]?.retainState == true &&
-                    graphState.retainedState.isNotEmpty()
-        }.keys.toList()
+    val navigationHistory: String
+        get() = backStack.map { "${it.graphId}/${it.screen.route}" }.joinToString(" -> ")
 }

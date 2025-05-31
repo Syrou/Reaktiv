@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.ui.findLayoutGraphsInHierarchy
 
 /**
  * Debug composable to help troubleshoot navigation issues
@@ -12,26 +13,24 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 @Composable
 fun NavigationDebugger() {
     val navigationState by composeState<NavigationState>()
-    
+
     LaunchedEffect(navigationState) {
-        println("=== Navigation Debug Info ===")
-        println("Active graph ID: ${navigationState.activeGraphId}")
+        println("=== Simplified Navigation Debug ===")
         println("Current screen: ${navigationState.currentEntry.screen.route}")
+        println("Current graph: ${navigationState.currentEntry.graphId}")
+        println("Back stack size: ${navigationState.backStack.size}")
+        println("Back stack: ${navigationState.backStack.map { "${it.graphId}/${it.screen.route}" }}")
         println("Available graphs: ${navigationState.graphDefinitions.keys}")
-        
-        navigationState.graphDefinitions.forEach { (graphId, graph) ->
-            println("Graph '$graphId':")
-            println("  - Has layout: ${graph.layout != null}")
-            println("  - Start screen: ${graph.startScreen.route}")
-            println("  - Screens: ${graph.screens.map { it.route }}")
-            println("  - Nested graphs: ${graph.nestedGraphs.map { it.graphId }}")
-            println("  - Parent graph: ${graph.parentGraph?.graphId ?: "none"}")
-        }
-        
-        println("Graph states:")
-        navigationState.graphStates.forEach { (graphId, graphState) ->
-            println("  '$graphId': active=${graphState.isActive}, current=${graphState.currentEntry.screen.route}")
-        }
+        println("Can go back: ${navigationState.canGoBack}")
+
         println("=== End Debug Info ===")
+    }
+
+    // Show layout hierarchy for current screen
+    val layoutGraphs = findLayoutGraphsInHierarchy(navigationState.currentEntry.graphId, navigationState)
+    if (layoutGraphs.isNotEmpty()) {
+        println("Layout hierarchy: ${layoutGraphs.map { it.graphId }}")
+    } else {
+        println("No custom layouts")
     }
 }

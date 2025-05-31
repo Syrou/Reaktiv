@@ -21,7 +21,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 object WorkspaceScreen : Screen {
-    override val route = "home/workspace"
+    override val route = "workspace"
     override val enterTransition = NavTransition.SlideInRight
     override val exitTransition = NavTransition.SlideOutLeft
     override val requiresAuth = true

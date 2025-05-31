@@ -18,18 +18,20 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
+/**
+ * Simplified NavigationModule with single back stack and clear state management
+ */
 class NavigationModule internal constructor(
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val rootGraph: NavigationGraph
 ) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
 
     override val initialState: NavigationState by lazy {
-        createGraphNavigationState()
+        createInitialNavigationState()
     }
 
-    private fun createGraphNavigationState(): NavigationState {
+    private fun createInitialNavigationState(): NavigationState {
         val graphDefinitions = mutableMapOf<String, NavigationGraph>()
-        val graphStates = mutableMapOf<String, GraphState>()
         val availableScreens = mutableMapOf<String, Screen>()
 
         // Recursively collect all graphs and their screens
@@ -41,16 +43,6 @@ class NavigationModule internal constructor(
                 availableScreens[screen.route] = screen
             }
 
-            // Initialize graph state based on retainState and graphEnterBehavior
-            val initialEntry = NavigationEntry(graph.startScreen, emptyMap())
-            graphStates[graph.graphId] = GraphState(
-                graphId = graph.graphId,
-                currentEntry = initialEntry,
-                backStack = listOf(initialEntry),
-                isActive = graph.graphId == rootGraph.graphId,
-                retainedState = if (graph.retainState) mapOf("initialized" to true) else emptyMap()
-            )
-
             // Process nested graphs
             graph.nestedGraphs.forEach { nestedGraph ->
                 collectGraphs(nestedGraph)
@@ -59,16 +51,19 @@ class NavigationModule internal constructor(
 
         collectGraphs(rootGraph)
 
-        val rootEntry = NavigationEntry(rootGraph.startScreen, emptyMap())
+        // Create initial entry
+        val initialEntry = NavigationEntry(
+            screen = rootGraph.startScreen,
+            params = emptyMap(),
+            graphId = rootGraph.graphId
+        )
 
         return NavigationState(
-            currentEntry = rootEntry,
-            backStack = listOf(rootEntry),
+            currentEntry = initialEntry,
+            backStack = listOf(initialEntry),
             availableScreens = availableScreens,
-            activeGraphId = rootGraph.graphId,
-            graphStates = graphStates,
-            graphDefinitions = graphDefinitions,
-            globalBackStack = listOf(rootEntry),
+            isLoading = false,
+            graphDefinitions = graphDefinitions
         )
     }
 
@@ -94,73 +89,39 @@ class NavigationModule internal constructor(
     }
 
     /**
-     * Simplified reducer - focuses on atomic state updates
+     * Simplified reducer - focuses on core navigation state updates
      */
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
-            is NavigationAction.UpdateCurrentEntry -> state.copy(currentEntry = action.entry)
-            is NavigationAction.UpdateBackStack -> state.copy(backStack = action.backStack)
-            is NavigationAction.UpdateActiveGraph -> state.copy(activeGraphId = action.graphId)
-            is NavigationAction.UpdateGlobalBackStack -> state.copy(globalBackStack = action.globalBackStack)
-            is NavigationAction.SetClearedBackStackFlag -> state.copy(clearedBackStackWithNavigate = action.cleared)
-            is NavigationAction.SetLoading -> state.copy(isLoading = action.isLoading)
-            is NavigationAction.UpdateGraphState -> {
-                state.copy(
-                    graphStates = state.graphStates + (action.graphId to action.graphState)
-                )
-            }
-
             is NavigationAction.BatchUpdate -> {
                 state.copy(
                     currentEntry = action.currentEntry ?: state.currentEntry,
                     backStack = action.backStack ?: state.backStack,
-                    activeGraphId = action.activeGraphId ?: state.activeGraphId,
-                    graphStates = action.graphStates ?: state.graphStates,
-                    globalBackStack = action.globalBackStack ?: state.globalBackStack,
-                    clearedBackStackWithNavigate = action.clearedBackStackWithNavigate
-                        ?: state.clearedBackStackWithNavigate
+                    isLoading = action.isLoading ?: state.isLoading
                 )
             }
 
-            is NavigationAction.ClearCurrentScreenParams -> {
-                val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen == state.currentEntry.screen) {
-                        entry.copy(params = emptyMap())
-                    } else {
-                        entry
-                    }
-                }
-                val updatedCurrentEntry = state.currentEntry.copy(params = emptyMap())
+            is NavigationAction.SetLoading -> {
+                state.copy(isLoading = action.isLoading)
+            }
 
-                val updatedGraphState = state.activeGraphState.copy(
-                    currentEntry = updatedCurrentEntry,
-                    backStack = updatedBackStack
-                )
+            is NavigationAction.ClearCurrentScreenParams -> {
+                val updatedEntry = state.currentEntry.copy(params = emptyMap())
+                val updatedBackStack = state.backStack.dropLast(1) + updatedEntry
                 state.copy(
-                    currentEntry = updatedCurrentEntry,
-                    backStack = updatedBackStack,
-                    graphStates = state.graphStates + (state.activeGraphId to updatedGraphState)
+                    currentEntry = updatedEntry,
+                    backStack = updatedBackStack
                 )
             }
 
             is NavigationAction.ClearCurrentScreenParam -> {
-                val updatedBackStack = state.backStack.map { entry ->
-                    if (entry.screen == state.currentEntry.screen) {
-                        entry.copy(params = entry.params - action.key)
-                    } else {
-                        entry
-                    }
-                }
-                val updatedCurrentEntry = state.currentEntry.copy(params = state.currentEntry.params - action.key)
-
-                val updatedGraphState = state.activeGraphState.copy(
-                    currentEntry = updatedCurrentEntry,
-                    backStack = updatedBackStack
+                val updatedEntry = state.currentEntry.copy(
+                    params = state.currentEntry.params - action.key
                 )
+                val updatedBackStack = state.backStack.dropLast(1) + updatedEntry
                 state.copy(
-                    currentEntry = updatedCurrentEntry,
-                    backStack = updatedBackStack,
-                    graphStates = state.graphStates + (state.activeGraphId to updatedGraphState)
+                    currentEntry = updatedEntry,
+                    backStack = updatedBackStack
                 )
             }
 
@@ -177,29 +138,9 @@ class NavigationModule internal constructor(
                 } else {
                     state.currentEntry
                 }
-
-                val updatedGraphStates = state.graphStates.mapValues { (_, graphState) ->
-                    val updatedGraphBackStack = graphState.backStack.map { entry ->
-                        if (entry.screen.route == action.route) {
-                            entry.copy(params = emptyMap())
-                        } else {
-                            entry
-                        }
-                    }
-                    val updatedGraphCurrentEntry = if (graphState.currentEntry.screen.route == action.route) {
-                        graphState.currentEntry.copy(params = emptyMap())
-                    } else {
-                        graphState.currentEntry
-                    }
-                    graphState.copy(
-                        currentEntry = updatedGraphCurrentEntry,
-                        backStack = updatedGraphBackStack
-                    )
-                }
                 state.copy(
                     currentEntry = updatedCurrentEntry,
-                    backStack = updatedBackStack,
-                    graphStates = updatedGraphStates
+                    backStack = updatedBackStack
                 )
             }
 
@@ -216,47 +157,38 @@ class NavigationModule internal constructor(
                 } else {
                     state.currentEntry
                 }
-
-                val updatedGraphStates = state.graphStates.mapValues { (_, graphState) ->
-                    val updatedGraphBackStack = graphState.backStack.map { entry ->
-                        if (entry.screen.route == action.route) {
-                            entry.copy(params = entry.params - action.key)
-                        } else {
-                            entry
-                        }
-                    }
-                    val updatedGraphCurrentEntry = if (graphState.currentEntry.screen.route == action.route) {
-                        graphState.currentEntry.copy(params = graphState.currentEntry.params - action.key)
-                    } else {
-                        graphState.currentEntry
-                    }
-                    graphState.copy(
-                        currentEntry = updatedGraphCurrentEntry,
-                        backStack = updatedGraphBackStack
-                    )
-                }
                 state.copy(
                     currentEntry = updatedCurrentEntry,
-                    backStack = updatedBackStack,
-                    graphStates = updatedGraphStates
+                    backStack = updatedBackStack
                 )
             }
 
-            else -> state
+            // Legacy actions - maintain compatibility but simplified
+            is NavigationAction.UpdateCurrentEntry -> {
+                val updatedBackStack = state.backStack.dropLast(1) + action.entry
+                state.copy(
+                    currentEntry = action.entry,
+                    backStack = updatedBackStack
+                )
+            }
+
+            is NavigationAction.UpdateBackStack -> {
+                val newCurrentEntry = action.backStack.lastOrNull() ?: state.currentEntry
+                state.copy(
+                    currentEntry = newCurrentEntry,
+                    backStack = action.backStack
+                )
+            }
+
+            else -> state // Ignore other legacy actions
         }
     }
 
     override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor ->
-        NavigationLogic(
-            coroutineScope = coroutineScope,
-            availableScreens = initialState.allAvailableScreens,
-            storeAccessor = storeAccessor,
-            graphDefinitions = initialState.graphDefinitions
-        )
+        NavigationLogic(storeAccessor = storeAccessor)
     }
 
     companion object {
-
         inline fun create(block: GraphBasedBuilder.() -> Unit): NavigationModule {
             return GraphBasedBuilder().apply(block).build()
         }

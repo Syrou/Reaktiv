@@ -11,6 +11,7 @@ class NavigationGraphBuilder(
     private val graphId: String
 ) {
     private var startScreen: Screen? = null
+    private var startGraphId: String? = null // New: support for starting with a nested graph
     private val screens = mutableListOf<Screen>()
     private val nestedGraphs = mutableListOf<NavigationGraph>()
     private var parentGraph: NavigationGraph? = null
@@ -18,11 +19,28 @@ class NavigationGraphBuilder(
     private var retainState: Boolean = false
     private var graphLayout: (@Composable (@Composable () -> Unit) -> Unit)? = null
 
+    /**
+     * Set the start screen directly
+     */
     fun startScreen(screen: Screen) {
+        if (startGraphId != null) {
+            throw IllegalStateException("Cannot set both startScreen and startGraph")
+        }
         this.startScreen = screen
         if (!screens.contains(screen)) {
             screens.add(screen)
         }
+    }
+
+    /**
+     * NEW: Set the start screen by referencing a nested graph
+     * This will use the start screen of the specified nested graph
+     */
+    fun startGraph(graphId: String) {
+        if (startScreen != null) {
+            throw IllegalStateException("Cannot set both startScreen and startGraph")
+        }
+        this.startGraphId = graphId
     }
 
     fun screens(vararg screens: Screen) {
@@ -63,6 +81,7 @@ class NavigationGraphBuilder(
         this.graphLayout = layoutComposable
     }
 
+    // Convenience methods for common patterns
     fun tabs(tabScreens: Map<String, Screen>) {
         tabScreens.forEach { (tabId, screen) ->
             graph("tab_$tabId") {
@@ -94,11 +113,12 @@ class NavigationGraphBuilder(
     }
 
     internal fun build(): NavigationGraph {
-        requireNotNull(startScreen) { "Start screen must be set for graph: $graphId" }
+        val resolvedStartScreen = resolveStartScreen()
+        requireNotNull(resolvedStartScreen) { "Start screen must be set for graph: $graphId (either via startScreen or startGraph)" }
 
         return MutableNavigationGraph(
             graphId = this.graphId,
-            startScreen = this.startScreen!!,
+            startScreen = resolvedStartScreen,
             screens = this.screens.toList(),
             nestedGraphs = this.nestedGraphs.toList(),
             _parentGraph = this.parentGraph,
@@ -106,5 +126,28 @@ class NavigationGraphBuilder(
             retainState = this.retainState,
             layout = this.graphLayout
         )
+    }
+
+    /**
+     * Resolve the start screen - either from direct startScreen or from startGraph reference
+     */
+    private fun resolveStartScreen(): Screen? {
+        return when {
+            startScreen != null -> startScreen
+            startGraphId != null -> {
+                // Find the nested graph and use its start screen
+                val targetGraph = nestedGraphs.find { it.graphId == startGraphId }
+                if (targetGraph != null) {
+                    // Add the nested graph's start screen to our screens if not already present
+                    if (!screens.contains(targetGraph.startScreen)) {
+                        screens.add(targetGraph.startScreen)
+                    }
+                    targetGraph.startScreen
+                } else {
+                    throw IllegalStateException("Start graph '$startGraphId' not found in nested graphs")
+                }
+            }
+            else -> null
+        }
     }
 }

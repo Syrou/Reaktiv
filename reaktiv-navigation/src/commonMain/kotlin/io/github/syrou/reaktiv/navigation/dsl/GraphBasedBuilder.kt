@@ -17,7 +17,7 @@ class GraphBasedBuilder {
         rootGraph = builder.build()
     }
 
-    fun coroutineContext(dispatcher: CoroutineDispatcher) {
+    fun coroutineContext(dispatcher: kotlinx.coroutines.CoroutineDispatcher) {
         coroutineContext = CoroutineScope(dispatcher)
     }
 

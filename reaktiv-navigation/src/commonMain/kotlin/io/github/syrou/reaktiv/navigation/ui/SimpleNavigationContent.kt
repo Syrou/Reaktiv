@@ -17,60 +17,52 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.getContentTransform
 
 @Composable
-fun GraphNavigationContent(
+fun SimpleNavigationContent(
     modifier: Modifier,
     navigationState: NavigationState,
     screenContent: @Composable (Screen, StringAnyMap, Boolean) -> Unit
 ) {
-    val activeGraphState = navigationState.activeGraphState
-
-    var currentBackStackSize by remember { mutableStateOf(activeGraphState.backStack.size) }
-    var previousBackStackSize by remember { mutableStateOf(activeGraphState.backStack.size) }
+    var previousBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
+    var currentBackStackSize by remember { mutableStateOf(navigationState.backStack.size) }
     var previousEntry by remember { mutableStateOf<NavigationEntry?>(null) }
-    var currentEntry by remember {
-        mutableStateOf<NavigationEntry>(
-            activeGraphState.currentEntry
-        )
-    }
+    var currentEntry by remember { mutableStateOf(navigationState.currentEntry) }
 
-    LaunchedEffect(activeGraphState.backStack.size) {
+    // Track back stack size changes for transition direction
+    LaunchedEffect(navigationState.backStack.size) {
         previousBackStackSize = currentBackStackSize
-        currentBackStackSize = activeGraphState.backStack.size
+        currentBackStackSize = navigationState.backStack.size
     }
 
-    LaunchedEffect(activeGraphState.currentEntry) {
-        val isForward = activeGraphState.backStack.size > previousBackStackSize
-        if (!isForward) {
-            previousEntry = currentEntry
-            currentEntry = activeGraphState.currentEntry
-        }
-        if (isForward) {
-            previousEntry = currentEntry
-            currentEntry = activeGraphState.currentEntry
-        }
+    // Track entry changes
+    LaunchedEffect(navigationState.currentEntry) {
+        previousEntry = currentEntry
+        currentEntry = navigationState.currentEntry
     }
 
     AnimatedContent(
-        modifier = modifier.fillMaxSize().testTag("AnimatedContent"),
+        modifier = modifier.fillMaxSize(),
         targetState = currentEntry,
         transitionSpec = {
-            val isForward = activeGraphState.backStack.size > previousBackStackSize
+            val isForward = currentBackStackSize > previousBackStackSize
+            
             val enterTransition = if (!isForward) {
+                // Going back - use pop transitions if available
                 previousEntry?.screen?.popEnterTransition ?: targetState.screen.enterTransition
             } else {
+                // Going forward - use normal enter transition
                 targetState.screen.enterTransition
             }
+            
             val exitTransition = if (isForward) {
+                // Going forward - use pop transitions if available for current screen
                 targetState.screen.popExitTransition ?: initialState.screen.exitTransition
             } else {
+                // Going back - use normal exit transition
                 initialState.screen.exitTransition
             }
-            getContentTransform(
-                exitTransition,
-                enterTransition,
-                isForward
-            ).apply {
-                targetContentZIndex = activeGraphState.backStack.size.toFloat()
+            
+            getContentTransform(exitTransition, enterTransition, isForward).apply {
+                targetContentZIndex = currentBackStackSize.toFloat()
             }
         }
     ) { entry ->
