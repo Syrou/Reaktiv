@@ -2,7 +2,6 @@ package io.github.syrou.reaktiv.navigation.dsl
 
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

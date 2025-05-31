@@ -11,7 +11,7 @@ interface NavigationGraph : NavigationNode {
     val graphEnterBehavior: GraphEnterBehavior
     val retainState: Boolean
 
-    // New layout property for custom graph rendering
+    // Layout property for custom graph rendering
     val layout: (@Composable (@Composable () -> Unit) -> Unit)?
         get() = null
 
@@ -25,5 +25,13 @@ interface NavigationGraph : NavigationNode {
     fun findGraphContaining(route: String): NavigationGraph? {
         if (screens.any { it.route == route }) return this
         return nestedGraphs.firstNotNullOfOrNull { it.findGraphContaining(route) }
+    }
+
+    /**
+     * Find a nested graph by ID
+     */
+    fun findNestedGraph(graphId: String): NavigationGraph? {
+        return nestedGraphs.find { it.graphId == graphId }
+            ?: nestedGraphs.firstNotNullOfOrNull { it.findNestedGraph(graphId) }
     }
 }

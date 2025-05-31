@@ -32,7 +32,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 object LeaderboardDetailScreen : Screen {
-    override val route: String = "leaderboard/detail/{period}"
+    override val route: String = "detail/{period}"
     override val titleResource: TitleResource = { "Leaderboard Details" }
     override val enterTransition: NavTransition = NavTransition.SlideInRight
     override val exitTransition: NavTransition = NavTransition.SlideOutLeft

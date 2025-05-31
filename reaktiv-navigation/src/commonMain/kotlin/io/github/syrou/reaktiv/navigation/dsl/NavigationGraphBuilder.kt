@@ -11,7 +11,7 @@ class NavigationGraphBuilder(
     private val graphId: String
 ) {
     private var startScreen: Screen? = null
-    private var startGraphId: String? = null // New: support for starting with a nested graph
+    private var startGraphId: String? = null // Reference to another graph's start screen
     private val screens = mutableListOf<Screen>()
     private val nestedGraphs = mutableListOf<NavigationGraph>()
     private var parentGraph: NavigationGraph? = null
@@ -24,7 +24,7 @@ class NavigationGraphBuilder(
      */
     fun startScreen(screen: Screen) {
         if (startGraphId != null) {
-            throw IllegalStateException("Cannot set both startScreen and startGraph")
+            throw IllegalStateException("Cannot set both startScreen and startGraph. Use either startScreen() or startGraph(), not both.")
         }
         this.startScreen = screen
         if (!screens.contains(screen)) {
@@ -33,12 +33,12 @@ class NavigationGraphBuilder(
     }
 
     /**
-     * NEW: Set the start screen by referencing a nested graph
-     * This will use the start screen of the specified nested graph
+     * Set the start screen by referencing another graph
+     * When navigating to this graph, it will use the referenced graph's start screen
      */
     fun startGraph(graphId: String) {
         if (startScreen != null) {
-            throw IllegalStateException("Cannot set both startScreen and startGraph")
+            throw IllegalStateException("Cannot set both startScreen and startGraph. Use either startScreen() or startGraph(), not both.")
         }
         this.startGraphId = graphId
     }
@@ -56,11 +56,6 @@ class NavigationGraphBuilder(
         nestedBuilder.apply(builder)
         val nestedGraph = nestedBuilder.build()
 
-        // Set parent reference
-        if (nestedGraph is MutableNavigationGraph) {
-            nestedGraph.setParent(this.build())
-        }
-
         nestedGraphs.add(nestedGraph)
         return nestedGraph
     }
@@ -77,7 +72,6 @@ class NavigationGraphBuilder(
      * Define a custom layout for this graph
      */
     fun layout(layoutComposable: @Composable (@Composable () -> Unit) -> Unit) {
-        println("DEBUG: Setting layout for graph: $graphId")
         this.graphLayout = layoutComposable
     }
 
@@ -113,8 +107,17 @@ class NavigationGraphBuilder(
     }
 
     internal fun build(): NavigationGraph {
-        val resolvedStartScreen = resolveStartScreen()
-        requireNotNull(resolvedStartScreen) { "Start screen must be set for graph: $graphId (either via startScreen or startGraph)" }
+        // For graphs that use startGraph, we don't resolve the screen here
+        // We'll resolve it during navigation
+        val resolvedStartScreen = if (startScreen != null) {
+            startScreen!!
+        } else if (startGraphId != null) {
+            // We'll create a placeholder screen and resolve it during navigation
+            // The actual resolution happens in the route resolver
+            createPlaceholderScreen()
+        } else {
+            throw IllegalArgumentException("Graph '$graphId' must have either startScreen or startGraph defined")
+        }
 
         return MutableNavigationGraph(
             graphId = this.graphId,
@@ -124,30 +127,26 @@ class NavigationGraphBuilder(
             _parentGraph = this.parentGraph,
             graphEnterBehavior = this.graphEnterBehavior,
             retainState = this.retainState,
-            layout = this.graphLayout
+            layout = this.graphLayout,
+            startGraphId = this.startGraphId // Store the reference for later resolution
         )
     }
 
     /**
-     * Resolve the start screen - either from direct startScreen or from startGraph reference
+     * Create a placeholder screen for graphs that use startGraph
+     * This will be resolved during navigation
      */
-    private fun resolveStartScreen(): Screen? {
-        return when {
-            startScreen != null -> startScreen
-            startGraphId != null -> {
-                // Find the nested graph and use its start screen
-                val targetGraph = nestedGraphs.find { it.graphId == startGraphId }
-                if (targetGraph != null) {
-                    // Add the nested graph's start screen to our screens if not already present
-                    if (!screens.contains(targetGraph.startScreen)) {
-                        screens.add(targetGraph.startScreen)
-                    }
-                    targetGraph.startScreen
-                } else {
-                    throw IllegalStateException("Start graph '$startGraphId' not found in nested graphs")
-                }
+    private fun createPlaceholderScreen(): Screen {
+        return object : Screen {
+            override val route = "__placeholder_${graphId}"
+            override val enterTransition = io.github.syrou.reaktiv.navigation.transition.NavTransition.None
+            override val exitTransition = io.github.syrou.reaktiv.navigation.transition.NavTransition.None
+            override val requiresAuth = false
+
+            @Composable
+            override fun Content(params: Map<String, Any>) {
+                // This should never be rendered
             }
-            else -> null
         }
     }
 }

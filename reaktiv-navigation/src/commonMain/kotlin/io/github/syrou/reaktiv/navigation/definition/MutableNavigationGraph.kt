@@ -10,7 +10,8 @@ class MutableNavigationGraph(
     private var _parentGraph: NavigationGraph?,
     override val graphEnterBehavior: GraphEnterBehavior,
     override val retainState: Boolean,
-    override val layout: (@Composable (@Composable () -> Unit) -> Unit)?
+    override val layout: (@Composable (@Composable () -> Unit) -> Unit)?,
+    val startGraphId: String? = null // NEW: Store reference to startGraph
 ) : NavigationGraph {
 
     override val parentGraph: NavigationGraph? get() = _parentGraph
@@ -18,4 +19,9 @@ class MutableNavigationGraph(
     fun setParent(parent: NavigationGraph) {
         _parentGraph = parent
     }
+
+    /**
+     * Check if this graph uses startGraph instead of startScreen
+     */
+    fun usesStartGraph(): Boolean = startGraphId != null
 }

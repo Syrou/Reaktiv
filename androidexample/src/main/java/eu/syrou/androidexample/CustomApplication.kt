@@ -77,8 +77,8 @@ class CustomApplication : Application() {
 
                     graph("home") {
                         retainState(false)
-                        startScreen(NewsScreen)
-                        //startGraph("news")
+                        //startScreen(NewsScreen)
+                        startGraph("news")
                         /*screens(
                             LeaderboardListScreen,
                             WorkspaceScreen,
