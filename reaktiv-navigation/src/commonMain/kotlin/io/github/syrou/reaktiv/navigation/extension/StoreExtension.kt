@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.navigation.dsl.ClearBackStackBuilder
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.dsl.PopUpToBuilder
+import io.github.syrou.reaktiv.navigation.dsl.TypeSafeParameterBuilder
 import kotlinx.coroutines.coroutineScope
 
 
@@ -56,7 +57,47 @@ suspend fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = 
 suspend fun StoreAccessor.navigateWithValidation(
     route: String,
     params: Map<String, Any> = emptyMap(),
+    config: (NavigationBuilder.() -> Unit)? = null,
     validate: suspend (StoreAccessor, Map<String, Any>) -> Boolean
 ) {
-    selectLogic<NavigationLogic>().navigateWithValidation(route, params, validate)
+    selectLogic<NavigationLogic>().navigateWithValidation(route, params, config, validate)
+}
+
+suspend fun StoreAccessor.navigateTypeSafe(
+    route: String,
+    config: (NavigationBuilder.() -> Unit)? = null,
+    params: TypeSafeParameterBuilder.() -> Unit = {}
+) {
+    selectLogic<NavigationLogic>().navigateTypeSafe(route, params, config)
+}
+
+suspend fun StoreAccessor.navigateTypeSafeWithValidation(
+    route: String,
+    config: (NavigationBuilder.() -> Unit)? = null,
+    params: TypeSafeParameterBuilder.() -> Unit = {},
+    validate: suspend (StoreAccessor, Map<String, Any>) -> Boolean
+) {
+    selectLogic<NavigationLogic>().navigateTypeSafeWithValidation(route, params, config, validate)
+}
+
+// Convenience extensions
+suspend inline fun <reified T> StoreAccessor.navigateWith(
+    route: String,
+    paramName: String,
+    paramValue: T,
+    noinline config: (NavigationBuilder.() -> Unit)? = null
+) {
+    navigateTypeSafe(route, config) {
+        put(paramName, paramValue)
+    }
+}
+
+suspend inline fun <reified T> StoreAccessor.navigateWithData(
+    route: String,
+    data: T,
+    noinline config: (NavigationBuilder.() -> Unit)? = null
+) {
+    navigateTypeSafe(route, config) {
+        put("data", data)
+    }
 }
