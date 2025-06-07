@@ -1,5 +1,6 @@
 plugins {
-    `kotlin-dsl` // Is needed to turn our build logic written in Kotlin into Gralde Plugin
+    `kotlin-dsl`
+
 }
 
 gradlePlugin {
@@ -11,10 +12,30 @@ gradlePlugin {
     }
 }
 
+gradlePlugin {
+    plugins {
+        create("centralPublisherPlugin") {
+            id = "io.github.syrou.central-publisher-plugin"
+            implementationClass = "CentralPublisherPlugin"
+            displayName = "Central Publisher Plugin"
+            description = "Publishes Kotlin Multiplatform artifacts to Sonatype Central Portal"
+        }
+    }
+}
+
 repositories {
-    gradlePluginPortal() // To use 'maven-publish' and 'signing' plugins in our own plugin
+    gradlePluginPortal()
 }
 
 dependencies {
-    implementation("org.jreleaser:jreleaser-gradle-plugin:1.18.0")
+    implementation("io.ktor:ktor-client-core:2.3.12")
+    implementation("io.ktor:ktor-client-cio:2.3.12")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+
+    // Kotlinx serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 }
