@@ -14,3 +14,7 @@ gradlePlugin {
 repositories {
     gradlePluginPortal() // To use 'maven-publish' and 'signing' plugins in our own plugin
 }
+
+dependencies {
+    implementation("org.jreleaser:jreleaser-gradle-plugin:1.18.0")
+}

@@ -23,7 +23,7 @@ class VideosAggregator(private val sources: List<VideoSource>) {
         val iterators = videosBySource.map { it.iterator() }.toMutableList()
 
         while (iterators.isNotEmpty()) {
-            val iterator = iterators.removeFirst()
+            val iterator = iterators.removeAt(0)
             if (iterator.hasNext()) {
                 result.add(iterator.next())
                 iterators.add(iterator)

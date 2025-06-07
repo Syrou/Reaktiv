@@ -5,16 +5,16 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import io.github.syrou.reaktiv.core.ModuleState
-import io.github.syrou.reaktiv.core.Store
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 @Composable
-inline fun <reified T, R> Store.select(
+inline fun <reified T, R> select(
     crossinline selector: (T) -> R,
     noinline areEqual: (R, R) -> Boolean = { old, new -> old == new }
 ): State<R> where T : ModuleState {
-    val stateFlow = this.selectStateNonSuspend<T>()
+    val store = rememberStore()
+    val stateFlow = store.selectStateNonSuspend<T>()
 
     return remember {
         stateFlow.map(selector).distinctUntilChanged(areEqual)
