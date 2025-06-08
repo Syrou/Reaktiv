@@ -27,7 +27,6 @@ plugins {
 
 
 rootProject.name = "reaktiv"
-include("example")
 include("reaktiv-core")
 include(":androidexample")
 include("reaktiv-compose")

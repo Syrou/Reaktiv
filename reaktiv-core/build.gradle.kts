@@ -5,6 +5,7 @@ plugins {
     id("com.android.library")
     id("org.jetbrains.kotlinx.atomicfu")
     kotlin("plugin.serialization")
+    id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
 }
@@ -17,7 +18,6 @@ centralPublisher {
     publishingType = PublishingType.AUTOMATIC
 
     // GPG signing
-    signingKeyId = CentralPublisherCredentials.getRequiredCredential(project, "SIGNING_KEY_ID")
     signingPassword = CentralPublisherCredentials.getRequiredCredential(project, "SIGNING_PASSWORD")
     signingSecretKey = CentralPublisherCredentials.getRequiredCredential(project, "SIGNING_SECRET_KEY")
 
@@ -42,19 +42,18 @@ repositories {
 }
 
 kotlin {
+    jvm()
     androidTarget {
         publishLibraryVariants("release")
     }
-    jvm()
-    /*js {
-    }*/
     macosArm64()
     macosX64()
     iosArm64()
     iosSimulatorArm64()
-    applyDefaultHierarchyTemplate()
     linuxX64()
     mingwX64()
+
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
         val commonMain by getting {

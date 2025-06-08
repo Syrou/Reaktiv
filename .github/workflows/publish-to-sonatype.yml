@@ -9,7 +9,18 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     environment: SONATYPE
+    env:
+      # GPG Configuration
+      SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+      SIGNING_SECRET_KEY: ${{ secrets.SIGNING_SECRET_KEY }}
+      SIGNING_PUBLIC_KEY: ${{ secrets.SIGNING_PUBLIC_KEY }}
 
+      # Maven Central API Credentials
+      CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+      CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+
+      # GitHub Token for JReleaser (required even if not releasing to GitHub)
+      JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -20,7 +31,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: 'adopt'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -35,38 +46,11 @@ jobs:
 
       - name: Build and test
         run: ./gradlew build
-        env:
-          GRADLE_OPTS: '-Dorg.gradle.daemon=false'
 
       - name: Deploy to Maven Central
         run: |
           echo "🚀 Deploying to Maven Central..."
-          ./gradlew deployToMavenCentral
-        env:
-          # GPG Configuration
-          JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
-          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
-          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
-
-          # Maven Central API Credentials
-          JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME: ${{ secrets.JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME }}
-          JRELEASER_MAVENCENTRAL_SONATYPE_PASSWORD: ${{ secrets.JRELEASER_MAVENCENTRAL_SONATYPE_PASSWORD }}
-
-          # GitHub Token for JReleaser (required even if not releasing to GitHub)
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-          # Gradle configuration
-          GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.configureondemand=false'
-
-      - name: Upload JReleaser logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jreleaser-logs
-          path: |
-            **/build/jreleaser/trace.log
-            **/build/jreleaser/output.properties
-          retention-days: 30
+          ./gradlew uploadToCentral
 
       - name: Deployment Summary
         if: success()

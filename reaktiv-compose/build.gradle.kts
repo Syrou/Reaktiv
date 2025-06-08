@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
     id("com.android.library")
+    id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
 }
@@ -16,7 +17,6 @@ centralPublisher {
     publishingType = PublishingType.AUTOMATIC
 
     // GPG signing
-    signingKeyId = CentralPublisherCredentials.getRequiredCredential(project, "SIGNING_KEY_ID")
     signingPassword = CentralPublisherCredentials.getRequiredCredential(project, "SIGNING_PASSWORD")
     signingSecretKey = CentralPublisherCredentials.getRequiredCredential(project, "SIGNING_SECRET_KEY")
     
