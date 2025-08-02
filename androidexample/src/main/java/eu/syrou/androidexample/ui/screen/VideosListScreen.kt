@@ -22,8 +22,8 @@ object VideosListScreen : Screen {
     override val titleResource: TitleResource = {
         "Videos"
     }
-    override val enterTransition: NavTransition = NavTransition.Fade
-    override val exitTransition: NavTransition = NavTransition.Fade
+    override val enterTransition: NavTransition = NavTransition.SlideUpBottom
+    override val exitTransition: NavTransition = NavTransition.SlideOutBottom
     override val requiresAuth: Boolean = false
 
     @Composable

@@ -1,5 +1,6 @@
 package eu.syrou.androidexample
 
+import NavigationRender
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -43,7 +44,6 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 

@@ -22,10 +22,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.syrou.androidexample.ui.screen.TwitchAuthWebViewScreen
+import eu.syrou.androidexample.ui.screen.VideosListScreen
+import eu.syrou.androidexample.ui.screen.home.news.NewsListScreen
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -56,6 +60,18 @@ object LeaderboardDetailScreen : Screen {
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
+            }
+
+            item {
+                Button(onClick = {
+                    scope.launch {
+                        store.navigation {
+                            navigateTo<VideosListScreen>()
+                        }
+                    }
+                }) {
+                    Text("Press")
+                }
             }
 
             item {

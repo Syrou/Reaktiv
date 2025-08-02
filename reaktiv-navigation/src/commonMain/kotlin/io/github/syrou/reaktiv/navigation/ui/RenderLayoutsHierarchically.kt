@@ -6,14 +6,15 @@ import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
-import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 
 
 @Composable
-fun RenderLayoutsHierarchically(
+fun RenderLayoutsHierarchicallyWithAnimation(
     layoutGraphs: List<NavigationGraph>,
     modifier: Modifier,
     navigationState: NavigationState,
+    previousNavigationEntry: androidx.compose.runtime.MutableState<NavigationEntry?>,
     screenContent: @Composable (Navigatable, StringAnyMap) -> Unit,
     currentIndex: Int = 0
 ) {
@@ -21,6 +22,7 @@ fun RenderLayoutsHierarchically(
         NavigationContent(
             modifier = modifier,
             navigationState = navigationState,
+            previousNavigationEntry = previousNavigationEntry,
             screenContent = screenContent
         )
         return
@@ -28,11 +30,13 @@ fun RenderLayoutsHierarchically(
 
     val currentGraph = layoutGraphs[currentIndex]
     val layout = currentGraph.layout!!
+
     layout {
-        RenderLayoutsHierarchically(
+        RenderLayoutsHierarchicallyWithAnimation(
             layoutGraphs = layoutGraphs,
             modifier = modifier,
             navigationState = navigationState,
+            previousNavigationEntry = previousNavigationEntry,
             screenContent = screenContent,
             currentIndex = currentIndex + 1
         )
