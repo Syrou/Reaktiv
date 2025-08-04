@@ -25,12 +25,16 @@ data class SerializableParam<T>(
 
 
 class ParameterRetriever(
-    private val params: Map<String, Any>,
-    private val encoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
+    @PublishedApi
+    internal val params: Map<String, Any>,
+    @PublishedApi
+    internal val encoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
 ) {
 
-    @OptIn(InternalSerializationApi::class)
-    fun <T : Any> get(key: String, clazz: KClass<T>): T? {
+    inline fun <reified T> get(key: String): T? = getInternal<T>(key)
+
+    @PublishedApi
+    internal inline fun <reified T> getInternal(key: String): T? {
         val value = params[key] ?: return null
 
         ReaktivDebug.nav("ParameterRetriever.get() - key: $key, value type: ${value::class}, value: $value")
@@ -40,13 +44,7 @@ class ParameterRetriever(
                 ReaktivDebug.nav("Found TypedParam, value type: ${value.value::class}")
                 @Suppress("UNCHECKED_CAST")
                 try {
-                    if (clazz.isInstance(value.value)) {
-                        ReaktivDebug.nav("TypedParam value is instance of $clazz")
-                        value.value as T
-                    } else {
-                        ReaktivDebug.nav("TypedParam value is NOT instance of $clazz")
-                        null
-                    }
+                    value.value as? T
                 } catch (e: Exception) {
                     ReaktivDebug.nav("Error casting TypedParam value: ${e.message}")
                     null
@@ -54,27 +52,25 @@ class ParameterRetriever(
             }
 
             is String -> {
-                ReaktivDebug.nav("Found String value, attempting to decode")
-                handleStringValue(value, clazz)
+                ReaktivDebug.nav("Found String value, attempting to decode with reified type")
+                handleStringValueReified<T>(value)
             }
 
             else -> {
-                ReaktivDebug.nav("Found direct value, checking if instance of $clazz")
-                if (clazz.isInstance(value)) {
-                    ReaktivDebug.nav("Direct value is instance of $clazz")
-                    value as T
-                } else {
-                    ReaktivDebug.nav("Direct value is NOT instance of $clazz")
+                ReaktivDebug.nav("Found direct value, checking if instance of T")
+                try {
+                    value as? T
+                } catch (e: Exception) {
+                    ReaktivDebug.nav("Direct value cast failed: ${e.message}")
                     null
                 }
             }
         }
     }
 
-    @OptIn(InternalSerializationApi::class)
-    private fun <T : Any> handleStringValue(value: String, clazz: KClass<T>): T? {
+    inline fun <reified T> handleStringValueReified(value: String): T? {
         return try {
-            when (clazz) {
+            when (T::class) {
                 String::class -> {
                     if (value.contains('%') || value.contains('+')) {
                         CommonUrlEncoder().decode(value) as? T
@@ -82,24 +78,21 @@ class ParameterRetriever(
                         value as? T
                     }
                 }
-
                 Int::class -> value.toIntOrNull() as? T
                 Long::class -> value.toLongOrNull() as? T
                 Double::class -> value.toDoubleOrNull() as? T
                 Float::class -> value.toFloatOrNull() as? T
                 Boolean::class -> value.toBooleanStrictOrNull() as? T
-
                 else -> {
-                    ReaktivDebug.nav("Attempting JSON deserialization for $clazz")
+                    ReaktivDebug.nav("Attempting JSON deserialization for ${T::class}")
                     try {
                         val decoded = CommonUrlEncoder().decode(value)
                         ReaktivDebug.nav("Decoded string: $decoded")
 
                         if (decoded.startsWith("{") || decoded.startsWith("[")) {
                             val json = Json { ignoreUnknownKeys = true }
-                            val serializer = clazz.serializer()
-                            val result = json.decodeFromString(serializer, decoded)
-                            ReaktivDebug.nav("Successfully deserialized JSON to $clazz")
+                            val result = json.decodeFromString<T>(decoded)
+                            ReaktivDebug.nav("Successfully deserialized JSON to ${T::class}")
                             result
                         } else {
                             ReaktivDebug.nav("Decoded string doesn't look like JSON")
@@ -109,7 +102,7 @@ class ParameterRetriever(
                         ReaktivDebug.nav("JSON deserialization failed: ${e.message}")
                         try {
                             val simpleDecoded = encoder.decodeSimple(value)
-                            if (clazz.isInstance(simpleDecoded)) simpleDecoded as T else null
+                            simpleDecoded as? T
                         } catch (e2: Exception) {
                             ReaktivDebug.nav("Simple decoding also failed: ${e2.message}")
                             null
@@ -118,37 +111,33 @@ class ParameterRetriever(
                 }
             }
         } catch (e: Exception) {
-            ReaktivDebug.nav("handleStringValue failed completely: ${e.message}")
+            ReaktivDebug.nav("handleStringValueReified failed completely: ${e.message}")
             null
         }
     }
 
-    
-    inline fun <reified T> get(key: String): T? = get(key, T::class as KClass<Any>) as T?
-
-    
     inline fun <reified T> require(key: String): T {
-        return get<T>(key) ?: throw IllegalArgumentException("Required parameter '$key' of type ${T::class} not found")
+        return getInternal<T>(key) ?: throw IllegalArgumentException("Required parameter '$key' of type ${T::class} not found")
     }
 
-    
     inline fun <reified T> getOrDefault(key: String, default: T): T {
-        return get<T>(key) ?: default
+        return getInternal<T>(key) ?: default
     }
-    fun getString(key: String): String? = get<String>(key)
-    fun getInt(key: String): Int? = get<Int>(key)
-    fun getBoolean(key: String): Boolean? = get<Boolean>(key)
-    fun getDouble(key: String): Double? = get<Double>(key)
-    fun getLong(key: String): Long? = get<Long>(key)
-    fun getFloat(key: String): Float? = get<Float>(key)
-    inline fun <reified T> getList(key: String): List<T>? = get<List<T>>(key)
-    inline fun <reified T> getMap(key: String): Map<String, T>? = get<Map<String, T>>(key)
-}
 
+    fun getString(key: String): String? = getInternal<String>(key)
+    fun getInt(key: String): Int? = getInternal<Int>(key)
+    fun getBoolean(key: String): Boolean? = getInternal<Boolean>(key)
+    fun getDouble(key: String): Double? = getInternal<Double>(key)
+    fun getLong(key: String): Long? = getInternal<Long>(key)
+    fun getFloat(key: String): Float? = getInternal<Float>(key)
+    inline fun <reified T> getList(key: String): List<T>? = getInternal<List<T>>(key)
+    inline fun <reified T> getMap(key: String): Map<String, T>? = getInternal<Map<String, T>>(key)
+}
 
 fun Map<String, Any>.typed(): ParameterRetriever {
     return ParameterRetriever(this)
 }
+
 inline fun <reified T> Map<String, Any>.getParam(key: String): T? {
     return this.typed().get<T>(key)
 }

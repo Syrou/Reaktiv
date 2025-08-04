@@ -31,6 +31,7 @@ import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.extension.dismissModal
+import io.github.syrou.reaktiv.navigation.param.getParam
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -49,6 +50,8 @@ object NotificationScreen : Modal {
 
     @Composable
     override fun Content(params: Map<String, Any>) {
+        val test = params.getParam<List<String>>("TEST")
+        println("TEST contains: $test")
         val scope = rememberCoroutineScope()
         val store = rememberStore()
         CustomDialogBox(onConfirmClick = {

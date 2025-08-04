@@ -59,6 +59,7 @@ fun HomeNavigationScaffold(content: @Composable () -> Unit) {
                         scope.launch {
                             store.navigation {
                                 presentModal<NotificationScreen>()
+                                put("TEST", listOf<String>("test1", "test2"))
                             }
                         }
                     }) {

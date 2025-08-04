@@ -1,9 +1,7 @@
 package io.github.syrou.reaktiv.navigation.dsl
 
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
@@ -11,14 +9,12 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
-import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
-import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
+
 enum class NavigationOperation {
     Navigate,
     Replace,
@@ -140,7 +136,7 @@ class NavigationBuilder(
         return this
     }
 
-    
+
     @Deprecated("This introduces a bad pattern for knowing when to clear data, don't use it")
     fun forwardParams(): NavigationBuilder {
         this.shouldForwardParams = true
@@ -156,6 +152,7 @@ class NavigationBuilder(
         params[key] = SerializableParam(value, serializer)
         return this
     }
+
     fun putString(key: String, value: String): NavigationBuilder {
         params[key] = value
         return this
@@ -190,6 +187,7 @@ class NavigationBuilder(
         params[key] = value
         return this
     }
+
     fun param(key: String, value: String) = putString(key, value)
     fun param(key: String, value: Int) = putInt(key, value)
     fun param(key: String, value: Boolean) = putBoolean(key, value)
@@ -204,16 +202,19 @@ class NavigationBuilder(
                     throw IllegalStateException("Back operation cannot be combined with other navigation operations")
                 }
             }
+
             NavigationOperation.PopUpTo -> {
                 if (popUpToTarget == null) {
                     throw IllegalStateException("PopUpTo operation requires a popUpTo target")
                 }
             }
+
             NavigationOperation.ClearBackStack -> {
                 if (popUpToTarget != null) {
                     throw IllegalStateException("Pure ClearBackStack operation cannot have popUpTo target")
                 }
             }
+
             NavigationOperation.Navigate, NavigationOperation.Replace, NavigationOperation.Modal -> {
                 if (target == null) {
                     throw IllegalStateException("${operation.name} operation requires a target")
