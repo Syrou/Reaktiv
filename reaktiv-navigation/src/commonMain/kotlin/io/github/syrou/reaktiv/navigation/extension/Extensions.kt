@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.extension
 
+import androidx.compose.ui.Modifier
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.core.util.selectState
@@ -173,18 +174,23 @@ suspend inline fun <reified T : Modal> StoreAccessor.presentModal(
     }
 }
 
-
 suspend fun StoreAccessor.dismissModal() {
     navigateBack()
 }
 
+inline fun Modifier.applyIf(condition : Boolean, modifier : Modifier.() -> Modifier) : Modifier {
+    return if (condition) {
+        then(modifier(Modifier))
+    } else {
+        this
+    }
+}
 
 suspend fun StoreAccessor.dismissModal(modalEntry: NavigationEntry) {
     if (modalEntry.isModal) {
         selectLogic<NavigationLogic>().popUpTo(modalEntry.navigatable.route, inclusive = true)
     }
 }
-
 
 suspend fun StoreAccessor.clearAllModals() {
     val navigationState = selectState<NavigationState>().first()

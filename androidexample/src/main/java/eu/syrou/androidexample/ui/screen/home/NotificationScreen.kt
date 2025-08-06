@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.extension.dismissModal
 import io.github.syrou.reaktiv.navigation.param.getParam
@@ -43,7 +44,7 @@ object NotificationScreen : Modal {
     override val enterTransition = NavTransition.SlideUpBottom
     override val exitTransition = NavTransition.SlideOutBottom
     override val requiresAuth = true
-
+    override val titleResource: TitleResource? = { "Modal?" }
     override val onDismissTapOutside: (suspend StoreAccessor.() -> Unit)? = {
         dismissModal()
     }

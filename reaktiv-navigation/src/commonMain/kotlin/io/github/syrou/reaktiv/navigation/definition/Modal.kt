@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation.definition
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
+import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 
 interface Modal : Navigatable {
@@ -12,9 +13,12 @@ interface Modal : Navigatable {
     override val popExitTransition: NavTransition? get() = NavTransition.None
 
     val onDismissTapOutside: (suspend StoreAccessor.() -> Unit)? get() = null
-    
     val shouldDimBackground: Boolean get() = true
-
-    
     val backgroundDimAlpha: Float get() = 0.5f
+
+    override val renderLayer: RenderLayer
+        get() = RenderLayer.GLOBAL_OVERLAY
+
+    override val elevation: Float
+        get() = 1000f
 }

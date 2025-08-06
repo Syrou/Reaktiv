@@ -2,7 +2,6 @@ package io.github.syrou.reaktiv.navigation.util
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import findLayoutGraphsInHierarchy
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationState
 

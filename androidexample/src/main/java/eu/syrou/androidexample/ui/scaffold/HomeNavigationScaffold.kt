@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
+import eu.syrou.androidexample.ui.screen.VideosListScreen
 import eu.syrou.androidexample.ui.screen.home.NotificationScreen
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
@@ -55,6 +56,15 @@ fun HomeNavigationScaffold(content: @Composable () -> Unit) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        scope.launch {
+                            store.navigation {
+                                navigateTo<VideosListScreen>()
+                            }
+                        }
+                    }) {
+                        Icon(PoegoIcons.News, contentDescription = "News")
+                    }
                     IconButton(onClick = {
                         scope.launch {
                             store.navigation {

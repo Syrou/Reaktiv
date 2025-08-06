@@ -101,6 +101,7 @@ kotlin {
 
     compilerOptions {
         freeCompilerArgs.add("-Xcontext-receivers")
+        freeCompilerArgs.add("-opt-in=kotlin.time.ExperimentalTime")
     }
 
     jvmToolchain(17)

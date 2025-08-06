@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import kotlinx.serialization.Serializable
@@ -27,6 +28,7 @@ data class NavigationState(
 
     @Transient
     private val _currentGraphHierarchy: List<String> by lazy { computeCurrentGraphHierarchy() }
+
     val availableNavigatables: Map<String, Navigatable>
         get() = precomputedData?.availableNavigatables ?: emptyMap()
 
@@ -52,7 +54,6 @@ data class NavigationState(
         }
     }
 
-    
     val visibleLayers: List<NavigationLayer>
         get() = _visibleLayers
 
@@ -100,35 +101,65 @@ data class NavigationState(
         return layers
     }
 
-    
+    /**
+     * Groups visible entries by their render layer
+     */
+    @Transient
+    val entriesByLayer: Map<RenderLayer, List<NavigationEntry>> by lazy {
+        visibleLayers
+            .map { it.entry }
+            .groupBy { entry ->
+                entry.navigatable.renderLayer
+            }
+    }
+
+    /**
+     * Content layer entries (normal screens in graph hierarchy)
+     */
+    val contentLayerEntries: List<NavigationEntry>
+        get() = entriesByLayer[RenderLayer.CONTENT] ?: emptyList()
+
+    /**
+     * Local overlay entries (graph-scoped overlays)
+     */
+    val localOverlayEntries: List<NavigationEntry>
+        get() = entriesByLayer[RenderLayer.LOCAL_OVERLAY] ?: emptyList()
+
+    /**
+     * Global overlay entries (full-screen modals)
+     */
+    val globalOverlayEntries: List<NavigationEntry>
+        get() = entriesByLayer[RenderLayer.GLOBAL_OVERLAY] ?: emptyList()
+
+    /**
+     * System layer entries (toasts, notifications)
+     */
+    val systemLayerEntries: List<NavigationEntry>
+        get() = entriesByLayer[RenderLayer.SYSTEM] ?: emptyList()
+
     val renderableEntries: List<NavigationEntry>
         get() = visibleLayers.map { it.entry }
 
-    
     val isCurrentModal: Boolean
         get() = currentEntry.isModal
 
     val isCurrentScreen: Boolean
         get() = currentEntry.isScreen
 
-    
     val underlyingScreen: NavigationEntry?
         get() = if (isCurrentModal) {
             orderedBackStack.asReversed().drop(1).firstOrNull { it.isScreen }
         } else null
 
-    
     val effectiveDepth: Int
         get() = backStack.size
 
-    
     val hasModalsInStack: Boolean
         get() = backStack.any { it.isModal }
 
     val modalsInStack: List<NavigationEntry>
         get() = backStack.filter { it.isModal }
 
-    
     val currentFullPath: String
         get() = _currentFullPath
 
@@ -136,11 +167,9 @@ data class NavigationState(
         return precomputedData?.routeResolver?.buildFullPathForEntry(currentEntry) ?: currentEntry.navigatable.route
     }
 
-    
     val currentPathSegments: List<String>
         get() = currentFullPath.split("/").filter { it.isNotEmpty() }
 
-    
     val currentGraphHierarchy: List<String>
         get() = _currentGraphHierarchy
 
@@ -148,21 +177,17 @@ data class NavigationState(
         return precomputedData?.graphHierarchies?.get(currentEntry.graphId) ?: listOf(currentEntry.graphId)
     }
 
-    
     fun isInGraph(graphId: String): Boolean {
-        return currentGraphHierarchy.contains(graphId)
+        return (if(!isCurrentModal) currentGraphHierarchy.contains(graphId) else precomputedData?.graphHierarchies?.get(underlyingScreen?.graphId)?.contains(graphId)) == true
     }
 
-    
     fun isAtPath(path: String): Boolean {
-        return currentFullPath == path.trimStart('/').trimEnd('/')
+        return currentFullPath == path.trimStart('/').trimEnd('/') || visibleLayers.find { it.entry.navigatable.route == path } != null
     }
 
-    
     val navigationDepth: Int
         get() = currentPathSegments.size
 
-    
     val breadcrumbs: List<NavigationBreadcrumb>
         get() = buildBreadcrumbs()
 
@@ -187,12 +212,10 @@ data class NavigationState(
         return breadcrumbs
     }
 
-    
     fun getZIndex(entry: NavigationEntry): Float {
         return visibleLayers.find { it.entry == entry }?.zIndex ?: entry.zIndex
     }
 }
-
 
 data class NavigationBreadcrumb(
     val label: String,

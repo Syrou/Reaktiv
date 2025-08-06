@@ -21,12 +21,11 @@ fun ProjectTabLayout(content: @Composable () -> Unit) {
     val scope = rememberCoroutineScope()
     val navigationState by composeState<NavigationState>()
     val store = rememberStore()
-    val currentRoute = navigationState.currentEntry.screen.route
-    val activeTab = when (currentRoute) {
-        "overview" -> 0
-        "tasks" -> 1
-        "files" -> 2
-        "settings" -> 3
+    val activeTab = when {
+        navigationState.isAtPath("overview") -> 0
+        navigationState.isAtPath("tasks") -> 1
+        navigationState.isAtPath("files") -> 2
+        navigationState.isAtPath("settings") -> 3
         else -> 0
     }
 
