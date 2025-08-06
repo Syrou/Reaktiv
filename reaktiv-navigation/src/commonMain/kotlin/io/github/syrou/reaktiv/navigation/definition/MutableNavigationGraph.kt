@@ -1,8 +1,10 @@
 package io.github.syrou.reaktiv.navigation.definition
 
 import androidx.compose.runtime.Composable
+import kotlinx.serialization.Serializable
 
-class MutableNavigationGraph(
+@Serializable
+data class MutableNavigationGraph(
     override val route: String,
     override val startDestination: StartDestination,
     override val navigatables: List<Navigatable>,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -24,7 +25,7 @@ import kotlin.time.ExperimentalTime
 fun NavigationContent(
     modifier: Modifier,
     navigationState: NavigationState,
-    previousNavigationEntry: androidx.compose.runtime.MutableState<NavigationEntry?>,
+    previousNavigationEntry: MutableState<NavigationEntry?>,
     screenContent: @Composable (Navigatable, StringAnyMap) -> Unit
 ) {
     val currentEntry = navigationState.currentEntry
@@ -101,7 +102,7 @@ fun NavigationContent(
                     )
                 }
             ) { navigatable, params ->
-                screenContent(navigatable, params)
+                screenContent?.invoke(navigatable, params)
             }
         } else {
             if (ReaktivDebug.isEnabled) {

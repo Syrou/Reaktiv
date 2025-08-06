@@ -74,10 +74,9 @@ class CustomApplication : Application() {
                         VideosListScreen,
                         StreamsListScreen,
                     )
-
+                    modals(NotificationScreen)
                     graph("home") {
                         startGraph("news")
-                        modals(NotificationScreen)
                         layout { content ->
                             HomeNavigationScaffold(content)
                         }

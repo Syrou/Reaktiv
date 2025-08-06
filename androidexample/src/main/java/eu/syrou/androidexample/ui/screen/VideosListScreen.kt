@@ -24,6 +24,8 @@ object VideosListScreen : Screen {
     }
     override val enterTransition: NavTransition = NavTransition.SlideUpBottom
     override val exitTransition: NavTransition = NavTransition.SlideOutBottom
+    override val popEnterTransition: NavTransition = NavTransition.None
+    override val popExitTransition: NavTransition = NavTransition.None
     override val requiresAuth: Boolean = false
 
     @Composable

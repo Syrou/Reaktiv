@@ -30,12 +30,12 @@ fun NavigationRender(
 
     val previousNavigationEntry = remember { mutableStateOf<NavigationEntry?>(null) }
 
+    // Render the navigation content
     val layoutGraphs = if (navigationState.isCurrentModal) {
-        findLayoutGraphsInHierarchy(navigationState.underlyingScreen?.graphId!!, navigationState)
+        findLayoutGraphsInHierarchy(navigationState.underlyingScreen?.graphId ?: "root", navigationState)
     } else {
         findLayoutGraphsInHierarchy(navigationState.currentEntry.graphId, navigationState)
     }
-
     if (layoutGraphs.isNotEmpty()) {
         RenderLayoutsHierarchicallyWithAnimation(
             layoutGraphs = layoutGraphs,

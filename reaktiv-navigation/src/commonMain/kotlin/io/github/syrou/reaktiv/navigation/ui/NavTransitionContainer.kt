@@ -236,13 +236,13 @@ private fun getTransitionPair(
     }
 
     val enterTransition = when {
-        !isForward -> currentEntry.navigatable.popEnterTransition ?: currentEntry.navigatable.enterTransition
+        !isForward -> previousEntry.navigatable.popEnterTransition ?: currentEntry.navigatable.enterTransition
         else -> currentEntry.navigatable.enterTransition
     }
 
     val exitTransition = when {
-        isForward -> previousEntry.navigatable.exitTransition
-        else -> previousEntry.navigatable.popExitTransition ?: previousEntry.navigatable.exitTransition
+        isForward -> currentEntry.navigatable.popExitTransition ?: previousEntry.navigatable.exitTransition
+        else -> previousEntry.navigatable.exitTransition
     }
 
     if (ReaktivDebug.isEnabled) {

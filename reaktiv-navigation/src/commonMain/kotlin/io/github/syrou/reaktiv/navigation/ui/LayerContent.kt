@@ -6,13 +6,16 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.zIndex
+import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
@@ -25,6 +28,7 @@ fun LayerContent(
 ) {
     val scope = rememberCoroutineScope()
     val store = rememberStore()
+    val navigationState by composeState<NavigationState>()
     val entry = layer.entry
 
     Box(
@@ -41,11 +45,10 @@ fun LayerContent(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = layer.dimAlpha))
                     .let { modifier ->
-                        val topModalEntry = entry.takeIf { it.isModal }
+                        val topModalEntry = navigationState.currentEntry.takeIf { it.isModal }
                         val isDismissible = topModalEntry?.navigatable?.let { nav ->
                             (nav as? Modal)?.onDismissTapOutside != null
                         } ?: false
-
                         if (isDismissible) {
                             modifier.clickable(interactionSource, indication = null) {
                                 scope.launch {

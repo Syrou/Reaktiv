@@ -14,7 +14,7 @@ data class NavigationState(
     val currentEntry: NavigationEntry,
     val backStack: List<NavigationEntry>,
     @Transient
-    val precomputedData: PrecomputedNavigationData? = null // Will be reconstructed on deserialization
+    val precomputedData: PrecomputedNavigationData? = null
 ) : ModuleState {
     @Transient
     private val _visibleLayers: List<NavigationLayer> by lazy { computeVisibleLayers() }

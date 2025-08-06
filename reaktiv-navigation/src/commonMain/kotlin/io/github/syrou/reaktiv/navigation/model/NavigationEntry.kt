@@ -60,6 +60,7 @@ data class ScreenResolution(
     val screen: Navigatable get() = navigatable
 }
 
+@Serializable
 data class NavigationLayer(
     val entry: NavigationEntry,
     val zIndex: Float,
