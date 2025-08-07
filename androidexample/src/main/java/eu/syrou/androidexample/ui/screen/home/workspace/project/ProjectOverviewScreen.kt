@@ -56,7 +56,6 @@ object ProjectFilesScreen : Screen {
 
     @Composable
     override fun Content(params: Map<String, Any>) {
-        println("HERPAERPA - ProjectFilesScreen - Content")
         ProjectFilesContent(params)
     }
 }

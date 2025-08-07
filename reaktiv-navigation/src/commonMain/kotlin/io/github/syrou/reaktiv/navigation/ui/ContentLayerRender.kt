@@ -22,15 +22,24 @@ import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
 import io.github.syrou.reaktiv.navigation.util.shouldAnimateContentTransition
 import kotlin.time.Clock
 
+
 @Composable
 fun ContentLayerRender(
     entries: List<NavigationEntry>,
     navigationState: NavigationState,
     screenContent: @Composable (Navigatable, StringAnyMap) -> Unit
 ) {
+    val preservedContentEntry = remember { mutableStateOf<NavigationEntry?>(null) }
+
     val contentEntry = when {
-        navigationState.isCurrentModal -> navigationState.underlyingScreen
-        navigationState.currentEntry.navigatable.renderLayer == RenderLayer.CONTENT -> navigationState.currentEntry
+        navigationState.isCurrentModal -> {
+            preservedContentEntry.value ?: navigationState.underlyingScreen
+        }
+        navigationState.currentEntry.navigatable.renderLayer == RenderLayer.CONTENT -> {
+            val currentContent = navigationState.currentEntry
+            preservedContentEntry.value = currentContent
+            currentContent
+        }
         else -> entries.lastOrNull()
     }
 
@@ -38,23 +47,20 @@ fun ContentLayerRender(
 
     val previousContentEntry = remember { mutableStateOf<NavigationEntry?>(null) }
     val wasShowingModal = remember { mutableStateOf(false) }
-
-    // Content cache to prevent recomposition during animations
     val contentCache = remember { mutableStateMapOf<String, @Composable () -> Unit>() }
-
     val isModalStateChange = wasShowingModal.value != navigationState.isCurrentModal
     val isContentNavigation = !isModalStateChange &&
             previousContentEntry.value != null &&
             previousContentEntry.value != contentEntry
 
-    val animationState = remember(contentEntry, navigationState.isCurrentModal) {
+    val animationState = remember(contentEntry) {
         val prev = previousContentEntry.value
         if (isContentNavigation && prev != null) {
-            val animationDecision = determineContentAnimationDecision(prev, contentEntry)
+            val animationDecision = determineContentAnimationDecision(prev, contentEntry!!)
             if (animationDecision.hasAnyAnimation) {
                 mutableStateOf(
                     NavigationAnimationState(
-                        currentEntry = contentEntry,
+                        currentEntry = contentEntry!!,
                         previousEntry = prev,
                         isAnimating = true,
                         animationId = Clock.System.now().toEpochMilliseconds()
@@ -63,7 +69,7 @@ fun ContentLayerRender(
             } else {
                 mutableStateOf(
                     NavigationAnimationState(
-                        currentEntry = contentEntry,
+                        currentEntry = contentEntry!!,
                         previousEntry = null,
                         isAnimating = false,
                         animationId = 0L
@@ -73,7 +79,7 @@ fun ContentLayerRender(
         } else {
             mutableStateOf(
                 NavigationAnimationState(
-                    currentEntry = contentEntry,
+                    currentEntry = contentEntry!!,
                     previousEntry = null,
                     isAnimating = false,
                     animationId = 0L
@@ -82,15 +88,18 @@ fun ContentLayerRender(
         }
     }
 
-    LaunchedEffect(contentEntry, navigationState.isCurrentModal) {
-        if (!navigationState.isCurrentModal && contentEntry.navigatable.renderLayer == RenderLayer.CONTENT) {
+    LaunchedEffect(contentEntry) {
+        if (contentEntry.navigatable.renderLayer == RenderLayer.CONTENT) {
             previousContentEntry.value = contentEntry
         }
+    }
+
+    LaunchedEffect(navigationState.isCurrentModal) {
         wasShowingModal.value = navigationState.isCurrentModal
     }
 
-    // Create or retrieve cached content for current entry
     val currentContentKey = "${contentEntry.navigatable.route}_${contentEntry.graphId}_${contentEntry.stackPosition}"
+
     if (!contentCache.containsKey(currentContentKey)) {
         contentCache[currentContentKey] = movableContentOf {
             key(currentContentKey) {
@@ -99,7 +108,6 @@ fun ContentLayerRender(
         }
     }
 
-    // Create or retrieve cached content for previous entry if animating
     val previousEntry = animationState.value.previousEntry
     val previousContentKey = if (previousEntry != null) {
         "${previousEntry.navigatable.route}_${previousEntry.graphId}_${previousEntry.stackPosition}"
@@ -165,7 +173,6 @@ fun ContentLayerRender(
                         previousEntry = null,
                         isAnimating = false
                     )
-                    // Clean up previous content from cache
                     if (previousContentKey != null) {
                         contentCache.remove(previousContentKey)
                     }

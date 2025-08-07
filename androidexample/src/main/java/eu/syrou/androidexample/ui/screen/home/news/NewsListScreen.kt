@@ -56,7 +56,6 @@ object NewsListScreen : Screen {
     override fun Content(
         params: Map<String, Any>
     ) {
-        println("HERPAERPA - ONCE?")
         NewsListScreen()
     }
 }
