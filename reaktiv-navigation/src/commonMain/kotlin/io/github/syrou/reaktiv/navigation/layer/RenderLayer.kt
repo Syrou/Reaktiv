@@ -10,11 +10,6 @@ enum class RenderLayer {
     CONTENT,
     
     /**
-     * Renders above content but within graph boundaries
-     */
-    LOCAL_OVERLAY,
-    
-    /**
      * Renders at the root level, above all graphs
      */
     GLOBAL_OVERLAY,

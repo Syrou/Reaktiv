@@ -41,6 +41,7 @@ object LeaderboardListScreen : Screen {
 
     @Composable
     override fun Content(params: Map<String, Any>) {
+        println("HERPAERPA - LeaderboardListScreen - Content")
         val scope = rememberCoroutineScope()
         val store = rememberStore()
 

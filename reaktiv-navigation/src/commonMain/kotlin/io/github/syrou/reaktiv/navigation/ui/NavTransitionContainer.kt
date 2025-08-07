@@ -3,14 +3,18 @@ package io.github.syrou.reaktiv.navigation.ui
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
@@ -33,6 +37,7 @@ fun NavTransitionContainer(
     onAnimationComplete: () -> Unit,
     content: @Composable (Navigatable, StringAnyMap) -> Unit
 ) {
+    val backgroundColor = rememberNavigationBackgroundColor()
     if (ReaktivDebug.isEnabled) {
         LaunchedEffect(animationDecision) {
             ReaktivDebug.nav("🎭 NavTransitionContainer:")
@@ -113,28 +118,42 @@ fun NavTransitionContainer(
         }
     }
 
+    // Create movable content once for each screen to prevent recomposition
+    // This is the key fix - each screen gets its content composed exactly once
+    val currentScreenContent = remember(currentEntry.navigatable, currentEntry.params) {
+        movableContentOf {
+            content(currentEntry.navigatable, currentEntry.params)
+        }
+    }
+
+    val previousScreenContent = remember(previousEntry.navigatable, previousEntry.params) {
+        movableContentOf {
+            content(previousEntry.navigatable, previousEntry.params)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         val enterScreenAnimated = animationDecision.shouldAnimateEnter
         val exitScreenAnimated = animationDecision.shouldAnimateExit
 
         when {
             enterScreenAnimated && !exitScreenAnimated -> {
-                RenderExitScreen(previousEntry, resolvedExit, exitProgress, content)
-                RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, content)
+                RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+                RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
             }
 
             !enterScreenAnimated && exitScreenAnimated -> {
-                RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, content)
-                RenderExitScreen(previousEntry, resolvedExit, exitProgress, content)
+                RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+                RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
             }
 
             else -> {
                 if (animationDecision.isForward) {
-                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, content)
-                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, content)
+                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
                 } else {
-                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, content)
-                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, content)
+                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
                 }
             }
         }
@@ -146,28 +165,38 @@ private fun RenderEnterScreen(
     entry: NavigationEntry,
     resolvedTransition: ResolvedNavTransition?,
     progress: Float,
-    content: @Composable (Navigatable, StringAnyMap) -> Unit
+    backgroundColor: Color,
+    content: @Composable () -> Unit
 ) {
-    if (resolvedTransition != null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    alpha = resolvedTransition.alpha(progress)
-                    scaleX = resolvedTransition.scaleX(progress)
-                    scaleY = resolvedTransition.scaleY(progress)
-                    translationX = resolvedTransition.translationX(progress)
-                    translationY = resolvedTransition.translationY(progress)
-                    rotationZ = resolvedTransition.rotationZ(progress)
-                    transformOrigin = TransformOrigin.Center
+    key("enter_${entry.navigatable.route}_${entry.graphId}_${entry.stackPosition}") {
+        if (resolvedTransition != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = resolvedTransition.alpha(progress)
+                        scaleX = resolvedTransition.scaleX(progress)
+                        scaleY = resolvedTransition.scaleY(progress)
+                        translationX = resolvedTransition.translationX(progress)
+                        translationY = resolvedTransition.translationY(progress)
+                        rotationZ = resolvedTransition.rotationZ(progress)
+                        transformOrigin = TransformOrigin.Center
+                    }
+                    .zIndex(1f)
+            ) {
+                Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
+                    content()
                 }
-                .zIndex(1f)
-        ) {
-            content(entry.navigatable, entry.params)
-        }
-    } else {
-        Box(modifier = Modifier.fillMaxSize()) {
-            content(entry.navigatable, entry.params)
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(1f)
+                    .background(backgroundColor)
+            ) {
+                content()
+            }
         }
     }
 }
@@ -177,32 +206,38 @@ private fun RenderExitScreen(
     entry: NavigationEntry,
     resolvedTransition: ResolvedNavTransition?,
     progress: Float,
-    content: @Composable (Navigatable, StringAnyMap) -> Unit
+    backgroundColor: Color,
+    content: @Composable () -> Unit
 ) {
-    if (resolvedTransition != null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    alpha = resolvedTransition.alpha(progress)
-                    scaleX = resolvedTransition.scaleX(progress)
-                    scaleY = resolvedTransition.scaleY(progress)
-                    translationX = resolvedTransition.translationX(progress)
-                    translationY = resolvedTransition.translationY(progress)
-                    rotationZ = resolvedTransition.rotationZ(progress)
-                    transformOrigin = TransformOrigin.Center
+    key("exit_${entry.navigatable.route}_${entry.graphId}_${entry.stackPosition}") {
+        if (resolvedTransition != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = resolvedTransition.alpha(progress)
+                        scaleX = resolvedTransition.scaleX(progress)
+                        scaleY = resolvedTransition.scaleY(progress)
+                        translationX = resolvedTransition.translationX(progress)
+                        translationY = resolvedTransition.translationY(progress)
+                        rotationZ = resolvedTransition.rotationZ(progress)
+                        transformOrigin = TransformOrigin.Center
+                    }
+                    .zIndex(0f)
+            ) {
+                Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
+                    content()
                 }
-                .zIndex(0f)
-        ) {
-            content(entry.navigatable, entry.params)
-        }
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(0f)
-        ) {
-            content(entry.navigatable, entry.params)
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(0f)
+                    .background(backgroundColor)
+            ) {
+                content()
+            }
         }
     }
 }

@@ -1,11 +1,11 @@
 package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.NavigationAnimationState
-import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.util.determineAnimationDecision
+import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
 
 @Composable
 fun RenderContentWithAnimation(
@@ -14,11 +14,14 @@ fun RenderContentWithAnimation(
     screenHeight: Float,
     navigatable: Navigatable,
     params: StringAnyMap,
-    screenContent: @Composable (Navigatable, StringAnyMap) -> Unit,
+    contentCache: Map<String, @Composable () -> Unit>,
+    currentContentKey: String,
+    previousContentKey: String?,
+    fallbackContent: @Composable (Navigatable, StringAnyMap) -> Unit,
     onAnimationComplete: () -> Unit
 ) {
     if (animationState.isAnimating && animationState.previousEntry != null) {
-        val animationDecision = determineAnimationDecision(
+        val animationDecision = determineContentAnimationDecision(
             animationState.previousEntry,
             animationState.currentEntry
         )
@@ -32,9 +35,26 @@ fun RenderContentWithAnimation(
             animationDecision = animationDecision,
             onAnimationComplete = onAnimationComplete
         ) { nav, p ->
-            screenContent(nav, p)
+            val entryKey = "${nav.route}_${nav.hashCode()}_${p.hashCode()}"
+            when {
+                nav == animationState.currentEntry.navigatable && p == animationState.currentEntry.params -> {
+                    contentCache[currentContentKey]?.invoke() ?: fallbackContent(nav, p)
+                }
+
+                nav == animationState.previousEntry.navigatable && p == animationState.previousEntry.params -> {
+                    contentCache[previousContentKey]?.invoke() ?: fallbackContent(nav, p)
+                }
+
+                else -> {
+                    key("fallback_$entryKey") {
+                        fallbackContent(nav, p)
+                    }
+                }
+            }
         }
     } else {
-        screenContent(navigatable, params)
+        contentCache[currentContentKey]?.invoke() ?: key("direct_$currentContentKey") {
+            fallbackContent(navigatable, params)
+        }
     }
 }

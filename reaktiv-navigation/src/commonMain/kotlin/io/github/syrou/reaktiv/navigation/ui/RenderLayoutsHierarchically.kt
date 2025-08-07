@@ -29,10 +29,6 @@ fun RenderLayoutsHierarchically(
         }
         Box(modifier = Modifier.fillMaxSize()) {
             screenContent(entryToRender.navigatable, entryToRender.params)
-            LocalOverlayLayerRender(
-                entries = navigationState.localOverlayEntries,
-                screenContent = screenContent
-            )
         }
         return
     }

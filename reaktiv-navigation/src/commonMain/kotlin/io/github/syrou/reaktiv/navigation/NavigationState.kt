@@ -120,12 +120,6 @@ data class NavigationState(
         get() = entriesByLayer[RenderLayer.CONTENT] ?: emptyList()
 
     /**
-     * Local overlay entries (graph-scoped overlays)
-     */
-    val localOverlayEntries: List<NavigationEntry>
-        get() = entriesByLayer[RenderLayer.LOCAL_OVERLAY] ?: emptyList()
-
-    /**
      * Global overlay entries (full-screen modals)
      */
     val globalOverlayEntries: List<NavigationEntry>

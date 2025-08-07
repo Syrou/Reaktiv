@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -35,6 +38,9 @@ fun ContentLayerRender(
 
     val previousContentEntry = remember { mutableStateOf<NavigationEntry?>(null) }
     val wasShowingModal = remember { mutableStateOf(false) }
+
+    // Content cache to prevent recomposition during animations
+    val contentCache = remember { mutableStateMapOf<String, @Composable () -> Unit>() }
 
     val isModalStateChange = wasShowingModal.value != navigationState.isCurrentModal
     val isContentNavigation = !isModalStateChange &&
@@ -83,6 +89,30 @@ fun ContentLayerRender(
         wasShowingModal.value = navigationState.isCurrentModal
     }
 
+    // Create or retrieve cached content for current entry
+    val currentContentKey = "${contentEntry.navigatable.route}_${contentEntry.graphId}_${contentEntry.stackPosition}"
+    if (!contentCache.containsKey(currentContentKey)) {
+        contentCache[currentContentKey] = movableContentOf {
+            key(currentContentKey) {
+                screenContent(contentEntry.navigatable, contentEntry.params)
+            }
+        }
+    }
+
+    // Create or retrieve cached content for previous entry if animating
+    val previousEntry = animationState.value.previousEntry
+    val previousContentKey = if (previousEntry != null) {
+        "${previousEntry.navigatable.route}_${previousEntry.graphId}_${previousEntry.stackPosition}"
+    } else null
+
+    if (previousEntry != null && previousContentKey != null && !contentCache.containsKey(previousContentKey)) {
+        contentCache[previousContentKey] = movableContentOf {
+            key(previousContentKey) {
+                screenContent(previousEntry.navigatable, previousEntry.params)
+            }
+        }
+    }
+
     val layoutGraphs = findLayoutGraphsInHierarchy(contentEntry.graphId, navigationState)
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -102,12 +132,19 @@ fun ContentLayerRender(
                         screenHeight = screenHeight,
                         navigatable = navigatable,
                         params = params,
-                        screenContent = screenContent,
+                        contentCache = contentCache,
+                        currentContentKey = currentContentKey,
+                        previousContentKey = previousContentKey,
+                        fallbackContent = screenContent,
                         onAnimationComplete = {
                             animationState.value = animationState.value.copy(
                                 previousEntry = null,
                                 isAnimating = false
                             )
+                            // Clean up previous content from cache
+                            if (previousContentKey != null) {
+                                contentCache.remove(previousContentKey)
+                            }
                         }
                     )
                 }
@@ -119,12 +156,19 @@ fun ContentLayerRender(
                 screenHeight = screenHeight,
                 navigatable = contentEntry.navigatable,
                 params = contentEntry.params,
-                screenContent = screenContent,
+                contentCache = contentCache,
+                currentContentKey = currentContentKey,
+                previousContentKey = previousContentKey,
+                fallbackContent = screenContent,
                 onAnimationComplete = {
                     animationState.value = animationState.value.copy(
                         previousEntry = null,
                         isAnimating = false
                     )
+                    // Clean up previous content from cache
+                    if (previousContentKey != null) {
+                        contentCache.remove(previousContentKey)
+                    }
                 }
             )
         }

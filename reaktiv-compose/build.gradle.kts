@@ -58,7 +58,6 @@ kotlin {
             dependencies {
                 implementation(compose.runtime)
                 implementation(compose.foundation)
-                implementation(compose.material)
                 implementation(compose.components.resources)
                 implementation(project(":reaktiv-core"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")

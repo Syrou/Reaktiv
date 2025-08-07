@@ -30,6 +30,7 @@ import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -164,7 +165,8 @@ fun MainRender() {
             }
         ) {
             NavigationRender(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                backgroundColor = MaterialTheme.colorScheme.background
             ) { screen, params ->
                 screen.Content(params)
             }
