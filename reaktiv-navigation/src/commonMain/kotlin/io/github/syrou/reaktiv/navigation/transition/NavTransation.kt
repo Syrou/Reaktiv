@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.navigation.transition
 
 sealed class NavTransition(open val durationMillis: Int = DEFAULT_ANIMATION_DURATION) {
     data object None : NavTransition(0)
+    @Deprecated("This is deprecated and will be removed in future versions, use None")
     data object Hold : NavTransition(0)
     data object Fade : NavTransition()
     data object FadeOut : NavTransition()

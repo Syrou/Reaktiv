@@ -14,6 +14,7 @@ import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationAnimationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
 import io.github.syrou.reaktiv.navigation.util.shouldAnimateContentTransition
 import kotlin.time.Clock
@@ -35,7 +36,6 @@ fun ContentLayerRender(
     val previousContentEntry = remember { mutableStateOf<NavigationEntry?>(null) }
     val wasShowingModal = remember { mutableStateOf(false) }
 
-    // Track actual content navigation vs modal show/hide
     val isModalStateChange = wasShowingModal.value != navigationState.isCurrentModal
     val isContentNavigation = !isModalStateChange &&
             previousContentEntry.value != null &&
@@ -43,16 +43,27 @@ fun ContentLayerRender(
 
     val animationState = remember(contentEntry, navigationState.isCurrentModal) {
         val prev = previousContentEntry.value
-        // Only animate for actual content navigation, not modal show/hide
-        if (isContentNavigation && prev != null && shouldAnimateContentTransition(prev, contentEntry)) {
-            mutableStateOf(
-                NavigationAnimationState(
-                    currentEntry = contentEntry,
-                    previousEntry = prev,
-                    isAnimating = true,
-                    animationId = Clock.System.now().toEpochMilliseconds()
+        if (isContentNavigation && prev != null) {
+            val animationDecision = determineContentAnimationDecision(prev, contentEntry)
+            if (animationDecision.hasAnyAnimation) {
+                mutableStateOf(
+                    NavigationAnimationState(
+                        currentEntry = contentEntry,
+                        previousEntry = prev,
+                        isAnimating = true,
+                        animationId = Clock.System.now().toEpochMilliseconds()
+                    )
                 )
-            )
+            } else {
+                mutableStateOf(
+                    NavigationAnimationState(
+                        currentEntry = contentEntry,
+                        previousEntry = null,
+                        isAnimating = false,
+                        animationId = 0L
+                    )
+                )
+            }
         } else {
             mutableStateOf(
                 NavigationAnimationState(
@@ -66,7 +77,6 @@ fun ContentLayerRender(
     }
 
     LaunchedEffect(contentEntry, navigationState.isCurrentModal) {
-        // Only update previous content when it's actual content navigation
         if (!navigationState.isCurrentModal && contentEntry.navigatable.renderLayer == RenderLayer.CONTENT) {
             previousContentEntry.value = contentEntry
         }

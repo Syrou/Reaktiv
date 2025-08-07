@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalTime::class)
-
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -12,10 +10,8 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.ui.ContentLayerRender
 import io.github.syrou.reaktiv.navigation.ui.GlobalOverlayLayerRender
-import io.github.syrou.reaktiv.navigation.ui.LocalOverlayLayerRender
 import io.github.syrou.reaktiv.navigation.ui.SystemLayerRender
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
-import kotlin.time.ExperimentalTime
 
 @Composable
 fun NavigationRender(

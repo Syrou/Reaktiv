@@ -25,6 +25,7 @@ import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.ModalAnimationState
+import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.resolve
 import kotlinx.coroutines.launch
 
@@ -39,53 +40,64 @@ fun AnimatedGlobalOverlay(
     val modal = animationState.entry.navigatable as? Modal
     val scope = rememberCoroutineScope()
     val store = rememberStore()
-    
+
     val transition = when {
         animationState.isEntering -> animationState.entry.navigatable.enterTransition
-        animationState.isExiting -> animationState.entry.navigatable.popExitTransition 
+        animationState.isExiting -> animationState.entry.navigatable.popExitTransition
             ?: animationState.entry.navigatable.exitTransition
         else -> animationState.entry.navigatable.enterTransition
     }
-    
-    val resolved = remember(transition, screenWidth, screenHeight) {
-        transition.resolve(screenWidth, screenHeight, isForward = animationState.isEntering)
+
+    val shouldAnimate = transition != NavTransition.Hold && transition != NavTransition.None
+
+    val resolved = remember(transition, screenWidth, screenHeight, shouldAnimate) {
+        if (shouldAnimate) {
+            transition.resolve(screenWidth, screenHeight, isForward = animationState.isEntering)
+        } else null
     }
-    
+
     val animationTrigger = remember(animationState.animationId) { mutableStateOf(false) }
-    
+
     LaunchedEffect(animationState.animationId) {
-        if (animationState.animationId > 0L) {
+        if (animationState.animationId > 0L && shouldAnimate) {
             animationTrigger.value = true
+        } else if (!shouldAnimate) {
+            onAnimationComplete()
         }
     }
-    
+
     val targetValue = when {
+        !shouldAnimate -> if (animationState.isExiting) 0f else 1f
         animationState.isExiting -> 0f
         animationTrigger.value -> 1f
         else -> 0f
     }
-    
+
     val animationProgress by animateFloatAsState(
         targetValue = targetValue,
-        animationSpec = tween(
-            durationMillis = resolved.durationMillis,
-            easing = LinearOutSlowInEasing
-        ),
+        animationSpec = if (shouldAnimate && resolved != null) {
+            tween(
+                durationMillis = resolved.durationMillis,
+                easing = LinearOutSlowInEasing
+            )
+        } else {
+            tween(durationMillis = 0)
+        },
         finishedListener = { progress ->
-            if ((animationState.isEntering && progress == 1f) || 
+            if ((animationState.isEntering && progress == 1f) ||
                 (animationState.isExiting && progress == 0f)) {
                 onAnimationComplete()
             }
         },
         label = "modal_${animationState.animationId}"
     )
-    
+
     val dimmerAlpha = if (modal?.shouldDimBackground == true) {
         modal.backgroundDimAlpha * animationProgress
     } else {
         0f
     }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -107,18 +119,24 @@ fun AnimatedGlobalOverlay(
                     }
             )
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    alpha = resolved.alpha(animationProgress)
-                    scaleX = resolved.scaleX(animationProgress)
-                    scaleY = resolved.scaleY(animationProgress)
-                    translationX = resolved.translationX(animationProgress)
-                    translationY = resolved.translationY(animationProgress)
-                    rotationZ = resolved.rotationZ(animationProgress)
-                    transformOrigin = TransformOrigin.Center
+                .let { modifier ->
+                    if (shouldAnimate && resolved != null) {
+                        modifier.graphicsLayer {
+                            alpha = resolved.alpha(animationProgress)
+                            scaleX = resolved.scaleX(animationProgress)
+                            scaleY = resolved.scaleY(animationProgress)
+                            translationX = resolved.translationX(animationProgress)
+                            translationY = resolved.translationY(animationProgress)
+                            rotationZ = resolved.rotationZ(animationProgress)
+                            transformOrigin = TransformOrigin.Center
+                        }
+                    } else {
+                        modifier
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {

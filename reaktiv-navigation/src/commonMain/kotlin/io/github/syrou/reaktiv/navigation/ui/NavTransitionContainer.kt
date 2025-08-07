@@ -13,12 +13,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.transition.ResolvedNavTransition
 import io.github.syrou.reaktiv.navigation.transition.resolve
+import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 
 @Composable
 fun NavTransitionContainer(
@@ -27,226 +29,180 @@ fun NavTransitionContainer(
     screenWidth: Float,
     screenHeight: Float,
     animationId: Long,
+    animationDecision: AnimationDecision,
     onAnimationComplete: () -> Unit,
     content: @Composable (Navigatable, StringAnyMap) -> Unit
 ) {
-    val isForward = remember(currentEntry, previousEntry) {
-        when {
-            currentEntry.stackPosition > previousEntry.stackPosition -> true
-            currentEntry.stackPosition < previousEntry.stackPosition -> false
-            else -> {
-                currentEntry.navigatable.route != previousEntry.navigatable.route
-            }
-        }
-    }
-
-    val (enterTransition, exitTransition) = remember(currentEntry, previousEntry, isForward) {
-        getTransitionPair(currentEntry, previousEntry, isForward)
-    }
-
     if (ReaktivDebug.isEnabled) {
-        LaunchedEffect(enterTransition, exitTransition) {
-            ReaktivDebug.nav("🎭 Transition pair:")
-            ReaktivDebug.nav("  Enter: $enterTransition")
-            ReaktivDebug.nav("  Exit: $exitTransition")
-            ReaktivDebug.nav("  Is forward: $isForward")
+        LaunchedEffect(animationDecision) {
+            ReaktivDebug.nav("🎭 NavTransitionContainer:")
+            ReaktivDebug.nav("  Enter animate: ${animationDecision.shouldAnimateEnter}")
+            ReaktivDebug.nav("  Exit animate: ${animationDecision.shouldAnimateExit}")
+            ReaktivDebug.nav("  Enter transition: ${animationDecision.enterTransition}")
+            ReaktivDebug.nav("  Exit transition: ${animationDecision.exitTransition}")
+            ReaktivDebug.nav("  Is forward: ${animationDecision.isForward}")
         }
     }
 
-    val resolvedEnter = remember(enterTransition, screenWidth, screenHeight, isForward) {
-        enterTransition.resolve(screenWidth, screenHeight, isForward)
+    if (!animationDecision.hasAnyAnimation) {
+        content(currentEntry.navigatable, currentEntry.params)
+        LaunchedEffect(animationId) { onAnimationComplete() }
+        return
     }
 
-    val resolvedExit = remember(exitTransition, screenWidth, screenHeight, isForward) {
-        exitTransition.resolve(screenWidth, screenHeight, isForward)
-    }
-
-    val maxDuration = remember(resolvedEnter.durationMillis, resolvedExit.durationMillis) {
-        maxOf(resolvedEnter.durationMillis, resolvedExit.durationMillis).coerceAtLeast(1)
-    }
-
-    if (ReaktivDebug.isEnabled) {
-        LaunchedEffect(maxDuration) {
-            ReaktivDebug.nav("⏱️ Animation duration: ${maxDuration}ms")
+    val resolvedEnter =
+        remember(animationDecision.enterTransition, screenWidth, screenHeight, animationDecision.shouldAnimateEnter) {
+            if (animationDecision.shouldAnimateEnter) {
+                animationDecision.enterTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
+            } else null
         }
-    }
+
+    val resolvedExit =
+        remember(animationDecision.exitTransition, screenWidth, screenHeight, animationDecision.shouldAnimateExit) {
+            if (animationDecision.shouldAnimateExit) {
+                animationDecision.exitTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
+            } else null
+        }
 
     val animationTrigger = remember(animationId) { mutableStateOf(false) }
 
     LaunchedEffect(animationId) {
         if (animationId > 0L) {
+            ReaktivDebug.nav("🚀 Starting animation with ID: $animationId")
             animationTrigger.value = true
         }
     }
 
-    val animationProgress by animateFloatAsState(
-        targetValue = if (animationTrigger.value) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = maxDuration,
-            easing = LinearOutSlowInEasing
-        ),
-        finishedListener = { progress ->
-            if (progress == 1f) {
-                if (ReaktivDebug.isEnabled) {
-                    ReaktivDebug.nav("🏁 Animation finished")
-                }
-                onAnimationComplete()
-            }
-        },
-        label = "nav_transition_$animationId"
+    val enterProgress by animateFloatAsState(
+        targetValue = if (animationTrigger.value && animationDecision.shouldAnimateEnter) 1f else 0f,
+        animationSpec = if (animationDecision.shouldAnimateEnter && resolvedEnter != null) {
+            tween(resolvedEnter.durationMillis, 0, LinearOutSlowInEasing)
+        } else tween(0),
+        label = "enter_progress_$animationId"
     )
 
+    val exitProgress by animateFloatAsState(
+        targetValue = if (animationTrigger.value && animationDecision.shouldAnimateExit) 1f else 0f,
+        animationSpec = if (animationDecision.shouldAnimateExit && resolvedExit != null) {
+            tween(resolvedExit.durationMillis, 0, LinearOutSlowInEasing)
+        } else tween(0),
+        label = "exit_progress_$animationId"
+    )
+
+    LaunchedEffect(
+        enterProgress,
+        exitProgress,
+        animationDecision.shouldAnimateEnter,
+        animationDecision.shouldAnimateExit,
+        animationTrigger.value
+    ) {
+        if (animationTrigger.value) {
+            val enterFinished = !animationDecision.shouldAnimateEnter || enterProgress >= 1f
+            val exitFinished = !animationDecision.shouldAnimateExit || exitProgress >= 1f
+
+            if (enterFinished && exitFinished) {
+                ReaktivDebug.nav("🏁 Animation completed")
+                onAnimationComplete()
+            }
+        }
+    }
+
     if (ReaktivDebug.isEnabled) {
-        LaunchedEffect(animationProgress) {
-            if (animationProgress == 0f || animationProgress == 1f) {
-                ReaktivDebug.nav("📊 Animation progress: $animationProgress")
-            }
+        LaunchedEffect(enterProgress, exitProgress) {
+            ReaktivDebug.nav("📊 Progress - Enter: $enterProgress, Exit: $exitProgress")
         }
-    }
-
-    val enterProgress = remember(animationProgress, resolvedEnter.durationMillis, maxDuration, animationTrigger.value) {
-        when {
-            !animationTrigger.value -> 0f
-            resolvedEnter.durationMillis == 0 -> 1f
-            else -> {
-                val progress = (animationProgress * maxDuration / resolvedEnter.durationMillis).coerceIn(0f, 1f)
-                progress
-            }
-        }
-    }
-
-    val exitProgress = remember(animationProgress, resolvedExit.durationMillis, maxDuration, animationTrigger.value) {
-        when {
-            !animationTrigger.value -> 0f
-            resolvedExit.durationMillis == 0 -> 1f
-            else -> {
-                val progress = (animationProgress * maxDuration / resolvedExit.durationMillis).coerceIn(0f, 1f)
-                progress
-            }
-        }
-    }
-
-    val enterAlpha = remember(enterProgress) { resolvedEnter.alpha(enterProgress) }
-    val exitAlpha = remember(exitProgress) { resolvedExit.alpha(exitProgress) }
-
-    if (ReaktivDebug.isEnabled && (animationProgress == 0f || animationProgress == 1f)) {
-        LaunchedEffect(enterAlpha, exitAlpha) {
-            ReaktivDebug.nav("🎨 Alpha values - Enter: $enterAlpha, Exit: $exitAlpha")
-        }
-    }
-
-    val exitTransforms = remember(exitProgress) {
-        Triple(
-            resolvedExit.scaleX(exitProgress),
-            resolvedExit.scaleY(exitProgress),
-            Pair(resolvedExit.translationX(exitProgress), resolvedExit.translationY(exitProgress))
-        )
-    }
-
-    val enterTransforms = remember(enterProgress) {
-        Triple(
-            resolvedEnter.scaleX(enterProgress),
-            resolvedEnter.scaleY(enterProgress),
-            Pair(resolvedEnter.translationX(enterProgress), resolvedEnter.translationY(enterProgress))
-        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (isForward) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = exitAlpha
-                        scaleX = exitTransforms.first
-                        scaleY = exitTransforms.second
-                        translationX = exitTransforms.third.first
-                        translationY = exitTransforms.third.second
-                        rotationZ = resolvedExit.rotationZ(exitProgress)
-                        transformOrigin = TransformOrigin.Center
-                    }
-            ) {
-                content(previousEntry.navigatable, previousEntry.params)
+        val enterScreenAnimated = animationDecision.shouldAnimateEnter
+        val exitScreenAnimated = animationDecision.shouldAnimateExit
+
+        when {
+            enterScreenAnimated && !exitScreenAnimated -> {
+                RenderExitScreen(previousEntry, resolvedExit, exitProgress, content)
+                RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, content)
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = enterAlpha
-                        scaleX = enterTransforms.first
-                        scaleY = enterTransforms.second
-                        translationX = enterTransforms.third.first
-                        translationY = enterTransforms.third.second
-                        rotationZ = resolvedEnter.rotationZ(enterProgress)
-                        transformOrigin = TransformOrigin.Center
-                    }
-            ) {
-                content(currentEntry.navigatable, currentEntry.params)
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = enterAlpha
-                        scaleX = enterTransforms.first
-                        scaleY = enterTransforms.second
-                        translationX = enterTransforms.third.first
-                        translationY = enterTransforms.third.second
-                        rotationZ = resolvedEnter.rotationZ(enterProgress)
-                        transformOrigin = TransformOrigin.Center
-                    }
-            ) {
-                content(currentEntry.navigatable, currentEntry.params)
+            !enterScreenAnimated && exitScreenAnimated -> {
+                RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, content)
+                RenderExitScreen(previousEntry, resolvedExit, exitProgress, content)
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = exitAlpha
-                        scaleX = exitTransforms.first
-                        scaleY = exitTransforms.second
-                        translationX = exitTransforms.third.first
-                        translationY = exitTransforms.third.second
-                        rotationZ = resolvedExit.rotationZ(exitProgress)
-                        transformOrigin = TransformOrigin.Center
-                    }
-            ) {
-                content(previousEntry.navigatable, previousEntry.params)
+            else -> {
+                if (animationDecision.isForward) {
+                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, content)
+                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, content)
+                } else {
+                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, content)
+                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, content)
+                }
             }
         }
     }
 }
 
-private fun getTransitionPair(
-    currentEntry: NavigationEntry,
-    previousEntry: NavigationEntry,
-    isForward: Boolean
-): Pair<NavTransition, NavTransition> {
-
-    if (ReaktivDebug.isEnabled) {
-        ReaktivDebug.nav("🎭 getTransitionPair:")
-        ReaktivDebug.nav("  Current: ${currentEntry.navigatable.route} (destination)")
-        ReaktivDebug.nav("  Previous: ${previousEntry.navigatable.route} (source)")
-        ReaktivDebug.nav("  Is forward: $isForward")
+@Composable
+private fun RenderEnterScreen(
+    entry: NavigationEntry,
+    resolvedTransition: ResolvedNavTransition?,
+    progress: Float,
+    content: @Composable (Navigatable, StringAnyMap) -> Unit
+) {
+    if (resolvedTransition != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = resolvedTransition.alpha(progress)
+                    scaleX = resolvedTransition.scaleX(progress)
+                    scaleY = resolvedTransition.scaleY(progress)
+                    translationX = resolvedTransition.translationX(progress)
+                    translationY = resolvedTransition.translationY(progress)
+                    rotationZ = resolvedTransition.rotationZ(progress)
+                    transformOrigin = TransformOrigin.Center
+                }
+                .zIndex(1f)
+        ) {
+            content(entry.navigatable, entry.params)
+        }
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
+            content(entry.navigatable, entry.params)
+        }
     }
+}
 
-    val enterTransition = when {
-        !isForward -> previousEntry.navigatable.popEnterTransition ?: currentEntry.navigatable.enterTransition
-        else -> currentEntry.navigatable.enterTransition
+@Composable
+private fun RenderExitScreen(
+    entry: NavigationEntry,
+    resolvedTransition: ResolvedNavTransition?,
+    progress: Float,
+    content: @Composable (Navigatable, StringAnyMap) -> Unit
+) {
+    if (resolvedTransition != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = resolvedTransition.alpha(progress)
+                    scaleX = resolvedTransition.scaleX(progress)
+                    scaleY = resolvedTransition.scaleY(progress)
+                    translationX = resolvedTransition.translationX(progress)
+                    translationY = resolvedTransition.translationY(progress)
+                    rotationZ = resolvedTransition.rotationZ(progress)
+                    transformOrigin = TransformOrigin.Center
+                }
+                .zIndex(0f)
+        ) {
+            content(entry.navigatable, entry.params)
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(0f)
+        ) {
+            content(entry.navigatable, entry.params)
+        }
     }
-
-    val exitTransition = when {
-        isForward -> currentEntry.navigatable.popExitTransition ?: previousEntry.navigatable.exitTransition
-        else -> previousEntry.navigatable.exitTransition
-    }
-
-    if (ReaktivDebug.isEnabled) {
-        ReaktivDebug.nav("  Enter transition (${currentEntry.navigatable.route}): $enterTransition")
-        ReaktivDebug.nav("  Exit transition (${previousEntry.navigatable.route}): $exitTransition")
-    }
-
-    return enterTransition to exitTransition
 }
