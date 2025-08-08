@@ -182,9 +182,13 @@ private fun RenderEnterScreen(
                         rotationZ = resolvedTransition.rotationZ(progress)
                         transformOrigin = TransformOrigin.Center
                     }
-                    .zIndex(1f)
+                    .zIndex(2f)
             ) {
-                Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor)
+                ) {
                     content()
                 }
             }
@@ -192,7 +196,7 @@ private fun RenderEnterScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(1f)
+                    .zIndex(0f)
                     .background(backgroundColor)
             ) {
                 content()
@@ -223,9 +227,13 @@ private fun RenderExitScreen(
                         rotationZ = resolvedTransition.rotationZ(progress)
                         transformOrigin = TransformOrigin.Center
                     }
-                    .zIndex(0f)
+                    .zIndex(1f)
             ) {
-                Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor)
+                ) {
                     content()
                 }
             }
@@ -233,7 +241,6 @@ private fun RenderExitScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(0f)
                     .background(backgroundColor)
             ) {
                 content()
