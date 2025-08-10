@@ -12,9 +12,11 @@ import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
+@Serializable
 enum class NavigationOperation {
     Navigate,
     Replace,
@@ -52,6 +54,9 @@ class NavigationBuilder(
 
     @PublishedApi
     internal var shouldForwardParams: Boolean = false
+
+    @PublishedApi
+    internal var shouldBypassSpamProtection: Boolean = false
 
     fun navigateTo(path: String): NavigationBuilder {
         this.target = NavigationTarget.Path(path)
@@ -136,10 +141,18 @@ class NavigationBuilder(
         return this
     }
 
-
     @Deprecated("This introduces a bad pattern for knowing when to clear data, don't use it")
     fun forwardParams(): NavigationBuilder {
         this.shouldForwardParams = true
+        return this
+    }
+
+    /**
+     * Bypass spam protection for this navigation operation
+     * Use this for programmatic navigation sequences where you want to allow rapid navigation
+     */
+    fun bypassSpamProtection(): NavigationBuilder {
+        this.shouldBypassSpamProtection = true
         return this
     }
 

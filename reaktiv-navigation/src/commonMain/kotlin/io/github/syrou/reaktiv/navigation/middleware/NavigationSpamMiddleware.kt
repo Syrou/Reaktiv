@@ -21,7 +21,7 @@ class NavigationSpamMiddleware(
     private val enableDuplicateDetection: Boolean = true,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 ) {
-    
+
     private var lastNavigationAction: NavigationAction? = null
     private var isNavigating = false
     private var debounceJob: Job? = null
@@ -36,16 +36,27 @@ class NavigationSpamMiddleware(
             scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         ): Middleware {
             val middleware = NavigationSpamMiddleware(debounceTimeMs, enableDuplicateDetection, scope)
-            
+
             return { action, getAllStates, storeAccessor, updatedState ->
                 if (action is NavigationAction) {
-                    if (middleware.shouldBlockAction(action)) {
-                        ReaktivDebug.nav("🚫 Blocked spam navigation action: ${action::class.simpleName}")
-                    }else {
-                        middleware.trackAction(action)
-                        updatedState(action)
+                    when {
+                        // Check bypass flag first
+                        action.bypassSpamProtection -> {
+                            ReaktivDebug.nav("⚡ Bypassing spam protection: ${action::class.simpleName}")
+                            updatedState(action)
+                        }
+
+                        // Apply normal spam protection
+                        else -> {
+                            if (middleware.shouldBlockAction(action)) {
+                                ReaktivDebug.nav("🚫 Blocked navigation spam: ${action::class.simpleName}")
+                            } else {
+                                middleware.trackAction(action)
+                                updatedState(action)
+                            }
+                        }
                     }
-                }else{
+                } else {
                     updatedState(action)
                 }
             }
@@ -59,6 +70,7 @@ class NavigationSpamMiddleware(
             ReaktivDebug.nav("⏱️ Blocking action - within debounce window")
             return@withLock true
         }
+
         if (enableDuplicateDetection && isDuplicateAction(action)) {
             ReaktivDebug.nav("🔄 Blocking action - duplicate detected")
             return@withLock true
@@ -114,7 +126,7 @@ class NavigationSpamMiddleware(
             }
         }
     }
-    
+
     fun cleanup() {
         debounceJob?.cancel()
         scope.cancel()

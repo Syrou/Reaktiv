@@ -8,6 +8,8 @@ import androidx.work.WorkManager
 import eu.syrou.androidexample.domain.logic.NotificationHelper
 import eu.syrou.androidexample.domain.network.news.PeriodicNewsFetches
 import eu.syrou.androidexample.domain.network.news.PeriodicNewsFetchesFactory
+import eu.syrou.androidexample.reaktiv.TestNavigationModule.TestNavigationModule
+import eu.syrou.androidexample.reaktiv.middleware.createTestNavigationMiddleware
 import eu.syrou.androidexample.reaktiv.news.NewsModule
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import eu.syrou.androidexample.reaktiv.twitchstreams.TwitchStreamsModule
@@ -63,6 +65,7 @@ class CustomApplication : Application() {
         )
         module(SettingsModule)
         module(VideosModule)
+        module(TestNavigationModule)
         module(TwitchStreamsModule)
         module(
             createNavigationModule {
@@ -113,7 +116,7 @@ class CustomApplication : Application() {
                 }
             }
         )
-        middlewares(loggingMiddleware, NavigationSpamMiddleware.create())
+        middlewares(loggingMiddleware, NavigationSpamMiddleware.create(), createTestNavigationMiddleware())
         coroutineContext(Dispatchers.Default)
     }
 

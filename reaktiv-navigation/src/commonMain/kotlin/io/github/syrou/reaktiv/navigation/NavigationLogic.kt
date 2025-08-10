@@ -18,15 +18,21 @@ class NavigationLogic(
     private val parameterEncoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
 ) : ModuleLogic<NavigationAction>() {
 
-    
-    internal suspend fun navigate(block: suspend NavigationBuilder.() -> Unit) {
+
+    /**
+     * Execute a single navigation operation synchronously
+     * This ensures that when the method returns, the navigation state has been updated
+     */
+    suspend fun navigate(block: suspend NavigationBuilder.() -> Unit) {
         val builder = NavigationBuilder(storeAccessor, parameterEncoder)
         builder.apply { block() }
         builder.validate()
         executeNavigation(builder)
     }
 
-    
+    /**
+     * Navigate to a specific route with parameters
+     */
     suspend fun navigate(
         route: String,
         params: Map<String, Any> = emptyMap(),
@@ -39,7 +45,9 @@ class NavigationLogic(
         }
     }
 
-    
+    /**
+     * Navigate back in the navigation stack
+     */
     suspend fun navigateBack() {
         val currentState = getCurrentNavigationState()
         if (!currentState.canGoBack) {
@@ -51,14 +59,18 @@ class NavigationLogic(
         }
     }
 
-    
+    /**
+     * Pop up to a specific route in the backstack
+     */
     suspend fun popUpTo(route: String, inclusive: Boolean = false) {
         navigate {
             popUpTo(route, inclusive)
         }
     }
 
-    
+    /**
+     * Replace the current screen with a new one
+     */
     suspend fun replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
         navigate {
             replaceWith(route)
@@ -66,7 +78,9 @@ class NavigationLogic(
         }
     }
 
-    
+    /**
+     * Clear the entire backstack and optionally navigate to a new route
+     */
     suspend fun clearBackStack(newRoute: String? = null, params: Map<String, Any> = emptyMap()) {
         if (newRoute != null) {
             navigate {
@@ -80,6 +94,7 @@ class NavigationLogic(
             }
         }
     }
+
     suspend fun clearCurrentScreenParams() {
         val currentState = getCurrentNavigationState()
         val updatedEntry = currentState.currentEntry.copy(params = emptyMap())
@@ -163,13 +178,15 @@ class NavigationLogic(
         )
     }
 
-    
+    /**
+     * Execute the navigation operation built by NavigationBuilder
+     */
     private suspend fun executeNavigation(builder: NavigationBuilder) {
         val currentState = getCurrentNavigationState()
 
         when (builder.operation) {
             NavigationOperation.Back -> {
-                executeBackOperation(currentState)
+                executeBackOperation(currentState, builder.shouldBypassSpamProtection)
             }
 
             NavigationOperation.PopUpTo -> {
@@ -200,7 +217,9 @@ class NavigationLogic(
         }
     }
 
-    
+    /**
+     * Execute a standard navigation operation and return the action
+     */
     private suspend fun executeNavigationOperation(
         builder: NavigationBuilder,
         currentState: NavigationState
@@ -226,12 +245,15 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.BatchUpdate(
                 currentEntry = finalEntry,
-                backStack = newBackStack
+                backStack = newBackStack,
+                bypassSpamProtection = builder.shouldBypassSpamProtection
             )
         )
     }
 
-    
+    /**
+     * Execute a replace operation and return the action
+     */
     private suspend fun executeReplaceOperation(
         builder: NavigationBuilder,
         currentState: NavigationState
@@ -257,12 +279,15 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.BatchUpdate(
                 currentEntry = finalEntry,
-                backStack = newBackStack
+                backStack = newBackStack,
+                bypassSpamProtection = builder.shouldBypassSpamProtection
             )
         )
     }
 
-    
+    /**
+     * Execute a modal presentation operation and return the action
+     */
     private suspend fun executeModalOperation(
         builder: NavigationBuilder,
         currentState: NavigationState
@@ -288,16 +313,22 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.BatchUpdate(
                 currentEntry = finalEntry,
-                backStack = newBackStack
+                backStack = newBackStack,
+                bypassSpamProtection = builder.shouldBypassSpamProtection
             )
         )
     }
 
-    
-    private suspend fun executeBackOperation(currentState: NavigationState) {
+    /**
+     * Execute a back navigation operation and return the action
+     */
+    private suspend fun executeBackOperation(
+        currentState: NavigationState,
+        bypassSpamProtection: Boolean = false
+    ) {
         if (!currentState.canGoBack) {
             ReaktivDebug.nav("⛔ Cannot navigate back - no history available")
-            return
+            throw IllegalStateException("Cannot navigate back - no history available")
         }
 
         val newBackStack = currentState.backStack.dropLast(1)
@@ -311,12 +342,15 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.Back(
                 currentEntry = updatedTargetEntry,
-                backStack = finalBackStack
+                backStack = finalBackStack,
+                bypassSpamProtection = bypassSpamProtection
             )
         )
     }
 
-    
+    /**
+     * Execute a popUpTo operation and return the action
+     */
     private suspend fun executePopUpToOperation(
         builder: NavigationBuilder,
         currentState: NavigationState
@@ -365,12 +399,15 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.BatchUpdate(
                 currentEntry = newCurrentEntry,
-                backStack = finalBackStack
+                backStack = finalBackStack,
+                bypassSpamProtection = builder.shouldBypassSpamProtection
             )
         )
     }
 
-    
+    /**
+     * Execute a clear backstack operation and return the action
+     */
     private suspend fun executeClearBackStackOperation(
         builder: NavigationBuilder,
         currentState: NavigationState
@@ -398,7 +435,8 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.ClearBackstack(
                 currentEntry = newCurrentEntry,
-                backStack = finalBackStack
+                backStack = finalBackStack,
+                bypassSpamProtection = builder.shouldBypassSpamProtection
             )
         )
     }
@@ -417,7 +455,9 @@ class NavigationLogic(
         }
     }
 
-    
+    /**
+     * Get the current navigation state
+     */
     private suspend fun getCurrentNavigationState(): NavigationState {
         return storeAccessor.selectState<NavigationState>().first()
     }

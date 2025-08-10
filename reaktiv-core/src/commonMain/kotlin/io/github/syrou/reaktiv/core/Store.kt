@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.PolymorphicModuleBuilder
 import kotlinx.serialization.modules.SerializersModule
@@ -42,6 +43,7 @@ interface ModuleState
 interface HighPriorityAction
 
 
+@Serializable
 abstract class ModuleAction(internal val moduleTag: KClass<*>)
 
 
