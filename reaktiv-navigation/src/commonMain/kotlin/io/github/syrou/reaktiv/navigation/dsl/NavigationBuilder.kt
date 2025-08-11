@@ -10,6 +10,8 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
+import io.github.syrou.reaktiv.navigation.util.CommonUrlEncoder
+import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -59,8 +61,15 @@ class NavigationBuilder(
     internal var shouldBypassSpamProtection: Boolean = false
 
     fun navigateTo(path: String): NavigationBuilder {
-        this.target = NavigationTarget.Path(path)
+        val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
+        this.target = NavigationTarget.Path(cleanPath)
         this.operation = NavigationOperation.Navigate
+
+        // Add parsed query parameters to the builder's params
+        queryParams.forEach { (key, value) ->
+            params[key] = value
+        }
+
         return this
     }
 
@@ -95,9 +104,16 @@ class NavigationBuilder(
     }
 
     fun replaceWith(path: String): NavigationBuilder {
-        this.target = NavigationTarget.Path(path)
+        val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
+        this.target = NavigationTarget.Path(cleanPath)
         this.operation = NavigationOperation.Replace
         this.shouldReplaceWith = true
+
+        // Add parsed query parameters to the builder's params
+        queryParams.forEach { (key, value) ->
+            params[key] = value
+        }
+
         return this
     }
 
@@ -114,9 +130,11 @@ class NavigationBuilder(
     }
 
     fun popUpTo(path: String, inclusive: Boolean = false): NavigationBuilder {
-        this.popUpToTarget = NavigationTarget.Path(path)
+        val (cleanPath, _) = parseUrlWithQueryParams(path)
+        this.popUpToTarget = NavigationTarget.Path(cleanPath)
         this.popUpToInclusive = inclusive
         this.operation = NavigationOperation.PopUpTo
+        // Note: We don't add query params for popUpTo targets as they're used for matching
         return this
     }
 
