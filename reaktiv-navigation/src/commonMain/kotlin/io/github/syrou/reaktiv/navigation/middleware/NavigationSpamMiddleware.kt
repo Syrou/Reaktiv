@@ -70,11 +70,7 @@ class NavigationSpamMiddleware(
             ReaktivDebug.nav("⏱️ Blocking action - within debounce window")
             return@withLock true
         }
-
-        if (enableDuplicateDetection && isDuplicateAction(action)) {
-            ReaktivDebug.nav("🔄 Blocking action - duplicate detected")
-            return@withLock true
-        }
+        
         if (action is NavigationAction.BatchUpdate && action.currentEntry != null) {
             val routeKey = "${action.currentEntry.screen.route}-${action.currentEntry.graphId}"
             
@@ -85,19 +81,6 @@ class NavigationSpamMiddleware(
         }
 
         return@withLock false
-    }
-
-    private fun isDuplicateAction(action: NavigationAction): Boolean {
-        return when {
-            action == lastNavigationAction -> true
-            action is NavigationAction.BatchUpdate && lastNavigationAction is NavigationAction.BatchUpdate -> {
-                val last = lastNavigationAction as NavigationAction.BatchUpdate
-                action.currentEntry?.screen?.route == last.currentEntry?.screen?.route &&
-                action.currentEntry?.graphId == last.currentEntry?.graphId &&
-                action.currentEntry?.params == last.currentEntry?.params
-            }
-            else -> false
-        }
     }
 
     private fun trackAction(action: NavigationAction) {
