@@ -124,7 +124,7 @@ class NavigationLogic(
 
     suspend fun clearScreenParams(route: String) {
         val currentState = getCurrentNavigationState()
-        if (!currentState.hasRoute(route)) {
+        if (!precomputedData.routeToNavigatable.containsKey(route)) {
             throw RouteNotFoundException("Route $route not found")
         }
 
@@ -152,7 +152,7 @@ class NavigationLogic(
 
     suspend fun clearScreenParam(route: String, key: String) {
         val currentState = getCurrentNavigationState()
-        if (!currentState.hasRoute(route)) {
+        if (!precomputedData.routeToNavigatable.containsKey(route)) {
             throw RouteNotFoundException("Route $route not found")
         }
 
@@ -227,7 +227,7 @@ class NavigationLogic(
         val resolvedRoute = builder.target?.resolve(precomputedData)
             ?: throw IllegalStateException("Navigate operation requires a target")
 
-        val resolution = precomputedData.routeResolver.resolve(resolvedRoute, currentState.availableNavigatables)
+        val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
             ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
         val stackPosition = currentState.backStack.size + 1
@@ -261,7 +261,7 @@ class NavigationLogic(
         val resolvedRoute = builder.target?.resolve(precomputedData)
             ?: throw IllegalStateException("Replace operation requires a target")
 
-        val resolution = precomputedData.routeResolver.resolve(resolvedRoute, currentState.availableNavigatables)
+        val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
             ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
         val stackPosition = currentState.backStack.size
@@ -295,7 +295,7 @@ class NavigationLogic(
         val resolvedRoute = builder.target?.resolve(precomputedData)
             ?: throw IllegalStateException("Modal operation requires a target")
 
-        val resolution = precomputedData.routeResolver.resolve(resolvedRoute, currentState.availableNavigatables)
+        val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
             ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
         val stackPosition = currentState.backStack.size + 1
@@ -374,7 +374,7 @@ class NavigationLogic(
 
         val finalBackStack = if (builder.target != null) {
             val resolvedRoute = builder.target!!.resolve(precomputedData)
-            val resolution = precomputedData.routeResolver.resolve(resolvedRoute, currentState.availableNavigatables)
+            val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
                 ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
             val stackPosition = newBackStackAfterPop.size + 1
@@ -414,7 +414,7 @@ class NavigationLogic(
     ) {
         val finalBackStack = if (builder.target != null) {
             val resolvedRoute = builder.target!!.resolve(precomputedData)
-            val resolution = precomputedData.routeResolver.resolve(resolvedRoute, currentState.availableNavigatables)
+            val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
                 ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
             val mergedParams = resolution.extractedParams + builder.encodeParameters()

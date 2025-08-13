@@ -6,10 +6,13 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
+import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
+import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import kotlinx.coroutines.CoroutineScope
@@ -56,17 +59,47 @@ class NavigationModule internal constructor(
 
         val effectiveGraphId = resolution.getEffectiveGraphId()
 
-        // Create initial entry with precomputed data
+        // Create initial entry
         val initialEntry = NavigationEntry(
             navigatable = resolution.targetNavigatable,
             params = emptyMap(),
             graphId = effectiveGraphId
         )
+        
+        val initialBackStack = listOf(initialEntry)
+        
+        // Compute all derived state
+        val computedState = computeNavigationDerivedState(
+            currentEntry = initialEntry,
+            backStack = initialBackStack,
+            precomputedData = precomputedData
+        )
 
         return NavigationState(
             currentEntry = initialEntry,
-            backStack = listOf(initialEntry),
-            precomputedData = precomputedData
+            backStack = initialBackStack,
+            orderedBackStack = computedState.orderedBackStack,
+            visibleLayers = computedState.visibleLayers,
+            currentFullPath = computedState.currentFullPath,
+            currentPathSegments = computedState.currentPathSegments,
+            currentGraphHierarchy = computedState.currentGraphHierarchy,
+            breadcrumbs = computedState.breadcrumbs,
+            canGoBack = computedState.canGoBack,
+            isCurrentModal = computedState.isCurrentModal,
+            isCurrentScreen = computedState.isCurrentScreen,
+            hasModalsInStack = computedState.hasModalsInStack,
+            effectiveDepth = computedState.effectiveDepth,
+            navigationDepth = computedState.navigationDepth,
+            contentLayerEntries = computedState.contentLayerEntries,
+            globalOverlayEntries = computedState.globalOverlayEntries,
+            systemLayerEntries = computedState.systemLayerEntries,
+            renderableEntries = computedState.renderableEntries,
+            underlyingScreen = computedState.underlyingScreen,
+            modalsInStack = computedState.modalsInStack,
+            graphDefinitions = precomputedData.graphDefinitions,
+            availableRoutes = precomputedData.routeToNavigatable.keys,
+            allAvailableNavigatables = precomputedData.allNavigatables,
+            graphHierarchyLookup = precomputedData.graphHierarchies
         )
     }
 
@@ -94,32 +127,154 @@ class NavigationModule internal constructor(
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
             is NavigationAction.BatchUpdate -> {
+                val newCurrentEntry = action.currentEntry ?: state.currentEntry
+                val newBackStack = action.backStack ?: state.backStack
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = newCurrentEntry,
+                    backStack = newBackStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
-                    currentEntry = action.currentEntry ?: state.currentEntry,
-                    backStack = action.backStack ?: state.backStack,
+                    currentEntry = newCurrentEntry,
+                    backStack = newBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = precomputedData.graphDefinitions,
+                    availableRoutes = precomputedData.routeToNavigatable.keys,
+                    allAvailableNavigatables = precomputedData.allNavigatables,
+                    graphHierarchyLookup = precomputedData.graphHierarchies
                 )
             }
 
             is NavigationAction.Back -> {
+                val newCurrentEntry = action.currentEntry ?: state.currentEntry
+                val newBackStack = action.backStack ?: state.backStack
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = newCurrentEntry,
+                    backStack = newBackStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
-                    currentEntry = action.currentEntry ?: state.currentEntry,
-                    backStack = action.backStack ?: state.backStack,
+                    currentEntry = newCurrentEntry,
+                    backStack = newBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = precomputedData.graphDefinitions,
+                    availableRoutes = precomputedData.routeToNavigatable.keys,
+                    allAvailableNavigatables = precomputedData.allNavigatables,
+                    graphHierarchyLookup = precomputedData.graphHierarchies
                 )
             }
 
             is NavigationAction.ClearBackstack -> {
+                val newCurrentEntry = action.currentEntry ?: state.currentEntry
+                val newBackStack = action.backStack ?: state.backStack
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = newCurrentEntry,
+                    backStack = newBackStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
-                    currentEntry = action.currentEntry ?: state.currentEntry,
-                    backStack = action.backStack ?: state.backStack,
+                    currentEntry = newCurrentEntry,
+                    backStack = newBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = precomputedData.graphDefinitions,
+                    availableRoutes = precomputedData.routeToNavigatable.keys,
+                    allAvailableNavigatables = precomputedData.allNavigatables,
+                    graphHierarchyLookup = precomputedData.graphHierarchies
                 )
             }
 
             is NavigationAction.ClearCurrentScreenParams -> {
                 val updatedEntry = state.currentEntry.copy(params = emptyMap())
                 val updatedBackStack = state.backStack.dropLast(1) + updatedEntry
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = updatedEntry,
+                    backStack = updatedBackStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
                     currentEntry = updatedEntry,
-                    backStack = updatedBackStack
+                    backStack = updatedBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = state.graphDefinitions,
+                    availableRoutes = state.availableRoutes,
+                    allAvailableNavigatables = state.allAvailableNavigatables,
+                    graphHierarchyLookup = state.graphHierarchyLookup
                 )
             }
 
@@ -128,9 +283,38 @@ class NavigationModule internal constructor(
                     params = state.currentEntry.params - action.key
                 )
                 val updatedBackStack = state.backStack.dropLast(1) + updatedEntry
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = updatedEntry,
+                    backStack = updatedBackStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
                     currentEntry = updatedEntry,
-                    backStack = updatedBackStack
+                    backStack = updatedBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = state.graphDefinitions,
+                    availableRoutes = state.availableRoutes,
+                    allAvailableNavigatables = state.allAvailableNavigatables,
+                    graphHierarchyLookup = state.graphHierarchyLookup
                 )
             }
 
@@ -147,9 +331,38 @@ class NavigationModule internal constructor(
                 } else {
                     state.currentEntry
                 }
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = updatedCurrentEntry,
+                    backStack = updatedBackStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
                     currentEntry = updatedCurrentEntry,
-                    backStack = updatedBackStack
+                    backStack = updatedBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = state.graphDefinitions,
+                    availableRoutes = state.availableRoutes,
+                    allAvailableNavigatables = state.allAvailableNavigatables,
+                    graphHierarchyLookup = state.graphHierarchyLookup
                 )
             }
 
@@ -166,26 +379,113 @@ class NavigationModule internal constructor(
                 } else {
                     state.currentEntry
                 }
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = updatedCurrentEntry,
+                    backStack = updatedBackStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
                     currentEntry = updatedCurrentEntry,
-                    backStack = updatedBackStack
+                    backStack = updatedBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = state.graphDefinitions,
+                    availableRoutes = state.availableRoutes,
+                    allAvailableNavigatables = state.allAvailableNavigatables,
+                    graphHierarchyLookup = state.graphHierarchyLookup
                 )
             }
 
             // Legacy actions - maintain compatibility
             is NavigationAction.UpdateCurrentEntry -> {
                 val updatedBackStack = state.backStack.dropLast(1) + action.entry
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = action.entry,
+                    backStack = updatedBackStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
                     currentEntry = action.entry,
-                    backStack = updatedBackStack
+                    backStack = updatedBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = state.graphDefinitions,
+                    availableRoutes = state.availableRoutes,
+                    allAvailableNavigatables = state.allAvailableNavigatables,
+                    graphHierarchyLookup = state.graphHierarchyLookup
                 )
             }
 
             is NavigationAction.UpdateBackStack -> {
                 val newCurrentEntry = action.backStack.lastOrNull() ?: state.currentEntry
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = newCurrentEntry,
+                    backStack = action.backStack,
+                    precomputedData = precomputedData
+                )
+                
                 state.copy(
                     currentEntry = newCurrentEntry,
-                    backStack = action.backStack
+                    backStack = action.backStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = state.graphDefinitions,
+                    availableRoutes = state.availableRoutes,
+                    allAvailableNavigatables = state.allAvailableNavigatables,
+                    graphHierarchyLookup = state.graphHierarchyLookup
                 )
             }
 
@@ -317,6 +617,166 @@ data class PrecomputedNavigationData(
             return pathSegments.joinToString("/")
         }
     }
+}
+
+// Internal data class for computed navigation state
+private data class ComputedNavigationState(
+    val orderedBackStack: List<NavigationEntry>,
+    val visibleLayers: List<NavigationLayer>,
+    val currentFullPath: String,
+    val currentPathSegments: List<String>,
+    val currentGraphHierarchy: List<String>,
+    val breadcrumbs: List<NavigationBreadcrumb>,
+    val canGoBack: Boolean,
+    val isCurrentModal: Boolean,
+    val isCurrentScreen: Boolean,
+    val hasModalsInStack: Boolean,
+    val effectiveDepth: Int,
+    val navigationDepth: Int,
+    val contentLayerEntries: List<NavigationEntry>,
+    val globalOverlayEntries: List<NavigationEntry>, 
+    val systemLayerEntries: List<NavigationEntry>,
+    val renderableEntries: List<NavigationEntry>,
+    val underlyingScreen: NavigationEntry?,
+    val modalsInStack: List<NavigationEntry>
+)
+
+// Internal computation function
+private fun computeNavigationDerivedState(
+    currentEntry: NavigationEntry,
+    backStack: List<NavigationEntry>,
+    precomputedData: PrecomputedNavigationData
+): ComputedNavigationState {
+    // Compute ordered back stack
+    val orderedBackStack = backStack.mapIndexed { index, entry ->
+        entry.copy(stackPosition = index)
+    }
+    
+    // Compute visible layers
+    val visibleLayers = computeVisibleLayers(orderedBackStack)
+    
+    // Compute current full path
+    val currentFullPath = precomputedData.routeResolver.buildFullPathForEntry(currentEntry)
+        ?: currentEntry.navigatable.route
+        
+    // Compute path segments
+    val currentPathSegments = currentFullPath.split("/").filter { it.isNotEmpty() }
+    
+    // Compute current graph hierarchy
+    val currentGraphHierarchy = precomputedData.graphHierarchies[currentEntry.graphId] 
+        ?: listOf(currentEntry.graphId)
+    
+    // Compute breadcrumbs
+    val breadcrumbs = buildBreadcrumbs(currentPathSegments, precomputedData.graphDefinitions)
+    
+    // Compute boolean flags
+    val canGoBack = backStack.size > 1
+    val isCurrentModal = currentEntry.isModal
+    val isCurrentScreen = currentEntry.isScreen
+    val hasModalsInStack = backStack.any { it.isModal }
+    val effectiveDepth = backStack.size
+    val navigationDepth = currentPathSegments.size
+    
+    // Compute layer entries
+    val entriesByLayer = visibleLayers.map { it.entry }.groupBy { it.navigatable.renderLayer }
+    val contentLayerEntries = entriesByLayer[RenderLayer.CONTENT] ?: emptyList()
+    val globalOverlayEntries = entriesByLayer[RenderLayer.GLOBAL_OVERLAY] ?: emptyList()
+    val systemLayerEntries = entriesByLayer[RenderLayer.SYSTEM] ?: emptyList()
+    val renderableEntries = visibleLayers.map { it.entry }
+    
+    // Compute modal-specific state
+    val underlyingScreen = if (isCurrentModal) {
+        orderedBackStack.asReversed().drop(1).firstOrNull { it.isScreen }
+    } else null
+    val modalsInStack = backStack.filter { it.isModal }
+    
+    return ComputedNavigationState(
+        orderedBackStack = orderedBackStack,
+        visibleLayers = visibleLayers,
+        currentFullPath = currentFullPath,
+        currentPathSegments = currentPathSegments,
+        currentGraphHierarchy = currentGraphHierarchy,
+        breadcrumbs = breadcrumbs,
+        canGoBack = canGoBack,
+        isCurrentModal = isCurrentModal,
+        isCurrentScreen = isCurrentScreen,
+        hasModalsInStack = hasModalsInStack,
+        effectiveDepth = effectiveDepth,
+        navigationDepth = navigationDepth,
+        contentLayerEntries = contentLayerEntries,
+        globalOverlayEntries = globalOverlayEntries,
+        systemLayerEntries = systemLayerEntries,
+        renderableEntries = renderableEntries,
+        underlyingScreen = underlyingScreen,
+        modalsInStack = modalsInStack
+    )
+}
+
+private fun computeVisibleLayers(orderedBackStack: List<NavigationEntry>): List<NavigationLayer> {
+    if (orderedBackStack.isEmpty()) return emptyList()
+
+    val layers = mutableListOf<NavigationLayer>()
+    val currentEntry = orderedBackStack.last()
+
+    if (currentEntry.isModal) {
+        val modal = currentEntry.navigatable as Modal
+        val underlyingScreen = orderedBackStack.asReversed().drop(1).firstOrNull { it.isScreen }
+
+        if (underlyingScreen != null) {
+            layers.add(
+                NavigationLayer(
+                    entry = underlyingScreen,
+                    zIndex = underlyingScreen.zIndex,
+                    isVisible = true,
+                    shouldDim = modal.shouldDimBackground,
+                    dimAlpha = if (modal.shouldDimBackground) modal.backgroundDimAlpha else 0f
+                )
+            )
+        }
+        layers.add(
+            NavigationLayer(
+                entry = currentEntry,
+                zIndex = currentEntry.zIndex,
+                isVisible = true,
+                shouldDim = false
+            )
+        )
+
+        return layers.sortedBy { it.zIndex }
+    }
+    layers.add(
+        NavigationLayer(
+            entry = currentEntry,
+            zIndex = currentEntry.zIndex,
+            isVisible = true,
+            shouldDim = false
+        )
+    )
+
+    return layers
+}
+
+private fun buildBreadcrumbs(
+    pathSegments: List<String>, 
+    graphDefinitions: Map<String, NavigationGraph>
+): List<NavigationBreadcrumb> {
+    val breadcrumbs = mutableListOf<NavigationBreadcrumb>()
+
+    for (i in pathSegments.indices) {
+        val segmentPath = pathSegments.take(i + 1).joinToString("/")
+        val segment = pathSegments[i]
+        val isGraph = graphDefinitions.containsKey(segment)
+
+        breadcrumbs.add(
+            NavigationBreadcrumb(
+                label = segment.replaceFirstChar { it.uppercase() },
+                path = segmentPath,
+                isGraph = isGraph
+            )
+        )
+    }
+
+    return breadcrumbs
 }
 
 fun createNavigationModule(block: GraphBasedBuilder.() -> Unit): NavigationModule {
