@@ -5,6 +5,7 @@ import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import kotlinx.serialization.Serializable
@@ -44,7 +45,8 @@ data class NavigationState(
     val graphDefinitions: Map<String, NavigationGraph>,
     val availableRoutes: Set<String>,
     val allAvailableNavigatables: Map<String, Navigatable>,
-    val graphHierarchyLookup: Map<String, List<String>>
+    val graphHierarchyLookup: Map<String, List<String>>,
+    val activeModalContexts: Map<String, ModalContext>
 ) : ModuleState {
     
     // External compatibility methods
@@ -85,3 +87,4 @@ data class NavigationBreadcrumb(
     val path: String,
     val isGraph: Boolean
 )
+

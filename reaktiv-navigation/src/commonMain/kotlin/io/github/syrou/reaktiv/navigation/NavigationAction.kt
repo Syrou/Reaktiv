@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
+import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import kotlinx.serialization.Serializable
 
@@ -28,6 +29,14 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
     data class ClearBackstack(
         val currentEntry: NavigationEntry? = null,
         val backStack: List<NavigationEntry>? = null,
+        override val bypassSpamProtection: Boolean = false,
+    ) : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    data class BatchUpdateWithModalContext(
+        val currentEntry: NavigationEntry? = null,
+        val backStack: List<NavigationEntry>? = null,
+        val modalContexts: Map<String, ModalContext> = emptyMap(),
         override val bypassSpamProtection: Boolean = false,
     ) : NavigationAction(), HighPriorityAction
 

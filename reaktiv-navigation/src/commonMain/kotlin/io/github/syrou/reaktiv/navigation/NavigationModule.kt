@@ -11,6 +11,7 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
@@ -72,7 +73,8 @@ class NavigationModule internal constructor(
         val computedState = computeNavigationDerivedState(
             currentEntry = initialEntry,
             backStack = initialBackStack,
-            precomputedData = precomputedData
+            precomputedData = precomputedData,
+            existingModalContexts = emptyMap()
         )
 
         return NavigationState(
@@ -99,7 +101,8 @@ class NavigationModule internal constructor(
             graphDefinitions = precomputedData.graphDefinitions,
             availableRoutes = precomputedData.routeToNavigatable.keys,
             allAvailableNavigatables = precomputedData.allNavigatables,
-            graphHierarchyLookup = precomputedData.graphHierarchies
+            graphHierarchyLookup = precomputedData.graphHierarchies,
+            activeModalContexts = emptyMap()
         )
     }
 
@@ -133,7 +136,8 @@ class NavigationModule internal constructor(
                 val computedState = computeNavigationDerivedState(
                     currentEntry = newCurrentEntry,
                     backStack = newBackStack,
-                    precomputedData = precomputedData
+                    precomputedData = precomputedData,
+                    existingModalContexts = state.activeModalContexts
                 )
                 
                 state.copy(
@@ -160,7 +164,8 @@ class NavigationModule internal constructor(
                     graphDefinitions = precomputedData.graphDefinitions,
                     availableRoutes = precomputedData.routeToNavigatable.keys,
                     allAvailableNavigatables = precomputedData.allNavigatables,
-                    graphHierarchyLookup = precomputedData.graphHierarchies
+                    graphHierarchyLookup = precomputedData.graphHierarchies,
+                    activeModalContexts = state.activeModalContexts
                 )
             }
 
@@ -171,7 +176,8 @@ class NavigationModule internal constructor(
                 val computedState = computeNavigationDerivedState(
                     currentEntry = newCurrentEntry,
                     backStack = newBackStack,
-                    precomputedData = precomputedData
+                    precomputedData = precomputedData,
+                    existingModalContexts = state.activeModalContexts
                 )
                 
                 state.copy(
@@ -198,7 +204,48 @@ class NavigationModule internal constructor(
                     graphDefinitions = precomputedData.graphDefinitions,
                     availableRoutes = precomputedData.routeToNavigatable.keys,
                     allAvailableNavigatables = precomputedData.allNavigatables,
-                    graphHierarchyLookup = precomputedData.graphHierarchies
+                    graphHierarchyLookup = precomputedData.graphHierarchies,
+                    activeModalContexts = state.activeModalContexts
+                )
+            }
+
+            is NavigationAction.BatchUpdateWithModalContext -> {
+                val newCurrentEntry = action.currentEntry ?: state.currentEntry
+                val newBackStack = action.backStack ?: state.backStack
+                
+                val computedState = computeNavigationDerivedState(
+                    currentEntry = newCurrentEntry,
+                    backStack = newBackStack,
+                    precomputedData = precomputedData,
+                    existingModalContexts = action.modalContexts
+                )
+                
+                state.copy(
+                    currentEntry = newCurrentEntry,
+                    backStack = newBackStack,
+                    orderedBackStack = computedState.orderedBackStack,
+                    visibleLayers = computedState.visibleLayers,
+                    currentFullPath = computedState.currentFullPath,
+                    currentPathSegments = computedState.currentPathSegments,
+                    currentGraphHierarchy = computedState.currentGraphHierarchy,
+                    breadcrumbs = computedState.breadcrumbs,
+                    canGoBack = computedState.canGoBack,
+                    isCurrentModal = computedState.isCurrentModal,
+                    isCurrentScreen = computedState.isCurrentScreen,
+                    hasModalsInStack = computedState.hasModalsInStack,
+                    effectiveDepth = computedState.effectiveDepth,
+                    navigationDepth = computedState.navigationDepth,
+                    contentLayerEntries = computedState.contentLayerEntries,
+                    globalOverlayEntries = computedState.globalOverlayEntries,
+                    systemLayerEntries = computedState.systemLayerEntries,
+                    renderableEntries = computedState.renderableEntries,
+                    underlyingScreen = computedState.underlyingScreen,
+                    modalsInStack = computedState.modalsInStack,
+                    graphDefinitions = precomputedData.graphDefinitions,
+                    availableRoutes = precomputedData.routeToNavigatable.keys,
+                    allAvailableNavigatables = precomputedData.allNavigatables,
+                    graphHierarchyLookup = precomputedData.graphHierarchies,
+                    activeModalContexts = action.modalContexts
                 )
             }
 
@@ -209,7 +256,8 @@ class NavigationModule internal constructor(
                 val computedState = computeNavigationDerivedState(
                     currentEntry = newCurrentEntry,
                     backStack = newBackStack,
-                    precomputedData = precomputedData
+                    precomputedData = precomputedData,
+                    existingModalContexts = state.activeModalContexts
                 )
                 
                 state.copy(
@@ -236,7 +284,8 @@ class NavigationModule internal constructor(
                     graphDefinitions = precomputedData.graphDefinitions,
                     availableRoutes = precomputedData.routeToNavigatable.keys,
                     allAvailableNavigatables = precomputedData.allNavigatables,
-                    graphHierarchyLookup = precomputedData.graphHierarchies
+                    graphHierarchyLookup = precomputedData.graphHierarchies,
+                    activeModalContexts = state.activeModalContexts
                 )
             }
 
@@ -274,7 +323,8 @@ class NavigationModule internal constructor(
                     graphDefinitions = state.graphDefinitions,
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
-                    graphHierarchyLookup = state.graphHierarchyLookup
+                    graphHierarchyLookup = state.graphHierarchyLookup,
+                    activeModalContexts = state.activeModalContexts
                 )
             }
 
@@ -314,7 +364,8 @@ class NavigationModule internal constructor(
                     graphDefinitions = state.graphDefinitions,
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
-                    graphHierarchyLookup = state.graphHierarchyLookup
+                    graphHierarchyLookup = state.graphHierarchyLookup,
+                    activeModalContexts = state.activeModalContexts
                 )
             }
 
@@ -362,7 +413,8 @@ class NavigationModule internal constructor(
                     graphDefinitions = state.graphDefinitions,
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
-                    graphHierarchyLookup = state.graphHierarchyLookup
+                    graphHierarchyLookup = state.graphHierarchyLookup,
+                    activeModalContexts = state.activeModalContexts
                 )
             }
 
@@ -410,7 +462,8 @@ class NavigationModule internal constructor(
                     graphDefinitions = state.graphDefinitions,
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
-                    graphHierarchyLookup = state.graphHierarchyLookup
+                    graphHierarchyLookup = state.graphHierarchyLookup,
+                    activeModalContexts = state.activeModalContexts
                 )
             }
 
@@ -448,7 +501,8 @@ class NavigationModule internal constructor(
                     graphDefinitions = state.graphDefinitions,
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
-                    graphHierarchyLookup = state.graphHierarchyLookup
+                    graphHierarchyLookup = state.graphHierarchyLookup,
+                    activeModalContexts = state.activeModalContexts
                 )
             }
 
@@ -485,7 +539,8 @@ class NavigationModule internal constructor(
                     graphDefinitions = state.graphDefinitions,
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
-                    graphHierarchyLookup = state.graphHierarchyLookup
+                    graphHierarchyLookup = state.graphHierarchyLookup,
+                    activeModalContexts = state.activeModalContexts
                 )
             }
 
@@ -645,7 +700,8 @@ private data class ComputedNavigationState(
 private fun computeNavigationDerivedState(
     currentEntry: NavigationEntry,
     backStack: List<NavigationEntry>,
-    precomputedData: PrecomputedNavigationData
+    precomputedData: PrecomputedNavigationData,
+    existingModalContexts: Map<String, ModalContext> = emptyMap()
 ): ComputedNavigationState {
     // Compute ordered back stack
     val orderedBackStack = backStack.mapIndexed { index, entry ->
@@ -653,7 +709,7 @@ private fun computeNavigationDerivedState(
     }
     
     // Compute visible layers
-    val visibleLayers = computeVisibleLayers(orderedBackStack)
+    val visibleLayers = computeVisibleLayers(orderedBackStack, existingModalContexts)
     
     // Compute current full path
     val currentFullPath = precomputedData.routeResolver.buildFullPathForEntry(currentEntry)
@@ -684,9 +740,9 @@ private fun computeNavigationDerivedState(
     val systemLayerEntries = entriesByLayer[RenderLayer.SYSTEM] ?: emptyList()
     val renderableEntries = visibleLayers.map { it.entry }
     
-    // Compute modal-specific state
+    // Compute modal-specific state  
     val underlyingScreen = if (isCurrentModal) {
-        orderedBackStack.asReversed().drop(1).firstOrNull { it.isScreen }
+        findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, existingModalContexts)
     } else null
     val modalsInStack = backStack.filter { it.isModal }
     
@@ -712,7 +768,10 @@ private fun computeNavigationDerivedState(
     )
 }
 
-private fun computeVisibleLayers(orderedBackStack: List<NavigationEntry>): List<NavigationLayer> {
+private fun computeVisibleLayers(
+    orderedBackStack: List<NavigationEntry>,
+    modalContexts: Map<String, ModalContext> = emptyMap()
+): List<NavigationLayer> {
     if (orderedBackStack.isEmpty()) return emptyList()
 
     val layers = mutableListOf<NavigationLayer>()
@@ -720,7 +779,7 @@ private fun computeVisibleLayers(orderedBackStack: List<NavigationEntry>): List<
 
     if (currentEntry.isModal) {
         val modal = currentEntry.navigatable as Modal
-        val underlyingScreen = orderedBackStack.asReversed().drop(1).firstOrNull { it.isScreen }
+        val underlyingScreen = findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, modalContexts)
 
         if (underlyingScreen != null) {
             layers.add(
@@ -777,6 +836,25 @@ private fun buildBreadcrumbs(
     }
 
     return breadcrumbs
+}
+
+private fun findOriginalUnderlyingScreenForModal(
+    modalEntry: NavigationEntry, 
+    backStack: List<NavigationEntry>,
+    modalContexts: Map<String, ModalContext> = emptyMap()
+): NavigationEntry? {
+    // First try to find the underlying screen from modal contexts
+    val modalContext = modalContexts[modalEntry.navigatable.route]
+    if (modalContext != null) {
+        return modalContext.originalUnderlyingScreenEntry
+    }
+    
+    // Fallback to old logic if no context found
+    val modalIndex = backStack.indexOf(modalEntry)
+    if (modalIndex <= 0) return null
+    
+    // Look backwards from modal position to find the screen it was opened from
+    return backStack.subList(0, modalIndex).lastOrNull { it.isScreen }
 }
 
 fun createNavigationModule(block: GraphBasedBuilder.() -> Unit): NavigationModule {

@@ -27,11 +27,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import eu.syrou.androidexample.ui.screen.VideosListScreen
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.extension.dismissModal
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.getParam
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
@@ -57,7 +59,9 @@ object NotificationScreen : Modal {
         val store = rememberStore()
         CustomDialogBox(onConfirmClick = {
             scope.launch {
-                store.dismissModal()
+                store.navigation {
+                    navigateTo<VideosListScreen>()
+                }
             }
         }, onDismissClick = {
             scope.launch {

@@ -97,6 +97,14 @@ fun ContentLayerRender(
     LaunchedEffect(navigationState.isCurrentModal) {
         wasShowingModal.value = navigationState.isCurrentModal
     }
+    
+    // Update preserved content when modal's underlying screen changes
+    LaunchedEffect(navigationState.underlyingScreen) {
+        if (navigationState.isCurrentModal && navigationState.underlyingScreen != null) {
+            // When a modal is shown and has an underlying screen, update preserved content
+            preservedContentEntry.value = navigationState.underlyingScreen
+        }
+    }
 
     val currentContentKey = "${contentEntry.navigatable.route}_${contentEntry.graphId}_${contentEntry.stackPosition}"
 

@@ -6,8 +6,10 @@ import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
+import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
+import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import kotlinx.coroutines.flow.first
@@ -230,6 +232,12 @@ class NavigationLogic(
         val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
             ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
+        // Check if the target is actually a Modal - if so, delegate to modal operation
+        if (resolution.targetNavigatable is Modal) {
+            executeModalOperation(builder, currentState)
+            return
+        }
+
         val stackPosition = currentState.backStack.size + 1
         val mergedParams = resolution.extractedParams + builder.encodeParameters()
 
@@ -242,13 +250,50 @@ class NavigationLogic(
         val finalEntry = applyForwardParams(newEntry, builder, currentState)
         val newBackStack = currentState.backStack + finalEntry
 
-        storeAccessor.dispatch(
-            NavigationAction.BatchUpdate(
-                currentEntry = finalEntry,
-                backStack = newBackStack,
-                bypassSpamProtection = builder.shouldBypassSpamProtection
+        // Handle navigation from a modal: close modal and navigate normally, but preserve context for restoration
+        if (currentState.isCurrentModal && currentState.activeModalContexts.isNotEmpty()) {
+            val currentModalRoute = currentState.currentEntry.navigatable.route
+            val modalContext = currentState.activeModalContexts[currentModalRoute]
+            
+            if (modalContext != null) {
+                val backStackBeforeModal = currentState.backStack.dropLast(1) // Remove the modal
+                val newBackStackWithNewScreen = backStackBeforeModal + finalEntry
+                
+                // Update modal context to track where we navigated to
+                val updatedModalContext = modalContext.copy(
+                    navigatedAwayToRoute = finalEntry.navigatable.route
+                )
+                val originalUnderlyingScreenRoute = modalContext.originalUnderlyingScreenEntry.navigatable.route
+                val updatedModalContexts = mapOf(originalUnderlyingScreenRoute to updatedModalContext)
+                
+                storeAccessor.dispatch(
+                    NavigationAction.BatchUpdateWithModalContext(
+                        currentEntry = finalEntry,
+                        backStack = newBackStackWithNewScreen,
+                        modalContexts = updatedModalContexts,
+                        bypassSpamProtection = builder.shouldBypassSpamProtection
+                    )
+                )
+            } else {
+                // Fallback to normal navigation
+                storeAccessor.dispatch(
+                    NavigationAction.BatchUpdate(
+                        currentEntry = finalEntry,
+                        backStack = newBackStack,
+                        bypassSpamProtection = builder.shouldBypassSpamProtection
+                    )
+                )
+            }
+        } else {
+            // Regular navigation - clear modal contexts
+            storeAccessor.dispatch(
+                NavigationAction.BatchUpdate(
+                    currentEntry = finalEntry,
+                    backStack = newBackStack,
+                    bypassSpamProtection = builder.shouldBypassSpamProtection
+                )
             )
-        )
+        }
     }
 
     /**
@@ -310,10 +355,34 @@ class NavigationLogic(
         val finalEntry = applyForwardParams(newEntry, builder, currentState)
         val newBackStack = currentState.backStack + finalEntry
 
+        // Create modal context to remember the original underlying screen
+        val originalUnderlyingScreen = if (currentState.isCurrentModal) {
+            // If we're already in a modal, find the original underlying screen
+            currentState.underlyingScreen ?: findUnderlyingScreenForModal(currentState.currentEntry, currentState.backStack)
+        } else {
+            // If we're on a regular screen, that's the underlying screen for this modal
+            currentState.currentEntry
+        }
+
+        val modalContext = if (originalUnderlyingScreen != null) {
+            ModalContext(
+                modalEntry = finalEntry,
+                originalUnderlyingScreenEntry = originalUnderlyingScreen,
+                createdFromScreenRoute = originalUnderlyingScreen.navigatable.route
+            )
+        } else null
+
+        val updatedModalContexts = if (modalContext != null) {
+            currentState.activeModalContexts + (finalEntry.navigatable.route to modalContext)
+        } else {
+            currentState.activeModalContexts
+        }
+
         storeAccessor.dispatch(
-            NavigationAction.BatchUpdate(
+            NavigationAction.BatchUpdateWithModalContext(
                 currentEntry = finalEntry,
                 backStack = newBackStack,
+                modalContexts = updatedModalContexts,
                 bypassSpamProtection = builder.shouldBypassSpamProtection
             )
         )
@@ -339,13 +408,59 @@ class NavigationLogic(
 
         ReaktivDebug.nav("🔙 Navigate back: ${currentState.currentEntry.navigatable.route} -> ${updatedTargetEntry.navigatable.route}")
 
-        storeAccessor.dispatch(
-            NavigationAction.Back(
-                currentEntry = updatedTargetEntry,
-                backStack = finalBackStack,
-                bypassSpamProtection = bypassSpamProtection
+        // Check if the TARGET screen (where we're going back to) has a modal context
+        val targetRoute = updatedTargetEntry.navigatable.route
+        val modalContextForTargetScreen = currentState.activeModalContexts[targetRoute]
+        
+        if (modalContextForTargetScreen != null) {
+            // We're going back to a screen that has a modal that should be restored
+            val modalEntry = modalContextForTargetScreen.modalEntry
+            
+            // Restore the backstack to: [screens before target] + [target screen] + [modal]
+            val backStackWithTargetAndModal = finalBackStack + modalEntry
+            
+            // Clear the navigatedAwayToRoute since we're restoring the modal
+            val restoredModalContext = modalContextForTargetScreen.copy(navigatedAwayToRoute = null)
+            val updatedModalContexts = mapOf(modalEntry.navigatable.route to restoredModalContext)
+            
+            storeAccessor.dispatch(
+                NavigationAction.BatchUpdateWithModalContext(
+                    currentEntry = modalEntry,
+                    backStack = backStackWithTargetAndModal,
+                    modalContexts = updatedModalContexts,
+                    bypassSpamProtection = bypassSpamProtection
+                )
             )
-        )
+        } else {
+            // Regular back navigation
+            val currentRoute = currentState.currentEntry.navigatable.route
+            val updatedModalContexts = if (currentState.activeModalContexts.containsKey(targetRoute)) {
+                // We're going back to a modal - preserve its context
+                currentState.activeModalContexts
+            } else {
+                // We're going back to a regular screen - clean up modal contexts for current screen
+                currentState.activeModalContexts.filterKeys { it != currentRoute }
+            }
+
+            if (updatedModalContexts != currentState.activeModalContexts) {
+                storeAccessor.dispatch(
+                    NavigationAction.BatchUpdateWithModalContext(
+                        currentEntry = updatedTargetEntry,
+                        backStack = finalBackStack,
+                        modalContexts = updatedModalContexts,
+                        bypassSpamProtection = bypassSpamProtection
+                    )
+                )
+            } else {
+                storeAccessor.dispatch(
+                    NavigationAction.Back(
+                        currentEntry = updatedTargetEntry,
+                        backStack = finalBackStack,
+                        bypassSpamProtection = bypassSpamProtection
+                    )
+                )
+            }
+        }
     }
 
     /**
@@ -453,6 +568,17 @@ class NavigationLogic(
         } else {
             entry
         }
+    }
+
+    /**
+     * Find the underlying screen for a modal by looking backwards in the backstack
+     */
+    private fun findUnderlyingScreenForModal(modalEntry: NavigationEntry, backStack: List<NavigationEntry>): NavigationEntry? {
+        val modalIndex = backStack.indexOf(modalEntry)
+        if (modalIndex <= 0) return null
+        
+        // Look backwards from modal position to find the screen it was opened from
+        return backStack.subList(0, modalIndex).lastOrNull { it.isScreen }
     }
 
     /**
