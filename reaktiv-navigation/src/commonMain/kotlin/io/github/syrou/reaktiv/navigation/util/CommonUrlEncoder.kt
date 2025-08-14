@@ -16,7 +16,7 @@ class CommonUrlEncoder : UrlEncoder {
     }
     
     override fun decode(encoded: String): String {
-        val result = StringBuilder()
+        val bytes = mutableListOf<Byte>()
         var i = 0
         
         while (i < encoded.length) {
@@ -25,25 +25,26 @@ class CommonUrlEncoder : UrlEncoder {
                     try {
                         val hex = encoded.substring(i + 1, i + 3)
                         val byte = hex.toInt(16).toByte()
-                        result.append(byte.toInt().toChar())
+                        bytes.add(byte)
                         i += 3
                     } catch (e: NumberFormatException) {
-                        result.append(encoded[i])
+                        // Invalid hex, treat as literal character
+                        bytes.addAll(encoded[i].toString().encodeToByteArray().toList())
                         i++
                     }
                 }
                 encoded[i] == '+' -> {
-                    result.append(' ')
+                    bytes.addAll(" ".encodeToByteArray().toList())
                     i++
                 }
                 else -> {
-                    result.append(encoded[i])
+                    bytes.addAll(encoded[i].toString().encodeToByteArray().toList())
                     i++
                 }
             }
         }
         
-        return result.toString()
+        return bytes.toByteArray().decodeToString()
     }
     
     private fun encodeString(value: String, safeChars: Set<Char>): String {
