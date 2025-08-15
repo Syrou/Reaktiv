@@ -8,7 +8,7 @@ import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.extension.clearBackStack
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import io.github.syrou.reaktiv.navigation.extension.replaceWith
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -297,7 +297,7 @@ class NavigationComprehensiveTest {
         val sizeBefore = store.selectState<NavigationState>().first().backStack.size
 
         // Replace current screen
-        store.replaceWith("settings")
+        store.navigation { navigateTo("settings", replaceCurrent = true) }
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()

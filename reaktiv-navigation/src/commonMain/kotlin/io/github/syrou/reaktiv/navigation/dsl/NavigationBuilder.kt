@@ -119,10 +119,11 @@ class NavigationBuilder(
     internal var shouldDismissModals: Boolean = false
 
 
-    fun navigateTo(path: String, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
+    fun navigateTo(path: String, replaceCurrent: Boolean = false, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
         val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
         this.target = NavigationTarget.Path(cleanPath)
-        this.operation = NavigationOperation.Navigate
+        this.operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate
+        this.shouldReplaceWith = replaceCurrent
         
         // Add parsed query parameters to the builder's params
         queryParams.forEach { (key, value) ->
@@ -144,11 +145,12 @@ class NavigationBuilder(
         return this
     }
 
-    suspend inline fun <reified T : Screen> navigateTo(): NavigationBuilder {
-        return navigateTo<T>(null)
+    suspend inline fun <reified T : Screen> navigateTo(replaceCurrent: Boolean = false): NavigationBuilder {
+        return navigateTo<T>(replaceCurrent = replaceCurrent, preferredGraphId = null)
     }
 
     suspend inline fun <reified T : Navigatable> navigateTo(
+        replaceCurrent: Boolean = false,
         preferredGraphId: String? = null,
         noinline paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
     ): NavigationBuilder {
@@ -160,8 +162,9 @@ class NavigationBuilder(
         }
         this.operation = when (navigatable) {
             is Modal -> NavigationOperation.Modal
-            else -> NavigationOperation.Navigate
+            else -> if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate
         }
+        this.shouldReplaceWith = replaceCurrent && navigatable !is Modal
         
         // Apply parameter builder if provided
         paramBuilder?.let { builder ->
@@ -190,49 +193,6 @@ class NavigationBuilder(
         return this
     }
 
-    fun replaceWith(path: String, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
-        val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
-        this.target = NavigationTarget.Path(cleanPath)
-        this.operation = NavigationOperation.Replace
-        this.shouldReplaceWith = true
-
-        // Add parsed query parameters to the builder's params
-        queryParams.forEach { (key, value) ->
-            params[key] = value
-        }
-
-        // Apply parameter builder if provided
-        paramBuilder?.let { builder ->
-            val parameterBuilder = NavigationParameterBuilder()
-            builder(parameterBuilder)
-            params.putAll(parameterBuilder.params)
-        }
-
-        return this
-    }
-
-    suspend inline fun <reified T : Navigatable> replaceWith(
-        preferredGraphId: String? = null,
-        noinline paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
-    ): NavigationBuilder {
-        val navigatable = findNavigatableByType<T>()
-        this.target = if (preferredGraphId != null) {
-            NavigationTarget.NavigatableObjectWithGraph(navigatable, preferredGraphId)
-        } else {
-            NavigationTarget.NavigatableObject(navigatable)
-        }
-        this.operation = NavigationOperation.Replace
-        this.shouldReplaceWith = true
-        
-        // Apply parameter builder if provided
-        paramBuilder?.let { builder ->
-            val parameterBuilder = NavigationParameterBuilder()
-            builder(parameterBuilder)
-            params.putAll(parameterBuilder.params)
-        }
-        
-        return this
-    }
 
     fun popUpTo(path: String, inclusive: Boolean = false): NavigationBuilder {
         val (cleanPath, _) = parseUrlWithQueryParams(path)

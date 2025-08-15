@@ -8,7 +8,7 @@ import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.extension.clearBackStack
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import io.github.syrou.reaktiv.navigation.extension.replaceWith
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -183,7 +183,7 @@ class NavigationLogicTest {
     }
 
     @Test
-    fun `test replaceWith replaces current screen without changing backstack size`() =
+    fun `test navigateTo with replaceCurrent replaces current screen without changing backstack size`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -200,7 +200,7 @@ class NavigationLogicTest {
             val sizeBefore = store.selectState<NavigationState>().first().backStack.size
 
             // Replace current screen
-            store.replaceWith("about")
+            store.navigation { navigateTo("about", replaceCurrent = true) }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
@@ -273,11 +273,11 @@ class NavigationLogicTest {
         println("${exception1.message}")
         assertTrue(exception1.message?.contains("clearBackstack") ?: false)
 
-        // Try to combine clearBackStack with replaceWith (should fail)
+        // Try to combine clearBackStack with replaceCurrent (should fail)
         val exception2 = assertFailsWith<IllegalStateException> {
             store.navigate("profile") {
                 clearBackStack()
-                replaceWith("settings")
+                navigateTo("settings", replaceCurrent = true)
             }
         }
         assertTrue(exception2.message?.contains("clearBackstack") ?: false)
@@ -303,7 +303,7 @@ class NavigationLogicTest {
                 popUpTo("home")
             }
             advanceUntilIdle()
-            store.replaceWith("content/news")
+            store.navigation { navigateTo("content/news", replaceCurrent = true) }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()

@@ -154,11 +154,11 @@ class ExceptionHandlingTest {
             }
             assertTrue(exception1.message?.contains("clearBackstack") ?: false)
 
-            // Test clearBackStack + replaceWith combination
+            // Test clearBackStack + replaceCurrent combination
             val exception2 = assertFailsWith<IllegalStateException> {
                 store.navigate("profile") {
                     clearBackStack()
-                    replaceWith("home")
+                    navigateTo("home", replaceCurrent = true)
                 }
             }
             assertTrue(exception2.message?.contains("clearBackstack") ?: false)

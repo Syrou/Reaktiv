@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
@@ -89,7 +90,7 @@ suspend fun StoreAccessor.navigate(
     // Merge query parameters with provided params (provided params take precedence)
     val mergedParams = queryParams + params
 
-    navigationLogic.navigate(cleanRoute, mergedParams, config)
+    navigationLogic.navigate(cleanRoute, mergedParams, replaceCurrent = false, config)
 }
 
 
@@ -112,8 +113,9 @@ suspend fun StoreAccessor.popUpTo(
         if (popUpToConfig.replaceWith != null) {
             navigationLogic.navigate {
                 val (replaceCleanRoute, replaceQueryParams) = parseUrlWithQueryParams(popUpToConfig.replaceWith)
-                replaceWith(replaceCleanRoute)
                 popUpTo(cleanRoute, inclusive)
+                // Set the target for popUpTo operation to navigate to the replacement route
+                target = NavigationTarget.Path(replaceCleanRoute)
 
                 // Add parsed query parameters from replaceWith route
                 replaceQueryParams.forEach { (key, value) ->
@@ -158,7 +160,7 @@ suspend fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Un
 }
 
 
-@Deprecated("Use store.navigation{...} instead")
+@Deprecated("Use store.navigation{ navigateTo(route, replaceCurrent = true) } instead")
 suspend fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
     val navigationLogic = selectLogic<NavigationLogic>()
 
@@ -168,7 +170,7 @@ suspend fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = 
     // Merge query parameters with provided params (provided params take precedence)
     val mergedParams = queryParams + params
 
-    navigationLogic.replaceWith(cleanRoute, mergedParams)
+    navigationLogic.navigate(cleanRoute, mergedParams, replaceCurrent = true)
 }
 
 @Deprecated("These introduce a bad pattern for knowing when to clear data, don't use it")

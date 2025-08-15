@@ -173,7 +173,7 @@ class UnifiedNavigationBuilderTest {
     }
 
     @Test
-    fun `test replaceWith screen object`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+    fun `test navigateTo with replaceCurrent screen object`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
             module(createTestNavigationModule())
@@ -188,7 +188,7 @@ class UnifiedNavigationBuilderTest {
 
         // Replace with settings screen
         store.navigation {
-            replaceWith<SettingsScreen> {
+            navigateTo<SettingsScreen>(replaceCurrent = true) {
                 putString("source", "replace")
             }
         }

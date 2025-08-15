@@ -39,10 +39,11 @@ class NavigationLogic(
     suspend fun navigate(
         route: String,
         params: Map<String, Any> = emptyMap(),
+        replaceCurrent: Boolean = false,
         config: (NavigationBuilder.() -> Unit)? = null
     ) {
         navigate {
-            navigateTo(route)
+            navigateTo(route, replaceCurrent)
             params.forEach { (key, value) -> putRaw(key, value) }
             config?.invoke(this)
         }
@@ -71,15 +72,6 @@ class NavigationLogic(
         }
     }
 
-    /**
-     * Replace the current screen with a new one
-     */
-    suspend fun replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
-        navigate {
-            replaceWith(route)
-            params.forEach { (key, value) -> putRaw(key, value) }
-        }
-    }
 
     /**
      * Clear the entire backstack and optionally navigate to a new route
