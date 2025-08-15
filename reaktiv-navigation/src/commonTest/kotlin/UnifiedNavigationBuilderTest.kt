@@ -103,11 +103,12 @@ class UnifiedNavigationBuilderTest {
 
         // Navigate with various parameter types
         store.navigation {
-            navigateTo<ProjectOverviewScreen>()
-            putString("projectId", "proj-123")
-            putBoolean("isNew", true)
-            putInt("priority", 5)
-            put("user", TestUser("user-456", "John Doe"))
+            navigateTo<ProjectOverviewScreen> {
+                putString("projectId", "proj-123")
+                putBoolean("isNew", true)
+                putInt("priority", 5)
+                put("user", TestUser("user-456", "John Doe"))
+            }
         }
         advanceUntilIdle()
 
@@ -127,10 +128,11 @@ class UnifiedNavigationBuilderTest {
         }
 
         store.navigation {
-            navigateTo<SettingsScreen>()
-            putString("theme", "dark")
-            putInt("userId", 123)
-            put("user", TestUser("123", "Jane"))
+            navigateTo<SettingsScreen> {
+                putString("theme", "dark")
+                putInt("userId", 123)
+                put("user", TestUser("123", "Jane"))
+            }
         }
         advanceUntilIdle()
 
@@ -186,8 +188,9 @@ class UnifiedNavigationBuilderTest {
 
         // Replace with settings screen
         store.navigation {
-            replaceWith<SettingsScreen>()
-            putString("source", "replace")
+            replaceWith<SettingsScreen> {
+                putString("source", "replace")
+            }
         }
         advanceUntilIdle()
 
@@ -255,10 +258,11 @@ class UnifiedNavigationBuilderTest {
 
         // Navigate to parameterized route with both path and query parameters
         store.navigation {
-            navigateTo("home/leaderboard/stats/individual")
-            putString("playerId", "player-123")
-            putBoolean("showDetails", true)
-            put("playerData", TestUser("player-123", "John Player"))
+            navigateTo("home/leaderboard/stats/individual") {
+                putString("playerId", "player-123")
+                putBoolean("showDetails", true)
+                put("playerData", TestUser("player-123", "John Player"))
+            }
         }
         advanceUntilIdle()
 
@@ -324,8 +328,9 @@ class UnifiedNavigationBuilderTest {
 
         // Test single parameter route
         store.navigation {
-            navigateTo("user/john-doe/profile")
-            putString("tab", "settings")
+            navigateTo("user/john-doe/profile") {
+                putString("tab", "settings")
+            }
         }
         advanceUntilIdle()
 
@@ -338,8 +343,9 @@ class UnifiedNavigationBuilderTest {
 
         // Test multiple parameter route
         store.navigation {
-            navigateTo("post/blog-123/comments/comment-456")
-            putString("highlight", "true")
+            navigateTo("post/blog-123/comments/comment-456") {
+                putString("highlight", "true")
+            }
         }
         advanceUntilIdle()
 
@@ -372,9 +378,10 @@ class UnifiedNavigationBuilderTest {
 
         // Navigate to route with multiple path parameters
         store.navigation {
-            navigateTo("company/acme-corp/user/john-doe/profile")
-            putString("tab", "settings")
-            putInt("version", 2)
+            navigateTo("company/acme-corp/user/john-doe/profile") {
+                putString("tab", "settings")
+                putInt("version", 2)
+            }
         }
         advanceUntilIdle()
 
@@ -402,8 +409,9 @@ class UnifiedNavigationBuilderTest {
 
         // Navigate using string path
         store.navigation {
-            navigateTo("home/news")
-            putString("source", "string")
+            navigateTo("home/news") {
+                putString("source", "string")
+            }
         }
         advanceUntilIdle()
 
@@ -430,8 +438,9 @@ class UnifiedNavigationBuilderTest {
 
         // Navigate to project overview with preferred graph
         store.navigation {
-            navigateTo<ProjectOverviewScreen>()
-            putString("context", "projects")
+            navigateTo<ProjectOverviewScreen> {
+                putString("context", "projects")
+            }
         }
         advanceUntilIdle()
 
@@ -533,10 +542,11 @@ class UnifiedNavigationBuilderTest {
 
         // Complex navigation: navigate to settings, pop up to home (inclusive)
         store.navigation {
-            navigateTo<SettingsScreen>()
+            navigateTo<SettingsScreen> {
+                putString("source", "complex")
+                putLong("timestamp", 1234567890L)
+            }
             popUpTo<HomeScreen>(inclusive = true)
-            putString("source", "complex")
-            putLong("timestamp", 1234567890L)
         }
         advanceUntilIdle()
 

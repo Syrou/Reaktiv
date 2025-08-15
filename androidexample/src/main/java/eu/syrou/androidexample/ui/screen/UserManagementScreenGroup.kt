@@ -57,9 +57,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 Text("User view based on param: $id")
                 Button(onClick = {
                     store.launch {
-                        store.navigate("user/$id/edit") {
-                            forwardParams()
-                        }
+                        store.navigate("user/$id/edit")
                     }
                 }) {
                     Text("Next")
@@ -97,9 +95,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 )
                 Button(onClick = {
                     store.launch {
-                        store.navigate("user/$id/delete") {
-                            forwardParams()
-                        }
+                        store.navigate("user/$id/delete")
                     }
                 }) {
                     Text("Next")

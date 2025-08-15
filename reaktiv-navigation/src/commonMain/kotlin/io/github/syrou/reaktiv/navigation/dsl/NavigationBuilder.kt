@@ -28,6 +28,64 @@ enum class NavigationOperation {
     ClearBackStack
 }
 
+class NavigationParameterBuilder {
+    @PublishedApi
+    internal val params = mutableMapOf<String, Any>()
+
+    inline fun <reified T> put(key: String, value: T): NavigationParameterBuilder {
+        params[key] = SerializableParam(value, serializer<T>())
+        return this
+    }
+
+    fun <T> put(key: String, value: T, serializer: KSerializer<T>): NavigationParameterBuilder {
+        params[key] = SerializableParam(value, serializer)
+        return this
+    }
+
+    fun putString(key: String, value: String): NavigationParameterBuilder {
+        params[key] = value
+        return this
+    }
+
+    fun putInt(key: String, value: Int): NavigationParameterBuilder {
+        params[key] = value
+        return this
+    }
+
+    fun putBoolean(key: String, value: Boolean): NavigationParameterBuilder {
+        params[key] = value
+        return this
+    }
+
+    fun putDouble(key: String, value: Double): NavigationParameterBuilder {
+        params[key] = value
+        return this
+    }
+
+    fun putLong(key: String, value: Long): NavigationParameterBuilder {
+        params[key] = value
+        return this
+    }
+
+    fun putFloat(key: String, value: Float): NavigationParameterBuilder {
+        params[key] = value
+        return this
+    }
+
+    fun putRaw(key: String, value: Any): NavigationParameterBuilder {
+        params[key] = value
+        return this
+    }
+
+    fun param(key: String, value: String) = putString(key, value)
+    fun param(key: String, value: Int) = putInt(key, value)
+    fun param(key: String, value: Boolean) = putBoolean(key, value)
+    fun param(key: String, value: Double) = putDouble(key, value)
+    fun param(key: String, value: Long) = putLong(key, value)
+    fun param(key: String, value: Any) = putRaw(key, value)
+}
+
+
 
 class NavigationBuilder(
     private val storeAccessor: StoreAccessor,
@@ -55,19 +113,27 @@ class NavigationBuilder(
     internal var shouldReplaceWith: Boolean = false
 
     @PublishedApi
-    internal var shouldForwardParams: Boolean = false
-
-    @PublishedApi
     internal var shouldBypassSpamProtection: Boolean = false
 
-    fun navigateTo(path: String): NavigationBuilder {
+    @PublishedApi
+    internal var shouldDismissModals: Boolean = false
+
+
+    fun navigateTo(path: String, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
         val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
         this.target = NavigationTarget.Path(cleanPath)
         this.operation = NavigationOperation.Navigate
-
+        
         // Add parsed query parameters to the builder's params
         queryParams.forEach { (key, value) ->
             params[key] = value
+        }
+
+        // Apply parameter builder if provided
+        paramBuilder?.let { builder ->
+            val parameterBuilder = NavigationParameterBuilder()
+            builder(parameterBuilder)
+            params.putAll(parameterBuilder.params)
         }
 
         return this
@@ -82,7 +148,10 @@ class NavigationBuilder(
         return navigateTo<T>(null)
     }
 
-    suspend inline fun <reified T : Navigatable> navigateTo(preferredGraphId: String? = null): NavigationBuilder {
+    suspend inline fun <reified T : Navigatable> navigateTo(
+        preferredGraphId: String? = null,
+        noinline paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
+    ): NavigationBuilder {
         val navigatable = findNavigatableByType<T>()
         this.target = if (preferredGraphId != null) {
             NavigationTarget.NavigatableObjectWithGraph(navigatable, preferredGraphId)
@@ -93,17 +162,35 @@ class NavigationBuilder(
             is Modal -> NavigationOperation.Modal
             else -> NavigationOperation.Navigate
         }
+        
+        // Apply parameter builder if provided
+        paramBuilder?.let { builder ->
+            val parameterBuilder = NavigationParameterBuilder()
+            builder(parameterBuilder)
+            params.putAll(parameterBuilder.params)
+        }
+        
         return this
     }
 
-    suspend inline fun <reified T : Modal> presentModal(): NavigationBuilder {
+    suspend inline fun <reified T : Modal> presentModal(
+        noinline paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
+    ): NavigationBuilder {
         val modal = findNavigatableByType<T>()
         this.target = NavigationTarget.NavigatableObject(modal)
         this.operation = NavigationOperation.Modal
+        
+        // Apply parameter builder if provided
+        paramBuilder?.let { builder ->
+            val parameterBuilder = NavigationParameterBuilder()
+            builder(parameterBuilder)
+            params.putAll(parameterBuilder.params)
+        }
+        
         return this
     }
 
-    fun replaceWith(path: String): NavigationBuilder {
+    fun replaceWith(path: String, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
         val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
         this.target = NavigationTarget.Path(cleanPath)
         this.operation = NavigationOperation.Replace
@@ -114,10 +201,20 @@ class NavigationBuilder(
             params[key] = value
         }
 
+        // Apply parameter builder if provided
+        paramBuilder?.let { builder ->
+            val parameterBuilder = NavigationParameterBuilder()
+            builder(parameterBuilder)
+            params.putAll(parameterBuilder.params)
+        }
+
         return this
     }
 
-    suspend inline fun <reified T : Navigatable> replaceWith(preferredGraphId: String? = null): NavigationBuilder {
+    suspend inline fun <reified T : Navigatable> replaceWith(
+        preferredGraphId: String? = null,
+        noinline paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
+    ): NavigationBuilder {
         val navigatable = findNavigatableByType<T>()
         this.target = if (preferredGraphId != null) {
             NavigationTarget.NavigatableObjectWithGraph(navigatable, preferredGraphId)
@@ -126,6 +223,14 @@ class NavigationBuilder(
         }
         this.operation = NavigationOperation.Replace
         this.shouldReplaceWith = true
+        
+        // Apply parameter builder if provided
+        paramBuilder?.let { builder ->
+            val parameterBuilder = NavigationParameterBuilder()
+            builder(parameterBuilder)
+            params.putAll(parameterBuilder.params)
+        }
+        
         return this
     }
 
@@ -159,12 +264,6 @@ class NavigationBuilder(
         return this
     }
 
-    @Deprecated("This introduces a bad pattern for knowing when to clear data, don't use it")
-    fun forwardParams(): NavigationBuilder {
-        this.shouldForwardParams = true
-        return this
-    }
-
     /**
      * Bypass spam protection for this navigation operation
      * Use this for programmatic navigation sequences where you want to allow rapid navigation
@@ -172,6 +271,13 @@ class NavigationBuilder(
     fun bypassSpamProtection(): NavigationBuilder {
         this.shouldBypassSpamProtection = true
         return this
+    }
+
+    /**
+     * Dismiss any active modals as part of this navigation batch
+     */
+    fun dismissModals() {
+        this.shouldDismissModals = true
     }
 
     inline fun <reified T> put(key: String, value: T): NavigationBuilder {

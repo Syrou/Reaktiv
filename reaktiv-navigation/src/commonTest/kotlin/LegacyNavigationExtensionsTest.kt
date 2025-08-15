@@ -108,34 +108,6 @@ class LegacyNavigationExtensionsTest {
     }
 
     @Test
-    fun `test legacy navigate with forwardParams`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = createStore {
-            module(createTestNavigationModule())
-            coroutineContext(testDispatcher)
-        }
-
-        // Navigate with initial parameters
-        store.navigate("profile", mapOf("sessionId" to "abc123", "theme" to "dark"))
-        advanceUntilIdle()
-
-        // Navigate with forwardParams - should merge parameters
-        store.navigate("settings", mapOf("source" to "profile", "section" to "general")) {
-            forwardParams()
-        }
-        advanceUntilIdle()
-
-        val state = store.selectState<NavigationState>().first()
-        assertEquals("settings", state.currentEntry.screen.route)
-        
-        // Should have both old and new parameters
-        assertEquals("abc123", state.currentEntry.params["sessionId"]) // Forwarded
-        assertEquals("dark", state.currentEntry.params["theme"]) // Forwarded
-        assertEquals("profile", state.currentEntry.params["source"]) // New
-        assertEquals("general", state.currentEntry.params["section"]) // New
-    }
-
-    @Test
     fun `test parameter survival through navigation`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
@@ -423,9 +395,10 @@ class LegacyNavigationExtensionsTest {
 
         // Use new unified builder
         store.navigation {
-            navigateTo<SettingsScreen>()
-            putString("unified", "true")
-            putBoolean("mixed", true)
+            navigateTo<SettingsScreen> {
+                putString("unified", "true")
+                putBoolean("mixed", true)
+            }
         }
         advanceUntilIdle()
 

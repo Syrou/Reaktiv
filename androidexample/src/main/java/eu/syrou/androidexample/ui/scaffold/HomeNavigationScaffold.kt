@@ -67,8 +67,9 @@ fun HomeNavigationScaffold(content: @Composable () -> Unit) {
                     IconButton(onClick = {
                         scope.launch {
                             store.navigation {
-                                presentModal<NotificationScreen>()
-                                put("TEST", listOf<String>("test1", "test2"))
+                                presentModal<NotificationScreen> {
+                                    put("TEST", listOf<String>("test1", "test2"))
+                                }
                             }
                         }
                     }) {

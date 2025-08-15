@@ -103,9 +103,10 @@ object PlayerProfileScreen : Screen {
                         onClick = {
                             scope.launch {
                                 store.navigation {
-                                    navigateTo("home/leaderboard/stats/individual")
-                                    put<IndividualStatsData>("playerData", createMockIndividualStats(playerId))
-                                    putString("playerId", playerId)
+                                    navigateTo("home/leaderboard/stats/individual") {
+                                        put<IndividualStatsData>("playerData", createMockIndividualStats(playerId))
+                                        putString("playerId", playerId)
+                                    }
                                 }
                             }
                         },
@@ -118,9 +119,10 @@ object PlayerProfileScreen : Screen {
                         onClick = {
                             scope.launch {
                                 store.navigation {
-                                    navigateTo("home/leaderboard/stats/team")
-                                    put<TeamStatsData>("teamData", createMockTeamStats(playerId))
-                                    putString("playerId", playerId)
+                                    navigateTo("home/leaderboard/stats/team") {
+                                        put<TeamStatsData>("teamData", createMockTeamStats(playerId))
+                                        putString("playerId", playerId)
+                                    }
                                 }
                             }
                         },

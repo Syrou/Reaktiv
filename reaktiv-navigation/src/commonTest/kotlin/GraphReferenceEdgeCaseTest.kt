@@ -8,7 +8,6 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.extension.clearBackStack
 import io.github.syrou.reaktiv.navigation.extension.navigate
-import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -20,7 +19,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -30,7 +28,7 @@ import kotlin.time.toDuration
 class GraphReferenceEdgeCaseTest {
 
     @BeforeTest
-    fun beforeTest(){
+    fun beforeTest() {
         ReaktivDebug.enable()
     }
 
@@ -58,7 +56,7 @@ class GraphReferenceEdgeCaseTest {
     private val projectTasksScreen = createScreen("tasks", "Project Tasks")
     private val leaderboardScreen = createScreen("leaderboard", "Leaderboard Screen")
 
-    
+
     private fun createUserExactNavigationModule() = createNavigationModule {
         rootGraph {
             startScreen(splashScreen)

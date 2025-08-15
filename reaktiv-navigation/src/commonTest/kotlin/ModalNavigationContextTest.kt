@@ -7,6 +7,7 @@ import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -109,5 +110,56 @@ class ModalNavigationContextTest {
             assertTrue(state.isCurrentModal, "Should be showing a modal")
             assertNotNull(state.underlyingScreen, "Should have an underlying screen")
             assertEquals("workspace", state.underlyingScreen!!.navigatable.route, "Underlying screen should be workspace")
+        }
+
+    @Test
+    fun `test dismissModals removes active modal`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createTestNavigationModule())
+                coroutineContext(testDispatcher)
+            }
+
+            // Step 1: Start on WorkspaceScreen
+            advanceUntilIdle()
+            var state = store.selectState<NavigationState>().first()
+            assertEquals("workspace", state.currentEntry.navigatable.route)
+            assertTrue(state.activeModalContexts.isEmpty(), "Should have no active modal contexts initially")
+
+            // Step 2: Open NotificationScreen modal from WorkspaceScreen
+            store.navigate("notification")
+            advanceUntilIdle()
+            state = store.selectState<NavigationState>().first()
+            assertEquals("notification", state.currentEntry.navigatable.route)
+            assertTrue(state.isCurrentModal, "Should be showing a modal")
+            assertEquals("workspace", state.underlyingScreen?.navigatable?.route)
+            assertTrue(state.activeModalContexts.isNotEmpty(), "Should have active modal contexts")
+
+            // Step 3: Navigate to VideosListScreen with dismissModals() - modal should be completely dismissed
+            store.navigation {
+                navigateTo("videos")
+                dismissModals()
+            }
+            advanceUntilIdle()
+            state = store.selectState<NavigationState>().first()
+            assertEquals("videos", state.currentEntry.navigatable.route, "Should be on videos screen")
+            assertFalse(state.isCurrentModal, "Should not be showing a modal")
+            assertTrue(state.activeModalContexts.isEmpty(), "Should have no active modal contexts after dismissal")
+
+            // Step 4: Go back - should return to workspace WITHOUT restoring the modal
+            store.navigateBack()
+            advanceUntilIdle()
+            state = store.selectState<NavigationState>().first()
+            
+            // Validate the correct behavior: modal should NOT be restored
+            assertEquals("workspace", state.currentEntry.navigatable.route, "Should be back to workspace screen")
+            assertFalse(state.isCurrentModal, "Should not be showing a modal")
+            assertTrue(state.activeModalContexts.isEmpty(), "Should have no modal contexts - modal was permanently dismissed")
+            
+            // Verify backstack only contains screens, no modals
+            val screensInBackStack = state.backStack.filter { it.isScreen }
+            assertEquals(1, screensInBackStack.size, "Should only have workspace screen in backstack")
+            assertEquals("workspace", screensInBackStack.first().navigatable.route)
         }
 }

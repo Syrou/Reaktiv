@@ -100,11 +100,12 @@ object LeaderboardListScreen : Screen {
                         .clickable {
                             scope.launch {
                                 store.navigation {
-                                    navigateTo("home/leaderboard/player/${index + 1}")
-                                    put<PlayerProfile>("profile", createMockPlayerProfile((index + 1).toString(), 99))
-                                    putString("source", "leaderboard_list")
-                                    putInt("originalRank", index + 1)
-                                    putBoolean("fromLeaderboard", true)
+                                    navigateTo("home/leaderboard/player/${index + 1}") {
+                                        put<PlayerProfile>("profile", createMockPlayerProfile((index + 1).toString(), 99))
+                                        putString("source", "leaderboard_list")
+                                        putInt("originalRank", index + 1)
+                                        putBoolean("fromLeaderboard", true)
+                                    }
                                 }
                             }
                         }

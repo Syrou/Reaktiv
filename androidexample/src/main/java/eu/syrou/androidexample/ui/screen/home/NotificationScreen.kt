@@ -61,6 +61,7 @@ object NotificationScreen : Modal {
             scope.launch {
                 store.navigation {
                     navigateTo<VideosListScreen>()
+                    dismissModals()
                 }
             }
         }, onDismissClick = {
