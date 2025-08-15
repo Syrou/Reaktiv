@@ -82,15 +82,14 @@ suspend fun StoreAccessor.navigate(
     params: Map<String, Any> = emptyMap(),
     config: (NavigationBuilder.() -> Unit)? = null
 ) {
-    val navigationLogic = selectLogic<NavigationLogic>()
-
-    // Parse query parameters from the route string
-    val (cleanRoute, queryParams) = parseUrlWithQueryParams(route)
-
-    // Merge query parameters with provided params (provided params take precedence)
-    val mergedParams = queryParams + params
-
-    navigationLogic.navigate(cleanRoute, mergedParams, replaceCurrent = false, config)
+    navigation {
+        navigateTo(route) { 
+            params.forEach { (key, value) ->
+                putRaw(key, value)
+            }
+        }
+        config?.invoke(this)
+    }
 }
 
 
@@ -100,77 +99,71 @@ suspend fun StoreAccessor.popUpTo(
     inclusive: Boolean = false,
     config: (PopUpToBuilder.() -> Unit)? = null
 ) {
-    val navigationLogic = selectLogic<NavigationLogic>()
-
-    // Parse query parameters from the route string for popUpTo target
-    val (cleanRoute, _) = parseUrlWithQueryParams(route)
-    // Note: We don't use query params for popUpTo targets as they're used for matching
-
     config?.let { configBlock ->
-        val legacyBuilder = PopUpToBuilder(cleanRoute, inclusive)
+        val legacyBuilder = PopUpToBuilder(route, inclusive)
         legacyBuilder.configBlock()
         val popUpToConfig = legacyBuilder.build()
         if (popUpToConfig.replaceWith != null) {
-            navigationLogic.navigate {
-                val (replaceCleanRoute, replaceQueryParams) = parseUrlWithQueryParams(popUpToConfig.replaceWith)
-                popUpTo(cleanRoute, inclusive)
-                // Set the target for popUpTo operation to navigate to the replacement route
-                target = NavigationTarget.Path(replaceCleanRoute)
-
-                // Add parsed query parameters from replaceWith route
-                replaceQueryParams.forEach { (key, value) ->
-                    putString(key, value)
-                }
-
-                // Add explicit replace params (these take precedence)
-                popUpToConfig.replaceParams.forEach { (key, value) ->
-                    putRaw(key, value)
+            navigation {
+                popUpTo(route, inclusive)
+                navigateTo(popUpToConfig.replaceWith) { 
+                    popUpToConfig.replaceParams.forEach { (key, value) ->
+                        putRaw(key, value)
+                    }
                 }
             }
         } else {
-            navigationLogic.popUpTo(cleanRoute, inclusive)
+            navigation {
+                popUpTo(route, inclusive)
+                navigateBack() // Navigate to the entry that's now at the top after popping
+            }
         }
     } ?: run {
-        navigationLogic.popUpTo(cleanRoute, inclusive)
+        navigation {
+            popUpTo(route, inclusive)
+            navigateBack() // Navigate to the entry that's now at the top after popping
+        }
     }
 }
 
 @Deprecated("Use store.navigation{...} instead")
 suspend fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
-    val navigationLogic = selectLogic<NavigationLogic>()
     config?.let { configBlock ->
         val legacyBuilder = ClearBackStackBuilder()
         legacyBuilder.configBlock()
         val clearConfig = legacyBuilder.build()
 
         if (clearConfig.root != null) {
-            // Parse query parameters from the root route string
-            val (cleanRoot, queryParams) = parseUrlWithQueryParams(clearConfig.root)
-
-            // Merge query parameters with provided params (provided params take precedence)
-            val mergedParams = queryParams + clearConfig.params
-
-            navigationLogic.clearBackStack(cleanRoot, mergedParams)
+            navigation {
+                clearBackStack()
+                navigateTo(clearConfig.root) { 
+                    clearConfig.params.forEach { (key, value) ->
+                        putRaw(key, value)
+                    }
+                }
+            }
         } else {
-            navigationLogic.clearBackStack()
+            navigation {
+                clearBackStack()
+            }
         }
     } ?: run {
-        navigationLogic.clearBackStack()
+        navigation {
+            clearBackStack()
+        }
     }
 }
 
 
 @Deprecated("Use store.navigation{ navigateTo(route, replaceCurrent = true) } instead")
 suspend fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
-    val navigationLogic = selectLogic<NavigationLogic>()
-
-    // Parse query parameters from the route string
-    val (cleanRoute, queryParams) = parseUrlWithQueryParams(route)
-
-    // Merge query parameters with provided params (provided params take precedence)
-    val mergedParams = queryParams + params
-
-    navigationLogic.navigate(cleanRoute, mergedParams, replaceCurrent = true)
+    navigation {
+        navigateTo(route, replaceCurrent = true) { 
+            params.forEach { (key, value) ->
+                putRaw(key, value)
+            }
+        }
+    }
 }
 
 @Deprecated("These introduce a bad pattern for knowing when to clear data, don't use it")
@@ -199,8 +192,9 @@ suspend fun StoreAccessor.clearScreenParam(route: String, key: String) {
 
 
 suspend fun StoreAccessor.navigateBack() {
-    val navigationLogic = selectLogic<NavigationLogic>()
-    navigationLogic.navigateBack()
+    navigation {
+        navigateBack()
+    }
 }
 
 
@@ -208,7 +202,7 @@ suspend inline fun <reified T : Modal> StoreAccessor.presentModal(
     noinline config: (suspend NavigationBuilder.() -> Unit)? = null
 ) {
     navigation {
-        presentModal<T>()
+        navigateTo<T>()
         config?.invoke(this)
     }
 }

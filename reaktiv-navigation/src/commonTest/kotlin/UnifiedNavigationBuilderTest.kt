@@ -217,8 +217,8 @@ class UnifiedNavigationBuilderTest {
 
         // Clear and navigate to workspace
         store.navigation {
-            navigateTo<WorkspaceOverviewScreen>()
             clearBackStack()
+            navigateTo<WorkspaceOverviewScreen>()
         }
         advanceUntilIdle()
 
@@ -511,8 +511,8 @@ class UnifiedNavigationBuilderTest {
             coroutineContext(testDispatcher)
         }
 
-        // Should throw IllegalStateException for combining clearBackStack with popUpTo
-        assertFailsWith<IllegalStateException> {
+        // Should throw IllegalArgumentException for combining clearBackStack with popUpTo
+        assertFailsWith<IllegalArgumentException> {
             store.navigation {
                 navigateTo<HomeScreen>()
                 clearBackStack()

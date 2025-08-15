@@ -3,8 +3,10 @@ package io.github.syrou.reaktiv.navigation.definition
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.PrecomputedNavigationData
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
+import kotlinx.serialization.Serializable
 
 
+@Serializable
 sealed class NavigationTarget {
     data class Path(val path: String) : NavigationTarget()
     data class NavigatableObject(val navigatable: Navigatable) : NavigationTarget()

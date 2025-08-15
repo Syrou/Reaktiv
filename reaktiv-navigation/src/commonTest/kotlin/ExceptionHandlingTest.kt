@@ -146,22 +146,22 @@ class ExceptionHandlingTest {
             }
 
             // Test clearBackStack + popUpTo combination
-            val exception1 = assertFailsWith<IllegalStateException> {
+            val exception1 = assertFailsWith<IllegalArgumentException> {
                 store.navigate("profile") {
                     clearBackStack()
                     popUpTo("home")
                 }
             }
-            assertTrue(exception1.message?.contains("clearBackstack") ?: false)
+            assertTrue(exception1.message?.contains("clearBackStack") ?: false)
 
             // Test clearBackStack + replaceCurrent combination
-            val exception2 = assertFailsWith<IllegalStateException> {
+            val exception2 = assertFailsWith<IllegalArgumentException> {
                 store.navigate("profile") {
                     clearBackStack()
                     navigateTo("home", replaceCurrent = true)
                 }
             }
-            assertTrue(exception2.message?.contains("clearBackstack") ?: false)
+            assertTrue(exception2.message?.contains("replaceCurrent") ?: false)
         }
 
     @Test

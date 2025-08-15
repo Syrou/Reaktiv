@@ -264,23 +264,23 @@ class NavigationLogicTest {
         }
 
         // Try to combine clearBackStack with popUpTo (should fail)
-        val exception1 = assertFailsWith<IllegalStateException> {
+        val exception1 = assertFailsWith<IllegalArgumentException> {
             store.navigate("profile") {
                 clearBackStack()
                 popUpTo("home")
             }
         }
         println("${exception1.message}")
-        assertTrue(exception1.message?.contains("clearBackstack") ?: false)
+        assertTrue(exception1.message?.contains("clearBackStack") ?: false)
 
         // Try to combine clearBackStack with replaceCurrent (should fail)
-        val exception2 = assertFailsWith<IllegalStateException> {
+        val exception2 = assertFailsWith<IllegalArgumentException> {
             store.navigate("profile") {
                 clearBackStack()
                 navigateTo("settings", replaceCurrent = true)
             }
         }
-        assertTrue(exception2.message?.contains("clearBackstack") ?: false)
+        assertTrue(exception2.message?.contains("replaceCurrent") ?: false)
     }
 
     @Test

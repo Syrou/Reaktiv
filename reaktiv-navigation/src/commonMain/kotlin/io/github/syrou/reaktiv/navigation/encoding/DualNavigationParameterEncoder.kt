@@ -157,4 +157,10 @@ class DualNavigationParameterEncoder(
             "${urlEncoder.encodeQuery(key)}=${encodeMixed(value)}"
         }
     }
+    
+    fun encodeStepParameters(stepParams: Map<String, Any>): Map<String, Any> {
+        return stepParams.mapValues { (_, value) ->
+            encodeMixed(value)
+        }
+    }
 }

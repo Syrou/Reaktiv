@@ -36,8 +36,8 @@ object SplashScreen : Screen {
         LaunchedEffect(Unit) {
             delay(3000)
             store.navigation {
-                navigateTo("home")
                 clearBackStack()
+                navigateTo("home")
             }
         }
         Column(

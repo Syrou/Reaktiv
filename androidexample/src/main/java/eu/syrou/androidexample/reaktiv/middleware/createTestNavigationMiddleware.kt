@@ -22,12 +22,9 @@ fun createTestNavigationMiddleware(): Middleware = { action, getAllStates, store
             // Then perform multiple navigation operations
             storeAccessor.launch {
                 storeAccessor.navigation {
+                    dismissModals()
                     navigateTo("home/leaderboard/detail/weekly")
-                }
-                storeAccessor.selectState<NavigationState>().first { it.currentEntry.navigatable == LeaderboardDetailScreen }
-                storeAccessor.navigation {
                     navigateTo("home/leaderboard/player/1")
-                    bypassSpamProtection()
                 }
                 ReaktivDebug.nav("🧪 Test: Multiple navigation sequence completed")
             }

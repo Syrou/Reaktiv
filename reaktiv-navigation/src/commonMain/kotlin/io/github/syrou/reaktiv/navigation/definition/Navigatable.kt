@@ -5,7 +5,6 @@ import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
-
 interface Navigatable : NavigationNode {
     val titleResource: TitleResource?
     val actionResource: ActionResource?

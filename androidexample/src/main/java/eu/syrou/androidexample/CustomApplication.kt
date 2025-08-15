@@ -21,7 +21,7 @@ import eu.syrou.androidexample.ui.screen.StreamsListScreen
 import eu.syrou.androidexample.ui.screen.TwitchAuthWebViewScreen
 import eu.syrou.androidexample.ui.screen.UserManagementScreens
 import eu.syrou.androidexample.ui.screen.VideosListScreen
-import eu.syrou.androidexample.ui.screen.home.NotificationScreen
+import eu.syrou.androidexample.ui.screen.home.NotificationModal
 import eu.syrou.androidexample.ui.screen.home.leaderboard.LeaderboardDetailScreen
 import eu.syrou.androidexample.ui.screen.home.leaderboard.LeaderboardListScreen
 import eu.syrou.androidexample.ui.screen.home.leaderboard.PlayerProfileScreen
@@ -77,7 +77,7 @@ class CustomApplication : Application() {
                         VideosListScreen,
                         StreamsListScreen,
                     )
-                    modals(NotificationScreen)
+                    modals(NotificationModal)
                     graph("home") {
                         startGraph("news")
                         layout { content ->

@@ -23,12 +23,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import eu.syrou.androidexample.reaktiv.TestNavigationModule.TestNavigationAction
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
-import eu.syrou.androidexample.ui.screen.VideosListScreen
-import eu.syrou.androidexample.ui.screen.home.NotificationScreen
+import eu.syrou.androidexample.ui.screen.home.NotificationModal
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.NavigationState
-import io.github.syrou.reaktiv.navigation.extension.isInGraph
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import kotlinx.coroutines.launch
@@ -67,7 +65,7 @@ fun HomeNavigationScaffold(content: @Composable () -> Unit) {
                     IconButton(onClick = {
                         scope.launch {
                             store.navigation {
-                                presentModal<NotificationScreen> {
+                                navigateTo<NotificationModal> {
                                     put("TEST", listOf<String>("test1", "test2"))
                                 }
                             }

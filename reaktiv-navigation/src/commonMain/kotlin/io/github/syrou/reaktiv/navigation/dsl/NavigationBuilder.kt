@@ -12,6 +12,7 @@ import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
 import io.github.syrou.reaktiv.navigation.util.CommonUrlEncoder
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
+import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -23,10 +24,21 @@ enum class NavigationOperation {
     Navigate,
     Replace,
     Back,
-    Modal,
     PopUpTo,
     ClearBackStack
 }
+
+@Serializable
+data class NavigationStep(
+    val operation: NavigationOperation,
+    val target: NavigationTarget? = null,
+    val params: StringAnyMap = emptyMap(),
+    val popUpToTarget: NavigationTarget? = null,
+    val popUpToInclusive: Boolean = false,
+    val shouldClearBackStack: Boolean = false,
+    val shouldReplaceWith: Boolean = false,
+    val shouldDismissModals: Boolean = false
+)
 
 class NavigationParameterBuilder {
     @PublishedApi
@@ -42,46 +54,20 @@ class NavigationParameterBuilder {
         return this
     }
 
-    fun putString(key: String, value: String): NavigationParameterBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putInt(key: String, value: Int): NavigationParameterBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putBoolean(key: String, value: Boolean): NavigationParameterBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putDouble(key: String, value: Double): NavigationParameterBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putLong(key: String, value: Long): NavigationParameterBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putFloat(key: String, value: Float): NavigationParameterBuilder {
-        params[key] = value
-        return this
-    }
-
     fun putRaw(key: String, value: Any): NavigationParameterBuilder {
         params[key] = value
         return this
     }
 
-    fun param(key: String, value: String) = putString(key, value)
-    fun param(key: String, value: Int) = putInt(key, value)
-    fun param(key: String, value: Boolean) = putBoolean(key, value)
-    fun param(key: String, value: Double) = putDouble(key, value)
-    fun param(key: String, value: Long) = putLong(key, value)
+    // Convenience methods for common types  
+    fun putString(key: String, value: String) = putRaw(key, value)
+    fun putInt(key: String, value: Int) = putRaw(key, value)
+    fun putBoolean(key: String, value: Boolean) = putRaw(key, value)
+    fun putDouble(key: String, value: Double) = putRaw(key, value)
+    fun putLong(key: String, value: Long) = putRaw(key, value)
+    fun putFloat(key: String, value: Float) = putRaw(key, value)
+
+    // Shorter aliases
     fun param(key: String, value: Any) = putRaw(key, value)
 }
 
@@ -92,56 +78,54 @@ class NavigationBuilder(
     private val encoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
 ) {
     @PublishedApi
-    internal var target: NavigationTarget? = null
-
+    internal val operations = mutableListOf<NavigationStep>()
+    
     @PublishedApi
-    internal var operation: NavigationOperation = NavigationOperation.Navigate
-
+    internal val currentParams = mutableMapOf<String, Any>()
+    
     @PublishedApi
-    internal val params = mutableMapOf<String, Any>()
-
-    @PublishedApi
-    internal var popUpToTarget: NavigationTarget? = null
-
-    @PublishedApi
-    internal var popUpToInclusive: Boolean = false
-
-    @PublishedApi
-    internal var shouldClearBackStack: Boolean = false
-
-    @PublishedApi
-    internal var shouldReplaceWith: Boolean = false
-
-    @PublishedApi
-    internal var shouldBypassSpamProtection: Boolean = false
-
-    @PublishedApi
-    internal var shouldDismissModals: Boolean = false
+    internal var shouldDismissModalsGlobally = false
 
 
     fun navigateTo(path: String, replaceCurrent: Boolean = false, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
         val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
-        this.target = NavigationTarget.Path(cleanPath)
-        this.operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate
-        this.shouldReplaceWith = replaceCurrent
+        val stepParams = mutableMapOf<String, Any>()
         
-        // Add parsed query parameters to the builder's params
+        // Add parsed query parameters
         queryParams.forEach { (key, value) ->
-            params[key] = value
+            stepParams[key] = value
         }
 
         // Apply parameter builder if provided
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
-            params.putAll(parameterBuilder.params)
+            stepParams.putAll(parameterBuilder.params)
         }
+        
+        // Add current accumulated params
+        stepParams.putAll(currentParams)
+        currentParams.clear()
+        
+        val step = NavigationStep(
+            operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate,
+            target = NavigationTarget.Path(cleanPath),
+            params = stepParams,
+            shouldReplaceWith = replaceCurrent,
+            shouldDismissModals = shouldDismissModalsGlobally
+        )
+        operations.add(step)
 
         return this
     }
 
     fun navigateBack(): NavigationBuilder {
-        this.operation = NavigationOperation.Back
+        val step = NavigationStep(
+            operation = NavigationOperation.Back,
+            shouldDismissModals = shouldDismissModalsGlobally
+        )
+        operations.add(step)
+        
         return this
     }
 
@@ -155,51 +139,50 @@ class NavigationBuilder(
         noinline paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
     ): NavigationBuilder {
         val navigatable = findNavigatableByType<T>()
-        this.target = if (preferredGraphId != null) {
+        val target = if (preferredGraphId != null) {
             NavigationTarget.NavigatableObjectWithGraph(navigatable, preferredGraphId)
         } else {
             NavigationTarget.NavigatableObject(navigatable)
         }
-        this.operation = when (navigatable) {
-            is Modal -> NavigationOperation.Modal
-            else -> if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate
-        }
-        this.shouldReplaceWith = replaceCurrent && navigatable !is Modal
+        
+        val stepParams = mutableMapOf<String, Any>()
         
         // Apply parameter builder if provided
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
-            params.putAll(parameterBuilder.params)
+            stepParams.putAll(parameterBuilder.params)
         }
+        
+        // Add current accumulated params
+        stepParams.putAll(currentParams)
+        currentParams.clear()
+        
+        val step = NavigationStep(
+            operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate,
+            target = target,
+            params = stepParams,
+            shouldReplaceWith = replaceCurrent,
+            shouldDismissModals = shouldDismissModalsGlobally
+        )
+        operations.add(step)
         
         return this
     }
 
-    suspend inline fun <reified T : Modal> presentModal(
-        noinline paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
-    ): NavigationBuilder {
-        val modal = findNavigatableByType<T>()
-        this.target = NavigationTarget.NavigatableObject(modal)
-        this.operation = NavigationOperation.Modal
-        
-        // Apply parameter builder if provided
-        paramBuilder?.let { builder ->
-            val parameterBuilder = NavigationParameterBuilder()
-            builder(parameterBuilder)
-            params.putAll(parameterBuilder.params)
-        }
-        
-        return this
-    }
 
 
     fun popUpTo(path: String, inclusive: Boolean = false): NavigationBuilder {
         val (cleanPath, _) = parseUrlWithQueryParams(path)
-        this.popUpToTarget = NavigationTarget.Path(cleanPath)
-        this.popUpToInclusive = inclusive
-        this.operation = NavigationOperation.PopUpTo
-        // Note: We don't add query params for popUpTo targets as they're used for matching
+        
+        val step = NavigationStep(
+            operation = NavigationOperation.PopUpTo,
+            popUpToTarget = NavigationTarget.Path(cleanPath),
+            popUpToInclusive = inclusive,
+            shouldDismissModals = shouldDismissModalsGlobally
+        )
+        operations.add(step)
+        
         return this
     }
 
@@ -208,123 +191,117 @@ class NavigationBuilder(
         preferredGraphId: String? = null
     ): NavigationBuilder {
         val navigatable = findNavigatableByType<T>()
-        this.popUpToTarget = if (preferredGraphId != null) {
+        val target = if (preferredGraphId != null) {
             NavigationTarget.NavigatableObjectWithGraph(navigatable, preferredGraphId)
         } else {
             NavigationTarget.NavigatableObject(navigatable)
         }
-        this.popUpToInclusive = inclusive
-        this.operation = NavigationOperation.PopUpTo
+        
+        val step = NavigationStep(
+            operation = NavigationOperation.PopUpTo,
+            popUpToTarget = target,
+            popUpToInclusive = inclusive,
+            shouldDismissModals = shouldDismissModalsGlobally
+        )
+        operations.add(step)
+        
         return this
     }
 
     fun clearBackStack(): NavigationBuilder {
-        this.shouldClearBackStack = true
-        this.operation = NavigationOperation.ClearBackStack
+        val step = NavigationStep(
+            operation = NavigationOperation.ClearBackStack,
+            shouldClearBackStack = true,
+            shouldDismissModals = shouldDismissModalsGlobally
+        )
+        operations.add(step)
+        
         return this
     }
 
-    /**
-     * Bypass spam protection for this navigation operation
-     * Use this for programmatic navigation sequences where you want to allow rapid navigation
-     */
-    fun bypassSpamProtection(): NavigationBuilder {
-        this.shouldBypassSpamProtection = true
-        return this
-    }
 
     /**
-     * Dismiss any active modals as part of this navigation batch
+     * Dismiss any active modals as part of all navigation operations in this block
      */
-    fun dismissModals() {
-        this.shouldDismissModals = true
+    fun dismissModals(): NavigationBuilder {
+        shouldDismissModalsGlobally = true
+        // Apply to all existing operations as well
+        for (i in operations.indices) {
+            operations[i] = operations[i].copy(shouldDismissModals = true)
+        }
+        return this
     }
 
     inline fun <reified T> put(key: String, value: T): NavigationBuilder {
-        params[key] = SerializableParam(value, serializer<T>())
+        currentParams[key] = SerializableParam(value, serializer<T>())
         return this
     }
 
     fun <T> put(key: String, value: T, serializer: KSerializer<T>): NavigationBuilder {
-        params[key] = SerializableParam(value, serializer)
-        return this
-    }
-
-    fun putString(key: String, value: String): NavigationBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putInt(key: String, value: Int): NavigationBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putBoolean(key: String, value: Boolean): NavigationBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putDouble(key: String, value: Double): NavigationBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putLong(key: String, value: Long): NavigationBuilder {
-        params[key] = value
-        return this
-    }
-
-    fun putFloat(key: String, value: Float): NavigationBuilder {
-        params[key] = value
+        currentParams[key] = SerializableParam(value, serializer)
         return this
     }
 
     fun putRaw(key: String, value: Any): NavigationBuilder {
-        params[key] = value
+        currentParams[key] = value
         return this
     }
 
-    fun param(key: String, value: String) = putString(key, value)
-    fun param(key: String, value: Int) = putInt(key, value)
-    fun param(key: String, value: Boolean) = putBoolean(key, value)
-    fun param(key: String, value: Double) = putDouble(key, value)
-    fun param(key: String, value: Long) = putLong(key, value)
+    // Convenience methods for common types
+    fun putString(key: String, value: String) = putRaw(key, value)
+    fun putInt(key: String, value: Int) = putRaw(key, value)
+    fun putBoolean(key: String, value: Boolean) = putRaw(key, value)
+    fun putDouble(key: String, value: Double) = putRaw(key, value)
+    fun putLong(key: String, value: Long) = putRaw(key, value)
+    fun putFloat(key: String, value: Float) = putRaw(key, value)
+
+    // Shorter aliases
     fun param(key: String, value: Any) = putRaw(key, value)
 
     internal fun validate() {
-        when (operation) {
-            NavigationOperation.Back -> {
-                if (target != null || popUpToTarget != null || shouldClearBackStack) {
-                    throw IllegalStateException("Back operation cannot be combined with other navigation operations")
+        if (operations.isEmpty()) {
+            throw IllegalStateException("No navigation operations specified")
+        }
+        
+        // Validate each operation has required targets
+        operations.forEach { step ->
+            when (step.operation) {
+                NavigationOperation.PopUpTo -> {
+                    require(step.popUpToTarget != null) { 
+                        "PopUpTo operation requires a popUpTo target" 
+                    }
                 }
+                NavigationOperation.ClearBackStack -> {
+                    require(step.popUpToTarget == null) { 
+                        "Pure ClearBackStack operation cannot have popUpTo target" 
+                    }
+                }
+                NavigationOperation.Navigate, NavigationOperation.Replace -> {
+                    require(step.target != null) { 
+                        "${step.operation.name} operation requires a target" 
+                    }
+                }
+                NavigationOperation.Back -> { /* Always valid */ }
             }
-
-            NavigationOperation.PopUpTo -> {
-                if (popUpToTarget == null) {
-                    throw IllegalStateException("PopUpTo operation requires a popUpTo target")
-                }
-            }
-
-            NavigationOperation.ClearBackStack -> {
-                if (popUpToTarget != null) {
-                    throw IllegalStateException("Pure ClearBackStack operation cannot have popUpTo target")
-                }
-            }
-
-            NavigationOperation.Navigate, NavigationOperation.Replace, NavigationOperation.Modal -> {
-                if (target == null) {
-                    throw IllegalStateException("${operation.name} operation requires a target")
-                }
-                if (shouldClearBackStack && popUpToTarget != null) {
-                    throw IllegalStateException("Cannot combine clearBackStack with popUpTo in navigation operations")
-                }
-            }
+        }
+        
+        // Validate operation combinations that don't make sense
+        val operationTypes = operations.map { it.operation }.toSet()
+        val hasClearBackStack = NavigationOperation.ClearBackStack in operationTypes
+        val hasPopUpTo = NavigationOperation.PopUpTo in operationTypes
+        val hasReplaceCurrent = operations.any { it.shouldReplaceWith }
+        
+        require(!(hasClearBackStack && hasPopUpTo)) {
+            "Cannot combine clearBackStack with popUpTo operations in the same batch"
+        }
+        
+        require(!(hasClearBackStack && hasReplaceCurrent)) {
+            "Cannot combine clearBackStack with replaceCurrent operations in the same batch"
         }
     }
 
-    internal fun encodeParameters(): Map<String, Any> {
-        return params.mapValues { (_, value) ->
+    internal fun encodeParametersForStep(stepParams: Map<String, Any>): Map<String, Any> {
+        return stepParams.mapValues { (_, value) ->
             encoder.encodeMixed(value)
         }
     }
