@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation
 
+import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
@@ -10,10 +11,17 @@ import io.github.syrou.reaktiv.navigation.dsl.NavigationStep
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
+import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
+import io.github.syrou.reaktiv.navigation.model.getRoute
+import io.github.syrou.reaktiv.navigation.model.getParams
+import io.github.syrou.reaktiv.navigation.util.computeGuidedFlowProperties
+import kotlinx.datetime.Clock
 import kotlinx.coroutines.flow.first
 
 class NavigationLogic(
@@ -45,8 +53,8 @@ class NavigationLogic(
         config: (NavigationBuilder.() -> Unit)? = null
     ) {
         navigate {
-            navigateTo(route, replaceCurrent)
             params.forEach { (key, value) -> putRaw(key, value) }
+            navigateTo(route, replaceCurrent)
             config?.invoke(this)
         }
     }
@@ -182,7 +190,7 @@ class NavigationLogic(
         val initialState = getCurrentNavigationState()
         
         // Compute the final state by applying all operations in sequence
-        val finalState = computeFinalNavigationState(builder.operations, initialState)
+        val finalState = computeFinalNavigationState(builder.operations, initialState, builder.guidedFlowContext)
         
         // Dispatch once with the final computed state
         if (finalState.modalContexts != initialState.activeModalContexts) {
@@ -214,7 +222,8 @@ class NavigationLogic(
      */
     private suspend fun computeFinalNavigationState(
         operations: List<NavigationStep>, 
-        initialState: NavigationState
+        initialState: NavigationState,
+        guidedFlowContext: GuidedFlowContext? = null
     ): ComputedNavigationState {
         // Collect outcomes of all operations in sequence
         val operationResults = mutableListOf<NavigationStepResult>()
@@ -224,7 +233,7 @@ class NavigationLogic(
         
         // Apply each operation and collect its outcome
         for (step in operations) {
-            val stepResult = applyNavigationStep(step, currentEntry, backStack, modalContexts)
+            val stepResult = applyNavigationStep(step, currentEntry, backStack, modalContexts, guidedFlowContext)
             operationResults.add(stepResult)
             
             // Update state for next operation
@@ -272,7 +281,8 @@ class NavigationLogic(
         step: NavigationStep,
         currentEntry: NavigationEntry,
         backStack: List<NavigationEntry>,
-        modalContexts: Map<String, ModalContext>
+        modalContexts: Map<String, ModalContext>,
+        guidedFlowContext: GuidedFlowContext? = null
     ): NavigationStepResult {
         return when (step.operation) {
             NavigationOperation.Back -> {
@@ -280,19 +290,19 @@ class NavigationLogic(
             }
             
             NavigationOperation.PopUpTo -> {
-                applyPopUpToStep(step, currentEntry, backStack, modalContexts)
+                applyPopUpToStep(step, currentEntry, backStack, modalContexts, guidedFlowContext)
             }
             
             NavigationOperation.ClearBackStack -> {
-                applyClearBackStackStep(step, currentEntry, backStack, modalContexts)
+                applyClearBackStackStep(step, currentEntry, backStack, modalContexts, guidedFlowContext)
             }
             
             NavigationOperation.Navigate -> {
-                applyNavigateStep(step, currentEntry, backStack, modalContexts)
+                applyNavigateStep(step, currentEntry, backStack, modalContexts, guidedFlowContext)
             }
             
             NavigationOperation.Replace -> {
-                applyReplaceStep(step, currentEntry, backStack, modalContexts)
+                applyReplaceStep(step, currentEntry, backStack, modalContexts, guidedFlowContext)
             }
         }
     }
@@ -310,7 +320,8 @@ class NavigationLogic(
     private suspend fun createNavigationEntry(
         step: NavigationStep,
         resolution: RouteResolution,
-        stackPosition: Int
+        stackPosition: Int,
+        guidedFlowContext: GuidedFlowContext? = null
     ): NavigationEntry {
         val encodedParams = parameterEncoder.encodeStepParameters(step.params)
         val mergedParams = resolution.extractedParams + encodedParams
@@ -318,7 +329,8 @@ class NavigationLogic(
         return resolution.targetNavigatable.toNavigationEntry(
             params = mergedParams,
             graphId = resolution.getEffectiveGraphId(),
-            stackPosition = stackPosition
+            stackPosition = stackPosition,
+            guidedFlowContext = guidedFlowContext
         )
     }
     
@@ -421,7 +433,8 @@ class NavigationLogic(
         step: NavigationStep,
         currentEntry: NavigationEntry,
         backStack: List<NavigationEntry>,
-        modalContexts: Map<String, ModalContext>
+        modalContexts: Map<String, ModalContext>,
+        guidedFlowContext: GuidedFlowContext? = null
     ): NavigationStepResult {
         val resolvedRoute = step.target?.resolve(precomputedData)
             ?: throw IllegalStateException("Navigate operation requires a target")
@@ -444,7 +457,7 @@ class NavigationLogic(
             else -> baseBackStack.size + 1             // Normal case: add to existing backstack
         }
         
-        val newEntry = createNavigationEntry(step, resolution, stackPosition)
+        val newEntry = createNavigationEntry(step, resolution, stackPosition, guidedFlowContext)
         
         val newBackStack = if (isNavigatingToModal) {
             // For modals, add to current backstack without modifying it
@@ -504,7 +517,8 @@ class NavigationLogic(
         step: NavigationStep,
         currentEntry: NavigationEntry,
         backStack: List<NavigationEntry>,
-        modalContexts: Map<String, ModalContext>
+        modalContexts: Map<String, ModalContext>,
+        guidedFlowContext: GuidedFlowContext? = null
     ): NavigationStepResult {
         val resolvedRoute = step.target?.resolve(precomputedData)
             ?: throw IllegalStateException("Replace operation requires a target")
@@ -512,7 +526,7 @@ class NavigationLogic(
         val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
             ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
-        val newEntry = createNavigationEntry(step, resolution, backStack.size)
+        val newEntry = createNavigationEntry(step, resolution, backStack.size, guidedFlowContext)
 
         val baseBackStack = if (step.shouldDismissModals) {
             backStack.filter { it.isScreen }
@@ -535,7 +549,8 @@ class NavigationLogic(
         step: NavigationStep,
         currentEntry: NavigationEntry,
         backStack: List<NavigationEntry>,
-        modalContexts: Map<String, ModalContext>
+        modalContexts: Map<String, ModalContext>,
+        guidedFlowContext: GuidedFlowContext? = null
     ): NavigationStepResult {
         val popUpToRoute = step.popUpToTarget?.resolve(precomputedData)
             ?: throw IllegalStateException("PopUpTo operation requires a popUpTo target")
@@ -563,7 +578,8 @@ class NavigationLogic(
             val newEntry = createNavigationEntry(
                 step, 
                 resolution, 
-                stackPosition = newBackStackAfterPop.size + 1
+                stackPosition = newBackStackAfterPop.size + 1,
+                guidedFlowContext = guidedFlowContext
             )
             
             NavigationStepResult(
@@ -609,7 +625,8 @@ class NavigationLogic(
         step: NavigationStep,
         currentEntry: NavigationEntry,
         backStack: List<NavigationEntry>,
-        modalContexts: Map<String, ModalContext>
+        modalContexts: Map<String, ModalContext>,
+        guidedFlowContext: GuidedFlowContext? = null
     ): NavigationStepResult {
         if (step.target != null) {
             // clearBackStack with navigation target - navigate and clear history
@@ -617,7 +634,7 @@ class NavigationLogic(
             val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
                 ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
-            val newEntry = createNavigationEntry(step, resolution, stackPosition = 1)
+            val newEntry = createNavigationEntry(step, resolution, stackPosition = 1, guidedFlowContext)
             
             return NavigationStepResult(
                 currentEntry = newEntry,
@@ -632,6 +649,135 @@ class NavigationLogic(
                 backStack = emptyList(), // Completely clear backStack for fresh start
                 modalContexts = emptyMap() // Clear back stack also clears modal contexts
             )
+        }
+    }
+
+    override suspend fun invoke(action: ModuleAction) {
+        when (action) {
+            is NavigationAction.StartGuidedFlow -> handleStartGuidedFlow(action)
+            is NavigationAction.NextStep -> handleNextStep(action)
+            is NavigationAction.PreviousStep -> handlePreviousStep()
+            else -> {
+                // Other actions are handled by the reducer
+            }
+        }
+    }
+
+    private suspend fun handleStartGuidedFlow(action: NavigationAction.StartGuidedFlow) {
+        val currentState = getCurrentNavigationState()
+        val definition = currentState.guidedFlowDefinitions[action.guidedFlow]
+        
+        if (definition != null && definition.steps.isNotEmpty()) {
+            // 1. Create flow state
+            val flowState = computeGuidedFlowProperties(
+                GuidedFlowState(
+                    flowRoute = action.guidedFlow.route,
+                    startedAt = Clock.System.now()
+                ),
+                definition
+            )
+            storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(flowState))
+            
+            // 2. Navigate to first step with flow context
+            val firstStep = definition.steps.first()
+            val stepRoute = firstStep.getRoute(precomputedData)
+            val stepParams = action.params + firstStep.getParams()
+            navigate(stepRoute, stepParams, false) {
+                // Set guided flow context for this navigation
+                setGuidedFlowContext(GuidedFlowContext(
+                    flowRoute = action.guidedFlow.route,
+                    stepIndex = 0,
+                    totalSteps = definition.steps.size
+                ))
+            }
+        }
+    }
+
+    private suspend fun handleNextStep(action: NavigationAction.NextStep) {
+        val currentState = getCurrentNavigationState()
+        val flowState = currentState.activeGuidedFlowState
+        val definition = flowState?.let { 
+            currentState.guidedFlowDefinitions[GuidedFlow(it.flowRoute)] 
+        }
+        
+        if (flowState != null && definition != null) {
+            when {
+                flowState.isOnFinalStep -> {
+                    // Complete flow
+                    val completedFlowState = flowState.copy(
+                        completedAt = Clock.System.now(),
+                        isCompleted = true,
+                        duration = Clock.System.now() - flowState.startedAt
+                    )
+                    storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(completedFlowState))
+                    
+                    // Use navigation builder for completion handling
+                    definition.onComplete?.let { onCompleteBlock ->
+                        navigate {
+                            onCompleteBlock()
+                            // Params from NextStep can be used in the navigation builder
+                            action.params.forEach { (key, value) -> putRaw(key, value) }
+                        }
+                    }
+                    
+                    // Clear the guided flow state
+                    storeAccessor.dispatch(NavigationAction.ClearActiveGuidedFlow)
+                }
+                else -> {
+                    // Move to next step
+                    val nextStepIndex = flowState.currentStepIndex + 1
+                    val nextStep = definition.steps[nextStepIndex]
+                    
+                    // Update flow state
+                    val updatedFlow = computeGuidedFlowProperties(
+                        flowState.copy(currentStepIndex = nextStepIndex),
+                        definition
+                    )
+                    storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(updatedFlow))
+                    
+                    // Navigate to next step with flow context
+                    val stepRoute = nextStep.getRoute(precomputedData)
+                    val stepParams = action.params + nextStep.getParams()
+                    navigate(stepRoute, stepParams, false) {
+                        setGuidedFlowContext(GuidedFlowContext(
+                            flowRoute = flowState.flowRoute,
+                            stepIndex = nextStepIndex,
+                            totalSteps = definition.steps.size
+                        ))
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun handlePreviousStep() {
+        val currentState = getCurrentNavigationState()
+        val flowState = currentState.activeGuidedFlowState
+        val definition = flowState?.let { 
+            currentState.guidedFlowDefinitions[GuidedFlow(it.flowRoute)] 
+        }
+        
+        if (flowState != null && definition != null && flowState.currentStepIndex > 0) {
+            val previousStepIndex = flowState.currentStepIndex - 1
+            val previousStep = definition.steps[previousStepIndex]
+            
+            // Update flow state
+            val updatedFlow = computeGuidedFlowProperties(
+                flowState.copy(currentStepIndex = previousStepIndex),
+                definition
+            )
+            storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(updatedFlow))
+            
+            // Navigate to previous step with flow context
+            val stepRoute = previousStep.getRoute(precomputedData)
+            val stepParams = previousStep.getParams()
+            navigate(stepRoute, stepParams, false) {
+                setGuidedFlowContext(GuidedFlowContext(
+                    flowRoute = flowState.flowRoute,
+                    stepIndex = previousStepIndex,
+                    totalSteps = definition.steps.size
+                ))
+            }
         }
     }
 }

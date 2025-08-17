@@ -1,10 +1,13 @@
 package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
@@ -46,7 +49,11 @@ data class NavigationState(
     val availableRoutes: Set<String>,
     val allAvailableNavigatables: Map<String, Navigatable>,
     val graphHierarchyLookup: Map<String, List<String>>,
-    val activeModalContexts: Map<String, ModalContext>
+    val activeModalContexts: Map<String, ModalContext>,
+    
+    // GuidedFlow state
+    val guidedFlowDefinitions: Map<GuidedFlow, GuidedFlowDefinition> = emptyMap(),
+    val activeGuidedFlowState: GuidedFlowState? = null
 ) : ModuleState {
     
     // External compatibility methods

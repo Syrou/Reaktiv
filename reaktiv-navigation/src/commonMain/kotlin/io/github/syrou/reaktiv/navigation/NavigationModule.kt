@@ -102,7 +102,9 @@ class NavigationModule internal constructor(
             availableRoutes = precomputedData.routeToNavigatable.keys,
             allAvailableNavigatables = precomputedData.allNavigatables,
             graphHierarchyLookup = precomputedData.graphHierarchies,
-            activeModalContexts = emptyMap()
+            activeModalContexts = emptyMap(),
+            guidedFlowDefinitions = emptyMap(),
+            activeGuidedFlowState = null
         )
     }
 
@@ -165,7 +167,9 @@ class NavigationModule internal constructor(
                     availableRoutes = precomputedData.routeToNavigatable.keys,
                     allAvailableNavigatables = precomputedData.allNavigatables,
                     graphHierarchyLookup = precomputedData.graphHierarchies,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -205,7 +209,9 @@ class NavigationModule internal constructor(
                     availableRoutes = precomputedData.routeToNavigatable.keys,
                     allAvailableNavigatables = precomputedData.allNavigatables,
                     graphHierarchyLookup = precomputedData.graphHierarchies,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -245,7 +251,9 @@ class NavigationModule internal constructor(
                     availableRoutes = precomputedData.routeToNavigatable.keys,
                     allAvailableNavigatables = precomputedData.allNavigatables,
                     graphHierarchyLookup = precomputedData.graphHierarchies,
-                    activeModalContexts = action.modalContexts
+                    activeModalContexts = action.modalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -285,7 +293,9 @@ class NavigationModule internal constructor(
                     availableRoutes = precomputedData.routeToNavigatable.keys,
                     allAvailableNavigatables = precomputedData.allNavigatables,
                     graphHierarchyLookup = precomputedData.graphHierarchies,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -324,7 +334,9 @@ class NavigationModule internal constructor(
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
                     graphHierarchyLookup = state.graphHierarchyLookup,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -365,7 +377,9 @@ class NavigationModule internal constructor(
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
                     graphHierarchyLookup = state.graphHierarchyLookup,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -414,7 +428,9 @@ class NavigationModule internal constructor(
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
                     graphHierarchyLookup = state.graphHierarchyLookup,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -463,7 +479,9 @@ class NavigationModule internal constructor(
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
                     graphHierarchyLookup = state.graphHierarchyLookup,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -502,7 +520,9 @@ class NavigationModule internal constructor(
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
                     graphHierarchyLookup = state.graphHierarchyLookup,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
 
@@ -540,8 +560,25 @@ class NavigationModule internal constructor(
                     availableRoutes = state.availableRoutes,
                     allAvailableNavigatables = state.allAvailableNavigatables,
                     graphHierarchyLookup = state.graphHierarchyLookup,
-                    activeModalContexts = state.activeModalContexts
+                    activeModalContexts = state.activeModalContexts,
+                    guidedFlowDefinitions = state.guidedFlowDefinitions,
+                    activeGuidedFlowState = state.activeGuidedFlowState
                 )
+            }
+
+            // GuidedFlow actions
+            is NavigationAction.CreateGuidedFlow -> {
+                state.copy(
+                    guidedFlowDefinitions = state.guidedFlowDefinitions + (action.definition.guidedFlow to action.definition)
+                )
+            }
+
+            is NavigationAction.UpdateActiveGuidedFlow -> {
+                state.copy(activeGuidedFlowState = action.flowState)
+            }
+
+            is NavigationAction.ClearActiveGuidedFlow -> {
+                state.copy(activeGuidedFlowState = null)
             }
 
             else -> state

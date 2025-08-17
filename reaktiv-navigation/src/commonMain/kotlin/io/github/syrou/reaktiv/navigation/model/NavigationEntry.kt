@@ -12,7 +12,8 @@ data class NavigationEntry(
     val navigatable: Navigatable,
     val params: StringAnyMap,
     val graphId: String,
-    val stackPosition: Int = 0
+    val stackPosition: Int = 0,
+    val guidedFlowContext: GuidedFlowContext? = null
 ){
     companion object {
         private const val BASE_SCREEN_Z_INDEX = 0f
@@ -72,10 +73,12 @@ data class NavigationLayer(
 fun Navigatable.toNavigationEntry(
     params: StringAnyMap = emptyMap(),
     graphId: String,
-    stackPosition: Int = 0
+    stackPosition: Int = 0,
+    guidedFlowContext: GuidedFlowContext? = null
 ): NavigationEntry = NavigationEntry(
     navigatable = this,
     params = params,
     graphId = graphId,
-    stackPosition = stackPosition
+    stackPosition = stackPosition,
+    guidedFlowContext = guidedFlowContext
 )

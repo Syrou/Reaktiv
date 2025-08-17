@@ -13,6 +13,7 @@ import io.github.syrou.reaktiv.navigation.param.SerializableParam
 import io.github.syrou.reaktiv.navigation.util.CommonUrlEncoder
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -85,6 +86,9 @@ class NavigationBuilder(
     
     @PublishedApi
     internal var shouldDismissModalsGlobally = false
+    
+    @PublishedApi
+    internal var guidedFlowContext: GuidedFlowContext? = null
 
 
     fun navigateTo(path: String, replaceCurrent: Boolean = false, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
@@ -257,6 +261,12 @@ class NavigationBuilder(
 
     // Shorter aliases
     fun param(key: String, value: Any) = putRaw(key, value)
+    
+    // GuidedFlow support
+    fun setGuidedFlowContext(context: GuidedFlowContext): NavigationBuilder {
+        guidedFlowContext = context
+        return this
+    }
 
     internal fun validate() {
         if (operations.isEmpty()) {

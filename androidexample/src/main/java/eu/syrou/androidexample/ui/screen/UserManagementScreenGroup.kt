@@ -14,19 +14,53 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import eu.syrou.androidexample.R
 import eu.syrou.androidexample.reaktiv.twitchstreams.TwitchStreamsModule
+import eu.syrou.androidexample.ui.screen.home.NotificationModal
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.core.Store
+import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
+import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
-import io.github.syrou.reaktiv.navigation.extension.clearBackStack
-import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.dsl.guidedFlow
+import io.github.syrou.reaktiv.navigation.dsl.step
+import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
+
+    /**
+     * Creates a guided flow for user management that takes users through
+     * the complete view → edit → delete workflow
+     */
+    fun createUserManagementFlow(userId: String) = guidedFlow("user-management") {
+        step<ViewUser>().param("id", userId)
+        step("user/666/edit?query=EDIT")
+        step<DeleteUser>().param("id", userId)
+        onComplete {
+            clearBackStack()
+            navigateTo("home")
+            navigateTo<NotificationModal>()
+        }
+    }
+
+    /**
+     * Helper function to create and start a user management guided flow
+     */
+    suspend fun startUserManagementFlow(store: Store, userId: String) {
+        // Create the guided flow definition
+        val flowDefinition = createUserManagementFlow(userId)
+
+        // Create the flow in the store
+        store.dispatch(NavigationAction.CreateGuidedFlow(flowDefinition))
+
+        // Start the flow
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("user-management")))
+    }
 
     @Serializable
     object ViewUser : Screen {
@@ -57,10 +91,10 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 Text("User view based on param: $id")
                 Button(onClick = {
                     store.launch {
-                        store.navigate("user/$id/edit")
+                        store.dispatch(NavigationAction.NextStep())
                     }
                 }) {
-                    Text("Next")
+                    Text("Next Step in Flow")
                 }
             }
         }
@@ -82,6 +116,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override fun Content(
             params: Map<String, Any>
         ) {
+            println("HERPADERPA - PARAMS: $params")
             val id by remember { mutableStateOf(params["id"] as? String ?: "666") }
             val store = rememberStore()
             Column(
@@ -95,10 +130,17 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 )
                 Button(onClick = {
                     store.launch {
-                        store.navigate("user/$id/delete")
+                        store.dispatch(NavigationAction.NextStep())
                     }
                 }) {
-                    Text("Next")
+                    Text("Next Step in Flow")
+                }
+                Button(onClick = {
+                    store.launch {
+                        store.dispatch(NavigationAction.PreviousStep)
+                    }
+                }) {
+                    Text("Previous Step")
                 }
             }
         }
@@ -131,12 +173,17 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 )
                 Button(onClick = {
                     store.launch {
-                        store.clearBackStack {
-                            navigate("home")
-                        }
+                        store.dispatch(NavigationAction.NextStep())
                     }
                 }) {
-                    Text("Clear")
+                    Text("Complete Flow")
+                }
+                Button(onClick = {
+                    store.launch {
+                        store.dispatch(NavigationAction.PreviousStep)
+                    }
+                }) {
+                    Text("Previous Step")
                 }
                 thingState.twitchStreamers.forEach {
                     Text(it.user_name)

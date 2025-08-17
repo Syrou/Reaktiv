@@ -112,12 +112,10 @@ object SettingsScreen : Screen {
             })
             Button(onClick = {
                 store.launch {
-                    store.navigate("user/31") {
-                        clearBackStack()
-                    }
+                    UserManagementScreens.startUserManagementFlow(store, "31")
                 }
             }) {
-                Text("Navigate to user")
+                Text("Start User Management Flow")
             }
         }
     }

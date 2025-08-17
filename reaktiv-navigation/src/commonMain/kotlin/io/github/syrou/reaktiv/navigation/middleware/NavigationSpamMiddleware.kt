@@ -39,22 +39,11 @@ class NavigationSpamMiddleware(
 
             return { action, getAllStates, storeAccessor, updatedState ->
                 if (action is NavigationAction) {
-                    when {
-                        // Check bypass flag first
-                        action.bypassSpamProtection -> {
-                            ReaktivDebug.nav("⚡ Bypassing spam protection: ${action::class.simpleName}")
-                            updatedState(action)
-                        }
-
-                        // Apply normal spam protection
-                        else -> {
-                            if (middleware.shouldBlockAction(action)) {
-                                ReaktivDebug.nav("🚫 Blocked navigation spam: ${action::class.simpleName}")
-                            } else {
-                                middleware.trackAction(action)
-                                updatedState(action)
-                            }
-                        }
+                    if (middleware.shouldBlockAction(action)) {
+                        ReaktivDebug.nav("🚫 Blocked navigation spam: ${action::class.simpleName}")
+                    } else {
+                        middleware.trackAction(action)
+                        updatedState(action)
                     }
                 } else {
                     updatedState(action)
@@ -66,16 +55,16 @@ class NavigationSpamMiddleware(
     private suspend fun shouldBlockAction(
         action: NavigationAction
     ): Boolean = navigationMutex.withLock {
-        if (debounceJob?.isActive == true) {
-            ReaktivDebug.nav("⏱️ Blocking action - within debounce window")
-            return@withLock true
-        }
-        
-        if (action is NavigationAction.BatchUpdate && action.currentEntry != null) {
-            val routeKey = "${action.currentEntry.screen.route}-${action.currentEntry.graphId}"
+        // Block navigation to the same route within debounce window
+        if (debounceJob?.isActive == true && 
+            action is NavigationAction.BatchUpdate && action.currentEntry != null &&
+            lastNavigationAction is NavigationAction.BatchUpdate && (lastNavigationAction as NavigationAction.BatchUpdate).currentEntry != null) {
             
-            if (recentRoutes.contains(routeKey)) {
-                ReaktivDebug.nav("🎯 Blocking action - same route recently accessed: $routeKey")
+            val currentRoute = action.currentEntry.navigatable.route
+            val lastRoute = (lastNavigationAction as NavigationAction.BatchUpdate).currentEntry?.navigatable?.route
+            
+            if (currentRoute == lastRoute) {
+                ReaktivDebug.nav("🎯 Blocking action - same route within debounce window: $currentRoute")
                 return@withLock true
             }
         }
