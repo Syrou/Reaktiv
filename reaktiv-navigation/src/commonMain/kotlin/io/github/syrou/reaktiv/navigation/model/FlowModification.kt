@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.model
 
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -42,7 +43,7 @@ sealed class FlowModification {
     @Serializable
     data class UpdateOnComplete(
         @Transient
-        val onComplete: (suspend NavigationBuilder.() -> Unit)? = null
+        val onComplete: (suspend (StoreAccessor) -> Unit)? = null
     ) : FlowModification()
 }
 

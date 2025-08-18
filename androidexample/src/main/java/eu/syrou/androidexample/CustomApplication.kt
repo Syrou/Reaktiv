@@ -39,6 +39,7 @@ import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.middleware.NavigationSpamMiddleware
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import kotlinx.coroutines.Dispatchers
 import java.util.concurrent.TimeUnit
 
@@ -113,6 +114,19 @@ class CustomApplication : Application() {
                     }
 
                     screenGroup(UserManagementScreens)
+                }
+                
+                // Configure GuidedFlow definitions
+                guidedFlow("user-management") {
+                    step<UserManagementScreens.ViewUser>()
+                    step("user/{userId}/edit?query=EDIT") // Mixed: route string with query param
+                    step<UserManagementScreens.DeleteUser>()
+                    onComplete { storeAccessor ->
+                        storeAccessor.navigation {
+                            clearBackStack()
+                            navigateTo("home")
+                        }
+                    }
                 }
             }
         )

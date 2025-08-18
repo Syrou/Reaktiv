@@ -13,6 +13,7 @@ import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncode
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.first
 class NavigationLogic(
     val storeAccessor: StoreAccessor,
     private val precomputedData: PrecomputedNavigationData,
+    private val guidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
     private val parameterEncoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
 ) : ModuleLogic<NavigationAction>() {
 
@@ -665,7 +667,9 @@ class NavigationLogic(
 
     private suspend fun handleStartGuidedFlow(action: NavigationAction.StartGuidedFlow) {
         val currentState = getCurrentNavigationState()
-        val definition = currentState.guidedFlowDefinitions[action.guidedFlow.route]
+        // Check runtime modifications first, then fall back to base definitions
+        val definition = currentState.guidedFlowDefinitions[action.guidedFlow.route] 
+            ?: guidedFlowDefinitions[action.guidedFlow.route]
         
         if (definition != null && definition.steps.isNotEmpty()) {
             // 1. Create flow state
@@ -697,7 +701,9 @@ class NavigationLogic(
         val currentState = getCurrentNavigationState()
         val flowState = currentState.activeGuidedFlowState
         val definition = flowState?.let { 
+            // Check runtime modifications first, then fall back to base definitions
             currentState.guidedFlowDefinitions[it.flowRoute] 
+                ?: guidedFlowDefinitions[it.flowRoute]
         }
         
         if (flowState != null && definition != null) {
@@ -711,13 +717,9 @@ class NavigationLogic(
                     )
                     storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(completedFlowState))
                     
-                    // Use navigation builder for completion handling
+                    // Execute completion handler directly with StoreAccessor
                     definition.onComplete?.let { onCompleteBlock ->
-                        navigate {
-                            onCompleteBlock()
-                            // Params from NextStep can be used in the navigation builder
-                            action.params.forEach { (key, value) -> putRaw(key, value) }
-                        }
+                        onCompleteBlock(storeAccessor)
                     }
                     
                     // Clear the guided flow state
@@ -754,7 +756,9 @@ class NavigationLogic(
         val currentState = getCurrentNavigationState()
         val flowState = currentState.activeGuidedFlowState
         val definition = flowState?.let { 
+            // Check runtime modifications first, then fall back to base definitions
             currentState.guidedFlowDefinitions[it.flowRoute] 
+                ?: guidedFlowDefinitions[it.flowRoute]
         }
         
         if (flowState != null && definition != null && flowState.currentStepIndex > 0) {

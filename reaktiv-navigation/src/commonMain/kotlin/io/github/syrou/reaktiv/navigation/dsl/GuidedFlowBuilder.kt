@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.dsl
 
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
@@ -13,7 +14,7 @@ import kotlin.reflect.KClass
  */
 class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
     private val steps = mutableListOf<GuidedFlowStep>()
-    private var onCompleteBlock: (suspend NavigationBuilder.() -> Unit)? = null
+    private var onCompleteBlock: (suspend (StoreAccessor) -> Unit)? = null
     private var pendingStepBuilder: GuidedFlowStepBuilder? = null
 
     /**
@@ -31,7 +32,7 @@ class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
 
     /**
      * Add a step using a typed screen class
-     * Example: step<UserProfileScreen>()
+     * Example: step(UserProfileScreen::class) or step<UserProfileScreen>()
      */
     fun <T : Screen> step(screenClass: KClass<T>): GuidedFlowStepBuilder {
         finalizePendingStep()
@@ -43,11 +44,120 @@ class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
     }
 
     /**
-     * Define what happens when the guided flow completes
+     * Add a step using reified type parameter
+     * Example: step<UserProfileScreen>()
      */
-    fun onComplete(block: suspend NavigationBuilder.() -> Unit) {
+    inline fun <reified T : Screen> step(): GuidedFlowStepBuilder {
+        return step(T::class)
+    }
+
+    /**
+     * Define what happens when the guided flow completes
+     * The StoreAccessor parameter allows access to all module states and navigation operations.
+     * Use storeAccessor.navigation {} to perform navigation operations.
+     */
+    fun onComplete(block: suspend (StoreAccessor) -> Unit) {
         finalizePendingStep()
         onCompleteBlock = block
+    }
+
+    /**
+     * Clear the completion handler
+     */
+    fun clearOnComplete() {
+        finalizePendingStep()
+        onCompleteBlock = null
+    }
+
+    /**
+     * Insert a step at a specific index
+     */
+    fun insertStep(index: Int, route: String): GuidedFlowStepBuilder {
+        finalizePendingStep()
+        require(index >= 0 && index <= steps.size) { "Index $index is out of bounds" }
+        
+        val stepBuilder = GuidedFlowStepBuilder { params ->
+            GuidedFlowStep.Route(route, params)
+        }
+        
+        // Create the step and insert it
+        val step = stepBuilder.build()
+        steps.add(index, step)
+        
+        // Return a new builder for chaining (though the step is already added)
+        return GuidedFlowStepBuilder { _ -> step }
+    }
+
+    /**
+     * Remove a step by index
+     */
+    fun removeStep(index: Int) {
+        finalizePendingStep()
+        require(index >= 0 && index < steps.size) { "Index $index is out of bounds" }
+        steps.removeAt(index)
+    }
+
+    /**
+     * Remove all steps matching a route
+     */
+    fun removeStepsFor(route: String) {
+        finalizePendingStep()
+        steps.removeAll { step ->
+            when (step) {
+                is GuidedFlowStep.Route -> step.route == route
+                is GuidedFlowStep.TypedScreen -> step.screenClass == route
+            }
+        }
+    }
+
+    /**
+     * Replace a step at a specific index
+     */
+    fun replaceStep(index: Int, route: String): GuidedFlowStepBuilder {
+        finalizePendingStep()
+        require(index >= 0 && index < steps.size) { "Index $index is out of bounds" }
+        
+        val stepBuilder = GuidedFlowStepBuilder { params ->
+            GuidedFlowStep.Route(route, params)
+        }
+        
+        val step = stepBuilder.build()
+        steps[index] = step
+        
+        return GuidedFlowStepBuilder { _ -> step }
+    }
+
+    /**
+     * Find the index of a step by route
+     */
+    fun findStepIndex(route: String): Int = steps.indexOfFirst { step ->
+        when (step) {
+            is GuidedFlowStep.Route -> step.route == route
+            is GuidedFlowStep.TypedScreen -> step.screenClass == route
+        }
+    }
+
+    /**
+     * Check if a route is already in the flow
+     */
+    fun hasStep(route: String): Boolean = steps.any { step ->
+        when (step) {
+            is GuidedFlowStep.Route -> step.route == route
+            is GuidedFlowStep.TypedScreen -> step.screenClass == route
+        }
+    }
+
+    /**
+     * Get current steps count
+     */
+    val stepCount: Int get() = steps.size
+
+    /**
+     * Clear all steps
+     */
+    fun clearSteps() {
+        finalizePendingStep()
+        steps.clear()
     }
 
     /**
@@ -132,9 +242,3 @@ fun guidedFlow(guidedFlow: GuidedFlow, block: GuidedFlowBuilder.() -> Unit): Gui
     return builder.build()
 }
 
-/**
- * Inline helper function for type-safe screen step creation
- */
-inline fun <reified T : Screen> GuidedFlowBuilder.step(): GuidedFlowStepBuilder {
-    return step(T::class)
-}

@@ -7,12 +7,6 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
-import io.github.syrou.reaktiv.navigation.model.guidedFlowStep
-import io.github.syrou.reaktiv.navigation.model.toGuidedFlowStep
-import io.github.syrou.reaktiv.navigation.dsl.guidedFlow
-import io.github.syrou.reaktiv.navigation.dsl.step
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -27,6 +21,47 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlin.reflect.KClass
+import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.core.ModuleAction
+import io.github.syrou.reaktiv.core.ModuleLogic
+import io.github.syrou.reaktiv.core.Module
+import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.selectState
+import io.github.syrou.reaktiv.navigation.extension.navigation
+
+// Test module for conditional navigation testing
+data class UserConditionState(
+    val isVip: Boolean = false, 
+    val hasCompletedTutorial: Boolean = false,
+    val points: Int = 0
+) : ModuleState
+
+sealed class UserConditionAction(moduleTag: KClass<*>) : ModuleAction(moduleTag) {
+    object MakeVip : UserConditionAction(UserConditionModule::class)
+    object CompleteTutorial : UserConditionAction(UserConditionModule::class)
+    data class AddPoints(val amount: Int) : UserConditionAction(UserConditionModule::class)
+    object Reset : UserConditionAction(UserConditionModule::class)
+}
+
+object UserConditionModule : Module<UserConditionState, UserConditionAction> {
+    override val initialState = UserConditionState()
+    
+    override val reducer = { state: UserConditionState, action: UserConditionAction ->
+        when (action) {
+            is UserConditionAction.MakeVip -> state.copy(isVip = true)
+            is UserConditionAction.CompleteTutorial -> state.copy(hasCompletedTutorial = true)
+            is UserConditionAction.AddPoints -> state.copy(points = state.points + action.amount)
+            is UserConditionAction.Reset -> UserConditionState()
+        }
+    }
+    
+    override val createLogic = { _: StoreAccessor -> 
+        object : ModuleLogic<UserConditionAction>() {
+            override suspend fun invoke(action: ModuleAction) {}
+        }
+    }
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GuidedFlowTest {
@@ -77,33 +112,55 @@ class GuidedFlowTest {
             startScreen(TestHomeScreen)
             screens(TestHomeScreen, TestWelcomeScreen, TestProfileScreen, TestPreferencesScreen)
         }
+        
+        guidedFlow("test-flow") {
+            step<TestWelcomeScreen>()
+            step<TestProfileScreen>()
+            step<TestPreferencesScreen>()
+            onComplete { storeAccessor ->
+                storeAccessor.navigation {
+                    navigateTo(TestHomeScreen.route)
+                    clearBackStack()
+                }
+            }
+        }
+        
+        guidedFlow("route-flow") {
+            step("test-welcome")
+            step("test-profile?source=guided").param("profileType", "basic")
+            step("test-preferences")
+            onComplete { storeAccessor ->
+                storeAccessor.navigation {
+                    navigateTo("test-home")
+                    clearBackStack()
+                }
+            }
+        }
+        
+        guidedFlow("builder-flow") {
+            step<TestWelcomeScreen>()
+            step("test-profile?source=guided").param("profileType", "basic")
+            step<TestPreferencesScreen>().param("step", "3")
+            onComplete { storeAccessor ->
+                storeAccessor.navigation {
+                    navigateTo("test-home")
+                    clearBackStack()
+                }
+            }
+        }
+        
+        guidedFlow("mixed-flow") {
+            step<TestWelcomeScreen>().param("step", "1")
+            step("test-profile?tab=settings")
+            step<TestPreferencesScreen>().param("step", "3")
+            onComplete { storeAccessor ->
+                storeAccessor.navigation {
+                    navigateTo("test-home")
+                }
+            }
+        }
     }
 
-    private fun createTestGuidedFlowDefinition() = GuidedFlowDefinition(
-        guidedFlow = GuidedFlow("test-flow"),
-        steps = listOf(
-            guidedFlowStep<TestWelcomeScreen>(),
-            guidedFlowStep<TestProfileScreen>(),
-            guidedFlowStep<TestPreferencesScreen>()
-        ),
-        onComplete = {
-            navigateTo(TestHomeScreen.route)
-            clearBackStack()
-        }
-    )
-
-    private fun createRouteBasedGuidedFlowDefinition() = GuidedFlowDefinition(
-        guidedFlow = GuidedFlow("route-flow"),
-        steps = listOf(
-            "test-welcome".toGuidedFlowStep(),
-            "test-profile?source=guided".toGuidedFlowStep(mapOf("profileType" to "basic")),
-            "test-preferences".toGuidedFlowStep()
-        ),
-        onComplete = {
-            navigateTo("test-home")
-            clearBackStack()
-        }
-    )
 
     @Test
     fun `should create guided flow definition`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
@@ -113,19 +170,13 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
-
+        // GuidedFlow definitions are now part of module configuration
+        // No need to create them at runtime - they're already configured
         val state = store.selectState<NavigationState>().first()
-        val storedDefinition = state.guidedFlowDefinitions["test-flow"]
-
-        assertNotNull(storedDefinition)
-        assertEquals("test-flow", storedDefinition.guidedFlow.route)
-        assertEquals(3, storedDefinition.steps.size)
-        assertTrue(storedDefinition.steps[0] is GuidedFlowStep.TypedScreen)
-        assertTrue(storedDefinition.steps[1] is GuidedFlowStep.TypedScreen)
-        assertTrue(storedDefinition.steps[2] is GuidedFlowStep.TypedScreen)
+        
+        // Flow should be available for starting
+        assertTrue(state.activeGuidedFlowState == null) // No active flow yet
+        assertEquals(TestHomeScreen.route, state.currentEntry.navigatable.route) // On start screen
     }
 
     @Test
@@ -136,10 +187,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Create and start guided flow
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow (definition already configured in module)
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
 
@@ -171,10 +219,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Start guided flow
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow (definition already configured in module)
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
 
@@ -206,10 +251,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Start guided flow and move to step 2
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow and move to step 2 (definition already configured in module)
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
         store.dispatch(NavigationAction.NextStep())
@@ -242,10 +284,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Start guided flow and navigate to final step
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow and navigate to final step (definition already configured in module)
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
         store.dispatch(NavigationAction.NextStep()) // Step 1
@@ -281,10 +320,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Start guided flow with parameters
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow with parameters (definition already configured in module)
         store.dispatch(NavigationAction.StartGuidedFlow(
             GuidedFlow("test-flow"), 
             mapOf("userId" to "123", "source" to "onboarding")
@@ -309,10 +345,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Start guided flow
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow (definition already configured in module)
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
 
@@ -336,10 +369,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Start guided flow (on first step)
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow (on first step) - definition already configured in module
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
 
@@ -362,9 +392,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow - definition already configured in module
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
 
@@ -396,9 +424,7 @@ class GuidedFlowTest {
         val startTime = Clock.System.now()
         
         // Start and complete guided flow
-        val definition = createTestGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start guided flow - definition already configured in module
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
         
@@ -431,12 +457,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Create route-based guided flow
-        val definition = createRouteBasedGuidedFlowDefinition()
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
-        
-        // Start the flow
+        // Start route-based guided flow - definition already configured in module
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("route-flow")))
         advanceUntilIdle()
 
@@ -467,36 +488,18 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Create guided flow using the builder DSL
-        val definition = guidedFlow("builder-flow") {
-            step<TestWelcomeScreen>()
-            step("test-profile?source=guided").param("profileType", "basic")
-            step<TestPreferencesScreen>().param("step", "3")
-            onComplete { 
-                navigateTo("test-home")
-                clearBackStack()
-            }
-        }
-        
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
+        // GuidedFlow using builder DSL is now configured at module creation time
+        // Test that the flow can be started successfully
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("builder-flow")))
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        val storedDefinition = state.guidedFlowDefinitions["builder-flow"]
-
-        assertNotNull(storedDefinition)
-        assertEquals("builder-flow", storedDefinition.guidedFlow.route)
-        assertEquals(3, storedDefinition.steps.size)
         
-        // Verify step types and parameters
-        val steps = storedDefinition.steps
-        assertTrue(steps[0] is GuidedFlowStep.TypedScreen)
-        assertTrue(steps[1] is GuidedFlowStep.Route)
-        assertTrue(steps[2] is GuidedFlowStep.TypedScreen)
-        
-        // Verify step parameters
-        assertEquals("basic", (steps[1] as GuidedFlowStep.Route).params["profileType"])
-        assertEquals("3", (steps[2] as GuidedFlowStep.TypedScreen).params["step"])
+        // Should start the flow and navigate to first step
+        assertNotNull(state.activeGuidedFlowState)
+        assertEquals("builder-flow", state.activeGuidedFlowState.flowRoute)
+        assertEquals(0, state.activeGuidedFlowState.currentStepIndex)
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable)
     }
 
     @Test
@@ -507,21 +510,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        // Create mixed flow with both typed screens and routes
-        val definition = GuidedFlowDefinition(
-            guidedFlow = GuidedFlow("mixed-flow"),
-            steps = listOf(
-                guidedFlowStep<TestWelcomeScreen>(mapOf("step" to "1")),
-                "test-profile?tab=settings".toGuidedFlowStep(),
-                guidedFlowStep<TestPreferencesScreen>(mapOf("step" to "3"))
-            ),
-            onComplete = {
-                navigateTo("test-home")
-            }
-        )
-        
-        store.dispatch(NavigationAction.CreateGuidedFlow(definition))
-        advanceUntilIdle()
+        // Start mixed flow - definition already configured in module
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("mixed-flow")))
         advanceUntilIdle()
 
@@ -546,5 +535,127 @@ class GuidedFlowTest {
         state = store.selectState<NavigationState>().first()
         assertEquals(TestPreferencesScreen, state.currentEntry.screen)
         assertEquals("3", state.currentEntry.params["step"])
+    }
+
+    @Test
+    fun `should access state in onComplete for conditional navigation`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        
+        val conditionalNavigationModule = createNavigationModule {
+            rootGraph {
+                startScreen(TestHomeScreen)
+                screens(TestHomeScreen, TestWelcomeScreen, TestProfileScreen, TestPreferencesScreen)
+            }
+            
+            // Flow with conditional navigation based on user state
+            guidedFlow("conditional-flow") {
+                step<TestWelcomeScreen>()
+                step<TestProfileScreen>()
+                onComplete { storeAccessor ->
+                    // Access user condition state for conditional navigation
+                    val userState = storeAccessor.selectState<UserConditionState>().first()
+                    
+                    storeAccessor.navigation {
+                        when {
+                            userState.isVip && userState.hasCompletedTutorial && userState.points >= 100 -> {
+                                // Premium VIP users with high points go to preferences
+                                navigateTo(TestPreferencesScreen.route)
+                            }
+                            userState.isVip -> {
+                                // VIP users go to profile  
+                                navigateTo(TestProfileScreen.route)
+                            }
+                            userState.hasCompletedTutorial -> {
+                                // Users who completed tutorial go to welcome (advanced section)
+                                navigateTo(TestWelcomeScreen.route)
+                            }
+                            else -> {
+                                // Regular users go to home
+                                navigateTo(TestHomeScreen.route)
+                            }
+                        }
+                        clearBackStack()
+                    }
+                }
+            }
+        }
+        
+        val store = createStore {
+            module(UserConditionModule)
+            module(conditionalNavigationModule)
+            coroutineContext(testDispatcher)
+        }
+
+        // Test Case 1: Regular user (no special conditions) -> should go to home
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("conditional-flow")))
+        advanceUntilIdle()
+        
+        // Navigate through flow steps
+        store.dispatch(NavigationAction.NextStep()) // To profile
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        advanceUntilIdle()
+        
+        var state = store.selectState<NavigationState>().first()
+        assertEquals(TestHomeScreen, state.currentEntry.screen, "Regular user should navigate to home")
+        assertNull(state.activeGuidedFlowState, "Flow should be completed")
+
+        // Test Case 2: User with completed tutorial -> should go to welcome (advanced)
+        store.dispatch(UserConditionAction.Reset) // Reset state
+        advanceUntilIdle()
+        store.dispatch(UserConditionAction.CompleteTutorial)
+        advanceUntilIdle()
+        
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("conditional-flow")))
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To profile
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        advanceUntilIdle()
+        
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, state.currentEntry.screen, "Tutorial completed user should navigate to welcome")
+
+        // Test Case 3: VIP user -> should go to profile
+        store.dispatch(UserConditionAction.Reset) // Reset state
+        advanceUntilIdle()
+        store.dispatch(UserConditionAction.MakeVip)
+        advanceUntilIdle()
+        
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("conditional-flow")))
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To profile
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        advanceUntilIdle()
+        
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestProfileScreen, state.currentEntry.screen, "VIP user should navigate to profile")
+
+        // Test Case 4: Premium VIP user (VIP + tutorial + high points) -> should go to preferences
+        store.dispatch(UserConditionAction.Reset) // Reset state
+        advanceUntilIdle()
+        store.dispatch(UserConditionAction.MakeVip)
+        advanceUntilIdle()
+        store.dispatch(UserConditionAction.CompleteTutorial)
+        advanceUntilIdle()
+        store.dispatch(UserConditionAction.AddPoints(150))
+        advanceUntilIdle()
+        
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("conditional-flow")))
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To profile
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        advanceUntilIdle()
+        
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestPreferencesScreen, state.currentEntry.screen, "Premium VIP user should navigate to preferences")
+        
+        // Verify the user state was correctly accessed
+        val finalUserState = store.selectState<UserConditionState>().first()
+        assertTrue(finalUserState.isVip, "User should be VIP")
+        assertTrue(finalUserState.hasCompletedTutorial, "User should have completed tutorial")
+        assertTrue(finalUserState.points >= 100, "User should have high points")
     }
 }

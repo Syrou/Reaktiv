@@ -15,51 +15,64 @@ import androidx.compose.ui.res.colorResource
 import eu.syrou.androidexample.R
 import eu.syrou.androidexample.reaktiv.twitchstreams.TwitchStreamsModule
 import eu.syrou.androidexample.ui.screen.home.NotificationModal
+import eu.syrou.androidexample.ui.screen.VideosListScreen
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.Store
+import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
-import io.github.syrou.reaktiv.navigation.dsl.guidedFlow
-import io.github.syrou.reaktiv.navigation.dsl.step
+import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.extension.updateGuidedFlowCompletion
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
 
     /**
-     * Creates a guided flow for user management that takes users through
-     * the complete view → edit → delete workflow
-     * Created with normal completion behavior (without NotificationModal)
+     * Start a user management guided flow with the given user ID
+     * The flow definition is configured at module creation time in CustomApplication.kt
      */
-    fun createUserManagementFlow(userId: String) = guidedFlow("user-management") {
-        step<ViewUser>().param("id", userId)
-        step("user/666/edit?query=EDIT")
-        step<DeleteUser>().param("id", userId)
-        onComplete {
-            clearBackStack()
-            navigateTo("home")
-        }
+    suspend fun startUserManagementFlow(store: Store, userId: String) {
+        store.dispatch(
+            NavigationAction.StartGuidedFlow(
+                GuidedFlow("user-management"),
+                mapOf("userId" to userId)
+            )
+        )
     }
 
     /**
-     * Helper function to create and start a user management guided flow
-     * Uses the normal completion behavior
+     * Convenience function to complete the user management flow with notification
+     * This demonstrates runtime modification of the flow completion
      */
-    suspend fun startUserManagementFlow(store: Store, userId: String) {
-        // Create the guided flow definition once
-        val flowDefinition = createUserManagementFlow(userId)
-        store.dispatch(NavigationAction.CreateGuidedFlow(flowDefinition))
-
-        // Start the flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("user-management")))
+    suspend fun completeFlowWithNotification(store: Store) {
+        store.updateGuidedFlowCompletion("user-management") { storeAccessor ->
+            val twitchState = storeAccessor.selectState<TwitchStreamsModule.TwitchStreamsState>().first()
+            
+            storeAccessor.navigation {
+                clearBackStack()
+                if(twitchState.twitchStreamers.isEmpty()){
+                    navigateTo("home")
+                }else{
+                    navigateTo("home")
+                    navigateTo<VideosListScreen>()
+                }
+                navigateTo<NotificationModal>()
+            }
+        }
+        delay(500)
+        // Trigger the flow completion
+        store.dispatch(NavigationAction.NextStep())
     }
 
     @Serializable
@@ -81,7 +94,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override fun Content(
             params: Map<String, Any>
         ) {
-            val id by remember { mutableStateOf(params["id"] as? String ?: "666") }
+            val id by remember { mutableStateOf(params["id"] as? String ?: params["userId"] as? String ?: "666") }
             val store = rememberStore()
             Column(
                 modifier = Modifier
@@ -116,7 +129,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override fun Content(
             params: Map<String, Any>
         ) {
-            val id by remember { mutableStateOf(params["id"] as? String ?: "666") }
+            val id by remember { mutableStateOf(params["id"] as? String ?: params["userId"] as? String ?: "666") }
             val store = rememberStore()
             Column(
                 modifier = Modifier
@@ -159,7 +172,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override fun Content(
             params: Map<String, Any>
         ) {
-            val id by remember { mutableStateOf(params["id"] as? String ?: "666") }
+            val id by remember { mutableStateOf(params["id"] as? String ?: params["userId"] as? String ?: "666") }
             val store = rememberStore()
             val thingState by composeState<TwitchStreamsModule.TwitchStreamsState>()
             Column(
@@ -172,13 +185,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 )
                 Button(onClick = {
                     store.launch {
-                        store.updateGuidedFlowCompletion("user-management") {
-                            clearBackStack()
-                            navigateTo("home")
-                            navigateTo<NotificationModal>()
-                        }
-                        delay(500)
-                        store.dispatch(NavigationAction.NextStep())
+                        UserManagementScreens.completeFlowWithNotification(store)
                     }
                 }) {
                     Text("Complete Flow")

@@ -11,6 +11,7 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
@@ -30,7 +31,8 @@ import kotlin.reflect.KClass
 
 class NavigationModule internal constructor(
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val rootGraph: NavigationGraph
+    private val rootGraph: NavigationGraph,
+    private val guidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap()
 ) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
     private val precomputedData: PrecomputedNavigationData by lazy {
         PrecomputedNavigationData.create(rootGraph)
@@ -104,7 +106,7 @@ class NavigationModule internal constructor(
             allAvailableNavigatables = precomputedData.allNavigatables,
             graphHierarchyLookup = precomputedData.graphHierarchies,
             activeModalContexts = emptyMap(),
-            guidedFlowDefinitions = emptyMap(),
+            guidedFlowDefinitions = guidedFlowDefinitions, // Base definitions from module configuration
             activeGuidedFlowState = null
         )
     }
@@ -253,7 +255,6 @@ class NavigationModule internal constructor(
                     allAvailableNavigatables = precomputedData.allNavigatables,
                     graphHierarchyLookup = precomputedData.graphHierarchies,
                     activeModalContexts = action.modalContexts,
-                    guidedFlowDefinitions = state.guidedFlowDefinitions,
                     activeGuidedFlowState = state.activeGuidedFlowState
                 )
             }
@@ -567,14 +568,16 @@ class NavigationModule internal constructor(
                 )
             }
 
-            // GuidedFlow actions
+            // GuidedFlow actions - support runtime modifications of base definitions
             is NavigationAction.CreateGuidedFlow -> {
+                // Add or override a guided flow definition at runtime
                 state.copy(
                     guidedFlowDefinitions = state.guidedFlowDefinitions + (action.definition.guidedFlow.route to action.definition)
                 )
             }
 
             is NavigationAction.ModifyGuidedFlow -> {
+                // Modify an existing guided flow definition
                 val existingDefinition = state.guidedFlowDefinitions[action.flowRoute]
                 if (existingDefinition != null) {
                     val updatedDefinition = existingDefinition.applyModification(action.modification)
@@ -584,6 +587,24 @@ class NavigationModule internal constructor(
                 } else {
                     state // No change if flow doesn't exist
                 }
+            }
+
+            is NavigationAction.StartGuidedFlow -> {
+                // This action is handled by NavigationLogic which will create the flow state
+                // and dispatch UpdateActiveGuidedFlow - no state change needed here
+                state
+            }
+
+            is NavigationAction.NextStep -> {
+                // This action is handled by NavigationLogic which will advance the flow
+                // and dispatch UpdateActiveGuidedFlow - no state change needed here  
+                state
+            }
+
+            is NavigationAction.PreviousStep -> {
+                // This action is handled by NavigationLogic which will go back in the flow
+                // and dispatch UpdateActiveGuidedFlow - no state change needed here
+                state
             }
 
             is NavigationAction.UpdateActiveGuidedFlow -> {
@@ -599,7 +620,11 @@ class NavigationModule internal constructor(
     }
 
     override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor ->
-        NavigationLogic(storeAccessor = storeAccessor, precomputedData = precomputedData)
+        NavigationLogic(
+            storeAccessor = storeAccessor, 
+            precomputedData = precomputedData,
+            guidedFlowDefinitions = guidedFlowDefinitions
+        )
     }
 
     companion object {

@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.model
 
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import kotlinx.serialization.Serializable
@@ -15,5 +16,5 @@ data class GuidedFlowDefinition(
     val guidedFlow: GuidedFlow,
     val steps: List<GuidedFlowStep>,
     @Transient
-    val onComplete: (suspend NavigationBuilder.() -> Unit)? = null
+    val onComplete: (suspend (StoreAccessor) -> Unit)? = null
 )
