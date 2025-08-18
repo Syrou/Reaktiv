@@ -118,7 +118,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        val storedDefinition = state.guidedFlowDefinitions[GuidedFlow("test-flow")]
+        val storedDefinition = state.guidedFlowDefinitions["test-flow"]
 
         assertNotNull(storedDefinition)
         assertEquals("test-flow", storedDefinition.guidedFlow.route)
@@ -482,7 +482,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        val storedDefinition = state.guidedFlowDefinitions[GuidedFlow("builder-flow")]
+        val storedDefinition = state.guidedFlowDefinitions["builder-flow"]
 
         assertNotNull(storedDefinition)
         assertEquals("builder-flow", storedDefinition.guidedFlow.route)

@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
+import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
@@ -63,6 +64,12 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
     @Serializable
     data class CreateGuidedFlow(
         val definition: GuidedFlowDefinition
+    ) : NavigationAction()
+
+    @Serializable
+    data class ModifyGuidedFlow(
+        val flowRoute: String,
+        val modification: FlowModification
     ) : NavigationAction()
 
     @Serializable

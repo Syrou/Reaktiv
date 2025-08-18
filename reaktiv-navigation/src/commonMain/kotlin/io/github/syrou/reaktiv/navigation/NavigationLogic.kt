@@ -665,7 +665,7 @@ class NavigationLogic(
 
     private suspend fun handleStartGuidedFlow(action: NavigationAction.StartGuidedFlow) {
         val currentState = getCurrentNavigationState()
-        val definition = currentState.guidedFlowDefinitions[action.guidedFlow]
+        val definition = currentState.guidedFlowDefinitions[action.guidedFlow.route]
         
         if (definition != null && definition.steps.isNotEmpty()) {
             // 1. Create flow state
@@ -697,7 +697,7 @@ class NavigationLogic(
         val currentState = getCurrentNavigationState()
         val flowState = currentState.activeGuidedFlowState
         val definition = flowState?.let { 
-            currentState.guidedFlowDefinitions[GuidedFlow(it.flowRoute)] 
+            currentState.guidedFlowDefinitions[it.flowRoute] 
         }
         
         if (flowState != null && definition != null) {
@@ -754,7 +754,7 @@ class NavigationLogic(
         val currentState = getCurrentNavigationState()
         val flowState = currentState.activeGuidedFlowState
         val definition = flowState?.let { 
-            currentState.guidedFlowDefinitions[GuidedFlow(it.flowRoute)] 
+            currentState.guidedFlowDefinitions[it.flowRoute] 
         }
         
         if (flowState != null && definition != null && flowState.currentStepIndex > 0) {

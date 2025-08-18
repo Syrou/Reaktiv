@@ -26,6 +26,7 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.dsl.guidedFlow
 import io.github.syrou.reaktiv.navigation.dsl.step
+import io.github.syrou.reaktiv.navigation.extension.updateGuidedFlowCompletion
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -36,6 +37,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
     /**
      * Creates a guided flow for user management that takes users through
      * the complete view → edit → delete workflow
+     * Created with normal completion behavior (without NotificationModal)
      */
     fun createUserManagementFlow(userId: String) = guidedFlow("user-management") {
         step<ViewUser>().param("id", userId)
@@ -44,18 +46,16 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         onComplete {
             clearBackStack()
             navigateTo("home")
-            navigateTo<NotificationModal>()
         }
     }
 
     /**
      * Helper function to create and start a user management guided flow
+     * Uses the normal completion behavior
      */
     suspend fun startUserManagementFlow(store: Store, userId: String) {
-        // Create the guided flow definition
+        // Create the guided flow definition once
         val flowDefinition = createUserManagementFlow(userId)
-
-        // Create the flow in the store
         store.dispatch(NavigationAction.CreateGuidedFlow(flowDefinition))
 
         // Start the flow
@@ -116,7 +116,6 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override fun Content(
             params: Map<String, Any>
         ) {
-            println("HERPADERPA - PARAMS: $params")
             val id by remember { mutableStateOf(params["id"] as? String ?: "666") }
             val store = rememberStore()
             Column(
@@ -173,6 +172,12 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 )
                 Button(onClick = {
                     store.launch {
+                        store.updateGuidedFlowCompletion("user-management") {
+                            clearBackStack()
+                            navigateTo("home")
+                            navigateTo<NotificationModal>()
+                        }
+                        delay(500)
                         store.dispatch(NavigationAction.NextStep())
                     }
                 }) {

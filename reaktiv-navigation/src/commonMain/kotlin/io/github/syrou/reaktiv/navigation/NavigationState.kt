@@ -52,7 +52,7 @@ data class NavigationState(
     val activeModalContexts: Map<String, ModalContext>,
     
     // GuidedFlow state
-    val guidedFlowDefinitions: Map<GuidedFlow, GuidedFlowDefinition> = emptyMap(),
+    val guidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
     val activeGuidedFlowState: GuidedFlowState? = null
 ) : ModuleState {
     

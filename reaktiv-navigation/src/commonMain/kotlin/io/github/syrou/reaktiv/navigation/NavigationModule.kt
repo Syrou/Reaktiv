@@ -15,6 +15,7 @@ import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
+import io.github.syrou.reaktiv.navigation.model.applyModification
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -569,8 +570,20 @@ class NavigationModule internal constructor(
             // GuidedFlow actions
             is NavigationAction.CreateGuidedFlow -> {
                 state.copy(
-                    guidedFlowDefinitions = state.guidedFlowDefinitions + (action.definition.guidedFlow to action.definition)
+                    guidedFlowDefinitions = state.guidedFlowDefinitions + (action.definition.guidedFlow.route to action.definition)
                 )
+            }
+
+            is NavigationAction.ModifyGuidedFlow -> {
+                val existingDefinition = state.guidedFlowDefinitions[action.flowRoute]
+                if (existingDefinition != null) {
+                    val updatedDefinition = existingDefinition.applyModification(action.modification)
+                    state.copy(
+                        guidedFlowDefinitions = state.guidedFlowDefinitions + (action.flowRoute to updatedDefinition)
+                    )
+                } else {
+                    state // No change if flow doesn't exist
+                }
             }
 
             is NavigationAction.UpdateActiveGuidedFlow -> {
