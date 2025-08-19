@@ -63,7 +63,7 @@ suspend fun GuidedFlowStep.getRoute(precomputedData: io.github.syrou.reaktiv.nav
         is GuidedFlowStep.Route -> route
         is GuidedFlowStep.TypedScreen -> {
             // Find the screen instance by class name and get its route
-            val screenInstance = precomputedData.availableNavigatables.values
+            val screenInstance = precomputedData.allNavigatables.values
                 .filterIsInstance<Screen>()
                 .find { it::class.qualifiedName == screenClass }
             screenInstance?.route ?: throw IllegalStateException("Screen class $screenClass not found in navigation graph")
