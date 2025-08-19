@@ -59,8 +59,10 @@ class MainActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_VIEW) {
             val uri = intent.data
             if (uri != null) {
-                val path = uri.path // This will give you "/navigation/user/edit/456"
-                val segments = uri.pathSegments // This will give you a list: ["navigation", "user", "edit", "456"]
+                // This will give you "/navigation/user/edit/456"
+                val path = uri.path
+                // This will give you a list: ["navigation", "user", "edit", "456"]
+                val segments = uri.pathSegments
                 println("KASTRULL - DEEP LINK PATH: $path")
                 customApp.store.launch {
                     customApp.store.navigate(path?.replace("/navigation/", "") ?: "")

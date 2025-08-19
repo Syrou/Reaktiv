@@ -58,7 +58,8 @@ class MiddlewareTest {
         }
 
         store.dispatch(MiddlewareTestAction.Increment)
-        advanceUntilIdle() // Allow coroutines to execute// Allow coroutines to execute
+        // Allow coroutines to execute
+        advanceUntilIdle()
 
         assertNotNull(stateBeforeNext)
         assertNotNull(stateAfterNext)
@@ -94,7 +95,8 @@ class MiddlewareTest {
         }
 
         store.dispatch(MiddlewareTestAction.Increment)
-        advanceUntilIdle() // Allow coroutines to execute
+        // Allow coroutines to execute
+        advanceUntilIdle()
         assertEquals(4, stateSnapshots.size)
         assertEquals(
             listOf(

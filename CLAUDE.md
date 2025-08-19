@@ -105,12 +105,53 @@ object ExampleModule : Module<ExampleState, ExampleAction> {
     override val initialState = ExampleState()
     override val reducer = { state: ExampleState, action: ExampleAction ->
         when (action) {
-            // Handle state updates
+            // Handle simple state updates only
         }
     }
     override val createLogic = { dispatch: Dispatch -> ExampleLogic(dispatch) }
 }
 ```
+
+### NavigationLogic Pattern for Complex Operations
+
+**Important**: When adding new navigation features that involve complex logic, side effects, or coordinated state updates, follow this pattern:
+
+1. **Keep reducers simple**: Only handle pure state transformations in the reducer
+2. **Use NavigationLogic for complex operations**: Add handling in `NavigationLogic.invoke()` for actions that require:
+   - Multiple state updates
+   - Validation and bounds checking
+   - Coordination between different parts of navigation state
+   - Side effects or async operations
+
+```kotlin
+// In NavigationLogic.invoke()
+is NavigationAction.YourComplexAction -> handleYourComplexAction(action)
+
+// Complex logic handled in dedicated method
+private suspend fun handleYourComplexAction(action: NavigationAction.YourComplexAction) {
+    // Complex validation, state coordination, follow-up actions
+}
+```
+
+### Code Style Guidelines
+
+**Important coding conventions to follow:**
+
+1. **Always use imports instead of fully qualified class names**
+   ```kotlin
+   // ✅ Good - use import and short name
+   import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+   val params: StringAnyMap = mapOf()
+   
+   // ❌ Bad - don't use fully qualified names
+   val params: io.github.syrou.reaktiv.core.serialization.StringAnyMap = mapOf()
+   ```
+
+2. **Test all changes comprehensively**
+   - Add tests for any new functionality
+   - Test edge cases and error conditions
+   - Verify existing functionality still works
+   - Use descriptive test names that explain the behavior being tested
 
 ### Navigation Definition
 ```kotlin
@@ -133,6 +174,32 @@ fun ExampleComponent() {
 }
 ```
 
+### Guided Flow Operations DSL
+
+**New Pattern**: Use the `guidedFlow { }` DSL for atomic guided flow operations, similar to `navigation { }`:
+
+```kotlin
+// Atomic guided flow operations
+storeAccessor.guidedFlow("signup-flow") {
+    removeSteps(listOf(2, 3))
+    updateStepParams(1, mapOf("userId" to "123"))
+    nextStep()
+}
+
+// Instead of multiple separate dispatches:
+store.dispatch(NavigationAction.ModifyGuidedFlow(...))
+store.dispatch(NavigationAction.NextStep())
+```
+
+**Available operations:**
+- `addSteps(steps, insertIndex)` - Add steps to the flow
+- `removeSteps(stepIndices)` - Remove steps by index
+- `replaceStep(stepIndex, newStep)` - Replace a step
+- `updateStepParams(stepIndex, newParams)` - Update step parameters
+- `updateOnComplete(onComplete)` - Update completion handler
+- `nextStep(params)` - Navigate to next step
+- `previousStep()` - Navigate to previous step
+
 ## Key Directories
 
 - `reaktiv-core/src/commonMain/kotlin/`: Core MVLI implementation
@@ -149,6 +216,65 @@ The project uses Kotlin Test for multiplatform testing:
 - Example app: Android-specific unit tests
 
 Test files are located in `src/commonTest/kotlin/` for multiplatform tests and `src/test/` for platform-specific tests.
+
+## Documentation Standards
+
+**Code Comments and Documentation Guidelines:**
+
+1. **No inline comments** - Comments should never appear after code on the same line
+   ```kotlin
+   // ✅ Good - comment above code
+   val isValid = user.isActive && user.hasPermission
+   
+   // ❌ Bad - inline comment
+   val isValid = user.isActive && user.hasPermission // Check user status
+   ```
+
+2. **Dokka-compatible formatting** - All code examples must be formatted for Dokka documentation generation:
+   ```kotlin
+   /**
+    * Handles complex guided flow operations atomically.
+    * 
+    * Example usage:
+    * ```kotlin
+    * store.guidedFlow("user-onboarding") {
+    *     removeSteps(listOf(2, 3))
+    *     updateStepParams(1, mapOf("userId" to "123"))
+    *     nextStep()
+    * }
+    * ```
+    * 
+    * @param flowRoute The route identifier for the guided flow
+    * @param block Lambda containing flow operations to execute
+    */
+   ```
+
+3. **Usage examples for complex classes** - Classes that provide tooling or complex functionality must include usage examples:
+   ```kotlin
+   /**
+    * Builder for creating atomic guided flow operations.
+    * 
+    * Usage:
+    * ```kotlin
+    * val builder = GuidedFlowOperationBuilder(flowRoute)
+    * builder.addSteps(newSteps, 0)
+    * builder.nextStep()
+    * ```
+    */
+   class GuidedFlowOperationBuilder { ... }
+   ```
+
+4. **Comments should provide value** - Only add comments that explain:
+   - Why something is done (not what is being done)
+   - Complex business logic or algorithm explanations
+   - Non-obvious design decisions
+   - API usage examples for public interfaces
+
+5. **Documentation structure for complex classes:**
+   - Brief description of the class purpose
+   - Usage example showing typical API interaction
+   - Parameter and return value documentation using `@param` and `@return`
+   - `@see` references to related classes when appropriate
 
 ## Configuration
 

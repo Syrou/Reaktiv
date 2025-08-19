@@ -119,7 +119,8 @@ class CustomApplication : Application() {
                 // Configure GuidedFlow definitions
                 guidedFlow("user-management") {
                     step<UserManagementScreens.ViewUser>()
-                    step("user/{userId}/edit?query=EDIT") // Mixed: route string with query param
+                    // Mixed: route string with query param
+                    step("user/67/edit?query=EDIT")
                     step<UserManagementScreens.DeleteUser>()
                     onComplete { storeAccessor ->
                         storeAccessor.navigation {

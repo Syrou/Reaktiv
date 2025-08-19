@@ -100,7 +100,8 @@ fun PerformanceMetricsCard(performanceMetrics: PerformanceMetrics) {
                 StatPair("Consistency Score", "${String.format("%.1f", performanceMetrics.consistencyScore * 100)}%"),
                 StatPair("Clutch Plays", "${performanceMetrics.clutchPlays}"),
                 StatPair("Perfect Games", "${performanceMetrics.perfectGames}"),
-                StatPair("", "") // Empty for grid alignment
+                // Empty for grid alignment
+                StatPair("", "")
             )
         )
     }

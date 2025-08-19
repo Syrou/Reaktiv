@@ -74,6 +74,24 @@ class NavigationParameterBuilder {
 
 
 
+/**
+ * Builder for creating atomic navigation operations.
+ * 
+ * Provides a DSL for chaining multiple navigation actions into a single atomic operation.
+ * All operations are validated and executed together to ensure consistent navigation state.
+ * 
+ * Example usage:
+ * ```kotlin
+ * store.navigation {
+ *     clearBackStack()
+ *     navigateTo("home")
+ *     navigateTo<ProfileScreen> { param("userId", "123") }
+ * }
+ * ```
+ * 
+ * @param storeAccessor Accessor for the store to execute operations
+ * @param encoder Parameter encoder for serialization
+ */
 class NavigationBuilder(
     private val storeAccessor: StoreAccessor,
     private val encoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()

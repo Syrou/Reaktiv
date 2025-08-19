@@ -15,11 +15,9 @@ import androidx.compose.ui.res.colorResource
 import eu.syrou.androidexample.R
 import eu.syrou.androidexample.reaktiv.twitchstreams.TwitchStreamsModule
 import eu.syrou.androidexample.ui.screen.home.NotificationModal
-import eu.syrou.androidexample.ui.screen.VideosListScreen
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.Store
-import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
@@ -27,11 +25,9 @@ import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
-import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
-import io.github.syrou.reaktiv.navigation.extension.updateGuidedFlowCompletion
+import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -53,26 +49,27 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
 
     /**
      * Convenience function to complete the user management flow with notification
-     * This demonstrates runtime modification of the flow completion
+     * This demonstrates runtime modification of the flow completion and navigation using the new DSL
      */
     suspend fun completeFlowWithNotification(store: Store) {
-        store.updateGuidedFlowCompletion("user-management") { storeAccessor ->
-            val twitchState = storeAccessor.selectState<TwitchStreamsModule.TwitchStreamsState>().first()
-            
-            storeAccessor.navigation {
-                clearBackStack()
-                if(twitchState.twitchStreamers.isEmpty()){
-                    navigateTo("home")
-                }else{
-                    navigateTo("home")
-                    navigateTo<VideosListScreen>()
+        // Use the new guidedFlow DSL for atomic operations
+        store.guidedFlow("user-management") {
+            updateOnComplete { storeAccessor ->
+                val twitchState = storeAccessor.selectState<TwitchStreamsModule.TwitchStreamsState>().first()
+
+                storeAccessor.navigation {
+                    clearBackStack()
+                    if (twitchState.twitchStreamers.isEmpty()) {
+                        navigateTo("home")
+                    } else {
+                        navigateTo("home")
+                        navigateTo<VideosListScreen>()
+                    }
+                    navigateTo<NotificationModal>()
                 }
-                navigateTo<NotificationModal>()
             }
+            nextStep()
         }
-        delay(500)
-        // Trigger the flow completion
-        store.dispatch(NavigationAction.NextStep())
     }
 
     @Serializable
@@ -94,6 +91,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override fun Content(
             params: Map<String, Any>
         ) {
+            println("ViewUser - Params: $params")
             val id by remember { mutableStateOf(params["id"] as? String ?: params["userId"] as? String ?: "666") }
             val store = rememberStore()
             Column(
@@ -104,7 +102,9 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 Text("User view based on param: $id")
                 Button(onClick = {
                     store.launch {
-                        store.dispatch(NavigationAction.NextStep())
+                        store.guidedFlow("user-management") {
+                            nextStep(mapOf("userId" to "667"))
+                        }
                     }
                 }) {
                     Text("Next Step in Flow")
@@ -129,6 +129,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override fun Content(
             params: Map<String, Any>
         ) {
+            println("EditUser - Params: $params")
             val id by remember { mutableStateOf(params["id"] as? String ?: params["userId"] as? String ?: "666") }
             val store = rememberStore()
             Column(
@@ -142,14 +143,18 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 )
                 Button(onClick = {
                     store.launch {
-                        store.dispatch(NavigationAction.NextStep())
+                        store.guidedFlow("user-management") {
+                            nextStep()
+                        }
                     }
                 }) {
                     Text("Next Step in Flow")
                 }
                 Button(onClick = {
                     store.launch {
-                        store.dispatch(NavigationAction.PreviousStep)
+                        store.guidedFlow("user-management") {
+                            previousStep()
+                        }
                     }
                 }) {
                     Text("Previous Step")
@@ -192,7 +197,9 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 }
                 Button(onClick = {
                     store.launch {
-                        store.dispatch(NavigationAction.PreviousStep)
+                        store.guidedFlow("user-management") {
+                            previousStep()
+                        }
                     }
                 }) {
                     Text("Previous Step")

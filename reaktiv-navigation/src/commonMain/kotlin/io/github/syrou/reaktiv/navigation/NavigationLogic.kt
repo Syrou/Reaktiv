@@ -12,16 +12,20 @@ import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
+import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
+import io.github.syrou.reaktiv.navigation.model.applyModification
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.model.getRoute
 import io.github.syrou.reaktiv.navigation.model.getParams
 import io.github.syrou.reaktiv.navigation.util.computeGuidedFlowProperties
+import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperation
+import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperationBuilder
 import kotlinx.datetime.Clock
 import kotlinx.coroutines.flow.first
 
@@ -373,6 +377,235 @@ class NavigationLogic(
     }
 
     /**
+     * Execute a set of guided flow operations atomically for the current active flow
+     */
+    suspend fun executeGuidedFlowOperations(block: suspend GuidedFlowOperationBuilder.() -> Unit) {
+        val currentState = getCurrentNavigationState()
+        val activeFlowRoute = currentState.activeGuidedFlowState?.flowRoute
+            ?: throw IllegalStateException("No active guided flow to operate on")
+        
+        executeGuidedFlowOperations(activeFlowRoute, block)
+    }
+    
+    /**
+     * Execute guided flow operations for a specific flow route
+     */
+    suspend fun executeGuidedFlowOperations(flowRoute: String, block: suspend GuidedFlowOperationBuilder.() -> Unit) {
+        val builder = GuidedFlowOperationBuilder(flowRoute, storeAccessor)
+        builder.apply { block() }
+        builder.validate()
+        
+        executeGuidedFlowOperations(builder)
+    }
+    
+    /**
+     * Execute the guided flow operations built by GuidedFlowOperationBuilder
+     * This method handles all operations atomically - modifications and navigation are applied
+     * to compute the final state, then dispatched as batch updates
+     */
+    private suspend fun executeGuidedFlowOperations(builder: GuidedFlowOperationBuilder) {
+        val operations = builder.getOperations()
+        val flowRoute = builder.getFlowRoute()
+        
+        var currentState = getCurrentNavigationState()
+        var currentDefinition = currentState.guidedFlowDefinitions[flowRoute] ?: return
+        var currentFlowState = currentState.activeGuidedFlowState
+        var finalNavigationRoute: String? = null
+        var finalNavigationParams: Map<String, Any> = emptyMap()
+        var guidedFlowContext: GuidedFlowContext? = null
+        
+        // Apply all operations in sequence
+        for (operation in operations) {
+            when (operation) {
+                is GuidedFlowOperation.Modify -> {
+                    // Apply modification to definition
+                    currentDefinition = currentDefinition.applyModification(operation.modification)
+                    
+                    // Update flow state if there's an active flow for this route
+                    if (currentFlowState?.flowRoute == flowRoute) {
+                        currentFlowState = adjustFlowStateForModification(
+                            currentFlowState, 
+                            operation.modification, 
+                            currentDefinition
+                        )
+                    }
+                }
+                is GuidedFlowOperation.NextStep -> {
+                    // Compute next step with current definition
+                    if (currentFlowState?.flowRoute == flowRoute) {
+                        val result = computeNextStep(currentFlowState, currentDefinition, operation.params)
+                        currentFlowState = result.flowState
+                        if (result.shouldNavigate) {
+                            finalNavigationRoute = result.route
+                            finalNavigationParams = result.params
+                            guidedFlowContext = result.guidedFlowContext
+                        }
+                    }
+                }
+                is GuidedFlowOperation.PreviousStep -> {
+                    // Compute previous step with current definition
+                    if (currentFlowState?.flowRoute == flowRoute) {
+                        val result = computePreviousStep(currentFlowState, currentDefinition)
+                        currentFlowState = result.flowState
+                        if (result.shouldNavigate) {
+                            finalNavigationRoute = result.route
+                            finalNavigationParams = result.params
+                            guidedFlowContext = result.guidedFlowContext
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Dispatch final state updates
+        storeAccessor.dispatch(NavigationAction.CreateGuidedFlow(currentDefinition))
+        if (currentFlowState != null) {
+            if (currentFlowState.isCompleted) {
+                // If flow is completed, execute completion handler and clear flow state
+                currentDefinition.onComplete?.let { onCompleteBlock ->
+                    onCompleteBlock(storeAccessor)
+                }
+                storeAccessor.dispatch(NavigationAction.ClearActiveGuidedFlow)
+            } else {
+                storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(currentFlowState))
+            }
+        }
+        
+        // Perform final navigation if needed
+        if (finalNavigationRoute != null) {
+            navigate(finalNavigationRoute, finalNavigationParams, false) {
+                guidedFlowContext?.let { setGuidedFlowContext(it) }
+            }
+        }
+    }
+
+    /**
+     * Adjust flow state for a single modification
+     */
+    private fun adjustFlowStateForModification(
+        flowState: GuidedFlowState,
+        modification: FlowModification,
+        updatedDefinition: GuidedFlowDefinition
+    ): GuidedFlowState {
+        val adjustedIndex = when (modification) {
+            is FlowModification.RemoveSteps -> {
+                val removedIndices = modification.stepIndices.sorted()
+                val removedBeforeCurrent = removedIndices.count { it < flowState.currentStepIndex }
+                val adjustedIndex = flowState.currentStepIndex - removedBeforeCurrent
+                adjustedIndex.coerceAtMost(updatedDefinition.steps.size - 1).coerceAtLeast(0)
+            }
+            is FlowModification.AddSteps -> {
+                val insertIndex = if (modification.insertIndex == -1) {
+                    Int.MAX_VALUE // Will be > any currentIndex
+                } else {
+                    modification.insertIndex
+                }
+                if (insertIndex <= flowState.currentStepIndex) {
+                    flowState.currentStepIndex + modification.steps.size
+                } else {
+                    flowState.currentStepIndex
+                }
+            }
+            else -> flowState.currentStepIndex // No index adjustment needed for replace/update operations
+        }
+        
+        return computeGuidedFlowProperties(
+            flowState.copy(currentStepIndex = adjustedIndex),
+            updatedDefinition
+        )
+    }
+
+    /**
+     * Data class for navigation computation results
+     */
+    private data class NavigationResult(
+        val flowState: GuidedFlowState,
+        val shouldNavigate: Boolean = false,
+        val route: String = "",
+        val params: Map<String, Any> = emptyMap(),
+        val guidedFlowContext: GuidedFlowContext? = null
+    )
+
+    /**
+     * Compute next step navigation
+     */
+    private suspend fun computeNextStep(
+        flowState: GuidedFlowState,
+        definition: GuidedFlowDefinition,
+        params: Map<String, Any> = emptyMap()
+    ): NavigationResult {
+        return when {
+            flowState.isOnFinalStep -> {
+                // Complete flow - no navigation needed
+                NavigationResult(
+                    flowState = flowState.copy(
+                        completedAt = kotlinx.datetime.Clock.System.now(),
+                        isCompleted = true,
+                        duration = kotlinx.datetime.Clock.System.now() - flowState.startedAt
+                    )
+                )
+            }
+            else -> {
+                val nextStepIndex = flowState.currentStepIndex + 1
+                val nextStep = definition.steps[nextStepIndex]
+                
+                val stepRoute = nextStep.getRoute(precomputedData)
+                val stepParams = params + nextStep.getParams()
+                val context = GuidedFlowContext(
+                    flowRoute = flowState.flowRoute,
+                    stepIndex = nextStepIndex,
+                    totalSteps = definition.steps.size
+                )
+                
+                NavigationResult(
+                    flowState = computeGuidedFlowProperties(
+                        flowState.copy(currentStepIndex = nextStepIndex),
+                        definition
+                    ),
+                    shouldNavigate = true,
+                    route = stepRoute,
+                    params = stepParams,
+                    guidedFlowContext = context
+                )
+            }
+        }
+    }
+
+    /**
+     * Compute previous step navigation
+     */
+    private suspend fun computePreviousStep(
+        flowState: GuidedFlowState,
+        definition: GuidedFlowDefinition
+    ): NavigationResult {
+        return if (flowState.currentStepIndex > 0) {
+            val previousStepIndex = flowState.currentStepIndex - 1
+            val previousStep = definition.steps[previousStepIndex]
+            
+            val stepRoute = previousStep.getRoute(precomputedData)
+            val stepParams = previousStep.getParams()
+            val context = GuidedFlowContext(
+                flowRoute = flowState.flowRoute,
+                stepIndex = previousStepIndex,
+                totalSteps = definition.steps.size
+            )
+            
+            NavigationResult(
+                flowState = computeGuidedFlowProperties(
+                    flowState.copy(currentStepIndex = previousStepIndex),
+                    definition
+                ),
+                shouldNavigate = true,
+                route = stepRoute,
+                params = stepParams,
+                guidedFlowContext = context
+            )
+        } else {
+            NavigationResult(flowState = flowState)
+        }
+    }
+
+    /**
      * Get the current navigation state
      */
     private suspend fun getCurrentNavigationState(): NavigationState {
@@ -659,6 +892,7 @@ class NavigationLogic(
             is NavigationAction.StartGuidedFlow -> handleStartGuidedFlow(action)
             is NavigationAction.NextStep -> handleNextStep(action)
             is NavigationAction.PreviousStep -> handlePreviousStep()
+            is NavigationAction.ModifyGuidedFlow -> handleModifyGuidedFlowPostReducer(action)
             else -> {
                 // Other actions are handled by the reducer
             }
@@ -781,6 +1015,66 @@ class NavigationLogic(
                     stepIndex = previousStepIndex,
                     totalSteps = definition.steps.size
                 ))
+            }
+        }
+    }
+
+    private suspend fun handleModifyGuidedFlowPostReducer(action: NavigationAction.ModifyGuidedFlow) {
+        // At this point, the reducer has already updated the flow definition
+        // We just need to update the active flow state if there's one for this route
+        val currentState = getCurrentNavigationState()
+        val updatedDefinition = currentState.guidedFlowDefinitions[action.flowRoute]
+        
+        if (updatedDefinition != null) {
+            // If there's an active flow for this route, update its state if needed
+            currentState.activeGuidedFlowState?.let { flowState ->
+                if (flowState.flowRoute == action.flowRoute) {
+                    // Handle modifications that might affect current step index
+                    val updatedFlowState = when (action.modification) {
+                        is FlowModification.RemoveSteps -> {
+                            val removedIndices = action.modification.stepIndices.sorted()
+                            var adjustedCurrentIndex = flowState.currentStepIndex
+                            
+                            // Count how many steps before current index were removed
+                            val removedBeforeCurrent = removedIndices.count { it < flowState.currentStepIndex }
+                            adjustedCurrentIndex -= removedBeforeCurrent
+                            
+                            // Ensure index is within bounds of new definition
+                            val finalIndex = adjustedCurrentIndex.coerceAtMost(updatedDefinition.steps.size - 1).coerceAtLeast(0)
+                            
+                            computeGuidedFlowProperties(
+                                flowState.copy(currentStepIndex = finalIndex),
+                                updatedDefinition
+                            )
+                        }
+                        is FlowModification.AddSteps -> {
+                            val insertIndex = if (action.modification.insertIndex == -1) {
+                                // When insertIndex is -1, steps were added at the end, so no adjustment needed
+                                updatedDefinition.steps.size // This will be > currentStepIndex
+                            } else {
+                                action.modification.insertIndex
+                            }
+                            
+                            // If steps are added before or at current position, adjust index
+                            val adjustedCurrentIndex = if (insertIndex <= flowState.currentStepIndex) {
+                                flowState.currentStepIndex + action.modification.steps.size
+                            } else {
+                                flowState.currentStepIndex
+                            }
+                            computeGuidedFlowProperties(
+                                flowState.copy(currentStepIndex = adjustedCurrentIndex),
+                                updatedDefinition
+                            )
+                        }
+                        is FlowModification.ReplaceStep, is FlowModification.UpdateStepParams, is FlowModification.UpdateOnComplete -> {
+                            // For step replacement, parameter updates, and onComplete updates, just recompute properties
+                            computeGuidedFlowProperties(flowState, updatedDefinition)
+                        }
+                    }
+                    
+                    // Dispatch the updated flow state
+                    storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(updatedFlowState))
+                }
             }
         }
     }

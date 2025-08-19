@@ -33,8 +33,10 @@ class ClearBackStackNavigateTest {
     }
 
     private val splashScreen = createScreen("splash", "Splash")
-    private val homeScreen = createScreen("overview", "Home")  // NewsScreen equivalent
-    private val listScreen = createScreen("list", "List")     // NewsListScreen equivalent
+    // NewsScreen equivalent
+    private val homeScreen = createScreen("overview", "Home")
+    // NewsListScreen equivalent
+    private val listScreen = createScreen("list", "List")
 
     private fun createTestNavigationModule() = createNavigationModule {
         rootGraph {
@@ -71,7 +73,8 @@ class ClearBackStackNavigateTest {
 
             // Navigate to establish some history first
             store.navigation {
-                navigateTo("home")  // This should resolve to home/news/overview
+                // This should resolve to home/news/overview
+                navigateTo("home")
             }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
@@ -85,7 +88,8 @@ class ClearBackStackNavigateTest {
             // Now test the problematic sequence: clearBackStack + navigateTo in same block
             store.navigation {
                 clearBackStack()
-                navigateTo("home")  // Should result in backStack with 1 entry
+                // Should result in backStack with 1 entry
+                navigateTo("home")
             }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()

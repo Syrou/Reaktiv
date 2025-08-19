@@ -6,9 +6,13 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
+/**
+ * Represents the current state of an active guided flow
+ * @param flowRoute GuidedFlow route identifier
+ */
 @Serializable
 data class GuidedFlowState(
-    val flowRoute: String,  // GuidedFlow route identifier
+    val flowRoute: String,
     val currentStepIndex: Int = 0,
     val startedAt: Instant,
     val completedAt: Instant? = null,

@@ -55,7 +55,8 @@ class TwitchApiClient(private val accessToken: String) {
     suspend fun getActivePathOfExileStreams(limit: Int = 100): List<Stream> {
         val officialChannel = getOfficialChannelIfLive()
         val response: StreamsResponse = client.get("$baseUrl/streams") {
-            parameter("game_id", "29307") // Path of Exile game ID
+            // Path of Exile game ID
+            parameter("game_id", "29307")
             parameter("type", "live")
             parameter("first", limit.toString())
             header("Client-ID", clientId)

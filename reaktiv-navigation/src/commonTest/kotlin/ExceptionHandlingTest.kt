@@ -110,7 +110,8 @@ class ExceptionHandlingTest {
                     screens(homeScreen)
 
                     graph("broken") {
-                        startGraph("nonexistent") // This graph doesn't exist
+                        // This graph doesn't exist
+                        startGraph("nonexistent")
                     }
                 }
             }

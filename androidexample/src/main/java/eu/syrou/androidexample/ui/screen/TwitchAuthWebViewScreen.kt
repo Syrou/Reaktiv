@@ -41,10 +41,12 @@ object TwitchAuthWebViewScreen : Screen {
                     accessToken?.let { token ->
                         onAccessTokenReceived?.invoke(token)
                     }
-                    return true // Intercept the URL
+                    // Intercept the URL
+                    return true
                 }
             }
-            return false // Load the URL as usual
+            // Load the URL as usual
+            return false
         }
 
         private fun extractAccessToken(url: String): String? {

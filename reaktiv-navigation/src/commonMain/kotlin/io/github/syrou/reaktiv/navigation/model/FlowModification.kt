@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.navigation.model
 
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -13,11 +14,12 @@ sealed class FlowModification {
     
     /**
      * Add steps to the guided flow
+     * @param insertIndex -1 means append at end
      */
     @Serializable
     data class AddSteps(
         val steps: List<GuidedFlowStep>,
-        val insertIndex: Int = -1 // -1 means append at end
+        val insertIndex: Int = -1
     ) : FlowModification()
     
     /**
@@ -35,6 +37,15 @@ sealed class FlowModification {
     data class ReplaceStep(
         val stepIndex: Int,
         val newStep: GuidedFlowStep
+    ) : FlowModification()
+    
+    /**
+     * Update parameters for a specific step in the guided flow
+     */
+    @Serializable
+    data class UpdateStepParams(
+        val stepIndex: Int,
+        val newParams: StringAnyMap
     ) : FlowModification()
     
     /**
@@ -69,6 +80,19 @@ fun GuidedFlowDefinition.applyModification(modification: FlowModification): Guid
             val newSteps = steps.toMutableList().apply {
                 if (modification.stepIndex in indices) {
                     set(modification.stepIndex, modification.newStep)
+                }
+            }
+            copy(steps = newSteps)
+        }
+        is FlowModification.UpdateStepParams -> {
+            val newSteps = steps.mapIndexed { index, step ->
+                if (index == modification.stepIndex) {
+                    when (step) {
+                        is GuidedFlowStep.Route -> step.copy(params = modification.newParams)
+                        is GuidedFlowStep.TypedScreen -> step.copy(params = modification.newParams)
+                    }
+                } else {
+                    step
                 }
             }
             copy(steps = newSteps)

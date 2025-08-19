@@ -13,7 +13,8 @@ data class PlayerProfile(
     val winRate: Double,
     val gamesPlayed: Int,
     val gamesWon: Int,
-    val averageGameTime: Long, // in seconds
+    // in seconds
+    val averageGameTime: Long,
     val achievements: List<Achievement> = emptyList(),
     val stats: PlayerStats,
     val lastActive: Instant
@@ -40,7 +41,8 @@ data class PlayerStats(
     val highestScore: Long,
     val longestWinStreak: Int,
     val favoriteCharacter: String,
-    val totalPlayTime: Long, // in seconds
+    // in seconds
+    val totalPlayTime: Long,
     val rankingHistory: List<RankingEntry> = emptyList()
 )
 
@@ -98,7 +100,8 @@ data class SocialStats(
 
 @Serializable
 data class PerformanceMetrics(
-    val averageReactionTime: Double, // in milliseconds
+    // in milliseconds
+    val averageReactionTime: Double,
     val accuracyPercentage: Double,
     val consistencyScore: Double,
     val clutchPlays: Int,

@@ -28,10 +28,11 @@ sealed class GuidedFlowStep {
     /**
      * Navigate to a typed Screen class with parameters.
      * Similar to navigateTo<T>(), this uses the Screen class to resolve the route.
+     * @param screenClass Store class name as string for serialization
      */
     @Serializable  
     data class TypedScreen(
-        val screenClass: String, // Store class name as string for serialization
+        val screenClass: String,
         val params: StringAnyMap = emptyMap()
     ) : GuidedFlowStep()
 }

@@ -251,7 +251,8 @@ fun TeamMemberItem(member: TeamMember) {
                         modifier = Modifier
                             .size(16.dp)
                             .padding(start = 4.dp),
-                        tint = Color(0xFFFFD700) // Gold color
+                        // Gold color
+                        tint = Color(0xFFFFD700)
                     )
                 }
             }
@@ -437,10 +438,14 @@ fun RivalryItem(rivalry: Rivalry) {
         Badge(
             containerColor = when (rivalry.intensity) {
                 RivalryIntensity.CASUAL -> MaterialTheme.colorScheme.surfaceVariant
-                RivalryIntensity.MODERATE -> Color(0xFFFFA500) // Orange
-                RivalryIntensity.HEATED -> Color(0xFFFF6347) // Tomato
-                RivalryIntensity.FIERCE -> Color(0xFFDC143C) // Crimson
-                RivalryIntensity.LEGENDARY -> Color(0xFF8B0000) // Dark Red
+                // Orange
+                RivalryIntensity.MODERATE -> Color(0xFFFFA500)
+                // Tomato
+                RivalryIntensity.HEATED -> Color(0xFFFF6347)
+                // Crimson
+                RivalryIntensity.FIERCE -> Color(0xFFDC143C)
+                // Dark Red
+                RivalryIntensity.LEGENDARY -> Color(0xFF8B0000)
             }
         ) {
             Text(

@@ -10,7 +10,30 @@ import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import kotlin.reflect.KClass
 
 /**
- * Builder for creating GuidedFlow definitions with a clean DSL
+ * Builder for creating GuidedFlow definitions with a clean DSL.
+ * 
+ * Provides a structured way to define multi-step guided flows with 
+ * type-safe screen references and completion handlers.
+ * 
+ * Example usage:
+ * ```kotlin
+ * guidedFlow("user-onboarding") {
+ *     step<WelcomeScreen>()
+ *     step<ProfileSetupScreen> { 
+ *         param("userId", "123") 
+ *     }
+ *     step("settings/preferences")
+ *     
+ *     onComplete { storeAccessor ->
+ *         storeAccessor.navigation {
+ *             clearBackStack()
+ *             navigateTo("home")
+ *         }
+ *     }
+ * }
+ * ```
+ * 
+ * @param guidedFlow The guided flow definition to build
  */
 class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
     private val steps = mutableListOf<GuidedFlowStep>()

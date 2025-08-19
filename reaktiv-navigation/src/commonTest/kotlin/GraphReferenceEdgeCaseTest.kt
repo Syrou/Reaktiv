@@ -48,8 +48,9 @@ class GraphReferenceEdgeCaseTest {
     // Screens matching the user's structure
     private val splashScreen = createScreen("splash", "Splash Screen")
     private val settingsScreen = createScreen("settings", "Settings Screen")
+    // This is the "overview" the user mentioned
     private val newsOverviewScreen =
-        createScreen("overview", "News Overview") // This is the "overview" the user mentioned
+        createScreen("overview", "News Overview")
     private val newsListScreen = createScreen("list", "News List")
     private val workspaceScreen = createScreen("workspace", "Workspace Screen")
     private val projectOverviewScreen = createScreen("overview", "Project Overview")
@@ -63,10 +64,12 @@ class GraphReferenceEdgeCaseTest {
             screens(splashScreen, settingsScreen)
 
             graph("home") {
-                startGraph("news") // This is the key line that was causing issues
+                // This is the key line that was causing issues
+                startGraph("news")
 
                 graph("news") {
-                    startScreen(newsOverviewScreen) // This should be the final destination
+                    // This should be the final destination
+                    startScreen(newsOverviewScreen)
                     screens(newsOverviewScreen, newsListScreen)
                 }
 
@@ -108,8 +111,10 @@ class GraphReferenceEdgeCaseTest {
 
             // CRITICAL ASSERTIONS - These were failing before the fix
             assertEquals("overview", state.currentEntry.screen.route)
-            assertEquals("news", state.currentEntry.graphId) // This was "home" before the fix!
-            assertEquals(1, state.backStack.size) // Should have cleared to single entry
+            // This was "home" before the fix!
+            assertEquals("news", state.currentEntry.graphId)
+            // Should have cleared to single entry
+            assertEquals(1, state.backStack.size)
             assertFalse(state.canGoBack)
 
             // Debug output for verification
@@ -136,8 +141,10 @@ class GraphReferenceEdgeCaseTest {
             val state = store.selectState<NavigationState>().first()
 
             assertEquals("overview", state.currentEntry.screen.route)
-            assertEquals("news", state.currentEntry.graphId) // Should resolve to news, not home
-            assertEquals(2, state.backStack.size) // [splash, news/overview]
+            // Should resolve to news, not home
+            assertEquals("news", state.currentEntry.graphId)
+            // [splash, news/overview]
+            assertEquals(2, state.backStack.size)
         }
 
     @Test
@@ -150,11 +157,14 @@ class GraphReferenceEdgeCaseTest {
             }
 
             // Complex sequence that might have broken before
-            store.navigate("home") // -> news/overview
+            // -> news/overview
+            store.navigate("home")
             advanceUntilIdle()
-            store.navigate("home/workspace") // -> workspace/workspace
+            // -> workspace/workspace
+            store.navigate("home/workspace")
             advanceUntilIdle()
-            store.navigate("settings") // -> root/settings
+            // -> root/settings
+            store.navigate("settings")
             advanceUntilIdle()
 
             // Now use the problematic clearBackStack operation
@@ -181,11 +191,14 @@ class GraphReferenceEdgeCaseTest {
             }
 
             // Build backstack with mixed graphs
-            store.navigate("home") // news/overview
+            // news/overview
+            store.navigate("home")
             advanceUntilIdle()
-            store.navigate("home/workspace") // workspace/workspace
+            // workspace/workspace
+            store.navigate("home/workspace")
             advanceUntilIdle()
-            store.navigate("settings") // root/settings
+            // root/settings
+            store.navigate("settings")
             advanceUntilIdle()
 
             // PopUpTo the "home" screen (which should resolve to news/overview)
@@ -219,13 +232,16 @@ class GraphReferenceEdgeCaseTest {
                     screens(splashScreen)
 
                     graph("level1") {
-                        startGraph("level2") // level1 -> level2
+                        // level1 -> level2
+                        startGraph("level2")
 
                         graph("level2") {
-                            startGraph("level3") // level2 -> level3
+                            // level2 -> level3
+                            startGraph("level3")
 
                             graph("level3") {
-                                startScreen(screenC) // Final destination
+                                // Final destination
+                                startScreen(screenC)
                                 screens(screenC)
                             }
                         }
@@ -246,7 +262,8 @@ class GraphReferenceEdgeCaseTest {
             val state = store.selectState<NavigationState>().first()
 
             assertEquals("screen-c", state.currentEntry.screen.route)
-            assertEquals("level3", state.currentEntry.graphId) // Should be final graph in chain
+            // Should be final graph in chain
+            assertEquals("level3", state.currentEntry.graphId)
         }
 
     @Test
@@ -344,7 +361,8 @@ class GraphReferenceEdgeCaseTest {
                 screens(splashScreen)
 
                 graph("broken") {
-                    startGraph("nonexistent") // This graph doesn't exist
+                    // This graph doesn't exist
+                    startGraph("nonexistent")
                 }
             }
         }
