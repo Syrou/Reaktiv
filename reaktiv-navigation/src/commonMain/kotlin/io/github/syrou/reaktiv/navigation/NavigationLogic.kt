@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
 import io.github.syrou.reaktiv.navigation.dsl.NavigationStep
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
@@ -23,6 +24,7 @@ import io.github.syrou.reaktiv.navigation.model.applyModification
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.model.getRoute
 import io.github.syrou.reaktiv.navigation.model.getParams
+import io.github.syrou.reaktiv.navigation.param.SerializableParam
 import io.github.syrou.reaktiv.navigation.util.computeGuidedFlowProperties
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperation
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperationBuilder
@@ -916,18 +918,27 @@ class NavigationLogic(
             )
             storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(flowState))
             
-            // 2. Navigate to first step with flow context
+            // 2. Navigate to first step with flow context using NavigationBuilder
             val firstStep = definition.steps.first()
             val stepRoute = firstStep.getRoute(precomputedData)
             val stepParams = action.params + firstStep.getParams()
-            navigate(stepRoute, stepParams, false) {
-                // Set guided flow context for this navigation
-                setGuidedFlowContext(GuidedFlowContext(
-                    flowRoute = action.guidedFlow.route,
-                    stepIndex = 0,
-                    totalSteps = definition.steps.size
-                ))
+            
+            // Use NavigationBuilder to properly handle parameters
+            val builder = NavigationBuilder(storeAccessor)
+            builder.navigateTo(stepRoute, false) { 
+                // Add step parameters - SerializableParam objects will be handled correctly
+                stepParams.forEach { (key, value) ->
+                    putRaw(key, value)
+                }
             }
+            builder.setGuidedFlowContext(GuidedFlowContext(
+                flowRoute = action.guidedFlow.route,
+                stepIndex = 0,
+                totalSteps = definition.steps.size
+            ))
+            
+            // Execute the navigation through the proper pipeline
+            executeNavigation(builder)
         }
     }
 
@@ -971,16 +982,26 @@ class NavigationLogic(
                     )
                     storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(updatedFlow))
                     
-                    // Navigate to next step with flow context
+                    // Navigate to next step using NavigationBuilder for proper parameter encoding
                     val stepRoute = nextStep.getRoute(precomputedData)
                     val stepParams = action.params + nextStep.getParams()
-                    navigate(stepRoute, stepParams, false) {
-                        setGuidedFlowContext(GuidedFlowContext(
-                            flowRoute = flowState.flowRoute,
-                            stepIndex = nextStepIndex,
-                            totalSteps = definition.steps.size
-                        ))
+                    
+                    // Use NavigationBuilder to properly handle parameters
+                    val builder = NavigationBuilder(storeAccessor)
+                    builder.navigateTo(stepRoute, false) { 
+                        // Add step parameters - SerializableParam objects will be handled correctly
+                        stepParams.forEach { (key, value) ->
+                            putRaw(key, value)
+                        }
                     }
+                    builder.setGuidedFlowContext(GuidedFlowContext(
+                        flowRoute = flowState.flowRoute,
+                        stepIndex = nextStepIndex,
+                        totalSteps = definition.steps.size
+                    ))
+                    
+                    // Execute the navigation through the proper pipeline
+                    executeNavigation(builder)
                 }
             }
         }
@@ -1006,16 +1027,26 @@ class NavigationLogic(
             )
             storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(updatedFlow))
             
-            // Navigate to previous step with flow context
+            // Navigate to previous step using NavigationBuilder for proper parameter encoding
             val stepRoute = previousStep.getRoute(precomputedData)
             val stepParams = previousStep.getParams()
-            navigate(stepRoute, stepParams, false) {
-                setGuidedFlowContext(GuidedFlowContext(
-                    flowRoute = flowState.flowRoute,
-                    stepIndex = previousStepIndex,
-                    totalSteps = definition.steps.size
-                ))
+            
+            // Use NavigationBuilder to properly handle parameters
+            val builder = NavigationBuilder(storeAccessor)
+            builder.navigateTo(stepRoute, false) { 
+                // Add step parameters - SerializableParam objects will be handled correctly
+                stepParams.forEach { (key, value) ->
+                    putRaw(key, value)
+                }
             }
+            builder.setGuidedFlowContext(GuidedFlowContext(
+                flowRoute = flowState.flowRoute,
+                stepIndex = previousStepIndex,
+                totalSteps = definition.steps.size
+            ))
+            
+            // Execute the navigation through the proper pipeline
+            executeNavigation(builder)
         }
     }
 
