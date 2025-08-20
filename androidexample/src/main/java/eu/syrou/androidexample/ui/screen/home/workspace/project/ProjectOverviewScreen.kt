@@ -16,7 +16,6 @@ import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import io.github.syrou.reaktiv.navigation.extension.popUpTo
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -99,7 +98,7 @@ private fun ProjectOverviewContent(params: Map<String, Any>) {
 
         Button(onClick = {
             scope.launch {
-                store.navigate("home/workspace"){
+                store.navigate("home/workspace") {
                     popUpTo("home/workspace/overview", inclusive = true)
                 }
             }

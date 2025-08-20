@@ -22,9 +22,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import eu.syrou.androidexample.ui.screen.TwitchAuthWebViewScreen
 import eu.syrou.androidexample.ui.screen.VideosListScreen
-import eu.syrou.androidexample.ui.screen.home.news.NewsListScreen
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
@@ -92,7 +90,7 @@ object LeaderboardDetailScreen : Screen {
                     Button(
                         onClick = {
                             scope.launch {
-                                    store.navigate("home/leaderboard/stats/individual")
+                                store.navigate("home/leaderboard/stats/individual")
                             }
                         }
                     ) {
@@ -108,7 +106,7 @@ object LeaderboardDetailScreen : Screen {
                         .padding(vertical = 2.dp)
                         .clickable {
                             scope.launch {
-                                store.navigate("home/leaderboard/player/${index+1}")
+                                store.navigate("home/leaderboard/player/${index + 1}")
                             }
                         }
                 ) {

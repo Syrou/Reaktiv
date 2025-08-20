@@ -106,7 +106,15 @@ fun ContentLayerRender(
         }
     }
 
-    val currentContentKey = "${contentEntry.navigatable.route}_${contentEntry.graphId}_${contentEntry.stackPosition}"
+    val currentContentKey = buildString {
+        append(contentEntry.navigatable.route)
+        append("_")
+        append(contentEntry.graphId)
+        append("_")
+        append(contentEntry.stackPosition)
+        append("_")
+        append(contentEntry.params.hashCode())
+    }
 
     if (!contentCache.containsKey(currentContentKey)) {
         contentCache[currentContentKey] = movableContentOf {
@@ -118,7 +126,15 @@ fun ContentLayerRender(
 
     val previousEntry = animationState.value.previousEntry
     val previousContentKey = if (previousEntry != null) {
-        "${previousEntry.navigatable.route}_${previousEntry.graphId}_${previousEntry.stackPosition}"
+        buildString {
+            append(previousEntry.navigatable.route)
+            append("_")
+            append(previousEntry.graphId)
+            append("_")
+            append(previousEntry.stackPosition)
+            append("_")
+            append(previousEntry.params.hashCode())
+        }
     } else null
 
     if (previousEntry != null && previousContentKey != null && !contentCache.containsKey(previousContentKey)) {
