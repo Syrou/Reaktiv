@@ -570,7 +570,6 @@ class NavigationComprehensiveTest {
         
         // Verify the parameter was preserved correctly after encoding/decoding
         assertEquals("overview", currentEntry.screen.route)
-        println("HERPADERPA - currentEntry params: ${currentEntry.params}")
         assertEquals(contentUri, currentEntry.params.getString("fileUri"))
         
         // Verify the content URI structure is intact using the decoded value
@@ -579,5 +578,30 @@ class NavigationComprehensiveTest {
         assertTrue(retrievedUri.contains("acc%3D9%3Bdoc%3Dencoded%3D"))
         assertTrue(retrievedUri.contains("%3D")) // Equals signs remain encoded in original URI
         assertTrue(retrievedUri.contains("%3B")) // Semicolons remain encoded in original URI
+    }
+
+    @Test
+    fun `test navigation with content URI parameters preserves encoding in query`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val contentUri = "content://com.google.android.apps.docs.storage/document/acc=9;doc=encoded=q3kaiKNyhntVpRozJ-eI-R1HG6TXaN_W7vafc216hOscCol3D2WPTL4kvwY="
+        ReaktivDebug.enable()
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        // Navigate with the content URI as a parameter
+
+        store.navigation {
+            navigateTo("home?fileUri=content://com.google.android.apps.docs.storage/document/acc%3D9%3Bdoc%3Dencoded%3Dq3kaiKNyhntVpRozJ-eI-R1HG6TXaN_W7vafc216hOscCol3D2WPTL4kvwY%3D")
+        }
+        advanceUntilIdle()
+
+        val navigationState = store.selectState<NavigationState>().first()
+        val currentEntry = navigationState.currentEntry
+
+        // Verify the parameter was preserved correctly after encoding/decoding
+        assertEquals("overview", currentEntry.screen.route)
+        assertEquals(contentUri, currentEntry.params.getString("fileUri"))
     }
 }

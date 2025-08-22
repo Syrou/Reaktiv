@@ -16,26 +16,16 @@ import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import kotlinx.coroutines.flow.first
 
-
-
-
 suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit) {
     val navigationLogic = selectLogic<NavigationLogic>()
     navigationLogic.navigate(block)
 }
-
-
-
-
-
-
 
 suspend fun StoreAccessor.navigateBack() {
     navigation {
         navigateBack()
     }
 }
-
 
 suspend inline fun <reified T : Modal> StoreAccessor.presentModal(
     noinline config: (suspend NavigationBuilder.() -> Unit)? = null
