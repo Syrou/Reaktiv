@@ -79,32 +79,3 @@ suspend fun StoreAccessor.clearAllModals() {
 }
 
 
-fun NavigationState.getZIndex(entry: NavigationEntry): Float {
-    return visibleLayers.find { it.entry == entry }?.zIndex ?: entry.zIndex
-}
-
-
-val NavigationState.currentFullPath: String
-    get() = this.currentFullPath
-
-
-val NavigationState.currentPathSegments: List<String>
-    get() = currentFullPath.split("/").filter { it.isNotEmpty() }
-
-
-val NavigationState.currentGraphHierarchy: List<String>
-    get() = this.currentGraphHierarchy
-
-
-fun NavigationState.isInGraph(graphId: String): Boolean {
-    return currentGraphHierarchy.contains(graphId)
-}
-
-
-fun NavigationState.isAtPath(path: String): Boolean {
-    return currentFullPath == path.trimStart('/').trimEnd('/')
-}
-
-
-val NavigationState.navigationDepth: Int
-    get() = currentPathSegments.size
