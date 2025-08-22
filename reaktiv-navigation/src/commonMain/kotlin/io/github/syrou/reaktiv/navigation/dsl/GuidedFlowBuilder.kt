@@ -1,11 +1,11 @@
 package io.github.syrou.reaktiv.navigation.dsl
 
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import kotlin.reflect.KClass
 
@@ -211,15 +211,23 @@ class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
  * Builder for individual guided flow steps that allows adding parameters
  */
 class GuidedFlowStepBuilder(
-    private val stepFactory: (StringAnyMap) -> GuidedFlowStep
+    private val stepFactory: (Params) -> GuidedFlowStep
 ) {
-    private val params = mutableMapOf<String, Any>()
+    private var currentParams = Params.empty()
 
     /**
      * Add a parameter to this step
      */
     fun param(key: String, value: Any): GuidedFlowStepBuilder {
-        params[key] = value
+        currentParams = when (value) {
+            is String -> currentParams.with(key, value)
+            is Int -> currentParams.with(key, value)
+            is Boolean -> currentParams.with(key, value)
+            is Double -> currentParams.with(key, value)
+            is Long -> currentParams.with(key, value)
+            is Float -> currentParams.with(key, value)
+            else -> currentParams.withTyped(key, value)
+        }
         return this
     }
 
@@ -227,7 +235,15 @@ class GuidedFlowStepBuilder(
      * Add multiple parameters to this step
      */
     fun params(vararg pairs: Pair<String, Any>): GuidedFlowStepBuilder {
-        params.putAll(pairs)
+        currentParams = currentParams + Params.of(*pairs)
+        return this
+    }
+
+    /**
+     * Add parameters from a Params object
+     */
+    fun params(params: Params): GuidedFlowStepBuilder {
+        currentParams = currentParams + params
         return this
     }
 
@@ -235,7 +251,7 @@ class GuidedFlowStepBuilder(
      * Add multiple parameters from a map
      */
     fun params(paramMap: Map<String, Any>): GuidedFlowStepBuilder {
-        params.putAll(paramMap)
+        currentParams = currentParams + Params.fromMap(paramMap)
         return this
     }
 
@@ -243,7 +259,7 @@ class GuidedFlowStepBuilder(
      * Build the step with current parameters
      */
     internal fun build(): GuidedFlowStep {
-        return stepFactory(params.toMap())
+        return stepFactory(currentParams)
     }
 }
 

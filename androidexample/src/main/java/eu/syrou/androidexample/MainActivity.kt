@@ -43,8 +43,8 @@ import eu.syrou.androidexample.ui.theme.ReaktivTheme
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -65,7 +65,9 @@ class MainActivity : ComponentActivity() {
                 val segments = uri.pathSegments
                 println("KASTRULL - DEEP LINK PATH: $path")
                 customApp.store.launch {
-                    customApp.store.navigate(path?.replace("/navigation/", "") ?: "")
+                    customApp.store.navigation {
+                        navigateTo(path?.replace("/navigation/", "") ?: "")
+                    }
                 }
             }
         }
@@ -155,7 +157,9 @@ fun MainRender() {
                                     selectedItem.value = item
                                     if (item.first == "Settings") {
                                         store.launch {
-                                            store.navigate(SettingsScreen.route)
+                                            store.navigation {
+                                                navigateTo(SettingsScreen.route)
+                                            }
                                         }
                                     }
                                 },

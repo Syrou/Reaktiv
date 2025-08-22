@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperationBuilder
 import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
@@ -27,7 +28,7 @@ suspend fun StoreAccessor.getGuidedFlow(route: String): GuidedFlowDefinition? {
  */
 suspend fun StoreAccessor.startGuidedFlow(
     route: String,
-    params: Map<String, Any> = emptyMap()
+    params: Params = Params.empty()
 ) {
     dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(route), params))
 }

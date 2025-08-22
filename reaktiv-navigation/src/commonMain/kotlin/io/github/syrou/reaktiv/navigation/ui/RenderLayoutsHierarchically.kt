@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
@@ -18,7 +18,7 @@ fun RenderLayoutsHierarchically(
     modifier: Modifier,
     navigationState: NavigationState,
     previousNavigationEntry: MutableState<NavigationEntry?>,
-    screenContent: @Composable (Navigatable, StringAnyMap) -> Unit,
+    screenContent: @Composable (Navigatable, Params) -> Unit,
     currentIndex: Int = 0
 ) {
     if (currentIndex >= layoutGraphs.size) {

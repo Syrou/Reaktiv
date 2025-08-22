@@ -17,6 +17,7 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.model.applyModification
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +52,7 @@ class NavigationModule internal constructor(
                 RouteResolution(
                     targetNavigatable = dest.screen,
                     targetGraphId = rootGraph.route,
-                    extractedParams = emptyMap(),
+                    extractedParams = Params.empty(),
                     navigationGraphId = rootGraph.route
                 )
             }
@@ -66,7 +67,7 @@ class NavigationModule internal constructor(
         // Create initial entry
         val initialEntry = NavigationEntry(
             navigatable = resolution.targetNavigatable,
-            params = emptyMap(),
+            params = Params.empty(),
             graphId = effectiveGraphId
         )
         
@@ -302,7 +303,7 @@ class NavigationModule internal constructor(
             }
 
             is NavigationAction.ClearCurrentScreenParams -> {
-                val updatedEntry = state.currentEntry.copy(params = emptyMap())
+                val updatedEntry = state.currentEntry.copy(params = Params.empty())
                 val updatedBackStack = state.backStack.dropLast(1) + updatedEntry
                 
                 val computedState = computeNavigationDerivedState(
@@ -344,7 +345,7 @@ class NavigationModule internal constructor(
 
             is NavigationAction.ClearCurrentScreenParam -> {
                 val updatedEntry = state.currentEntry.copy(
-                    params = state.currentEntry.params - action.key
+                    params = state.currentEntry.params.without(action.key)
                 )
                 val updatedBackStack = state.backStack.dropLast(1) + updatedEntry
                 
@@ -388,13 +389,13 @@ class NavigationModule internal constructor(
             is NavigationAction.ClearScreenParams -> {
                 val updatedBackStack = state.backStack.map { entry ->
                     if (entry.navigatable.route == action.route) {
-                        entry.copy(params = emptyMap())
+                        entry.copy(params = Params.empty())
                     } else {
                         entry
                     }
                 }
                 val updatedCurrentEntry = if (state.currentEntry.navigatable.route == action.route) {
-                    state.currentEntry.copy(params = emptyMap())
+                    state.currentEntry.copy(params = Params.empty())
                 } else {
                     state.currentEntry
                 }
@@ -439,13 +440,13 @@ class NavigationModule internal constructor(
             is NavigationAction.ClearScreenParam -> {
                 val updatedBackStack = state.backStack.map { entry ->
                     if (entry.navigatable.route == action.route) {
-                        entry.copy(params = entry.params - action.key)
+                        entry.copy(params = entry.params.without(action.key))
                     } else {
                         entry
                     }
                 }
                 val updatedCurrentEntry = if (state.currentEntry.navigatable.route == action.route) {
-                    state.currentEntry.copy(params = state.currentEntry.params - action.key)
+                    state.currentEntry.copy(params = state.currentEntry.params.without(action.key))
                 } else {
                     state.currentEntry
                 }

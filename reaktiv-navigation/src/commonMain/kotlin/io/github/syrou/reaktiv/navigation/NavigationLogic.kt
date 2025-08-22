@@ -25,6 +25,7 @@ import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.model.getRoute
 import io.github.syrou.reaktiv.navigation.model.getParams
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.computeGuidedFlowProperties
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperation
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperationBuilder
@@ -56,12 +57,12 @@ class NavigationLogic(
      */
     suspend fun navigate(
         route: String,
-        params: Map<String, Any> = emptyMap(),
+        params: Params = Params.empty(),
         replaceCurrent: Boolean = false,
         config: (NavigationBuilder.() -> Unit)? = null
     ) {
         navigate {
-            params.forEach { (key, value) -> putRaw(key, value) }
+            params(params)
             navigateTo(route, replaceCurrent)
             config?.invoke(this)
         }
@@ -94,11 +95,11 @@ class NavigationLogic(
     /**
      * Clear the entire backstack and optionally navigate to a new route
      */
-    suspend fun clearBackStack(newRoute: String? = null, params: Map<String, Any> = emptyMap()) {
+    suspend fun clearBackStack(newRoute: String? = null, params: Params = Params.empty()) {
         if (newRoute != null) {
             navigate {
+                params(params)
                 navigateTo(newRoute)
-                params.forEach { (key, value) -> putRaw(key, value) }
                 clearBackStack()
             }
         } else {
@@ -110,7 +111,7 @@ class NavigationLogic(
 
     suspend fun clearCurrentScreenParams() {
         val currentState = getCurrentNavigationState()
-        val updatedEntry = currentState.currentEntry.copy(params = emptyMap())
+        val updatedEntry = currentState.currentEntry.copy(params = Params.empty())
         val updatedBackStack = currentState.backStack.dropLast(1) + updatedEntry
 
         storeAccessor.dispatch(
@@ -123,7 +124,7 @@ class NavigationLogic(
 
     suspend fun clearCurrentScreenParam(key: String) {
         val currentState = getCurrentNavigationState()
-        val updatedParams = currentState.currentEntry.params - key
+        val updatedParams = currentState.currentEntry.params.without(key)
         val updatedEntry = currentState.currentEntry.copy(params = updatedParams)
         val updatedBackStack = currentState.backStack.dropLast(1) + updatedEntry
 
@@ -143,14 +144,14 @@ class NavigationLogic(
 
         val updatedBackStack = currentState.backStack.map { entry ->
             if (entry.navigatable.route == route) {
-                entry.copy(params = emptyMap())
+                entry.copy(params = Params.empty())
             } else {
                 entry
             }
         }
 
         val updatedCurrentEntry = if (currentState.currentEntry.navigatable.route == route) {
-            currentState.currentEntry.copy(params = emptyMap())
+            currentState.currentEntry.copy(params = Params.empty())
         } else {
             currentState.currentEntry
         }
@@ -171,14 +172,14 @@ class NavigationLogic(
 
         val updatedBackStack = currentState.backStack.map { entry ->
             if (entry.navigatable.route == route) {
-                entry.copy(params = entry.params - key)
+                entry.copy(params = entry.params.without(key))
             } else {
                 entry
             }
         }
 
         val updatedCurrentEntry = if (currentState.currentEntry.navigatable.route == route) {
-            currentState.currentEntry.copy(params = currentState.currentEntry.params - key)
+            currentState.currentEntry.copy(params = currentState.currentEntry.params.without(key))
         } else {
             currentState.currentEntry
         }
@@ -331,7 +332,7 @@ class NavigationLogic(
         stackPosition: Int,
         guidedFlowContext: GuidedFlowContext? = null
     ): NavigationEntry {
-        val encodedParams = parameterEncoder.encodeStepParameters(step.params)
+        val encodedParams = step.params
         val mergedParams = resolution.extractedParams + encodedParams
         
         return resolution.targetNavigatable.toNavigationEntry(
@@ -413,7 +414,7 @@ class NavigationLogic(
         var currentDefinition = currentState.guidedFlowDefinitions[flowRoute] ?: return
         var currentFlowState = currentState.activeGuidedFlowState
         var finalNavigationRoute: String? = null
-        var finalNavigationParams: Map<String, Any> = emptyMap()
+        var finalNavigationParams: Params = Params.empty()
         var guidedFlowContext: GuidedFlowContext? = null
         
         // Apply all operations in sequence
@@ -524,7 +525,7 @@ class NavigationLogic(
         val flowState: GuidedFlowState,
         val shouldNavigate: Boolean = false,
         val route: String = "",
-        val params: Map<String, Any> = emptyMap(),
+        val params: Params = Params.empty(),
         val guidedFlowContext: GuidedFlowContext? = null
     )
 
@@ -534,7 +535,7 @@ class NavigationLogic(
     private suspend fun computeNextStep(
         flowState: GuidedFlowState,
         definition: GuidedFlowDefinition,
-        params: Map<String, Any> = emptyMap()
+        params: Params = Params.empty()
     ): NavigationResult {
         return when {
             flowState.isOnFinalStep -> {
@@ -925,12 +926,8 @@ class NavigationLogic(
             
             // Use NavigationBuilder to properly handle parameters
             val builder = NavigationBuilder(storeAccessor)
-            builder.navigateTo(stepRoute, false) { 
-                // Add step parameters - SerializableParam objects will be handled correctly
-                stepParams.forEach { (key, value) ->
-                    putRaw(key, value)
-                }
-            }
+            builder.params(stepParams)
+            builder.navigateTo(stepRoute, false)
             builder.setGuidedFlowContext(GuidedFlowContext(
                 flowRoute = action.guidedFlow.route,
                 stepIndex = 0,
@@ -988,12 +985,8 @@ class NavigationLogic(
                     
                     // Use NavigationBuilder to properly handle parameters
                     val builder = NavigationBuilder(storeAccessor)
-                    builder.navigateTo(stepRoute, false) { 
-                        // Add step parameters - SerializableParam objects will be handled correctly
-                        stepParams.forEach { (key, value) ->
-                            putRaw(key, value)
-                        }
-                    }
+                    builder.params(stepParams)
+                    builder.navigateTo(stepRoute, false)
                     builder.setGuidedFlowContext(GuidedFlowContext(
                         flowRoute = flowState.flowRoute,
                         stepIndex = nextStepIndex,
@@ -1033,12 +1026,8 @@ class NavigationLogic(
             
             // Use NavigationBuilder to properly handle parameters
             val builder = NavigationBuilder(storeAccessor)
-            builder.navigateTo(stepRoute, false) { 
-                // Add step parameters - SerializableParam objects will be handled correctly
-                stepParams.forEach { (key, value) ->
-                    putRaw(key, value)
-                }
-            }
+            builder.params(stepParams)
+            builder.navigateTo(stepRoute, false)
             builder.setGuidedFlowContext(GuidedFlowContext(
                 flowRoute = flowState.flowRoute,
                 stepIndex = previousStepIndex,

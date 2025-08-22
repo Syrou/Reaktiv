@@ -22,11 +22,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.syrou.androidexample.ui.screen.TwitchAuthWebViewScreen
 import eu.syrou.androidexample.ui.screen.VideosListScreen
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
@@ -41,10 +42,10 @@ object LeaderboardDetailScreen : Screen {
     override val requiresAuth: Boolean = false
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
+    override fun Content(params: Params) {
         val scope = rememberCoroutineScope()
         val store = rememberStore()
-        val period = params["period"] as? String ?: "weekly"
+        val period = params.getString("period") ?: "weekly"
 
         LazyColumn(
             modifier = Modifier
@@ -80,7 +81,9 @@ object LeaderboardDetailScreen : Screen {
                     Button(
                         onClick = {
                             scope.launch {
-                                store.navigate("home/leaderboard/stats/team")
+                                store.navigation {
+                                    navigateTo("home/leaderboard/stats/team")
+                                }
                             }
                         }
                     ) {
@@ -90,7 +93,9 @@ object LeaderboardDetailScreen : Screen {
                     Button(
                         onClick = {
                             scope.launch {
-                                store.navigate("home/leaderboard/stats/individual")
+                                store.navigation {
+                                    navigateTo("home/leaderboard/stats/individual")
+                                }
                             }
                         }
                     ) {
@@ -106,7 +111,9 @@ object LeaderboardDetailScreen : Screen {
                         .padding(vertical = 2.dp)
                         .clickable {
                             scope.launch {
-                                store.navigate("home/leaderboard/player/${index + 1}")
+                                store.navigation {
+                                    navigateTo("home/leaderboard/player/${index + 1}")
+                                }
                             }
                         }
                 ) {

@@ -33,7 +33,7 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.extension.dismissModal
-import io.github.syrou.reaktiv.navigation.param.getParam
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -51,8 +51,8 @@ object NotificationModal : Modal {
     }
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
-        val test = params.getParam<List<String>>("TEST")
+    override fun Content(params: Params) {
+        val test = params.getTyped<List<String>>("TEST")
         println("TEST contains: $test")
         val scope = rememberCoroutineScope()
         val store = rememberStore()

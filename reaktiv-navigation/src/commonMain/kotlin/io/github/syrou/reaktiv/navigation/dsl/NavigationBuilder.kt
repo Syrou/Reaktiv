@@ -10,9 +10,9 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.CommonUrlEncoder
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
@@ -33,7 +33,7 @@ enum class NavigationOperation {
 data class NavigationStep(
     val operation: NavigationOperation,
     val target: NavigationTarget? = null,
-    val params: StringAnyMap = emptyMap(),
+    val params: Params = Params.empty(),
     val popUpToTarget: NavigationTarget? = null,
     val popUpToInclusive: Boolean = false,
     val shouldClearBackStack: Boolean = false,
@@ -100,7 +100,7 @@ class NavigationBuilder(
     internal val operations = mutableListOf<NavigationStep>()
     
     @PublishedApi
-    internal val currentParams = mutableMapOf<String, Any>()
+    internal var currentParams = Params.empty()
     
     @PublishedApi
     internal var shouldDismissModalsGlobally = false
@@ -111,23 +111,18 @@ class NavigationBuilder(
 
     fun navigateTo(path: String, replaceCurrent: Boolean = false, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
         val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
-        val stepParams = mutableMapOf<String, Any>()
+        var stepParams = Params.fromMap(queryParams)
         
-        // Add parsed query parameters
-        queryParams.forEach { (key, value) ->
-            stepParams[key] = value
-        }
-
         // Apply parameter builder if provided
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
-            stepParams.putAll(parameterBuilder.params)
+            stepParams = stepParams + Params.fromMap(parameterBuilder.params)
         }
         
         // Add current accumulated params
-        stepParams.putAll(currentParams)
-        currentParams.clear()
+        stepParams = stepParams + currentParams
+        currentParams = Params.empty()
         
         val step = NavigationStep(
             operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate,
@@ -167,18 +162,18 @@ class NavigationBuilder(
             NavigationTarget.NavigatableObject(navigatable)
         }
         
-        val stepParams = mutableMapOf<String, Any>()
+        var stepParams = Params.empty()
         
         // Apply parameter builder if provided
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
-            stepParams.putAll(parameterBuilder.params)
+            stepParams = stepParams + Params.fromMap(parameterBuilder.params)
         }
         
         // Add current accumulated params
-        stepParams.putAll(currentParams)
-        currentParams.clear()
+        stepParams = stepParams + currentParams
+        currentParams = Params.empty()
         
         val step = NavigationStep(
             operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate,
@@ -254,28 +249,57 @@ class NavigationBuilder(
         return this
     }
 
-    inline fun <reified T> put(key: String, value: T): NavigationBuilder {
-        currentParams[key] = SerializableParam(value, serializer<T>())
+    // NEW: Direct Params integration
+    fun params(params: Params): NavigationBuilder {
+        currentParams = currentParams + params
         return this
     }
 
-    fun <T> put(key: String, value: T, serializer: KSerializer<T>): NavigationBuilder {
-        currentParams[key] = SerializableParam(value, serializer)
+    // Complex types using Params
+    inline fun <reified T : Any> put(key: String, value: T): NavigationBuilder {
+        currentParams = currentParams.withTyped(key, value)
         return this
     }
 
+    // Keep existing parameter methods for backward compatibility
     fun putRaw(key: String, value: Any): NavigationBuilder {
-        currentParams[key] = value
+        currentParams = when (value) {
+            is String -> currentParams.with(key, value)
+            is Int -> currentParams.with(key, value)
+            is Boolean -> currentParams.with(key, value)
+            is Double -> currentParams.with(key, value)
+            is Long -> currentParams.with(key, value)
+            is Float -> currentParams.with(key, value)
+            else -> currentParams.withTyped(key, value)
+        }
         return this
     }
 
     // Convenience methods for common types
-    fun putString(key: String, value: String) = putRaw(key, value)
-    fun putInt(key: String, value: Int) = putRaw(key, value)
-    fun putBoolean(key: String, value: Boolean) = putRaw(key, value)
-    fun putDouble(key: String, value: Double) = putRaw(key, value)
-    fun putLong(key: String, value: Long) = putRaw(key, value)
-    fun putFloat(key: String, value: Float) = putRaw(key, value)
+    fun putString(key: String, value: String): NavigationBuilder {
+        currentParams = currentParams.with(key, value)
+        return this
+    }
+    fun putInt(key: String, value: Int): NavigationBuilder {
+        currentParams = currentParams.with(key, value)
+        return this
+    }
+    fun putBoolean(key: String, value: Boolean): NavigationBuilder {
+        currentParams = currentParams.with(key, value)
+        return this
+    }
+    fun putDouble(key: String, value: Double): NavigationBuilder {
+        currentParams = currentParams.with(key, value)
+        return this
+    }
+    fun putLong(key: String, value: Long): NavigationBuilder {
+        currentParams = currentParams.with(key, value)
+        return this
+    }
+    fun putFloat(key: String, value: Float): NavigationBuilder {
+        currentParams = currentParams.with(key, value)
+        return this
+    }
 
     // Shorter aliases
     fun param(key: String, value: Any) = putRaw(key, value)
@@ -328,10 +352,9 @@ class NavigationBuilder(
         }
     }
 
-    internal fun encodeParametersForStep(stepParams: Map<String, Any>): Map<String, Any> {
-        return stepParams.mapValues { (_, value) ->
-            encoder.encodeMixed(value)
-        }
+    internal fun encodeParametersForStep(stepParams: Params): Params {
+        // Params already handles encoding/decoding, so we can return as-is
+        return stepParams
     }
 
     @PublishedApi

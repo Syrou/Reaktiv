@@ -19,7 +19,8 @@ import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import io.github.syrou.reaktiv.navigation.extension.popUpTo
+import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -59,7 +60,7 @@ object TwitchAuthWebViewScreen : Screen {
     @SuppressLint("SetJavaScriptEnabled")
     @Composable
     override fun Content(
-        params: Map<String, Any>
+        params: Params
     ) {
         val store = rememberStore()
         val twitchAuthWebViewClient by remember {
@@ -67,8 +68,8 @@ object TwitchAuthWebViewScreen : Screen {
                 onAccessTokenReceived = { accessToken ->
                     store.dispatch.invoke(SettingsModule.SettingsAction.SetTwitchAccessToken(accessToken))
                     store.launch {
-                        store.popUpTo(SettingsScreen.route) {
-                            inclusive = true
+                        store.navigation {
+                            popUpTo(SettingsScreen.route, inclusive = true)
                         }
                     }
                 }

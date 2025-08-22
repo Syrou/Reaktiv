@@ -5,9 +5,9 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -33,7 +33,7 @@ class ModalNavigationContextTest {
         override val requiresAuth = false
 
         @Composable
-        override fun Content(params: Map<String, Any>) {
+        override fun Content(params: Params) {
             Text("Workspace")
         }
     }
@@ -45,7 +45,7 @@ class ModalNavigationContextTest {
         override val requiresAuth = false
 
         @Composable
-        override fun Content(params: Map<String, Any>) {
+        override fun Content(params: Params) {
             Text("Videos List")
         }
     }
@@ -58,7 +58,7 @@ class ModalNavigationContextTest {
         override val requiresAuth = false
 
         @Composable
-        override fun Content(params: Map<String, Any>) {
+        override fun Content(params: Params) {
             Text("Notification Modal")
         }
     }
@@ -86,7 +86,7 @@ class ModalNavigationContextTest {
             assertEquals("workspace", state.currentEntry.navigatable.route)
 
             // Step 2: Open NotificationScreen modal from WorkspaceScreen
-            store.navigate("notification")
+            store.navigation { navigateTo("notification") }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
             assertEquals("notification", state.currentEntry.navigatable.route)
@@ -94,7 +94,7 @@ class ModalNavigationContextTest {
             assertEquals("workspace", state.underlyingScreen?.navigatable?.route)
 
             // Step 3: Navigate from modal to VideosListScreen (modal should close)
-            store.navigate("videos")
+            store.navigation { navigateTo("videos") }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
             assertEquals("videos", state.currentEntry.navigatable.route)
@@ -128,7 +128,7 @@ class ModalNavigationContextTest {
             assertTrue(state.activeModalContexts.isEmpty(), "Should have no active modal contexts initially")
 
             // Step 2: Open NotificationScreen modal from WorkspaceScreen
-            store.navigate("notification")
+            store.navigation { navigateTo("notification") }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
             assertEquals("notification", state.currentEntry.navigatable.route)

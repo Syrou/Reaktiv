@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.model.ScreenResolution
 
 
@@ -68,14 +69,14 @@ class RouteResolver private constructor(
                         fullPathToResolution[fullPath] = RouteResolution(
                             targetNavigatable = navigatable,
                             targetGraphId = graphId,
-                            extractedParams = emptyMap(),
+                            extractedParams = Params.empty(),
                             isGraphReference = false
                         )
                         if (!fullPathToResolution.containsKey(navigatable.route)) {
                             fullPathToResolution[navigatable.route] = RouteResolution(
                                 targetNavigatable = navigatable,
                                 targetGraphId = graphId,
-                                extractedParams = emptyMap(),
+                                extractedParams = Params.empty(),
                                 isGraphReference = false
                             )
                         }
@@ -87,7 +88,7 @@ class RouteResolver private constructor(
                     val graphRouteResolution = RouteResolution(
                         targetNavigatable = startResolution.navigatable,
                         targetGraphId = startResolution.actualGraphId,
-                        extractedParams = emptyMap(),
+                        extractedParams = Params.empty(),
                         navigationGraphId = graphId,
                         isGraphReference = graph.startDestination is StartDestination.GraphReference
                     )
@@ -194,7 +195,7 @@ class RouteResolver private constructor(
             return RouteResolution(
                 targetNavigatable = navigatable,
                 targetGraphId = graphId,
-                extractedParams = emptyMap(),
+                extractedParams = Params.empty(),
                 isGraphReference = false
             )
         }
@@ -203,7 +204,7 @@ class RouteResolver private constructor(
             return RouteResolution(
                 targetNavigatable = startResolution.navigatable,
                 targetGraphId = startResolution.actualGraphId,
-                extractedParams = emptyMap(),
+                extractedParams = Params.empty(),
                 navigationGraphId = cleanRoute,
                 isGraphReference = graphDefinitions[cleanRoute]?.startDestination is StartDestination.GraphReference
             )
@@ -213,7 +214,7 @@ class RouteResolver private constructor(
             return RouteResolution(
                 targetNavigatable = navigatable,
                 targetGraphId = "root",
-                extractedParams = emptyMap(),
+                extractedParams = Params.empty(),
                 isGraphReference = false
             )
         }
@@ -245,13 +246,14 @@ class RouteResolver private constructor(
 
             val match = paramRoute.regex.find(route)
             if (match != null) {
-                val params = mutableMapOf<String, Any>()
+                val paramsMap = mutableMapOf<String, Any>()
                 match.groupValues.drop(1).forEachIndexed { index, value ->
                     if (index < paramRoute.paramNames.size) {
-                        params[paramRoute.paramNames[index]] = value
+                        paramsMap[paramRoute.paramNames[index]] = value
                         ReaktivDebug.nav("   Extracted param: ${paramRoute.paramNames[index]} = $value")
                     }
                 }
+                val params = Params.fromMap(paramsMap)
 
                 ReaktivDebug.nav("✅ Parameterized match found: ${paramRoute.fullTemplate}")
 
@@ -311,14 +313,14 @@ class RouteResolver private constructor(
         }
     }
 
-    private fun substituteRouteParameters(routeTemplate: String, params: Map<String, Any>): String {
+    private fun substituteRouteParameters(routeTemplate: String, params: Params): String {
         var resolvedRoute = routeTemplate
         val paramRegex = Regex("\\{([^}]+)\\}")
 
         for (match in paramRegex.findAll(routeTemplate)) {
             val placeholder = match.value
             val paramName = match.groupValues[1]
-            val paramValue = params[paramName]?.toString()
+            val paramValue = params.getString(paramName)
 
             if (paramValue != null) {
                 resolvedRoute = resolvedRoute.replace(placeholder, paramValue)

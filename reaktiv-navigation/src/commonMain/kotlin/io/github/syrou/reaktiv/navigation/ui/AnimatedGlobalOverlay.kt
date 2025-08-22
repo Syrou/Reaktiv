@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.ModalAnimationState
@@ -34,7 +34,7 @@ fun AnimatedGlobalOverlay(
     animationState: ModalAnimationState,
     screenWidth: Float,
     screenHeight: Float,
-    screenContent: @Composable (Navigatable, StringAnyMap) -> Unit,
+    screenContent: @Composable (Navigatable, Params) -> Unit,
     onAnimationComplete: () -> Unit
 ) {
     val modal = animationState.entry.navigatable as? Modal

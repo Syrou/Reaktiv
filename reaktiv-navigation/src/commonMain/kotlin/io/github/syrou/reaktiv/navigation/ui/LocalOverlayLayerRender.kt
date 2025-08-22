@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LocalOverlayLayerRender(
     entries: List<NavigationEntry>,
-    screenContent: @Composable (Navigatable, StringAnyMap) -> Unit
+    screenContent: @Composable (Navigatable, Params) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val store = rememberStore()

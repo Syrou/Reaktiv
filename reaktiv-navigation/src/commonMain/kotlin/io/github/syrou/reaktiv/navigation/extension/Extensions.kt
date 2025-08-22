@@ -11,63 +11,12 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import kotlinx.coroutines.flow.first
 
 
-@Deprecated("Use store.navigation{...} instead")
-class PopUpToBuilder(
-    var route: String,
-    var inclusive: Boolean = false
-) {
-    private var replaceWith: String? = null
-    private var replaceParams: Map<String, Any> = emptyMap()
-
-    @Deprecated("Use store.navigation{...} instead")
-    fun replaceWith(route: String, params: Map<String, Any> = emptyMap()): PopUpToBuilder {
-        this.replaceWith = route
-        this.replaceParams = params
-        return this
-    }
-
-    internal fun build(): PopUpToConfig {
-        return PopUpToConfig(
-            replaceWith = replaceWith,
-            replaceParams = replaceParams
-        )
-    }
-}
-
-
-@Deprecated("Use store.navigation{...} instead")
-class ClearBackStackBuilder(
-    private var route: String? = null,
-    private var params: Map<String, Any> = emptyMap()
-) {
-    @Deprecated("Use store.navigation{...} instead")
-    fun navigate(route: String, params: Map<String, Any> = emptyMap()) {
-        this.route = route
-        this.params = params
-    }
-
-    internal fun build(): ClearBackStackConfig {
-        return ClearBackStackConfig(root = route, params = params)
-    }
-}
-
-
-@Deprecated("Use store.navigation{...} instead")
-data class PopUpToConfig(
-    val replaceWith: String?,
-    val replaceParams: Map<String, Any>
-)
-
-@Deprecated("Use store.navigation{...} instead")
-data class ClearBackStackConfig(
-    val root: String?,
-    val params: Map<String, Any>
-)
 
 
 suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit) {
@@ -76,119 +25,9 @@ suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit
 }
 
 
-@Deprecated("Use store.navigation{...} instead")
-suspend fun StoreAccessor.navigate(
-    route: String,
-    params: Map<String, Any> = emptyMap(),
-    config: (NavigationBuilder.() -> Unit)? = null
-) {
-    navigation {
-        navigateTo(route) { 
-            params.forEach { (key, value) ->
-                putRaw(key, value)
-            }
-        }
-        config?.invoke(this)
-    }
-}
 
 
-@Deprecated("Use store.navigation{...} instead")
-suspend fun StoreAccessor.popUpTo(
-    route: String,
-    inclusive: Boolean = false,
-    config: (PopUpToBuilder.() -> Unit)? = null
-) {
-    config?.let { configBlock ->
-        val legacyBuilder = PopUpToBuilder(route, inclusive)
-        legacyBuilder.configBlock()
-        val popUpToConfig = legacyBuilder.build()
-        if (popUpToConfig.replaceWith != null) {
-            navigation {
-                popUpTo(route, inclusive)
-                navigateTo(popUpToConfig.replaceWith) { 
-                    popUpToConfig.replaceParams.forEach { (key, value) ->
-                        putRaw(key, value)
-                    }
-                }
-            }
-        } else {
-            navigation {
-                popUpTo(route, inclusive)
-                navigateBack() // Navigate to the entry that's now at the top after popping
-            }
-        }
-    } ?: run {
-        navigation {
-            popUpTo(route, inclusive)
-            navigateBack() // Navigate to the entry that's now at the top after popping
-        }
-    }
-}
 
-@Deprecated("Use store.navigation{...} instead")
-suspend fun StoreAccessor.clearBackStack(config: (ClearBackStackBuilder.() -> Unit)? = null) {
-    config?.let { configBlock ->
-        val legacyBuilder = ClearBackStackBuilder()
-        legacyBuilder.configBlock()
-        val clearConfig = legacyBuilder.build()
-
-        if (clearConfig.root != null) {
-            navigation {
-                clearBackStack()
-                navigateTo(clearConfig.root) { 
-                    clearConfig.params.forEach { (key, value) ->
-                        putRaw(key, value)
-                    }
-                }
-            }
-        } else {
-            navigation {
-                clearBackStack()
-            }
-        }
-    } ?: run {
-        navigation {
-            clearBackStack()
-        }
-    }
-}
-
-
-@Deprecated("Use store.navigation{ navigateTo(route, replaceCurrent = true) } instead")
-suspend fun StoreAccessor.replaceWith(route: String, params: Map<String, Any> = emptyMap()) {
-    navigation {
-        navigateTo(route, replaceCurrent = true) { 
-            params.forEach { (key, value) ->
-                putRaw(key, value)
-            }
-        }
-    }
-}
-
-@Deprecated("These introduce a bad pattern for knowing when to clear data, don't use it")
-suspend fun StoreAccessor.clearCurrentScreenParams() {
-    val navigationLogic = selectLogic<NavigationLogic>()
-    navigationLogic.clearCurrentScreenParams()
-}
-
-@Deprecated("These introduce a bad pattern for knowing when to clear data, don't use it")
-suspend fun StoreAccessor.clearCurrentScreenParam(key: String) {
-    val navigationLogic = selectLogic<NavigationLogic>()
-    navigationLogic.clearCurrentScreenParam(key)
-}
-
-@Deprecated("These introduce a bad pattern for knowing when to clear data, don't use it")
-suspend fun StoreAccessor.clearScreenParams(route: String) {
-    val navigationLogic = selectLogic<NavigationLogic>()
-    navigationLogic.clearScreenParams(route)
-}
-
-@Deprecated("These introduce a bad pattern for knowing when to clear data, don't use it")
-suspend fun StoreAccessor.clearScreenParam(route: String, key: String) {
-    val navigationLogic = selectLogic<NavigationLogic>()
-    navigationLogic.clearScreenParam(route, key)
-}
 
 
 suspend fun StoreAccessor.navigateBack() {

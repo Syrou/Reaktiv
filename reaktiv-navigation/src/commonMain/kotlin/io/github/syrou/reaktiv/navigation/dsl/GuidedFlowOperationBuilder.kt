@@ -1,13 +1,13 @@
 package io.github.syrou.reaktiv.navigation.dsl
 
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
@@ -70,7 +70,7 @@ class GuidedFlowOperationBuilder(
      * @param stepIndex Index of the step to update
      * @param newParams New parameters to set
      */
-    fun updateStepParams(stepIndex: Int, newParams: StringAnyMap) {
+    fun updateStepParams(stepIndex: Int, newParams: Params) {
         operations.add(GuidedFlowOperation.Modify(FlowModification.UpdateStepParams(stepIndex, newParams)))
     }
     
@@ -86,7 +86,7 @@ class GuidedFlowOperationBuilder(
      * Navigate to the next step in the guided flow
      * @param params Optional parameters to pass to the next step
      */
-    fun nextStep(params: StringAnyMap = emptyMap()) {
+    fun nextStep(params: Params = Params.empty()) {
         operations.add(GuidedFlowOperation.NextStep(params))
     }
     
@@ -191,7 +191,7 @@ class GuidedFlowOperationBuilder(
         }
         val builder = TypedParameterBuilder()
         paramBuilder(builder)
-        updateStepParams(stepIndex, builder.buildParams())
+        updateStepParams(stepIndex, Params.fromMap(builder.buildParams()))
     }
     
     /**
@@ -199,7 +199,7 @@ class GuidedFlowOperationBuilder(
      * @param newParams New parameters to set
      * @throws IllegalArgumentException if the screen type is not found in the flow
      */
-    suspend inline fun <reified T : Screen> updateStepParams(newParams: StringAnyMap) {
+    suspend inline fun <reified T : Screen> updateStepParams(newParams: Params) {
         val stepIndex = findStepByType<T>()
         if (stepIndex < 0) {
             throw IllegalArgumentException("Screen type ${T::class.simpleName} not found in guided flow '$flowRoute'")
@@ -219,7 +219,7 @@ class GuidedFlowOperationBuilder(
         return if (stepIndex >= 0) {
             val builder = TypedParameterBuilder()
             paramBuilder(builder)
-            updateStepParams(stepIndex, builder.buildParams())
+            updateStepParams(stepIndex, Params.fromMap(builder.buildParams()))
             true
         } else {
             false
@@ -231,7 +231,7 @@ class GuidedFlowOperationBuilder(
      * @param newParams New parameters to set
      * @return true if the step was found and updated, false if not found
      */
-    suspend inline fun <reified T : Screen> updateStepParamsIfExists(newParams: StringAnyMap): Boolean {
+    suspend inline fun <reified T : Screen> updateStepParamsIfExists(newParams: Params): Boolean {
         val stepIndex = findStepByType<T>()
         return if (stepIndex >= 0) {
             updateStepParams(stepIndex, newParams)
@@ -317,7 +317,8 @@ class TypedParameterBuilder {
     /**
      * Build the final parameter map
      */
-    fun buildParams(): StringAnyMap = params.toMap()
+    @PublishedApi
+    internal fun buildParams(): Map<String, Any> = params.toMap()
 }
 
 /**
@@ -329,6 +330,6 @@ class TypedParameterBuilder {
  */
 sealed class GuidedFlowOperation {
     data class Modify(val modification: FlowModification) : GuidedFlowOperation()
-    data class NextStep(val params: StringAnyMap = emptyMap()) : GuidedFlowOperation()
+    data class NextStep(val params: Params = Params.empty()) : GuidedFlowOperation()
     object PreviousStep : GuidedFlowOperation()
 }

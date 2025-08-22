@@ -1,16 +1,16 @@
 package io.github.syrou.reaktiv.navigation.model
 
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class NavigationEntry(
     val navigatable: Navigatable,
-    val params: StringAnyMap,
+    val params: Params,
     val graphId: String,
     val stackPosition: Int = 0,
     val guidedFlowContext: GuidedFlowContext? = null
@@ -37,7 +37,7 @@ data class NavigationEntry(
 data class RouteResolution(
     val targetNavigatable: Navigatable,
     val targetGraphId: String,
-    val extractedParams: Map<String, Any>,
+    val extractedParams: Params,
     val navigationGraphId: String? = null,
     val isGraphReference: Boolean = false
 ) {
@@ -71,7 +71,7 @@ data class NavigationLayer(
 )
 
 fun Navigatable.toNavigationEntry(
-    params: StringAnyMap = emptyMap(),
+    params: Params = Params.empty(),
     graphId: String,
     stackPosition: Int = 0,
     guidedFlowContext: GuidedFlowContext? = null

@@ -14,8 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
+import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -28,7 +29,7 @@ object ProjectOverviewScreen : Screen {
     override val requiresAuth = true
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
+    override fun Content(params: Params) {
         ProjectOverviewContent(params)
     }
 }
@@ -41,7 +42,7 @@ object ProjectTasksScreen : Screen {
     override val requiresAuth = true
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
+    override fun Content(params: Params) {
         ProjectTasksContent(params)
     }
 }
@@ -54,7 +55,7 @@ object ProjectFilesScreen : Screen {
     override val requiresAuth = true
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
+    override fun Content(params: Params) {
         ProjectFilesContent(params)
     }
 }
@@ -67,15 +68,15 @@ object ProjectSettingsScreen : Screen {
     override val requiresAuth = true
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
+    override fun Content(params: Params) {
         ProjectSettingsContent(params)
     }
 }
 
 @Composable
-private fun ProjectOverviewContent(params: Map<String, Any>) {
+private fun ProjectOverviewContent(params: Params) {
     val scope = rememberCoroutineScope()
-    val projectId = params["projectId"] as? String ?: "current"
+    val projectId = params.getString("projectId") ?: "current"
     val store = rememberStore()
     Column(
         modifier = Modifier
@@ -90,7 +91,11 @@ private fun ProjectOverviewContent(params: Map<String, Any>) {
 
         Button(onClick = {
             scope.launch {
-                store.navigate("home/workspace/projects/tasks", mapOf("projectId" to projectId))
+                store.navigation {
+                    navigateTo("home/workspace/projects/tasks"){
+                        putString("projectId", projectId)
+                    }
+                }
             }
         }) {
             Text("View Tasks")
@@ -98,8 +103,9 @@ private fun ProjectOverviewContent(params: Map<String, Any>) {
 
         Button(onClick = {
             scope.launch {
-                store.navigate("home/workspace") {
-                    popUpTo("home/workspace/overview", inclusive = true)
+                store.navigation {
+                    popUpTo("home/workspace", inclusive = true)
+                    navigateTo("home/workspace/overview")
                 }
             }
         }) {
@@ -109,9 +115,9 @@ private fun ProjectOverviewContent(params: Map<String, Any>) {
 }
 
 @Composable
-private fun ProjectTasksContent(params: Map<String, Any>) {
+private fun ProjectTasksContent(params: Params) {
     val scope = rememberCoroutineScope()
-    val projectId = params["projectId"] as? String ?: "current"
+    val projectId = params.getString("projectId") ?: "current"
     val store = rememberStore()
     Column(
         modifier = Modifier
@@ -126,7 +132,9 @@ private fun ProjectTasksContent(params: Map<String, Any>) {
 
         Button(onClick = {
             scope.launch {
-                store.navigate("home/workspace/projects/files")
+                store.navigation {
+                    navigateTo("home/workspace/projects/files")
+                }
             }
         }) {
             Text("Switch to Files Tab")
@@ -143,7 +151,7 @@ private fun ProjectTasksContent(params: Map<String, Any>) {
 }
 
 @Composable
-private fun ProjectFilesContent(params: Map<String, Any>) {
+private fun ProjectFilesContent(params: Params) {
     val scope = rememberCoroutineScope()
     val store = rememberStore()
     Column(
@@ -157,7 +165,9 @@ private fun ProjectFilesContent(params: Map<String, Any>) {
 
         Button(onClick = {
             scope.launch {
-                store.navigate("home/workspace/projects/settings")
+                store.navigation {
+                    navigateTo("home/workspace/projects/settings")
+                }
             }
         }) {
             Text("Project Settings")
@@ -166,7 +176,7 @@ private fun ProjectFilesContent(params: Map<String, Any>) {
 }
 
 @Composable
-private fun ProjectSettingsContent(params: Map<String, Any>) {
+private fun ProjectSettingsContent(params: Params) {
     val scope = rememberCoroutineScope()
     val store = rememberStore()
     Column(
@@ -181,7 +191,9 @@ private fun ProjectSettingsContent(params: Map<String, Any>) {
 
         Button(onClick = {
             scope.launch {
-                store.navigate("home/workspace/projects/overview")
+                store.navigation {
+                    navigateTo("home/workspace/projects/overview")
+                }
             }
         }) {
             Text("Back to Overview")

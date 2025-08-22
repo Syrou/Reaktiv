@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -297,7 +298,7 @@ class UnifiedNavigationBuilderTest {
             override val requiresAuth = false
 
             @Composable
-            override fun Content(params: Map<String, Any>) {
+            override fun Content(params: Params) {
                 Text("User Profile")
             }
         }
@@ -309,7 +310,7 @@ class UnifiedNavigationBuilderTest {
             override val requiresAuth = false
 
             @Composable
-            override fun Content(params: Map<String, Any>) {
+            override fun Content(params: Params) {
                 Text("Post Details")
             }
         }
@@ -489,7 +490,7 @@ class UnifiedNavigationBuilderTest {
             override val requiresAuth = false
 
             @Composable
-            override fun Content(params: Map<String, Any>) {
+            override fun Content(params: Params) {
                 Text("nonexistant")
             }
         }

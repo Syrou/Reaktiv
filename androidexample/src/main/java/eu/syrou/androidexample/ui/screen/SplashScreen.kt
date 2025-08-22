@@ -17,6 +17,7 @@ import eu.syrou.androidexample.R
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
@@ -30,7 +31,7 @@ object SplashScreen : Screen {
 
     @Composable
     override fun Content(
-        params: Map<String, Any>
+        params: Params
     ) {
         val store = rememberStore()
         LaunchedEffect(Unit) {

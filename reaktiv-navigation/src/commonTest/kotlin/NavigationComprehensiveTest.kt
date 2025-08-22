@@ -1,14 +1,14 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
-import io.github.syrou.reaktiv.navigation.extension.clearBackStack
-import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -45,7 +45,7 @@ class NavigationComprehensiveTest {
         override val requiresAuth = false
 
         @Composable
-        override fun Content(params: Map<String, Any>) {
+        override fun Content(params: Params) {
             Text(title)
         }
     }
@@ -89,7 +89,7 @@ class NavigationComprehensiveTest {
         }
 
         // Navigate to settings (root level screen)
-        store.navigate("settings")
+        store.navigation { navigateTo("settings") }
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -107,7 +107,7 @@ class NavigationComprehensiveTest {
         }
 
         // Navigate to "home" - should resolve to news graph via startGraph("news")
-        store.navigate("home")
+        store.navigation { navigateTo("home") }
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -128,12 +128,13 @@ class NavigationComprehensiveTest {
             }
 
             // Navigate somewhere first
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
 
             // Clear backstack and navigate to home (should resolve to news)
-            store.clearBackStack {
-                navigate("home")
+            store.navigation {
+                clearBackStack()
+                navigateTo("home")
             }
             advanceUntilIdle()
 
@@ -154,7 +155,9 @@ class NavigationComprehensiveTest {
         }
 
         // Navigate to fully qualified path
-        store.navigate("home/workspace/projects")
+        store.navigation {
+            navigateTo("home/workspace/projects")
+        }
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -172,9 +175,11 @@ class NavigationComprehensiveTest {
         }
 
         // Navigate through multiple screens
-        store.navigate("home") // -> news/overview
+        store.navigation { navigateTo("home") } // -> news/overview
         advanceUntilIdle()
-        store.navigate("settings")
+        store.navigation {
+            navigateTo("settings")
+        }
         advanceUntilIdle()
 
         // Should have: [splash, news/overview, settings]
@@ -201,13 +206,19 @@ class NavigationComprehensiveTest {
         }
 
         // Build a backstack: splash -> home(news) -> workspace -> projects -> settings
-        store.navigate("home") // news/overview
+        store.navigation { navigateTo("home") } // news/overview
         advanceUntilIdle()
-        store.navigate("home/workspace")
+        store.navigation {
+            navigateTo("home/workspace")
+        }
         advanceUntilIdle()
-        store.navigate("home/workspace/projects")
+        store.navigation {
+            navigateTo("home/workspace/projects")
+        }
         advanceUntilIdle()
-        store.navigate("settings")
+        store.navigation {
+            navigateTo("settings")
+        }
         advanceUntilIdle()
 
         // Should have 5 entries
@@ -215,7 +226,8 @@ class NavigationComprehensiveTest {
         assertEquals(5, state.backStack.size)
 
         // PopUpTo the workspace screen
-        store.navigate("home/leaderboard") {
+        store.navigation {
+            navigateTo("home/leaderboard")
             popUpTo("workspace")
         }
         advanceUntilIdle()
@@ -237,16 +249,23 @@ class NavigationComprehensiveTest {
         }
 
         // Build backstack with full paths
-        store.navigate("home/news")
+        store.navigation {
+            navigateTo("home/news")
+        }
         advanceUntilIdle()
-        store.navigate("home/workspace")
+        store.navigation {
+            navigateTo("home/workspace")
+        }
         advanceUntilIdle()
-        store.navigate("home/workspace/projects")
+        store.navigation {
+            navigateTo("home/workspace/projects")
+        }
         advanceUntilIdle()
 
         // PopUpTo with full path
-        store.navigate("settings") {
+        store.navigation {
             popUpTo("home/news")
+            navigateTo("settings")
         }
         advanceUntilIdle()
 
@@ -265,13 +284,16 @@ class NavigationComprehensiveTest {
         }
 
         // Build backstack
-        store.navigate("home")
+        store.navigation { navigateTo("home") }
         advanceUntilIdle()
-        store.navigate("settings")
+        store.navigation {
+            navigateTo("settings")
+        }
         advanceUntilIdle()
 
         // PopUpTo inclusive should remove the target as well
-        store.navigate("home/leaderboard") {
+        store.navigation {
+            navigateTo("home/leaderboard")
             popUpTo("splash", inclusive = true)
         }
         advanceUntilIdle()
@@ -291,7 +313,7 @@ class NavigationComprehensiveTest {
         }
 
         // Navigate somewhere
-        store.navigate("home")
+        store.navigation { navigateTo("home") }
         advanceUntilIdle()
 
         val sizeBefore = store.selectState<NavigationState>().first().backStack.size
@@ -314,14 +336,18 @@ class NavigationComprehensiveTest {
             coroutineContext(testDispatcher)
         }
 
-        val testParams = mapOf("userId" to "123", "source" to "deep_link")
+        val testParams = Params.of("userId" to "123", "source" to "deep_link")
 
-        store.navigate("home", testParams)
+        store.navigation {
+            navigateTo("home"){
+                params(testParams)
+            }
+        }
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("123", state.currentEntry.params["userId"])
-        assertEquals("deep_link", state.currentEntry.params["source"])
+        assertEquals("123", state.currentEntry.params.getString("userId"))
+        assertEquals("deep_link", state.currentEntry.params.getString("source"))
     }
 
     @Test
@@ -333,18 +359,24 @@ class NavigationComprehensiveTest {
         }
 
         // Navigate with parameters
-        store.navigate("home", mapOf("sessionId" to "abc123"))
+        store.navigation {
+            navigateTo("home"){
+                params(Params.of("sessionId" to "abc123"))
+            }
+        }
         advanceUntilIdle()
 
         // Navigate away and back
-        store.navigate("settings")
+        store.navigation {
+            navigateTo("settings")
+        }
         advanceUntilIdle()
         store.navigateBack()
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
         assertEquals("overview", state.currentEntry.screen.route)
-        assertEquals("abc123", state.currentEntry.params["sessionId"]) // Params should persist
+        assertEquals("abc123", state.currentEntry.params.getString("sessionId")) // Params should persist
     }
 
     @Test
@@ -360,15 +392,18 @@ class NavigationComprehensiveTest {
         assertFalse(state.canGoBack) // Only one entry initially
 
         // Navigate somewhere
-        store.navigate("settings")
+        store.navigation {
+            navigateTo("settings")
+        }
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
         assertTrue(state.canGoBack) // Now we can go back
 
         // Clear backstack
-        store.clearBackStack {
-            navigate("home")
+        store.navigation {
+            clearBackStack()
+            navigateTo("home")
         }
         advanceUntilIdle()
 
@@ -386,7 +421,9 @@ class NavigationComprehensiveTest {
             }
 
             // Simulate user's problematic scenario
-            store.navigate("home") // Should go to news/overview
+            store.navigation {
+                navigateTo("home")
+            }
             advanceUntilIdle()
 
             var state = store.selectState<NavigationState>().first()
@@ -394,12 +431,15 @@ class NavigationComprehensiveTest {
             assertEquals("overview", state.currentEntry.screen.route)
 
             // Navigate to workspace
-            store.navigate("home/workspace")
+            store.navigation {
+                navigateTo("home/workspace")
+            }
             advanceUntilIdle()
 
             // Use the problematic clearBackStack operation
-            store.clearBackStack {
-                navigate("home")
+            store.navigation {
+                clearBackStack()
+                navigateTo("home")
             }
             advanceUntilIdle()
 
@@ -421,16 +461,23 @@ class NavigationComprehensiveTest {
             }
 
             // Perform multiple operations
-            store.navigate("home")
+            store.navigation {
+                navigateTo("home")
+            }
             advanceUntilIdle()
-            store.navigate("home/workspace/projects")
+            store.navigation {
+                navigateTo("home/workspace/projects")
+            }
             advanceUntilIdle()
-            store.navigate("settings")
+            store.navigation {
+                navigateTo("settings")
+            }
             advanceUntilIdle()
             store.navigateBack()
             advanceUntilIdle()
-            store.navigate("home/leaderboard") {
+            store.navigation {
                 popUpTo("home")
+                navigateTo("home/leaderboard")
             }
             advanceUntilIdle()
 
@@ -460,7 +507,9 @@ class NavigationComprehensiveTest {
 
         // Try to navigate to non-existent route
         assertFailsWith<RouteNotFoundException>() {
-            store.navigate("nonexistent")
+            store.navigation {
+                navigateTo("nonexistent")
+            }
             advanceUntilIdle()
         }
 
@@ -478,17 +527,57 @@ class NavigationComprehensiveTest {
                 coroutineContext(testDispatcher)
             }
 
-            store.navigate("home")
+            store.navigation {
+                navigateTo("home")
+            }
             advanceUntilIdle()
-            store.navigate("settings")
+            store.navigation {
+                navigateTo("settings")
+            }
             advanceUntilIdle()
 
             // PopUpTo non-existent route should just add to backstack
             assertFailsWith<RouteNotFoundException> {
-                store.navigate("home/leaderboard") {
+                store.navigation {
                     popUpTo("nonexistent")
+                    navigateTo("home/leaderboard")
                 }
             }
             advanceUntilIdle()
         }
+
+    @Test
+    fun `test navigation with content URI parameters preserves encoding`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val contentUri = "content://com.google.android.apps.docs.storage/document/acc%3D9%3Bdoc%3Dencoded%3Dq3kaiKNyhntVpRozJ-eI-R1HG6TXaN_W7vafc216hOscCol3D2WPTL4kvwY%3D"
+        ReaktivDebug.enable()
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+        
+        // Navigate with the content URI as a parameter
+
+        store.navigation {
+            navigateTo("home") {
+                params(Params.of("fileUri" to contentUri))
+            }
+        }
+        advanceUntilIdle()
+        
+        val navigationState = store.selectState<NavigationState>().first()
+        val currentEntry = navigationState.currentEntry
+        
+        // Verify the parameter was preserved correctly after encoding/decoding
+        assertEquals("overview", currentEntry.screen.route)
+        println("HERPADERPA - currentEntry params: ${currentEntry.params}")
+        assertEquals(contentUri, currentEntry.params.getString("fileUri"))
+        
+        // Verify the content URI structure is intact using the decoded value
+        val retrievedUri = currentEntry.params.getString("fileUri")!!
+        assertTrue(retrievedUri.startsWith("content://"))
+        assertTrue(retrievedUri.contains("acc%3D9%3Bdoc%3Dencoded%3D"))
+        assertTrue(retrievedUri.contains("%3D")) // Equals signs remain encoded in original URI
+        assertTrue(retrievedUri.contains("%3B")) // Semicolons remain encoded in original URI
+    }
 }

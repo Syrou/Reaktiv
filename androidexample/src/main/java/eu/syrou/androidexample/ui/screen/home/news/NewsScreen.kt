@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.serialization.Serializable
 
@@ -28,7 +29,7 @@ object NewsScreen : Screen {
 
     @Composable
     override fun Content(
-        params: Map<String, Any>
+        params: Params
     ) {
         LazyColumn(
             modifier = Modifier

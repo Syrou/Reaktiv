@@ -27,6 +27,7 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -42,7 +43,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         store.dispatch(
             NavigationAction.StartGuidedFlow(
                 GuidedFlow("user-management"),
-                mapOf("userId" to userId)
+                Params.of("userId" to userId)
             )
         )
     }
@@ -89,7 +90,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
 
         @Composable
         override fun Content(
-            params: Map<String, Any>
+            params: Params
         ) {
             println("ViewUser - Params: $params")
             val id by remember { mutableStateOf(params["id"] as? String ?: params["userId"] as? String ?: "666") }
@@ -103,7 +104,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 Button(onClick = {
                     store.launch {
                         store.guidedFlow("user-management") {
-                            nextStep(mapOf("userId" to "667"))
+                            nextStep(Params.of("userId" to "667"))
                         }
                     }
                 }) {
@@ -127,7 +128,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
 
         @Composable
         override fun Content(
-            params: Map<String, Any>
+            params: Params
         ) {
             println("EditUser - Params: $params")
             val id by remember { mutableStateOf(params["id"] as? String ?: params["userId"] as? String ?: "666") }
@@ -175,7 +176,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
 
         @Composable
         override fun Content(
-            params: Map<String, Any>
+            params: Params
         ) {
             val id by remember { mutableStateOf(params["id"] as? String ?: params["userId"] as? String ?: "666") }
             val store = rememberStore()

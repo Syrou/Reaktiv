@@ -2,7 +2,7 @@ package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.NavigationAnimationState
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
@@ -13,11 +13,11 @@ fun RenderContentWithAnimation(
     screenWidth: Float,
     screenHeight: Float,
     navigatable: Navigatable,
-    params: StringAnyMap,
+    params: Params,
     contentCache: Map<String, @Composable () -> Unit>,
     currentContentKey: String,
     previousContentKey: String?,
-    fallbackContent: @Composable (Navigatable, StringAnyMap) -> Unit,
+    fallbackContent: @Composable (Navigatable, Params) -> Unit,
     onAnimationComplete: () -> Unit
 ) {
     if (animationState.isAnimating && animationState.previousEntry != null) {

@@ -12,7 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.ModalAnimationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -22,7 +22,7 @@ import kotlin.time.ExperimentalTime
 @Composable
 fun GlobalOverlayLayerRender(
     entries: List<NavigationEntry>,
-    screenContent: @Composable (Navigatable, StringAnyMap) -> Unit
+    screenContent: @Composable (Navigatable, Params) -> Unit
 ) {
     val animationStates = remember { mutableStateMapOf<String, ModalAnimationState>() }
     val previousEntries = remember { mutableStateOf<Set<String>>(emptySet()) }

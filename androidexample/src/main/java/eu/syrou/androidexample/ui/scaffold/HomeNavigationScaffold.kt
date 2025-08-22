@@ -27,7 +27,6 @@ import eu.syrou.androidexample.ui.screen.home.NotificationModal
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.NavigationState
-import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import kotlinx.coroutines.launch
 
@@ -109,7 +108,9 @@ fun HomeBottomNavigation() {
             selected = navigationState.isInGraph("news"),
             onClick = {
                 scope.launch {
-                    store.navigate("home/news")
+                    store.navigation {
+                        navigateTo("home/news")
+                    }
                 }
             },
             icon = {
@@ -125,7 +126,9 @@ fun HomeBottomNavigation() {
             selected = navigationState.isInGraph("workspace"),
             onClick = {
                 scope.launch {
-                    store.navigate("home/workspace")
+                    store.navigation {
+                        navigateTo("home/workspace")
+                    }
                 }
             },
             icon = {
@@ -140,7 +143,9 @@ fun HomeBottomNavigation() {
             selected = navigationState.isInGraph("leaderboard"),
             onClick = {
                 scope.launch {
-                    store.navigate("home/leaderboard")
+                    store.navigation {
+                        navigateTo("home/leaderboard")
+                    }
                 }
             },
             icon = {

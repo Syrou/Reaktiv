@@ -1,8 +1,8 @@
 package io.github.syrou.reaktiv.navigation.model
 
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -45,7 +45,7 @@ sealed class FlowModification {
     @Serializable
     data class UpdateStepParams(
         val stepIndex: Int,
-        val newParams: StringAnyMap
+        val newParams: Params
     ) : FlowModification()
     
     /**

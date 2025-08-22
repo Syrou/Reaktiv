@@ -6,8 +6,8 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
-import io.github.syrou.reaktiv.navigation.extension.clearBackStack
-import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -40,7 +40,7 @@ class GraphReferenceEdgeCaseTest {
         override val requiresAuth = false
 
         @Composable
-        override fun Content(params: Map<String, Any>) {
+        override fun Content(params: Params) {
             Text(title)
         }
     }
@@ -102,8 +102,9 @@ class GraphReferenceEdgeCaseTest {
             // store.clearBackStack { setRoot("home") }
             // Should end up with news/overview, not home/overview
 
-            store.clearBackStack {
-                navigate("home")
+            store.navigation {
+                clearBackStack()
+                navigateTo("home")
             }
             advanceUntilIdle()
 
@@ -135,7 +136,7 @@ class GraphReferenceEdgeCaseTest {
             }
 
             // Direct navigation to "home" should resolve to news graph
-            store.navigate("home")
+            store.navigation { navigateTo("home") }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
@@ -158,18 +159,19 @@ class GraphReferenceEdgeCaseTest {
 
             // Complex sequence that might have broken before
             // -> news/overview
-            store.navigate("home")
+            store.navigation { navigateTo("home") }
             advanceUntilIdle()
             // -> workspace/workspace
-            store.navigate("home/workspace")
+            store.navigation { navigateTo("home/workspace") }
             advanceUntilIdle()
             // -> root/settings
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
 
             // Now use the problematic clearBackStack operation
-            store.clearBackStack {
-                navigate("home")
+            store.navigation {
+                clearBackStack()
+                navigateTo("home")
             }
             advanceUntilIdle()
 
@@ -192,17 +194,18 @@ class GraphReferenceEdgeCaseTest {
 
             // Build backstack with mixed graphs
             // news/overview
-            store.navigate("home")
+            store.navigation { navigateTo("home") }
             advanceUntilIdle()
             // workspace/workspace
-            store.navigate("home/workspace")
+            store.navigation { navigateTo("home/workspace") }
             advanceUntilIdle()
             // root/settings
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
 
             // PopUpTo the "home" screen (which should resolve to news/overview)
-            store.navigate("home/leaderboard") {
+            store.navigation {
+                navigateTo("home/leaderboard")
                 popUpTo("home")
             }
             advanceUntilIdle()
@@ -256,7 +259,7 @@ class GraphReferenceEdgeCaseTest {
             }
 
             // Navigate to level1, which should resolve through the chain to level3/screen-c
-            store.navigate("level1")
+            store.navigation { navigateTo("level1") }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
@@ -274,22 +277,28 @@ class GraphReferenceEdgeCaseTest {
                 module(createUserExactNavigationModule())
                 coroutineContext(testDispatcher)
             }
-            store.navigate("splash")
+            store.navigation { navigateTo("splash") }
             // Direct navigation
-            store.navigate("home")
+            store.navigation { navigateTo("home") }
             advanceUntilIdle()
             val directNav = store.selectState<NavigationState>().first().currentEntry
 
             // Clear and navigate
-            store.clearBackStack { navigate("splash") }
-            store.navigate("home")
+            store.navigation {
+                clearBackStack()
+                navigateTo("splash")
+            }
+            store.navigation { navigateTo("home") }
             advanceUntilIdle()
             val clearNav = store.selectState<NavigationState>().first().currentEntry
 
             // PopUpTo and navigate (build some backstack first)
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
-            store.navigate("home") { popUpTo("splash") }
+            store.navigation { 
+                popUpTo("splash")
+                navigateTo("home")
+            }
 
             advanceUntilIdle()
             val popUpToNav = store.selectState<NavigationState>().first().currentEntry
@@ -314,18 +323,22 @@ class GraphReferenceEdgeCaseTest {
                 coroutineContext(testDispatcher)
             }
 
-            val testParams = mapOf("sessionId" to "abc123", "source" to "deep_link")
+            val testParams = Params.of("sessionId" to "abc123", "source" to "deep_link")
 
             // Navigate to "home" with parameters - should resolve to news/overview with params
-            store.navigate("home", testParams)
+            store.navigation { 
+                navigateTo("home") {
+                    testParams.toMap().forEach { (k, v) -> putRaw(k, v) }
+                }
+            }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
 
             assertEquals("overview", state.currentEntry.screen.route)
             assertEquals("news", state.currentEntry.graphId)
-            assertEquals("abc123", state.currentEntry.params["sessionId"])
-            assertEquals("deep_link", state.currentEntry.params["source"])
+            assertEquals("abc123", state.currentEntry.params.getString("sessionId"))
+            assertEquals("deep_link", state.currentEntry.params.getString("source"))
         }
 
     @Test
@@ -338,7 +351,7 @@ class GraphReferenceEdgeCaseTest {
                 coroutineContext(testDispatcher)
             }
 
-            store.navigate("home")
+            store.navigation { navigateTo("home") }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
@@ -375,7 +388,7 @@ class GraphReferenceEdgeCaseTest {
 
         // Should handle broken reference gracefully
         assertFailsWith<RouteNotFoundException> {
-            store.navigate("broken")
+            store.navigation { navigateTo("broken") }
             advanceUntilIdle()
         }
 

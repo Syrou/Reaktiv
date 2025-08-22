@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.NavigationState
-import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import kotlinx.coroutines.launch
 
 @Composable
@@ -39,7 +39,9 @@ fun ProjectTabLayout(content: @Composable () -> Unit) {
                 selected = activeTab == 0,
                 onClick = {
                     scope.launch {
-                        store.navigate("home/workspace/projects/overview")
+                        store.navigation {
+                            navigateTo("home/workspace/projects/overview")
+                        }
                     }
                 },
                 text = { Text("Overview") }
@@ -48,7 +50,9 @@ fun ProjectTabLayout(content: @Composable () -> Unit) {
                 selected = activeTab == 1,
                 onClick = {
                     scope.launch {
-                        store.navigate("home/workspace/projects/tasks")
+                        store.navigation {
+                            navigateTo("home/workspace/projects/tasks")
+                        }
                     }
                 },
                 text = { Text("Tasks") }
@@ -57,7 +61,9 @@ fun ProjectTabLayout(content: @Composable () -> Unit) {
                 selected = activeTab == 2,
                 onClick = {
                     scope.launch {
-                        store.navigate("home/workspace/projects/files")
+                        store.navigation {
+                            navigateTo("home/workspace/projects/files")
+                        }
                     }
                 },
                 text = { Text("Files") }
@@ -66,7 +72,9 @@ fun ProjectTabLayout(content: @Composable () -> Unit) {
                 selected = activeTab == 3,
                 onClick = {
                     scope.launch {
-                        store.navigate("home/workspace/projects/settings")
+                        store.navigation {
+                            navigateTo("home/workspace/projects/settings")
+                        }
                     }
                 },
                 text = { Text("Settings") }

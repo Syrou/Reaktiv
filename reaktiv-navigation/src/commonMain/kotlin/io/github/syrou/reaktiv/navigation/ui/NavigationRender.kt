@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import io.github.syrou.reaktiv.compose.composeState
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
@@ -19,7 +19,7 @@ import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
 fun NavigationRender(
     modifier: Modifier = Modifier,
     backgroundColor: Color = Color.Unspecified,
-    screenContent: @Composable (Navigatable, StringAnyMap) -> Unit
+    screenContent: @Composable (Navigatable, Params) -> Unit
 ) {
     val navigationState by composeState<NavigationState>()
 

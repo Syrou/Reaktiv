@@ -33,7 +33,7 @@ import eu.syrou.androidexample.ui.screen.home.leaderboard.compose.team.TeamPerfo
 import eu.syrou.androidexample.ui.screen.home.leaderboard.compose.team.TournamentHistoryCard
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.param.getParam
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.serialization.Serializable
 
@@ -46,11 +46,11 @@ object StatsDetailScreen : Screen {
     override val requiresAuth: Boolean = false
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
-        val type = params["type"] as? String ?: "general"
-        val teamData = params.getParam<TeamStatsData>("teamData")
-        val playerData = params.getParam<IndividualStatsData>("playerData")
-        val playerId = params["playerId"] as? String ?: "unknown"
+    override fun Content(params: Params) {
+        val type = params.getString("type") ?: "general"
+        val teamData = params.getTyped<TeamStatsData>("teamData")
+        val playerData = params.getTyped<IndividualStatsData>("playerData")
+        val playerId = params.getString("playerId") ?: "unknown"
         if (teamData == null && playerData == null) {
             Column(
                 modifier = Modifier

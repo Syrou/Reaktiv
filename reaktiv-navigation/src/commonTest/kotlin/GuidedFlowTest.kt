@@ -7,6 +7,7 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -74,7 +75,7 @@ class GuidedFlowTest {
         override val requiresAuth = false
         override val titleResource: TitleResource = { "Welcome" }
         @Composable
-        override fun Content(params: Map<String, Any>) {}
+        override fun Content(params: Params) {}
     }
 
     object TestProfileScreen : Screen {
@@ -84,7 +85,7 @@ class GuidedFlowTest {
         override val requiresAuth = false
         override val titleResource: TitleResource = { "Profile" }
         @Composable
-        override fun Content(params: Map<String, Any>) {}
+        override fun Content(params: Params) {}
     }
 
     object TestPreferencesScreen : Screen {
@@ -94,7 +95,7 @@ class GuidedFlowTest {
         override val requiresAuth = false
         override val titleResource: TitleResource = { "Preferences" }
         @Composable
-        override fun Content(params: Map<String, Any>) {}
+        override fun Content(params: Params) {}
     }
 
     object TestHomeScreen : Screen {
@@ -104,7 +105,7 @@ class GuidedFlowTest {
         override val requiresAuth = false
         override val titleResource: TitleResource = { "Home" }
         @Composable
-        override fun Content(params: Map<String, Any>) {}
+        override fun Content(params: Params) {}
     }
 
     private fun createTestNavigationModule() = createNavigationModule {
@@ -323,7 +324,7 @@ class GuidedFlowTest {
         // Start guided flow with parameters (definition already configured in module)
         store.dispatch(NavigationAction.StartGuidedFlow(
             GuidedFlow("test-flow"), 
-            mapOf("userId" to "123", "source" to "onboarding")
+            Params.of("userId" to "123", "source" to "onboarding")
         ))
         advanceUntilIdle()
 
@@ -350,7 +351,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // Move to next step with parameters
-        store.dispatch(NavigationAction.NextStep(mapOf("stepData" to "profile_info")))
+        store.dispatch(NavigationAction.NextStep(Params.of("stepData" to "profile_info")))
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -657,5 +658,56 @@ class GuidedFlowTest {
         assertTrue(finalUserState.isVip, "User should be VIP")
         assertTrue(finalUserState.hasCompletedTutorial, "User should have completed tutorial")
         assertTrue(finalUserState.points >= 100, "User should have high points")
+    }
+
+    @Test
+    fun `test guided flow parameters with content URI preserves encoding`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val contentUri = "content://com.google.android.apps.docs.storage/document/acc%3D9%3Bdoc%3Dencoded%3Dq3kaiKNyhntVpRozJ-eI-R1HG6TXaN_W7vafc216hOscCol3D2WPTL4kvwY%3D"
+        
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+        
+        // Start guided flow with content URI as a parameter
+        store.dispatch(NavigationAction.StartGuidedFlow(
+            GuidedFlow("test-flow"),
+            Params.of("documentUri" to contentUri, "action" to "upload")
+        ))
+        advanceUntilIdle()
+        
+        var state = store.selectState<NavigationState>().first()
+        val firstStepEntry = state.currentEntry
+        
+        // Verify the content URI parameter was preserved correctly
+        assertEquals(TestWelcomeScreen, firstStepEntry.screen)
+        
+        // Use the proper parameter access method that handles decoding
+        assertEquals(contentUri, firstStepEntry.params.getString("documentUri"))
+        assertEquals("upload", firstStepEntry.params.getString("action"))
+        
+        // Verify the URI structure is intact using the decoded value
+        val retrievedUri = firstStepEntry.params.getString("documentUri")!!
+        assertTrue(retrievedUri.startsWith("content://"))
+        assertTrue(retrievedUri.contains("acc%3D9%3Bdoc%3Dencoded%3D"))
+        assertTrue(retrievedUri.contains("%3D")) // Equals signs remain encoded in original URI
+        assertTrue(retrievedUri.contains("%3B")) // Semicolons remain encoded in original URI
+        
+        // Move to next step with additional content URI parameters
+        store.dispatch(NavigationAction.NextStep(Params.of("documentUri" to contentUri, "step" to "process")))
+        advanceUntilIdle()
+        
+        state = store.selectState<NavigationState>().first()
+        val secondStepEntry = state.currentEntry
+        
+        // Verify second step also preserves the content URI using proper decoding
+        assertEquals(TestProfileScreen, secondStepEntry.screen)
+        assertEquals(contentUri, secondStepEntry.params.getString("documentUri"))
+        assertEquals("process", secondStepEntry.params.getString("step"))
+        
+        // Final verification that the URI remains intact throughout the flow
+        val finalUri = secondStepEntry.params.getString("documentUri")!!
+        assertEquals(contentUri, finalUri)
     }
 }

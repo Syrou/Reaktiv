@@ -18,7 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -35,7 +35,7 @@ fun NavTransitionContainer(
     animationId: Long,
     animationDecision: AnimationDecision,
     onAnimationComplete: () -> Unit,
-    content: @Composable (Navigatable, StringAnyMap) -> Unit
+    content: @Composable (Navigatable, Params) -> Unit
 ) {
     val backgroundColor = rememberNavigationBackgroundColor()
     if (ReaktivDebug.isEnabled) {

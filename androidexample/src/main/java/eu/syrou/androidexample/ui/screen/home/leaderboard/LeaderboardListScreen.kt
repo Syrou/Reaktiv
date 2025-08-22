@@ -25,7 +25,7 @@ import eu.syrou.androidexample.domain.model.PlayerProfile
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
@@ -40,7 +40,7 @@ object LeaderboardListScreen : Screen {
     override val requiresAuth: Boolean = false
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
+    override fun Content(params: Params) {
         val scope = rememberCoroutineScope()
         val store = rememberStore()
 
@@ -64,7 +64,9 @@ object LeaderboardListScreen : Screen {
                         .padding(vertical = 4.dp)
                         .clickable {
                             scope.launch {
-                                store.navigate("home/leaderboard/detail/weekly")
+                                store.navigation {
+                                    navigateTo("home/leaderboard/detail/weekly")
+                                }
                             }
                         }
                 ) {
@@ -82,7 +84,9 @@ object LeaderboardListScreen : Screen {
                         .padding(vertical = 4.dp)
                         .clickable {
                             scope.launch {
-                                store.navigate("home/leaderboard/detail/monthly")
+                                store.navigation {
+                                    navigateTo("home/leaderboard/detail/monthly")
+                                }
                             }
                         }
                 ) {

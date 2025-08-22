@@ -73,7 +73,7 @@ class UrlParsingTest {
         val (cleanPath, queryParams) = parseUrlWithQueryParams(url)
         
         assertEquals("profile/settings", cleanPath)
-        assertEquals(emptyMap(), queryParams)
+        assertEquals(emptyMap<String, String>(), queryParams)
     }
 
     @Test

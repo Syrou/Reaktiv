@@ -2,13 +2,13 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 
 
@@ -75,12 +75,12 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
     @Serializable
     data class StartGuidedFlow(
         val guidedFlow: GuidedFlow,
-        val params: StringAnyMap = emptyMap()
+        val params: Params = Params.empty()
     ) : NavigationAction()
 
     @Serializable
     data class NextStep(
-        val params: StringAnyMap = emptyMap()
+        val params: Params = Params.empty()
     ) : NavigationAction()
 
     @Serializable

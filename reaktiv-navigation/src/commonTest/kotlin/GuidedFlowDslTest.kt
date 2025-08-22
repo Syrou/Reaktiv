@@ -11,8 +11,8 @@ import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.guidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.getParams
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
-import io.github.syrou.reaktiv.navigation.param.typed
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,7 +36,7 @@ object DslTestScreen1 : Screen {
     override val requiresAuth = false
     override val titleResource: TitleResource = { "DSL Test Screen 1" }
     @Composable
-    override fun Content(params: Map<String, Any>) {}
+    override fun Content(params: Params) {}
 }
 
 object DslTestScreen2 : Screen {
@@ -46,7 +46,7 @@ object DslTestScreen2 : Screen {
     override val requiresAuth = false
     override val titleResource: TitleResource = { "DSL Test Screen 2" }
     @Composable
-    override fun Content(params: Map<String, Any>) {}
+    override fun Content(params: Params) {}
 }
 
 object DslTestScreen3 : Screen {
@@ -56,7 +56,7 @@ object DslTestScreen3 : Screen {
     override val requiresAuth = false
     override val titleResource: TitleResource = { "DSL Test Screen 3" }
     @Composable
-    override fun Content(params: Map<String, Any>) {}
+    override fun Content(params: Params) {}
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -106,7 +106,7 @@ class GuidedFlowDslTest {
             removeSteps(listOf(2))
             
             // Update parameters for current step
-            updateStepParams(1, mapOf("modified" to true, "timestamp" to 12345))
+            updateStepParams(1, Params.of("modified" to true, "timestamp" to 12345))
             
             // Navigate to next step (which should now complete the flow since we removed the last step)
             nextStep()
@@ -127,8 +127,8 @@ class GuidedFlowDslTest {
         // Step 1 should have updated parameters
         val step1 = modifiedDefinition.steps[1]
         val params = step1.getParams()
-        assertEquals(true, params["modified"])
-        assertEquals(12345, params["timestamp"])
+        assertEquals(true, params.getBoolean("modified"))
+        assertEquals(12345, params.getInt("timestamp"))
     }
 
     @Test
@@ -146,7 +146,7 @@ class GuidedFlowDslTest {
         // Use DSL to add steps and navigate
         store.guidedFlow(Route.TestFlow) {
             // Add a new step at the beginning
-            addSteps(listOf(guidedFlowStep<DslTestScreen3>(mapOf("inserted" to true))), 0)
+            addSteps(listOf(guidedFlowStep<DslTestScreen3>(Params.of("inserted" to true))), 0)
             
             // Navigate to next step (should go to the newly inserted step)
             nextStep()
@@ -182,7 +182,7 @@ class GuidedFlowDslTest {
         // Use DSL to replace current step and navigate
         store.guidedFlow(Route.TestFlow) {
             // Replace step 2 with a different configuration
-            replaceStep(2, guidedFlowStep<DslTestScreen1>(mapOf("replaced" to true, "version" to 2)))
+            replaceStep(2, guidedFlowStep<DslTestScreen1>(Params.of("replaced" to true, "version" to 2)))
             
             // Navigate to that step
             nextStep()
@@ -200,8 +200,8 @@ class GuidedFlowDslTest {
         assertNotNull(modifiedDefinition)
         val replacedStep = modifiedDefinition.steps[2]
         val params = replacedStep.getParams()
-        assertEquals(true, params["replaced"])
-        assertEquals(2, params["version"])
+        assertEquals(true, params.getBoolean("replaced"))
+        assertEquals(2, params.getInt("version"))
     }
 
     @Test
@@ -229,7 +229,7 @@ class GuidedFlowDslTest {
             previousStep()
             
             // Update parameters for the current step
-            updateStepParams(1, mapOf("backtracked" to true))
+            updateStepParams(1, Params.of("backtracked" to true))
         }
         advanceUntilIdle()
 
@@ -244,7 +244,7 @@ class GuidedFlowDslTest {
         assertNotNull(modifiedDefinition)
         val step1 = modifiedDefinition.steps[1]
         val params = step1.getParams()
-        assertEquals(true, params["backtracked"])
+        assertEquals(true, params.getBoolean("backtracked"))
     }
 
     @Test
@@ -269,7 +269,7 @@ class GuidedFlowDslTest {
             indices = Triple(screen1Index, screen2Index, screen3Index)
             
             // Just add some no-op operations to complete the DSL block
-            nextStep(mapOf("test" to true))
+            nextStep(Params.of("test" to true))
         }
         advanceUntilIdle()
         
@@ -335,7 +335,7 @@ class GuidedFlowDslTest {
 
         // Replace DslTestScreen2 with DslTestScreen1 that has parameters
         store.guidedFlow(Route.TestFlow) {
-            replaceStep<DslTestScreen2>(guidedFlowStep<DslTestScreen1>(mapOf("replaced" to true, "version" to 3)))
+            replaceStep<DslTestScreen2>(guidedFlowStep<DslTestScreen1>(Params.of("replaced" to true, "version" to 3)))
         }
         advanceUntilIdle()
 
@@ -349,8 +349,8 @@ class GuidedFlowDslTest {
         assertTrue(replacedStep is GuidedFlowStep.TypedScreen)
         assertEquals(DslTestScreen1::class.qualifiedName, replacedStep.screenClass)
         val params = replacedStep.getParams()
-        assertEquals(true, params["replaced"])
-        assertEquals(3, params["version"])
+        assertEquals(true, params.getBoolean("replaced"))
+        assertEquals(3, params.getInt("version"))
     }
 
     @Test
@@ -367,7 +367,7 @@ class GuidedFlowDslTest {
 
         // Update DslTestScreen2 parameters by type with raw parameters
         store.guidedFlow(Route.TestFlow) {
-            updateStepParams<DslTestScreen2>(mapOf("userId" to "123", "timestamp" to 99999))
+            updateStepParams<DslTestScreen2>(Params.of("userId" to "123", "timestamp" to 99999))
         }
         advanceUntilIdle()
 
@@ -378,8 +378,8 @@ class GuidedFlowDslTest {
         // Verify DslTestScreen2 has the updated parameters
         val updatedStep = definitionAfter.steps[1] // DslTestScreen2 is at index 1
         val params = updatedStep.getParams()
-        assertEquals("123", params["userId"])
-        assertEquals(99999, params["timestamp"])
+        assertEquals("123", params.getString("userId"))
+        assertEquals(99999, params.getInt("timestamp"))
     }
 
     @Test
@@ -406,7 +406,7 @@ class GuidedFlowDslTest {
                 putString("action", "view")
                 putInt("retryCount", 3)
                 putBoolean("isActive", true)
-                param("rawData", mapOf("key" to "value"))
+                param("rawData", Params.of("key" to "value"))
             }
         }
         advanceUntilIdle()
@@ -428,7 +428,7 @@ class GuidedFlowDslTest {
         assertEquals("view", params["action"])
         assertEquals(3, params["retryCount"])
         assertEquals(true, params["isActive"])
-        assertEquals(mapOf("key" to "value"), params["rawData"])
+        assertEquals(Params.of("key" to "value"), params["rawData"])
     }
 
     @Test
@@ -456,14 +456,14 @@ class GuidedFlowDslTest {
             override val requiresAuth = false
             override val titleResource: TitleResource = { "Non Existent" }
             @Composable
-            override fun Content(params: Map<String, Any>) {}
+            override fun Content(params: Params) {}
         }
 
         // Try operations on non-existent screen type using IfExists methods (should not fail)
         var operationResults: Triple<Boolean, Boolean, Boolean>? = null
         store.guidedFlow(Route.TestFlow) {
             val removeResult = removeStepIfExists<NonExistentScreen>()
-            val updateResult = updateStepParamsIfExists<NonExistentScreen>(mapOf("test" to "value"))
+            val updateResult = updateStepParamsIfExists<NonExistentScreen>(Params.of("test" to "value"))
             val replaceResult = replaceStepIfExists<NonExistentScreen>(guidedFlowStep<DslTestScreen1>())
             operationResults = Triple(removeResult, updateResult, replaceResult)
             // Add a real operation so the DSL validation passes
@@ -506,7 +506,7 @@ class GuidedFlowDslTest {
             override val requiresAuth = false
             override val titleResource: TitleResource = { "Non Existent" }
             @Composable
-            override fun Content(params: Map<String, Any>) {}
+            override fun Content(params: Params) {}
         }
 
         // Test that removeStep throws exception
@@ -545,7 +545,7 @@ class GuidedFlowDslTest {
         var updateException: Exception? = null
         try {
             store.guidedFlow(Route.TestFlow) {
-                updateStepParams<NonExistentScreen>(mapOf("test" to "value"))
+                updateStepParams<NonExistentScreen>(Params.of("test" to "value"))
                 nextStep() // Add operation to pass validation
             }
             advanceUntilIdle()
@@ -573,8 +573,8 @@ class GuidedFlowDslTest {
         // Test that operations return true when they successfully find and operate on types
         var operationResults: Triple<Boolean, Boolean, Boolean>? = null
         store.guidedFlow(Route.TestFlow) {
-            val updateResult = updateStepParamsIfExists<DslTestScreen2>(mapOf("test" to "value"))
-            val replaceResult = replaceStepIfExists<DslTestScreen3>(guidedFlowStep<DslTestScreen1>(mapOf("replaced" to true)))
+            val updateResult = updateStepParamsIfExists<DslTestScreen2>(Params.of("test" to "value"))
+            val replaceResult = replaceStepIfExists<DslTestScreen3>(guidedFlowStep<DslTestScreen1>(Params.of("replaced" to true)))
             val removeResult = removeStepIfExists<DslTestScreen1>()
             operationResults = Triple(updateResult, replaceResult, removeResult)
             nextStep()
@@ -598,13 +598,13 @@ class GuidedFlowDslTest {
         
         // DslTestScreen2 should have updated parameters
         val updatedStep = definitionAfter.steps[0] // DslTestScreen2 is now at index 0 after DslTestScreen1 was removed
-        assertEquals("value", updatedStep.getParams()["test"])
+        assertEquals("value", updatedStep.getParams().getString("test"))
         
         // DslTestScreen3 should have been replaced with DslTestScreen1
         val replacedStep = definitionAfter.steps[1] // The replaced step
         assertTrue(replacedStep is GuidedFlowStep.TypedScreen)
         assertEquals(DslTestScreen1::class.qualifiedName, replacedStep.screenClass)
-        assertEquals(true, replacedStep.getParams()["replaced"])
+        assertEquals(true, replacedStep.getParams().getBoolean("replaced"))
     }
 
     @Test
@@ -620,10 +620,10 @@ class GuidedFlowDslTest {
         data class UserProfile(val id: String, val name: String, val age: Int, val isActive: Boolean)
         
         @Serializable
-        data class Settings(val theme: String, val notifications: Boolean, val preferences: Map<String, String>)
+        data class Settings(val theme: String, val notifications: Boolean, val preferences: Params)
 
         val testUser = UserProfile("user123", "John Doe", 30, true)
-        val testSettings = Settings("dark", true, mapOf("language" to "en", "region" to "US"))
+        val testSettings = Settings("dark", true, Params.of("language" to "en", "region" to "US"))
 
         // Start guided flow
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
@@ -639,7 +639,7 @@ class GuidedFlowDslTest {
                 putBoolean("debugMode", true)
                 putDouble("version", 1.5)
                 put("tags", listOf("important", "user-data", "test"))
-                param("rawMetadata", mapOf("source" to "test", "timestamp" to 1234567890))
+                param("rawMetadata", Params.of("source" to "test", "timestamp" to 1234567890))
             }
         }
         advanceUntilIdle()
@@ -658,11 +658,11 @@ class GuidedFlowDslTest {
         assertTrue(params["tags"] is SerializableParam<*>, "Tags parameter should be SerializableParam")
         
         // Verify raw parameters are stored directly
-        assertEquals("session-456", params["sessionId"])
-        assertEquals(3, params["retryCount"])
-        assertEquals(true, params["debugMode"])
-        assertEquals(1.5, params["version"])
-        assertEquals(mapOf("source" to "test", "timestamp" to 1234567890), params["rawMetadata"])
+        assertEquals("session-456", params.getString("sessionId"))
+        assertEquals(3, params.getInt("retryCount"))
+        assertEquals(true, params.getBoolean("debugMode"))
+        assertEquals(1.5, params.getDouble("version"))
+        assertEquals(Params.of("source" to "test", "timestamp" to 1234567890), params.getTyped<Params>("rawMetadata"))
 
         // Now test the critical part: can we deserialize the typed parameters correctly?
         val userParam = params["user"] as SerializableParam<*>
@@ -691,13 +691,13 @@ class GuidedFlowDslTest {
         // Verify the current screen receives the parameters correctly
         // This is the critical test: do the typed parameters work when the screen actually receives them?
         val currentParams = navigationState.currentEntry.params
-        assertNotNull(currentParams["user"], "User parameter should be present")
-        assertNotNull(currentParams["settings"], "Settings parameter should be present")  
-        assertNotNull(currentParams["tags"], "Tags parameter should be present")
-        assertEquals("session-456", currentParams["sessionId"], "String parameter should match")
-        assertEquals(3, currentParams["retryCount"], "Int parameter should match")
-        assertEquals(true, currentParams["debugMode"], "Boolean parameter should match")
-        assertEquals(1.5, currentParams["version"], "Double parameter should match")
+        assertNotNull(currentParams.getTyped<UserProfile>("user"), "User parameter should be present")
+        assertNotNull(currentParams.getTyped<Settings>("settings"), "Settings parameter should be present")
+        assertNotNull(currentParams.getTyped<List<String>>("tags"), "Tags parameter should be present")
+        assertEquals("session-456", currentParams.getString("sessionId"), "String parameter should match")
+        assertEquals(3, currentParams.getInt("retryCount"), "Int parameter should match")
+        assertEquals(true, currentParams.getBoolean("debugMode"), "Boolean parameter should match")
+        assertEquals(1.5, currentParams.getDouble("version"), "Double parameter should match")
     }
 
 
@@ -746,12 +746,12 @@ class GuidedFlowDslTest {
         }
 
         @Serializable
-        data class UserData(val id: String, val name: String, val preferences: Map<String, String>)
+        data class UserData(val id: String, val name: String, val preferences: Params)
         
         val userData = UserData(
             id = "user123", 
             name = "John Doe", 
-            preferences = mapOf("theme" to "dark", "language" to "en")
+            preferences = Params.of("theme" to "dark", "language" to "en")
         )
 
         // Start guided flow
@@ -777,11 +777,11 @@ class GuidedFlowDslTest {
         val navigationState = store.selectState<NavigationState>().first()
         assertEquals(DslTestScreen2, navigationState.currentEntry.navigatable, "Should be on DslTestScreen2")
         
-        // Use .typed() to access parameters correctly through ParameterRetriever
-        val typedParams = navigationState.currentEntry.params.typed()
+        // Access parameters directly from Params
+        val typedParams = navigationState.currentEntry.params
         
         // Verify typed parameter can be accessed and matches original
-        val receivedUserData = typedParams.get<UserData>("userData")
+        val receivedUserData = typedParams.getTyped<UserData>("userData")
         assertNotNull(receivedUserData, "userData parameter should be present")
         
         // The critical test: can we correctly retrieve the typed parameter?

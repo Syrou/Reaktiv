@@ -35,6 +35,7 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -54,7 +55,7 @@ object NewsListScreen : Screen {
 
     @Composable
     override fun Content(
-        params: Map<String, Any>
+        params: Params
     ) {
         NewsListScreen()
     }

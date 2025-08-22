@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.clearBackStack
-import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -28,7 +28,7 @@ object WorkspaceScreen : Screen {
     override val requiresAuth = true
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
+    override fun Content(params: Params) {
         WorkspaceContent()
     }
 }
@@ -49,7 +49,9 @@ private fun WorkspaceContent() {
 
         Button(onClick = {
             scope.launch {
-                store.navigate("home/workspace/projects/overview")
+                store.navigation {
+                    navigateTo("home/workspace/projects/overview")
+                }
             }
         }) {
             Text("Open Projects (tabs appear)")
@@ -57,8 +59,9 @@ private fun WorkspaceContent() {
 
         Button(onClick = {
             scope.launch {
-                store.clearBackStack {
-                    navigate("home")
+                store.navigation {
+                    clearBackStack()
+                    navigateTo("home")
                 }
             }
         }) {

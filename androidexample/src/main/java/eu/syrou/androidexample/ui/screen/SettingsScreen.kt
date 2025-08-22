@@ -43,7 +43,8 @@ import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.navigate
+import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -60,7 +61,7 @@ object SettingsScreen : Screen {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Composable
     override fun Content(
-        params: Map<String, Any>
+        params: Params
     ) {
         val store = rememberStore()
         val context = LocalContext.current
@@ -97,7 +98,9 @@ object SettingsScreen : Screen {
                 isLinked = settingsState.twitchAccessToken != null,
                 onAuthorizeClick = {
                     store.launch {
-                        store.navigate(TwitchAuthWebViewScreen.route)
+                        store.navigation {
+                            navigateTo(TwitchAuthWebViewScreen.route)
+                        }
                     }
                 },
                 onUnlinkClick = {

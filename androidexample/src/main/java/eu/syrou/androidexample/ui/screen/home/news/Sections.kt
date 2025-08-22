@@ -60,7 +60,6 @@ import eu.syrou.androidexample.ui.screen.StreamsListScreen
 import eu.syrou.androidexample.ui.util.BorderRemoverTransformation
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import kotlinx.coroutines.launch
 
@@ -198,7 +197,9 @@ fun LiveStreamsSection() {
             Button(
                 onClick = {
                     store.launch {
-                        store.navigate(StreamsListScreen.route)
+                        store.navigation {
+                            navigateTo(StreamsListScreen.route)
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -257,7 +258,9 @@ fun LiveStreamsSection() {
         if (!hasAccess) {
             Button(modifier = Modifier.align(Alignment.Center), onClick = {
                 store.launch {
-                    store.navigate(SettingsScreen.route)
+                    store.navigation {
+                        navigateTo(SettingsScreen.route)
+                    }
                 }
             }
             ) {

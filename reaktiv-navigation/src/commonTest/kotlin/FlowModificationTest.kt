@@ -13,6 +13,7 @@ import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.guidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.getParams
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -35,7 +36,7 @@ object TestScreen1 : Screen {
     override val requiresAuth = false
     override val titleResource: TitleResource = { "Test Screen 1" }
     @Composable
-    override fun Content(params: Map<String, Any>) {}
+    override fun Content(params: Params) {}
 }
 
 object TestScreen2 : Screen {
@@ -45,7 +46,7 @@ object TestScreen2 : Screen {
     override val requiresAuth = false
     override val titleResource: TitleResource = { "Test Screen 2" }
     @Composable
-    override fun Content(params: Map<String, Any>) {}
+    override fun Content(params: Params) {}
 }
 
 object TestScreen3 : Screen {
@@ -55,7 +56,7 @@ object TestScreen3 : Screen {
     override val requiresAuth = false
     override val titleResource: TitleResource = { "Test Screen 3" }
     @Composable
-    override fun Content(params: Map<String, Any>) {}
+    override fun Content(params: Params) {}
 }
 
 object TestScreen4 : Screen {
@@ -65,7 +66,7 @@ object TestScreen4 : Screen {
     override val requiresAuth = false
     override val titleResource: TitleResource = { "Test Screen 4" }
     @Composable
-    override fun Content(params: Map<String, Any>) {}
+    override fun Content(params: Params) {}
 }
 
 object TestScreenGroup : ScreenGroup(TestScreen4)
@@ -257,7 +258,7 @@ class FlowModificationTest {
         advanceUntilIdle()
 
         // Update parameters for step 1
-        val newParams: StringAnyMap = mapOf("userId" to "123", "test" to true)
+        val newParams: Params = Params.of("userId" to "123", "test" to true)
         store.dispatch(
             NavigationAction.ModifyGuidedFlow(
                 flowRoute = Route.TestFlow,
@@ -296,7 +297,7 @@ class FlowModificationTest {
                 flowRoute = Route.TestFlow,
                 modification = FlowModification.ReplaceStep(
                     stepIndex = 1,
-                    newStep = guidedFlowStep<TestScreen4>(mapOf("replaced" to true))
+                    newStep = guidedFlowStep<TestScreen4>(Params.of("replaced" to true))
                 )
             )
         )
@@ -311,7 +312,7 @@ class FlowModificationTest {
         when (step1) {
             is GuidedFlowStep.TypedScreen -> {
                 assertEquals(TestScreen4::class.qualifiedName, step1.screenClass)
-                assertEquals(mapOf("replaced" to true), step1.params)
+                assertEquals(Params.of("replaced" to true), step1.params)
             }
             else -> throw AssertionError("Expected TypedScreen step")
         }

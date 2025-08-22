@@ -33,6 +33,7 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -47,7 +48,7 @@ object StreamsListScreen : Screen {
 
     @Composable
     override fun Content(
-        params: Map<String, Any>
+        params: Params
     ) {
         StreamsListScreen()
     }

@@ -48,7 +48,7 @@ import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.param.getParam
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -63,11 +63,11 @@ object PlayerProfileScreen : Screen {
     override val requiresAuth: Boolean = false
 
     @Composable
-    override fun Content(params: Map<String, Any>) {
+    override fun Content(params: Params) {
         val scope = rememberCoroutineScope()
         val store = rememberStore()
-        val playerId = params["playerId"] as? String ?: "0"
-        val playerProfile = params.getParam<PlayerProfile>("profile")
+        val playerId = params.getString("playerId") ?: "0"
+        val playerProfile = params.getTyped<PlayerProfile>("profile")
         val profile = playerProfile ?: createMockPlayerProfile(playerId)
 
         LazyColumn(

@@ -5,10 +5,9 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
-import io.github.syrou.reaktiv.navigation.extension.clearBackStack
-import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -33,7 +32,7 @@ class NavigationLogicTest {
         override val requiresAuth = false
 
         @Composable
-        override fun Content(params: Map<String, Any>) {
+        override fun Content(params: Params) {
             Text(title)
         }
     }
@@ -65,15 +64,16 @@ class NavigationLogicTest {
                 module(createSimpleNavigationModule())
                 coroutineContext(testDispatcher)
             }
-            store.navigate("profile")
+            store.navigation { navigateTo("profile") }
             advanceUntilIdle()
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
-            store.navigate("about")
+            store.navigation { navigateTo("about") }
             advanceUntilIdle()
             var state = store.selectState<NavigationState>().first()
             assertEquals(4, state.backStack.size)
-            store.navigate("content/news") {
+            store.navigation {
+                navigateTo("content/news")
                 popUpTo("profile", inclusive = false)
             }
             advanceUntilIdle()
@@ -96,15 +96,16 @@ class NavigationLogicTest {
             }
 
             // Build backstack: home -> profile -> settings -> about
-            store.navigate("profile")
+            store.navigation { navigateTo("profile") }
             advanceUntilIdle()
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
-            store.navigate("about")
+            store.navigation { navigateTo("about") }
             advanceUntilIdle()
 
             // PopUpTo profile (inclusive) and navigate to news
-            store.navigate("content/news") {
+            store.navigation {
+                navigateTo("content/news")
                 popUpTo("profile", inclusive = true)
             }
             advanceUntilIdle()
@@ -129,17 +130,18 @@ class NavigationLogicTest {
             }
 
             // Build backstack
-            store.navigate("profile")
+            store.navigation { navigateTo("profile") }
             advanceUntilIdle()
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
 
             val sizeBefore = store.selectState<NavigationState>().first().backStack.size
 
             // PopUpTo non-existent route
             assertFailsWith<RouteNotFoundException> {
-                store.navigate("about") {
+                store.navigation {
                     popUpTo("nonexistent")
+                    navigateTo("about")
                 }
             }
             advanceUntilIdle()
@@ -160,16 +162,17 @@ class NavigationLogicTest {
         }
 
         // Build backstack
-        store.navigate("profile")
+        store.navigation { navigateTo("profile") }
         advanceUntilIdle()
-        store.navigate("settings")
+        store.navigation { navigateTo("settings") }
         advanceUntilIdle()
-        store.navigate("about")
+        store.navigation { navigateTo("about") }
         advanceUntilIdle()
 
         // Clear backstack and navigate to news
-        store.clearBackStack {
-            navigate("content/news")
+        store.navigation {
+            clearBackStack()
+            navigateTo("content/news")
         }
         advanceUntilIdle()
 
@@ -192,9 +195,9 @@ class NavigationLogicTest {
             }
 
             // Build backstack
-            store.navigate("profile")
+            store.navigation { navigateTo("profile") }
             advanceUntilIdle()
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
 
             val sizeBefore = store.selectState<NavigationState>().first().backStack.size
@@ -224,17 +227,18 @@ class NavigationLogicTest {
         }
 
         // Build complex backstack
-        store.navigate("profile")
+        store.navigation { navigateTo("profile") }
         advanceUntilIdle()
-        store.navigate("content/news")
+        store.navigation { navigateTo("content/news") }
         advanceUntilIdle()
-        store.navigate("settings")
+        store.navigation { navigateTo("settings") }
         advanceUntilIdle()
-        store.navigate("about")
+        store.navigation { navigateTo("about") }
         advanceUntilIdle()
 
         // Complex navigation: navigate to workspace, pop up to news (inclusive), 
-        store.navigate("content/workspace") {
+        store.navigation {
+            navigateTo("content/workspace")
             popUpTo("news", inclusive = true)
         }
         advanceUntilIdle()
@@ -265,9 +269,10 @@ class NavigationLogicTest {
 
         // Try to combine clearBackStack with popUpTo (should fail)
         val exception1 = assertFailsWith<IllegalArgumentException> {
-            store.navigate("profile") {
+            store.navigation {
                 clearBackStack()
                 popUpTo("home")
+                navigateTo("profile")
             }
         }
         println("${exception1.message}")
@@ -275,9 +280,10 @@ class NavigationLogicTest {
 
         // Try to combine clearBackStack with replaceCurrent (should fail)
         val exception2 = assertFailsWith<IllegalArgumentException> {
-            store.navigate("profile") {
+            store.navigation {
                 clearBackStack()
                 navigateTo("settings", replaceCurrent = true)
+                navigateTo("profile")
             }
         }
         assertTrue(exception2.message?.contains("replaceCurrent") ?: false)
@@ -293,14 +299,15 @@ class NavigationLogicTest {
             }
 
             // Perform a series of operations
-            store.navigate("profile")
+            store.navigation { navigateTo("profile") }
             advanceUntilIdle()
-            store.navigate("settings")
+            store.navigation { navigateTo("settings") }
             advanceUntilIdle()
             store.navigateBack()
             advanceUntilIdle()
-            store.navigate("about") {
+            store.navigation {
                 popUpTo("home")
+                navigateTo("about")
             }
             advanceUntilIdle()
             store.navigation { navigateTo("content/news", replaceCurrent = true) }
@@ -332,13 +339,24 @@ class NavigationLogicTest {
         }
 
         // Navigate with parameters
-        store.navigate("profile", mapOf("userId" to "123"))
+        store.navigation {
+            navigateTo("profile"){
+                putString("userId", "123")
+            }
+        }
         advanceUntilIdle()
-        store.navigate("settings", mapOf("theme" to "dark"))
+        store.navigation {
+            navigateTo("settings"){
+                putString("theme", "dark")
+            }
+        }
         advanceUntilIdle()
 
         // PopUpTo should preserve parameters of remaining screens
-        store.navigate("about", mapOf("source" to "menu")) {
+        store.navigation {
+            navigateTo("about"){
+                putString("source", "menu")
+            }
             popUpTo("profile")
         }
         advanceUntilIdle()
@@ -366,8 +384,9 @@ class NavigationLogicTest {
         }
 
         // Clear backstack to have only one entry
-        store.clearBackStack {
-            navigate("profile")
+        store.navigation {
+            clearBackStack()
+            navigateTo("profile")
         }
         advanceUntilIdle()
 
@@ -395,16 +414,23 @@ class NavigationLogicTest {
             }
 
             // Navigate between different graphs
-            store.navigate("content/news") // content graph
+            store.navigation {
+                navigateTo("content/news")
+            }
             advanceUntilIdle()
-            store.navigate("profile") // root graph
+            store.navigation {
+                navigateTo("profile")
+            }
             advanceUntilIdle()
-            store.navigate("content/workspace") // content graph
+            store.navigation {
+                navigateTo("content/workspace")
+            }
             advanceUntilIdle()
 
             // PopUpTo screen in different graph
-            store.navigate("settings") {
-                popUpTo("news") // Should find news in content graph
+            store.navigation {
+                navigateTo("settings")
+                popUpTo("news")
             }
             advanceUntilIdle()
 

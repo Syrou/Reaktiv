@@ -5,14 +5,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 
 @Composable
 fun SystemLayerRender(
     entries: List<NavigationEntry>,
-    screenContent: @Composable (Navigatable, StringAnyMap) -> Unit
+    screenContent: @Composable (Navigatable, Params) -> Unit
 ) {
     entries
         .sortedBy { it.navigatable.elevation }

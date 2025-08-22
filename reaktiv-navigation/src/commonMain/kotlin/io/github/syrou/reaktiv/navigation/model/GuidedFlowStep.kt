@@ -1,7 +1,7 @@
 package io.github.syrou.reaktiv.navigation.model
 
-import io.github.syrou.reaktiv.core.serialization.StringAnyMap
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 import kotlin.reflect.KClass
 
@@ -22,7 +22,7 @@ sealed class GuidedFlowStep {
     @Serializable
     data class Route(
         val route: String,
-        val params: StringAnyMap = emptyMap()
+        val params: Params = Params.empty()
     ) : GuidedFlowStep()
     
     /**
@@ -33,7 +33,7 @@ sealed class GuidedFlowStep {
     @Serializable  
     data class TypedScreen(
         val screenClass: String,
-        val params: StringAnyMap = emptyMap()
+        val params: Params = Params.empty()
     ) : GuidedFlowStep()
 }
 
@@ -44,14 +44,14 @@ sealed class GuidedFlowStep {
 /**
  * Create a step from a route string
  */
-fun String.toGuidedFlowStep(params: StringAnyMap = emptyMap()): GuidedFlowStep.Route {
+fun String.toGuidedFlowStep(params: Params = Params.empty()): GuidedFlowStep.Route {
     return GuidedFlowStep.Route(this, params)
 }
 
 /**
  * Create a step from a Screen class with parameters, similar to navigateTo<T>()
  */
-inline fun <reified T : Screen> guidedFlowStep(params: StringAnyMap = emptyMap()): GuidedFlowStep.TypedScreen {
+inline fun <reified T : Screen> guidedFlowStep(params: Params = Params.empty()): GuidedFlowStep.TypedScreen {
     return GuidedFlowStep.TypedScreen(T::class.qualifiedName!!, params)
 }
 
@@ -75,7 +75,7 @@ suspend fun GuidedFlowStep.getRoute(precomputedData: io.github.syrou.reaktiv.nav
 /**
  * Get the combined parameters for this step
  */
-fun GuidedFlowStep.getParams(): StringAnyMap {
+fun GuidedFlowStep.getParams(): Params {
     return when (this) {
         is GuidedFlowStep.Route -> params
         is GuidedFlowStep.TypedScreen -> params

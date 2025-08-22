@@ -6,9 +6,8 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
-import io.github.syrou.reaktiv.navigation.extension.clearBackStack
-import io.github.syrou.reaktiv.navigation.extension.navigate
-import io.github.syrou.reaktiv.navigation.extension.popUpTo
+import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -39,7 +38,7 @@ class ExceptionHandlingTest {
         override val requiresAuth = false
 
         @Composable
-        override fun Content(params: Map<String, Any>) {
+        override fun Content(params: Params) {
             Text(route)
         }
     }
@@ -64,7 +63,7 @@ class ExceptionHandlingTest {
             }
 
             val exception = assertFailsWith<RouteNotFoundException> {
-                store.navigate("nonexistent")
+                store.navigation { navigateTo("nonexistent") }
                 advanceUntilIdle()
             }
 
@@ -93,7 +92,7 @@ class ExceptionHandlingTest {
             }
 
             val exception = assertFailsWith<RouteNotFoundException> {
-                store.navigate("content/nonexistent")
+                store.navigation { navigateTo("content/nonexistent") }
                 advanceUntilIdle()
             }
 
@@ -122,7 +121,7 @@ class ExceptionHandlingTest {
             }
 
             val exception = assertFailsWith<RouteNotFoundException> {
-                store.navigate("broken")
+                store.navigation { navigateTo("broken") }
                 advanceUntilIdle()
             }
 
@@ -148,16 +147,18 @@ class ExceptionHandlingTest {
 
             // Test clearBackStack + popUpTo combination
             val exception1 = assertFailsWith<IllegalArgumentException> {
-                store.navigate("profile") {
+                store.navigation {
                     clearBackStack()
                     popUpTo("home")
+                    navigateTo("profile")
                 }
             }
             assertTrue(exception1.message?.contains("clearBackStack") ?: false)
 
             // Test clearBackStack + replaceCurrent combination
             val exception2 = assertFailsWith<IllegalArgumentException> {
-                store.navigate("profile") {
+                store.navigation {
+                    navigateTo("profile")
                     clearBackStack()
                     navigateTo("home", replaceCurrent = true)
                 }
@@ -181,11 +182,11 @@ class ExceptionHandlingTest {
                 coroutineContext(testDispatcher)
             }
 
-            store.navigate("profile")
+            store.navigation { navigateTo("profile") }
             advanceUntilIdle()
 
             val exception = assertFailsWith<RouteNotFoundException> {
-                store.popUpTo("nonexistent")
+                store.navigation { popUpTo("nonexistent") }
                 advanceUntilIdle()
             }
             assertTrue(exception.message?.contains("nonexistent") ?: false)
@@ -208,14 +209,14 @@ class ExceptionHandlingTest {
             }
 
             // Navigate to a valid state first
-            store.navigate("profile")
+            store.navigation { navigateTo("profile") }
             advanceUntilIdle()
 
             val stateBeforeFail = store.selectState<NavigationState>().first()
 
             // Try to navigate to invalid route
             assertFailsWith<RouteNotFoundException> {
-                store.navigate("nonexistent")
+                store.navigation { navigateTo("nonexistent") }
                 advanceUntilIdle()
             }
 
@@ -243,11 +244,14 @@ class ExceptionHandlingTest {
             }
 
             // Clear to single entry
-            store.clearBackStack { navigate("profile") }
+            store.navigation { 
+                clearBackStack()
+                navigateTo("profile") 
+            }
             advanceUntilIdle()
 
             val exception = assertFailsWith<IllegalStateException> {
-                store.popUpTo("profile", inclusive = true)
+                store.navigation { popUpTo("profile", inclusive = true) }
                 advanceUntilIdle()
             }
             assertTrue(exception.message?.contains("empty back stack") ?: false)
