@@ -73,8 +73,8 @@ class NavigationLogicTest {
             var state = store.selectState<NavigationState>().first()
             assertEquals(4, state.backStack.size)
             store.navigation {
-                navigateTo("content/news")
                 popUpTo("profile", inclusive = false)
+                navigateTo("content/news")
             }
             advanceUntilIdle()
 
@@ -105,8 +105,8 @@ class NavigationLogicTest {
 
             // PopUpTo profile (inclusive) and navigate to news
             store.navigation {
-                navigateTo("content/news")
                 popUpTo("profile", inclusive = true)
+                navigateTo("content/news")
             }
             advanceUntilIdle()
 
@@ -238,8 +238,8 @@ class NavigationLogicTest {
 
         // Complex navigation: navigate to workspace, pop up to news (inclusive), 
         store.navigation {
-            navigateTo("content/workspace")
             popUpTo("news", inclusive = true)
+            navigateTo("content/workspace")
         }
         advanceUntilIdle()
 
@@ -445,4 +445,114 @@ class NavigationLogicTest {
             assertFalse(state.backStack.any { it.screen.route == "profile" })
             assertFalse(state.backStack.any { it.screen.route == "workspace" })
         }
+
+    @Test
+    fun `test standalone popUpTo navigates to target screen`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val store = createStore {
+            module(createSimpleNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        // Build backstack: home -> profile -> settings -> about
+        store.navigation { navigateTo("profile") }
+        advanceUntilIdle()
+        store.navigation { navigateTo("settings") }
+        advanceUntilIdle()
+        store.navigation { navigateTo("about") }
+        advanceUntilIdle()
+
+        var state = store.selectState<NavigationState>().first()
+        assertEquals(4, state.backStack.size)
+        assertEquals("about", state.currentEntry.screen.route)
+
+        // Test standalone popUpTo - should navigate back to profile
+        store.navigation {
+            popUpTo("profile")
+        }
+        advanceUntilIdle()
+
+        state = store.selectState<NavigationState>().first()
+
+        // Should navigate to profile and remove everything after it
+        assertEquals("profile", state.currentEntry.screen.route)
+        assertEquals(2, state.backStack.size) // [home, profile]
+        assertTrue(state.backStack.any { it.screen.route == "home" })
+        assertTrue(state.backStack.any { it.screen.route == "profile" })
+        assertFalse(state.backStack.any { it.screen.route == "settings" })
+        assertFalse(state.backStack.any { it.screen.route == "about" })
+    }
+
+    @Test
+    fun `test combined popUpTo with navigateTo still works as before`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val store = createStore {
+            module(createSimpleNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        // Build backstack: home -> profile -> settings -> about
+        store.navigation { navigateTo("profile") }
+        advanceUntilIdle()
+        store.navigation { navigateTo("settings") }
+        advanceUntilIdle()
+        store.navigation { navigateTo("about") }
+        advanceUntilIdle()
+
+        var state = store.selectState<NavigationState>().first()
+        assertEquals(4, state.backStack.size)
+        assertEquals("about", state.currentEntry.screen.route)
+
+        // Test combined popUpTo + navigateTo - should pop to profile then navigate to content/news
+        store.navigation {
+            popUpTo("profile")
+            navigateTo("content/news")
+        }
+        advanceUntilIdle()
+
+        state = store.selectState<NavigationState>().first()
+
+        // Should navigate to news, not profile, and backstack should include popped-to state
+        assertEquals("news", state.currentEntry.screen.route)
+        assertEquals("content", state.currentEntry.graphId)
+        assertEquals(3, state.backStack.size) // [home, profile, news]
+        assertTrue(state.backStack.any { it.screen.route == "home" })
+        assertTrue(state.backStack.any { it.screen.route == "profile" })
+        assertTrue(state.backStack.any { it.screen.route == "news" })
+        assertFalse(state.backStack.any { it.screen.route == "settings" })
+        assertFalse(state.backStack.any { it.screen.route == "about" })
+    }
+
+    @Test
+    fun `test standalone popUpTo with inclusive removes target screen`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val store = createStore {
+            module(createSimpleNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        // Build backstack: home -> profile -> settings -> about
+        store.navigation { navigateTo("profile") }
+        advanceUntilIdle()
+        store.navigation { navigateTo("settings") }
+        advanceUntilIdle()
+        store.navigation { navigateTo("about") }
+        advanceUntilIdle()
+
+        // Test standalone popUpTo with inclusive=true - should navigate to home (before profile)
+        store.navigation {
+            popUpTo("profile", inclusive = true)
+        }
+        advanceUntilIdle()
+
+        val state = store.selectState<NavigationState>().first()
+
+        // Should navigate to home and remove profile and everything after it
+        assertEquals("home", state.currentEntry.screen.route)
+        assertEquals(1, state.backStack.size) // [home]
+        assertTrue(state.backStack.any { it.screen.route == "home" })
+        assertFalse(state.backStack.any { it.screen.route == "profile" })
+        assertFalse(state.backStack.any { it.screen.route == "settings" })
+        assertFalse(state.backStack.any { it.screen.route == "about" })
+    }
 }

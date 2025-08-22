@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation
 import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
+import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
 import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
@@ -14,50 +15,47 @@ import kotlinx.serialization.Serializable
 
 sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
 
-    // Core action for atomic state updates
     @Serializable
     data class BatchUpdate(
         val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null
+        val backStack: List<NavigationEntry>? = null,
+        val modalContexts: Map<String, ModalContext>? = null,
+        val operations: List<NavigationOperation> = emptyList()
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
     data class Back(
         val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null
+        val backStack: List<NavigationEntry>? = null,
+        val modalContexts: Map<String, ModalContext>? = null
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
     data class ClearBackstack(
         val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null
+        val backStack: List<NavigationEntry>? = null,
+        val modalContexts: Map<String, ModalContext>? = null
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class BatchUpdateWithModalContext(
+    data class Navigate(
         val currentEntry: NavigationEntry? = null,
         val backStack: List<NavigationEntry>? = null,
-        val modalContexts: Map<String, ModalContext> = emptyMap()
-    ) : NavigationAction(), HighPriorityAction
-
-    // Parameter management actions
-    @Serializable
-    data object ClearCurrentScreenParams : NavigationAction(), HighPriorityAction
-
-    @Serializable
-    data class ClearCurrentScreenParam(
-        val key: String
+        val modalContexts: Map<String, ModalContext>? = null
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class ClearScreenParams(
-        val route: String
+    data class PopUpTo(
+        val currentEntry: NavigationEntry? = null,
+        val backStack: List<NavigationEntry>? = null,
+        val modalContexts: Map<String, ModalContext>? = null
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class ClearScreenParam(
-        val route: String,
-        val key: String
+    data class Replace(
+        val currentEntry: NavigationEntry? = null,
+        val backStack: List<NavigationEntry>? = null,
+        val modalContexts: Map<String, ModalContext>? = null
     ) : NavigationAction(), HighPriorityAction
 
     // GuidedFlow actions
@@ -94,15 +92,4 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
 
     @Serializable
     data object ClearActiveGuidedFlow : NavigationAction(), HighPriorityAction
-
-    // Legacy actions for compatibility
-    @Serializable
-    data class UpdateCurrentEntry(
-        val entry: NavigationEntry
-    ) : NavigationAction(), HighPriorityAction
-
-    @Serializable
-    data class UpdateBackStack(
-        val backStack: List<NavigationEntry>
-    ) : NavigationAction(), HighPriorityAction
 }

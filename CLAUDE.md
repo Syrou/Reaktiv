@@ -44,9 +44,14 @@ This project uses Gradle with Kotlin Multiplatform setup.
 # Run navigation module tests  
 ./gradlew :reaktiv-navigation:test
 
+# Run JVM tests for specific module
+./gradlew :reaktiv-navigation:jvmTest
+
 # Run Android tests
 ./gradlew :androidexample:testDebugUnitTest
 ```
+
+**Important**: The `--tests` flag (e.g., `./gradlew test --tests "SomeTest"`) does NOT work with this Gradle setup. Use the module-specific test tasks above instead.
 
 ## Architecture Overview
 

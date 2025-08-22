@@ -117,7 +117,9 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.BatchUpdate(
                 currentEntry = updatedEntry,
-                backStack = updatedBackStack
+                backStack = updatedBackStack,
+                modalContexts = null,
+                operations = emptyList()
             )
         )
     }
@@ -131,7 +133,9 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.BatchUpdate(
                 currentEntry = updatedEntry,
-                backStack = updatedBackStack
+                backStack = updatedBackStack,
+                modalContexts = null,
+                operations = emptyList()
             )
         )
     }
@@ -159,7 +163,9 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.BatchUpdate(
                 currentEntry = updatedCurrentEntry,
-                backStack = updatedBackStack
+                backStack = updatedBackStack,
+                modalContexts = null,
+                operations = emptyList()
             )
         )
     }
@@ -187,7 +193,9 @@ class NavigationLogic(
         storeAccessor.dispatch(
             NavigationAction.BatchUpdate(
                 currentEntry = updatedCurrentEntry,
-                backStack = updatedBackStack
+                backStack = updatedBackStack,
+                modalContexts = null,
+                operations = emptyList()
             )
         )
     }
@@ -201,23 +209,63 @@ class NavigationLogic(
         // Compute the final state by applying all operations in sequence
         val finalState = computeFinalNavigationState(builder.operations, initialState, builder.guidedFlowContext)
         
-        // Dispatch once with the final computed state
-        if (finalState.modalContexts != initialState.activeModalContexts) {
-            storeAccessor.dispatch(
-                NavigationAction.BatchUpdateWithModalContext(
+        // Dispatch specific actions based on the operations performed
+        val action = determineNavigationAction(builder.operations, finalState, initialState)
+        storeAccessor.dispatch(action)
+    }
+
+    /**
+     * Determine the appropriate NavigationAction to dispatch based on the operations and final state
+     */
+    private fun determineNavigationAction(
+        operations: List<NavigationStep>,
+        finalState: ComputedNavigationState,
+        initialState: NavigationState
+    ): NavigationAction {
+        // Determine if modals changed
+        val modalContexts = if (finalState.modalContexts != initialState.activeModalContexts) {
+            finalState.modalContexts
+        } else null
+        
+        // For single operation, dispatch the specific action
+        if (operations.size == 1) {
+            val operation = operations.first()
+            return when (operation.operation) {
+                NavigationOperation.Back -> NavigationAction.Back(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = finalState.modalContexts
+                    modalContexts = modalContexts
                 )
-            )
-        } else {
-            storeAccessor.dispatch(
-                NavigationAction.BatchUpdate(
+                NavigationOperation.PopUpTo -> NavigationAction.PopUpTo(
                     currentEntry = finalState.currentEntry,
-                    backStack = finalState.backStack
+                    backStack = finalState.backStack,
+                    modalContexts = modalContexts
                 )
-            )
+                NavigationOperation.Navigate -> NavigationAction.Navigate(
+                    currentEntry = finalState.currentEntry,
+                    backStack = finalState.backStack,
+                    modalContexts = modalContexts
+                )
+                NavigationOperation.Replace -> NavigationAction.Replace(
+                    currentEntry = finalState.currentEntry,
+                    backStack = finalState.backStack,
+                    modalContexts = modalContexts
+                )
+                NavigationOperation.ClearBackStack -> NavigationAction.ClearBackstack(
+                    currentEntry = finalState.currentEntry,
+                    backStack = finalState.backStack,
+                    modalContexts = modalContexts
+                )
+            }
         }
+        
+        // For multiple operations, use BatchUpdate
+        return NavigationAction.BatchUpdate(
+            currentEntry = finalState.currentEntry,
+            backStack = finalState.backStack,
+            modalContexts = modalContexts,
+            operations = operations.map { it.operation }
+        )
     }
     
     private data class ComputedNavigationState(
@@ -242,7 +290,7 @@ class NavigationLogic(
         
         // Apply each operation and collect its outcome
         for (step in operations) {
-            val stepResult = applyNavigationStep(step, currentEntry, backStack, modalContexts, guidedFlowContext)
+            val stepResult = applyNavigationStep(step, currentEntry, backStack, modalContexts, guidedFlowContext, operations)
             operationResults.add(stepResult)
             
             // Update state for next operation
@@ -291,7 +339,8 @@ class NavigationLogic(
         currentEntry: NavigationEntry,
         backStack: List<NavigationEntry>,
         modalContexts: Map<String, ModalContext>,
-        guidedFlowContext: GuidedFlowContext? = null
+        guidedFlowContext: GuidedFlowContext? = null,
+        allOperations: List<NavigationStep> = emptyList()
     ): NavigationStepResult {
         return when (step.operation) {
             NavigationOperation.Back -> {
@@ -299,7 +348,7 @@ class NavigationLogic(
             }
             
             NavigationOperation.PopUpTo -> {
-                applyPopUpToStep(step, currentEntry, backStack, modalContexts, guidedFlowContext)
+                applyPopUpToStep(step, currentEntry, backStack, modalContexts, guidedFlowContext, allOperations)
             }
             
             NavigationOperation.ClearBackStack -> {
@@ -307,7 +356,7 @@ class NavigationLogic(
             }
             
             NavigationOperation.Navigate -> {
-                applyNavigateStep(step, currentEntry, backStack, modalContexts, guidedFlowContext)
+                applyNavigateStep(step, currentEntry, backStack, modalContexts, guidedFlowContext, allOperations)
             }
             
             NavigationOperation.Replace -> {
@@ -672,7 +721,8 @@ class NavigationLogic(
         currentEntry: NavigationEntry,
         backStack: List<NavigationEntry>,
         modalContexts: Map<String, ModalContext>,
-        guidedFlowContext: GuidedFlowContext? = null
+        guidedFlowContext: GuidedFlowContext? = null,
+        allOperations: List<NavigationStep> = emptyList()
     ): NavigationStepResult {
         val resolvedRoute = step.target?.resolve(precomputedData)
             ?: throw IllegalStateException("Navigate operation requires a target")
@@ -788,7 +838,8 @@ class NavigationLogic(
         currentEntry: NavigationEntry,
         backStack: List<NavigationEntry>,
         modalContexts: Map<String, ModalContext>,
-        guidedFlowContext: GuidedFlowContext? = null
+        guidedFlowContext: GuidedFlowContext? = null,
+        allOperations: List<NavigationStep> = emptyList()
     ): NavigationStepResult {
         val popUpToRoute = step.popUpToTarget?.resolve(precomputedData)
             ?: throw IllegalStateException("PopUpTo operation requires a popUpTo target")
@@ -826,36 +877,60 @@ class NavigationLogic(
                 modalContexts = modalContexts
             )
         } else {
-            // PopUpTo without target - pure backStack modifier
+            // PopUpTo without navigation target
             
-            // Handle edge case: if popping results in empty backStack, handle gracefully or throw exception
-            if (newBackStackAfterPop.isEmpty()) {
-                // If we're popping everything including current entry, this is an illegal state for standalone popUpTo
-                // But it might be valid in multi-operation sequences where navigate operations follow
-                if (currentEntry.navigatable.route == step.popUpToTarget?.resolve(precomputedData) && step.popUpToInclusive) {
-                    throw IllegalStateException("Cannot pop up to route that would result in empty back stack")
-                } else {
-                    // Pop operation resulted in empty stack but currentEntry is different, preserve currentEntry
-                    return NavigationStepResult(
-                        currentEntry = currentEntry,
-                        backStack = listOf(currentEntry),
-                        modalContexts = modalContexts
-                    )
+            // Check if there are any navigation operations in the same DSL block
+            val hasNavigationOperations = allOperations.any { it.operation == NavigationOperation.Navigate || it.operation == NavigationOperation.Replace }
+            
+            if (hasNavigationOperations) {
+                // PopUpTo combined with navigation - return modified backstack without changing current entry
+                // The subsequent navigation operation will use this modified backstack
+                
+                // Handle edge case: if popping results in empty backStack
+                if (newBackStackAfterPop.isEmpty()) {
+                    if (currentEntry.navigatable.route == step.popUpToTarget?.resolve(precomputedData) && step.popUpToInclusive) {
+                        throw IllegalStateException("Cannot pop up to route that would result in empty back stack")
+                    } else {
+                        return NavigationStepResult(
+                            currentEntry = currentEntry,
+                            backStack = listOf(currentEntry),
+                            modalContexts = modalContexts
+                        )
+                    }
                 }
-            }
-            
-            // Ensure currentEntry is in the backStack (backStack always includes currentEntry)  
-            val finalBackStack = if (newBackStackAfterPop.lastOrNull()?.navigatable?.route == currentEntry.navigatable.route) {
-                newBackStackAfterPop
+                
+                // Return the modified backstack - the navigation operation will build on this
+                NavigationStepResult(
+                    currentEntry = currentEntry,
+                    backStack = newBackStackAfterPop,
+                    modalContexts = modalContexts
+                )
             } else {
-                newBackStackAfterPop + currentEntry
+                // Standalone popUpTo - navigate to the target screen
+                
+                // Handle edge case: if popping results in empty backStack
+                if (newBackStackAfterPop.isEmpty()) {
+                    if (step.popUpToInclusive) {
+                        throw IllegalStateException("Cannot pop up to route with inclusive=true that would result in empty back stack")
+                    } else {
+                        // This shouldn't happen since we found the route in backStack, but handle gracefully
+                        return NavigationStepResult(
+                            currentEntry = currentEntry,
+                            backStack = listOf(currentEntry),
+                            modalContexts = modalContexts
+                        )
+                    }
+                }
+                
+                // Navigate to the target of popUpTo (the screen we're popping back to)
+                val targetEntry = newBackStackAfterPop.last()
+                
+                NavigationStepResult(
+                    currentEntry = targetEntry,
+                    backStack = newBackStackAfterPop,
+                    modalContexts = modalContexts
+                )
             }
-            
-            NavigationStepResult(
-                currentEntry = currentEntry,
-                backStack = finalBackStack,
-                modalContexts = modalContexts
-            )
         }
     }
     

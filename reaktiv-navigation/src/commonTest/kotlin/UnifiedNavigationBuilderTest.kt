@@ -543,11 +543,11 @@ class UnifiedNavigationBuilderTest {
 
         // Complex navigation: navigate to settings, pop up to home (inclusive)
         store.navigation {
+            popUpTo<HomeScreen>(inclusive = true)
             navigateTo<SettingsScreen> {
                 putString("source", "complex")
                 putLong("timestamp", 1234567890L)
             }
-            popUpTo<HomeScreen>(inclusive = true)
         }
         advanceUntilIdle()
 
