@@ -104,8 +104,8 @@ private fun ProjectOverviewContent(params: Params) {
         Button(onClick = {
             scope.launch {
                 store.navigation {
-                    popUpTo("home/workspace", inclusive = true)
                     navigateTo("home/workspace/overview")
+                    popUpTo("home/workspace", inclusive = true)
                 }
             }
         }) {

@@ -7,13 +7,11 @@ import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
-import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
-import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
+import io.github.syrou.reaktiv.navigation.definition.Navigatable
+import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
-import io.github.syrou.reaktiv.navigation.util.RouteResolver
-import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import kotlinx.coroutines.flow.first
 
 suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit) {
@@ -24,6 +22,22 @@ suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit
 suspend fun StoreAccessor.navigateBack() {
     navigation {
         navigateBack()
+    }
+}
+
+suspend fun StoreAccessor.navigate(route: String, params: Params? = null) {
+    navigation {
+        navigateTo(route) {
+            params?.let { params(it) }
+        }
+    }
+}
+
+suspend inline fun <reified T : Navigatable> StoreAccessor.navigate(params: Params? = null) {
+    navigation {
+        navigateTo<T> {
+            params?.let { params(it) }
+        }
     }
 }
 
@@ -40,7 +54,7 @@ suspend fun StoreAccessor.dismissModal() {
     navigateBack()
 }
 
-inline fun Modifier.applyIf(condition : Boolean, modifier : Modifier.() -> Modifier) : Modifier {
+inline fun Modifier.applyIf(condition: Boolean, modifier: Modifier.() -> Modifier): Modifier {
     return if (condition) {
         then(modifier(Modifier))
     } else {
