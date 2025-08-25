@@ -1,8 +1,8 @@
 package io.github.syrou.reaktiv.navigation.dsl
 
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
@@ -112,8 +112,8 @@ class GuidedFlowOperationBuilder(
      * @return Index of the step, or -1 if not found
      */
     suspend fun findStepByType(screenClassName: String): Int {
-        val navigationState = storeAccessor.selectState<NavigationState>().first()
-        val flowDefinition = navigationState.guidedFlowDefinitions[flowRoute] ?: return -1
+        val navigationLogic = storeAccessor.selectLogic<NavigationLogic>()
+        val flowDefinition = navigationLogic.getEffectiveGuidedFlowDefinition(flowRoute) ?: return -1
         
         return flowDefinition.steps.indexOfFirst { step ->
             when (step) {

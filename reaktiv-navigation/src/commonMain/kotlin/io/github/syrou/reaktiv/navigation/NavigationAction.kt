@@ -59,16 +59,6 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
     ) : NavigationAction(), HighPriorityAction
 
     // GuidedFlow actions
-    @Serializable
-    data class CreateGuidedFlow(
-        val definition: GuidedFlowDefinition
-    ) : NavigationAction()
-
-    @Serializable
-    data class ModifyGuidedFlow(
-        val flowRoute: String,
-        val modification: FlowModification
-    ) : NavigationAction()
 
     @Serializable
     data class StartGuidedFlow(
@@ -93,6 +83,4 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
     @Serializable
     data object ClearActiveGuidedFlow : NavigationAction(), HighPriorityAction
 
-    @Serializable
-    data class ClearModifications(val originalFlow: Map<String, GuidedFlowDefinition>) : NavigationAction(), HighPriorityAction
 }

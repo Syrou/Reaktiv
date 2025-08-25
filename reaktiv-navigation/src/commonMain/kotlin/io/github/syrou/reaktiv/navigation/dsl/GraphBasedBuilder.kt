@@ -49,7 +49,7 @@ class GraphBasedBuilder {
         requireNotNull(rootGraph) { "Root graph must be defined" }
         return NavigationModule(
             rootGraph = rootGraph!!,
-            guidedFlowDefinitions = guidedFlowDefinitions.toMap()
+            originalGuidedFlowDefinitions = guidedFlowDefinitions.toMap()
         )
     }
 

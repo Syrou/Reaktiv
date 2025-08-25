@@ -51,8 +51,7 @@ data class NavigationState(
     val graphHierarchyLookup: Map<String, List<String>>,
     val activeModalContexts: Map<String, ModalContext>,
     
-    // GuidedFlow state - track active flow and runtime modifications
-    val guidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(), // Runtime modifications
+    // GuidedFlow state - track active flow only
     val activeGuidedFlowState: GuidedFlowState? = null
 ) : ModuleState {
     

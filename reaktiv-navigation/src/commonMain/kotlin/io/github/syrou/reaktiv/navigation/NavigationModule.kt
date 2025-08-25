@@ -29,7 +29,7 @@ import kotlin.reflect.KClass
 
 class NavigationModule internal constructor(
     private val rootGraph: NavigationGraph,
-    private val guidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap()
+    private val originalGuidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap()
 ) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
     private val precomputedData: PrecomputedNavigationData by lazy {
         PrecomputedNavigationData.create(rootGraph)
@@ -100,7 +100,6 @@ class NavigationModule internal constructor(
             allAvailableNavigatables = precomputedData.allNavigatables,
             graphHierarchyLookup = precomputedData.graphHierarchies,
             activeModalContexts = emptyMap(),
-            guidedFlowDefinitions = guidedFlowDefinitions,
             activeGuidedFlowState = null
         )
     }
@@ -169,7 +168,6 @@ class NavigationModule internal constructor(
             allAvailableNavigatables = precomputedData.allNavigatables,
             graphHierarchyLookup = precomputedData.graphHierarchies,
             activeModalContexts = newModalContexts,
-            guidedFlowDefinitions = state.guidedFlowDefinitions,
             activeGuidedFlowState = state.activeGuidedFlowState
         )
     }
@@ -195,24 +193,6 @@ class NavigationModule internal constructor(
                 state, action.currentEntry, action.backStack, action.modalContexts
             )
 
-            is NavigationAction.CreateGuidedFlow -> {
-                state.copy(
-                    guidedFlowDefinitions = state.guidedFlowDefinitions + (action.definition.guidedFlow.route to action.definition)
-                )
-            }
-
-            is NavigationAction.ModifyGuidedFlow -> {
-                val existingDefinition = state.guidedFlowDefinitions[action.flowRoute]
-                if (existingDefinition != null) {
-                    val updatedDefinition = existingDefinition.applyModification(action.modification)
-                    state.copy(
-                        guidedFlowDefinitions = state.guidedFlowDefinitions + (action.flowRoute to updatedDefinition)
-                    )
-                } else {
-                    state
-                }
-            }
-
             is NavigationAction.StartGuidedFlow -> {
                 state
             }
@@ -233,10 +213,6 @@ class NavigationModule internal constructor(
                 state.copy(activeGuidedFlowState = null)
             }
 
-            is NavigationAction.ClearModifications -> {
-                state.copy(guidedFlowDefinitions = action.originalFlow)
-            }
-
         }
     }
 
@@ -244,7 +220,7 @@ class NavigationModule internal constructor(
         NavigationLogic(
             storeAccessor = storeAccessor, 
             precomputedData = precomputedData,
-            guidedFlowDefinitions = guidedFlowDefinitions
+            guidedFlowDefinitions = originalGuidedFlowDefinitions
         )
     }
 

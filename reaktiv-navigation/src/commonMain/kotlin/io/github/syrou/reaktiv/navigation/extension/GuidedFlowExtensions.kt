@@ -16,11 +16,10 @@ import kotlinx.coroutines.flow.first
 
 /**
  * Get a guided flow definition by route
- * Checks both runtime modifications and base definitions
  */
 suspend fun StoreAccessor.getGuidedFlow(route: String): GuidedFlowDefinition? {
-    val navigationState = selectState<NavigationState>().first()
-    return navigationState.guidedFlowDefinitions[route]
+    val navigationLogic = selectLogic<NavigationLogic>()
+    return navigationLogic.getEffectiveGuidedFlowDefinition(route)
 }
 
 /**
@@ -33,35 +32,6 @@ suspend fun StoreAccessor.startGuidedFlow(
     dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(route), params))
 }
 
-/**
- * Update onComplete block for a guided flow
- */
-suspend fun StoreAccessor.updateGuidedFlowCompletion(
-    route: String,
-    onComplete: (suspend (StoreAccessor) -> Unit)?
-) {
-    dispatch(
-        NavigationAction.ModifyGuidedFlow(
-            flowRoute = route,
-            modification = FlowModification.UpdateOnComplete(onComplete)
-        )
-    )
-}
-
-/**
- * Modify a guided flow with any type of modification
- */
-suspend fun StoreAccessor.modifyGuidedFlow(
-    route: String,
-    modification: FlowModification
-) {
-    dispatch(
-        NavigationAction.ModifyGuidedFlow(
-            flowRoute = route,
-            modification = modification
-        )
-    )
-}
 
 /**
  * Execute multiple guided flow operations atomically
