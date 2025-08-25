@@ -234,7 +234,7 @@ class NavigationModule internal constructor(
             }
 
             is NavigationAction.ClearModifications -> {
-                state.copy(guidedFlowDefinitions = emptyMap())
+                state.copy(guidedFlowDefinitions = action.originalFlow)
             }
 
         }

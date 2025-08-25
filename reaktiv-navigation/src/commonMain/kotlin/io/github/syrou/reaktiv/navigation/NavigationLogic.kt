@@ -9,10 +9,8 @@ import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
 import io.github.syrou.reaktiv.navigation.dsl.NavigationStep
 import io.github.syrou.reaktiv.navigation.definition.Modal
-import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
-import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
@@ -24,7 +22,6 @@ import io.github.syrou.reaktiv.navigation.model.applyModification
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.model.getRoute
 import io.github.syrou.reaktiv.navigation.model.getParams
-import io.github.syrou.reaktiv.navigation.param.SerializableParam
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.computeGuidedFlowProperties
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperation
@@ -1043,7 +1040,7 @@ class NavigationLogic(
                     storeAccessor.dispatch(NavigationAction.ClearActiveGuidedFlow)
 
                     //Clear modifications and resume originally created flow
-                    storeAccessor.dispatch(NavigationAction.ClearModifications)
+                    storeAccessor.dispatch(NavigationAction.ClearModifications(guidedFlowDefinitions))
                 }
                 else -> {
                     // Move to next step

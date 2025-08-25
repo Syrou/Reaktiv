@@ -94,5 +94,5 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
     data object ClearActiveGuidedFlow : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data object ClearModifications : NavigationAction(), HighPriorityAction
+    data class ClearModifications(val originalFlow: Map<String, GuidedFlowDefinition>) : NavigationAction(), HighPriorityAction
 }
