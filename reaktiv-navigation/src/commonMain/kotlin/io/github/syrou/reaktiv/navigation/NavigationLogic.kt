@@ -520,7 +520,6 @@ class NavigationLogic(
             }
         }
         
-        // Dispatch final state updates
         if (currentFlowState != null) {
             if (currentFlowState.isCompleted) {
                 // If flow is completed, execute completion handler and clear flow state
@@ -529,15 +528,23 @@ class NavigationLogic(
                 }
                 storeAccessor.dispatch(NavigationAction.ClearActiveGuidedFlow)
             } else {
-                // Store runtime definition in the flow state
                 val updatedFlowState = currentFlowState.copy(
                     runtimeDefinition = currentDefinition
                 )
                 storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(updatedFlowState))
             }
+        } else {
+            val hasModifications = operations.any { it is GuidedFlowOperation.Modify }
+            if (hasModifications) {
+                val placeholderFlowState = GuidedFlowState(
+                    flowRoute = flowRoute,
+                    startedAt = Clock.System.now(),
+                    runtimeDefinition = currentDefinition
+                )
+                storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(placeholderFlowState))
+            }
         }
         
-        // Perform final navigation if needed
         if (finalNavigationRoute != null) {
             navigate(finalNavigationRoute, finalNavigationParams, false) {
                 guidedFlowContext?.let { setGuidedFlowContext(it) }
@@ -995,22 +1002,24 @@ class NavigationLogic(
         val definition = getEffectiveGuidedFlowDefinition(action.guidedFlow.route)
         
         if (definition != null && definition.steps.isNotEmpty()) {
-            // 1. Create flow state
+            val existingRuntimeDefinition = currentState.activeGuidedFlowState?.let { existing ->
+                if (existing.flowRoute == action.guidedFlow.route) existing.runtimeDefinition else null
+            }
+            
             val flowState = computeGuidedFlowProperties(
                 GuidedFlowState(
                     flowRoute = action.guidedFlow.route,
-                    startedAt = Clock.System.now()
+                    startedAt = Clock.System.now(),
+                    runtimeDefinition = existingRuntimeDefinition
                 ),
                 definition
             )
             storeAccessor.dispatch(NavigationAction.UpdateActiveGuidedFlow(flowState))
             
-            // 2. Navigate to first step with flow context using NavigationBuilder
             val firstStep = definition.steps.first()
             val stepRoute = firstStep.getRoute(precomputedData)
             val stepParams = action.params + firstStep.getParams()
             
-            // Use NavigationBuilder to properly handle parameters
             val builder = NavigationBuilder(storeAccessor)
             builder.params(stepParams)
             builder.navigateTo(stepRoute, false)
