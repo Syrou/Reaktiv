@@ -92,4 +92,7 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
 
     @Serializable
     data object ClearActiveGuidedFlow : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    data object ClearModifications : NavigationAction(), HighPriorityAction
 }

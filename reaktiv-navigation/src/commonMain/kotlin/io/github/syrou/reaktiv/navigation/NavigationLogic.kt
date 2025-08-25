@@ -1041,6 +1041,9 @@ class NavigationLogic(
                     
                     // Clear the guided flow state
                     storeAccessor.dispatch(NavigationAction.ClearActiveGuidedFlow)
+
+                    //Clear modifications and resume originally created flow
+                    storeAccessor.dispatch(NavigationAction.ClearModifications)
                 }
                 else -> {
                     // Move to next step
