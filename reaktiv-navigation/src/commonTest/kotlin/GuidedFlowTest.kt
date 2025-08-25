@@ -30,6 +30,8 @@ import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.extension.guidedFlow
+import kotlin.test.assertFalse
 
 // Test module for conditional navigation testing
 data class UserConditionState(
@@ -709,5 +711,238 @@ class GuidedFlowTest {
         // Final verification that the URI remains intact throughout the flow
         val finalUri = secondStepEntry.params.getString("documentUri")!!
         assertEquals(contentUri, finalUri)
+    }
+
+    @Test
+    fun `should use modified step parameters and onComplete handler`() = runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        var modifiedOnCompleteTriggered = false
+        
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        val uri = "https://example.com/invite"
+        
+        // Modify the guided flow with step parameters AND onComplete handler
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("DEEPLINK", uri)
+            }
+            updateOnComplete { storeAccessor ->
+                modifiedOnCompleteTriggered = true
+                
+                storeAccessor.navigation {
+                    navigateTo(TestPreferencesScreen.route)
+                }
+            }
+        }
+        advanceUntilIdle()
+
+        // Start the guided flow 
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        // Check that TestWelcomeScreen receives the modified parameters
+        val stateAfterStart = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, stateAfterStart.currentEntry.navigatable)
+        
+        // Verify modified parameters are applied
+        val deeplinkParam = stateAfterStart.currentEntry.params.getString("DEEPLINK")
+        assertEquals(uri, deeplinkParam, "TestWelcomeScreen should receive modified DEEPLINK parameter")
+
+        // Complete the flow (navigate past all steps)
+        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        advanceUntilIdle()
+
+        // Verify modified onComplete handler was called
+        assertTrue(modifiedOnCompleteTriggered, "Modified onComplete handler should be triggered")
+        
+        val finalState = store.selectState<NavigationState>().first()
+        assertEquals(TestPreferencesScreen, finalState.currentEntry.navigatable, "Should navigate to TestPreferencesScreen from modified onComplete")
+        assertEquals(null, finalState.activeGuidedFlowState, "Guided flow should be cleared after completion")
+    }
+
+    @Test
+    fun `should reset to original flow definition after completion and work correctly on subsequent runs`() = runTest(timeout = 15.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        var firstRunOnCompleteTriggered = false
+        var secondRunOnCompleteTriggered = false
+        
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        val uri = "https://example.com/invite"
+        
+        // FIRST RUN: Modify the guided flow with step parameters AND onComplete handler
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("DEEPLINK", uri)
+                putString("RUN", "FIRST")
+            }
+            updateOnComplete { storeAccessor ->
+                firstRunOnCompleteTriggered = true
+                storeAccessor.navigation {
+                    navigateTo(TestPreferencesScreen.route)
+                }
+            }
+        }
+        advanceUntilIdle()
+
+        // Start and complete the first guided flow run
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        // Verify first run has modified parameters
+        val stateAfterFirstStart = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, stateAfterFirstStart.currentEntry.navigatable)
+        assertEquals(uri, stateAfterFirstStart.currentEntry.params.getString("DEEPLINK"), "First run should have modified DEEPLINK")
+        assertEquals("FIRST", stateAfterFirstStart.currentEntry.params.getString("RUN"), "First run should have RUN=FIRST")
+
+        // Complete the first flow (navigate through all steps)
+        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        advanceUntilIdle()
+
+        // Verify first run completed correctly
+        assertTrue(firstRunOnCompleteTriggered, "First run modified onComplete should be triggered")
+        val stateAfterFirstCompletion = store.selectState<NavigationState>().first()
+        assertEquals(TestPreferencesScreen, stateAfterFirstCompletion.currentEntry.navigatable, "First run should navigate to TestPreferencesScreen")
+        assertEquals(null, stateAfterFirstCompletion.activeGuidedFlowState, "Flow should be cleared after first completion")
+
+        // SECOND RUN: Start the same guided flow again WITHOUT any modifications
+        // This should use the original, unmodified definition
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        // Verify second run has NO modifications (clean slate)
+        val stateAfterSecondStart = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, stateAfterSecondStart.currentEntry.navigatable)
+        assertEquals(null, stateAfterSecondStart.currentEntry.params.getString("DEEPLINK"), "Second run should NOT have DEEPLINK parameter")
+        assertEquals(null, stateAfterSecondStart.currentEntry.params.getString("RUN"), "Second run should NOT have RUN parameter")
+
+        // Complete the second flow - should use original onComplete (navigates to TestHomeScreen)
+        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        advanceUntilIdle()
+
+        // Verify second run used original onComplete handler (navigates to TestHomeScreen with clearBackStack)
+        assertFalse(secondRunOnCompleteTriggered, "Second run should NOT trigger modified onComplete")
+        val stateAfterSecondCompletion = store.selectState<NavigationState>().first()
+        assertEquals(null, stateAfterSecondCompletion.activeGuidedFlowState, "Flow should be cleared after second completion")
+
+        // The second run should navigate to TestHomeScreen (original onComplete behavior)
+        assertEquals(TestHomeScreen, stateAfterSecondCompletion.currentEntry.navigatable, "Second run should navigate to TestHomeScreen (original behavior)")
+
+        // THIRD RUN: Apply different modifications and verify they work
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("DEEPLINK", "https://different.com")
+                putString("RUN", "THIRD")
+            }
+            updateOnComplete { storeAccessor ->
+                secondRunOnCompleteTriggered = true
+                storeAccessor.navigation {
+                    navigateTo(TestProfileScreen.route) // Navigate to different screen
+                }
+            }
+        }
+        advanceUntilIdle()
+
+        // Start and complete third run
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        // Verify third run has new modifications
+        val stateAfterThirdStart = store.selectState<NavigationState>().first()
+        assertEquals("https://different.com", stateAfterThirdStart.currentEntry.params.getString("DEEPLINK"), "Third run should have new DEEPLINK")
+        assertEquals("THIRD", stateAfterThirdStart.currentEntry.params.getString("RUN"), "Third run should have RUN=THIRD")
+
+        // Complete third run
+        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        advanceUntilIdle()
+
+        // Verify third run completed with new modifications
+        assertTrue(secondRunOnCompleteTriggered, "Third run modified onComplete should be triggered")
+        val finalState = store.selectState<NavigationState>().first()
+        assertEquals(TestProfileScreen, finalState.currentEntry.navigatable, "Third run should navigate to TestProfileScreen")
+        assertEquals(null, finalState.activeGuidedFlowState, "Flow should be cleared after third completion")
+    }
+    
+    @Test
+    fun `should preserve modifications when flow is started after being modified`() = runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        var modifiedOnCompleteTriggered = false
+        
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        val uri = "https://example.com/deeplink"
+        
+        // FIRST: Modify the guided flow (simulate the setupLoggedOutDeeplinkFlows scenario)
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("DEEPLINK", uri)
+            }
+            updateOnComplete { storeAccessor ->
+                modifiedOnCompleteTriggered = true
+                storeAccessor.navigation {
+                    navigateTo(TestPreferencesScreen.route)
+                }
+            }
+        }
+        advanceUntilIdle()
+
+        // Verify that a placeholder flow state was created
+        var state = store.selectState<NavigationState>().first()
+        assertNotNull(state.activeGuidedFlowState, "Should have created placeholder flow state")
+        assertEquals("test-flow", state.activeGuidedFlowState?.flowRoute, "Placeholder should have correct flow route")
+        assertNotNull(state.activeGuidedFlowState?.runtimeDefinition, "Placeholder should have runtime definition")
+
+        // SECOND: Start the guided flow later (simulate the actual StartGuidedFlow call)
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        // Verify that the flow started with modifications intact
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable, "Should navigate to first step")
+        
+        // This is the key assertion - the DEEPLINK parameter should be present
+        val deeplinkParam = state.currentEntry.params.getString("DEEPLINK")
+        assertEquals(uri, deeplinkParam, "TestWelcomeScreen should receive the modified DEEPLINK parameter")
+
+        // Complete the flow to verify the modified onComplete handler is used
+        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen  
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        advanceUntilIdle()
+
+        // Verify modified onComplete handler was called
+        assertTrue(modifiedOnCompleteTriggered, "Modified onComplete handler should be triggered")
+        
+        val finalState = store.selectState<NavigationState>().first()
+        assertEquals(TestPreferencesScreen, finalState.currentEntry.navigatable, "Should navigate to TestPreferencesScreen from modified onComplete")
+        assertEquals(null, finalState.activeGuidedFlowState, "Guided flow should be cleared after completion")
     }
 }

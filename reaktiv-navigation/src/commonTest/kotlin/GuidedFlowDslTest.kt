@@ -867,6 +867,7 @@ class GuidedFlowDslTest {
         advanceUntilIdle()
 
         val stateSecondRun = store.selectState<NavigationState>().first()
+        advanceUntilIdle()
         assertEquals(1, stateSecondRun.activeGuidedFlowState?.currentStepIndex)
         val freshFlow = stateSecondRun.activeGuidedFlowState
         assertNotNull(freshFlow, "Second run should have active flow")

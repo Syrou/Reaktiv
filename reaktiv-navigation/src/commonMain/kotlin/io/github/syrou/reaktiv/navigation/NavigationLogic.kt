@@ -1002,15 +1002,15 @@ class NavigationLogic(
         val definition = getEffectiveGuidedFlowDefinition(action.guidedFlow.route)
         
         if (definition != null && definition.steps.isNotEmpty()) {
-            val existingRuntimeDefinition = currentState.activeGuidedFlowState?.let { existing ->
-                if (existing.flowRoute == action.guidedFlow.route) existing.runtimeDefinition else null
-            }
+            // Only set runtimeDefinition if it's different from the original definition
+            val originalDefinition = guidedFlowDefinitions[action.guidedFlow.route]
+            val runtimeDefinition = if (definition != originalDefinition) definition else null
             
             val flowState = computeGuidedFlowProperties(
                 GuidedFlowState(
                     flowRoute = action.guidedFlow.route,
                     startedAt = Clock.System.now(),
-                    runtimeDefinition = existingRuntimeDefinition
+                    runtimeDefinition = runtimeDefinition
                 ),
                 definition
             )
