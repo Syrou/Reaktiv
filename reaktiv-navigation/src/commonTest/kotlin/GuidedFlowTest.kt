@@ -945,4 +945,132 @@ class GuidedFlowTest {
         assertEquals(TestPreferencesScreen, finalState.currentEntry.navigatable, "Should navigate to TestPreferencesScreen from modified onComplete")
         assertEquals(null, finalState.activeGuidedFlowState, "Guided flow should be cleared after completion")
     }
+    
+    @Test
+    fun `should apply modifications and navigate in same DSL call - reproduce user bug`() = runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        var modifiedOnCompleteTriggered = false
+        
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        val uri = "https://example.com/deeplink"
+        
+        // FIRST: Setup the modifications (simulate setupLoggedOutDeeplinkFlows)
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestProfileScreen> {  // This is step 1 in our 3-step flow
+                putString("DEEPLINK", uri)
+            }
+            updateOnComplete { storeAccessor ->
+                modifiedOnCompleteTriggered = true
+                storeAccessor.navigation {
+                    navigateTo(TestPreferencesScreen.route)
+                }
+            }
+        }
+        advanceUntilIdle()
+
+        // SECOND: Start the guided flow 
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        // Should be on TestWelcomeScreen (step 0)
+        var state = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable)
+        assertEquals(0, state.activeGuidedFlowState?.currentStepIndex)
+
+        // THIRD: This is the key part - simulate being on step 0 and calling nextStep with the flow
+        // This simulates your scenario: from SignUpPreCheckScreen calling storeAccessor.guidedFlow(Route.SignupFlow){ nextStep() }
+        store.guidedFlow("test-flow") {
+            nextStep()  // Should navigate to TestProfileScreen WITH the modified DEEPLINK parameter
+        }
+        advanceUntilIdle()
+
+        // VERIFY: TestProfileScreen should receive the modified DEEPLINK parameter
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestProfileScreen, state.currentEntry.navigatable, "Should navigate to TestProfileScreen (step 1)")
+        assertEquals(1, state.activeGuidedFlowState?.currentStepIndex)
+        
+        // This is the critical assertion - the DEEPLINK parameter should be present
+        val deeplinkParam = state.currentEntry.params.getString("DEEPLINK")
+        assertEquals(uri, deeplinkParam, "TestProfileScreen should receive the modified DEEPLINK parameter from the guided flow DSL")
+    }
+    
+    
+    @Test
+    fun `should apply modified step parameters to all steps - reproduce user exact scenario`() = runTest(timeout = 15.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        val uri = "https://example.com/deeplink"
+        val sessionId = "session-123"
+        val userId = "user-456"
+        
+        // STEP 1: From another place, modify the guided flow to add parameters to multiple steps
+        // This simulates the user's setupLoggedOutDeeplinkFlows scenario
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestWelcomeScreen> {  // Step 0 - first step
+                putString("DEEPLINK", uri)
+                putString("SESSION_ID", sessionId)
+            }
+            updateStepParams<TestProfileScreen> {  // Step 1 - middle step  
+                putString("USER_ID", userId)
+                putString("DEEPLINK", uri)
+            }
+            updateStepParams<TestPreferencesScreen> {  // Step 2 - last step
+                putString("FINAL_STEP", "true")
+                putString("DEEPLINK", uri)
+            }
+        }
+        advanceUntilIdle()
+
+        // STEP 2: Start the guided flow (simulates StartGuidedFlow from Start screen)
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        // STEP 3: Verify first step (TestWelcomeScreen) receives modified parameters
+        var state = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable)
+        assertEquals(0, state.activeGuidedFlowState?.currentStepIndex)
+        
+        // This should work but currently doesn't - the core bug
+        val welcomeDeeplink = state.currentEntry.params.getString("DEEPLINK")
+        val welcomeSessionId = state.currentEntry.params.getString("SESSION_ID")
+        assertEquals(uri, welcomeDeeplink, "TestWelcomeScreen should receive modified DEEPLINK parameter")
+        assertEquals(sessionId, welcomeSessionId, "TestWelcomeScreen should receive modified SESSION_ID parameter")
+
+        // STEP 4: Navigate to second step (TestProfileScreen)
+        store.dispatch(NavigationAction.NextStep())
+        advanceUntilIdle()
+        
+        // Verify second step receives modified parameters
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestProfileScreen, state.currentEntry.navigatable)
+        assertEquals(1, state.activeGuidedFlowState?.currentStepIndex)
+        
+        val profileUserId = state.currentEntry.params.getString("USER_ID")
+        val profileDeeplink = state.currentEntry.params.getString("DEEPLINK")
+        assertEquals(userId, profileUserId, "TestProfileScreen should receive modified USER_ID parameter")
+        assertEquals(uri, profileDeeplink, "TestProfileScreen should receive modified DEEPLINK parameter")
+
+        // STEP 5: Navigate to third step (TestPreferencesScreen)  
+        store.dispatch(NavigationAction.NextStep())
+        advanceUntilIdle()
+        
+        // Verify third step receives modified parameters
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestPreferencesScreen, state.currentEntry.navigatable)
+        assertEquals(2, state.activeGuidedFlowState?.currentStepIndex)
+        
+        val prefFinalStep = state.currentEntry.params.getString("FINAL_STEP")
+        val prefDeeplink = state.currentEntry.params.getString("DEEPLINK")
+        assertEquals("true", prefFinalStep, "TestPreferencesScreen should receive modified FINAL_STEP parameter")
+        assertEquals(uri, prefDeeplink, "TestPreferencesScreen should receive modified DEEPLINK parameter")
+    }
 }

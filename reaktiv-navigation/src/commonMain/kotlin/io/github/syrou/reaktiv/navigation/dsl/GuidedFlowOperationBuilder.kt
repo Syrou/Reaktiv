@@ -113,7 +113,7 @@ class GuidedFlowOperationBuilder(
      */
     suspend fun findStepByType(screenClassName: String): Int {
         val navigationLogic = storeAccessor.selectLogic<NavigationLogic>()
-        val flowDefinition = navigationLogic.getEffectiveGuidedFlowDefinition(flowRoute) ?: return -1
+        val flowDefinition = navigationLogic.getEffectiveGuidedFlowDefinitionByRoute(flowRoute) ?: return -1
         
         return flowDefinition.steps.indexOfFirst { step ->
             when (step) {

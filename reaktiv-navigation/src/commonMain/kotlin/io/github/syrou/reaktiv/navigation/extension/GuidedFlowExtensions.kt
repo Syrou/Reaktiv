@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.first
  */
 suspend fun StoreAccessor.getGuidedFlow(route: String): GuidedFlowDefinition? {
     val navigationLogic = selectLogic<NavigationLogic>()
-    return navigationLogic.getEffectiveGuidedFlowDefinition(route)
+    return navigationLogic.getEffectiveGuidedFlowDefinitionByRoute(route)
 }
 
 /**
