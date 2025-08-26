@@ -100,6 +100,7 @@ class NavigationModule internal constructor(
             allAvailableNavigatables = precomputedData.allNavigatables,
             graphHierarchyLookup = precomputedData.graphHierarchies,
             activeModalContexts = emptyMap(),
+            guidedFlowModifications = emptyMap(),
             activeGuidedFlowState = null
         )
     }
@@ -168,6 +169,7 @@ class NavigationModule internal constructor(
             allAvailableNavigatables = precomputedData.allNavigatables,
             graphHierarchyLookup = precomputedData.graphHierarchies,
             activeModalContexts = newModalContexts,
+            guidedFlowModifications = state.guidedFlowModifications,
             activeGuidedFlowState = state.activeGuidedFlowState
         )
     }
@@ -211,6 +213,19 @@ class NavigationModule internal constructor(
 
             is NavigationAction.ClearActiveGuidedFlow -> {
                 state.copy(activeGuidedFlowState = null)
+            }
+
+            is NavigationAction.UpdateGuidedFlowModifications -> {
+                val updatedModifications = if (action.modifiedDefinition != null) {
+                    state.guidedFlowModifications + (action.flowRoute to action.modifiedDefinition)
+                } else {
+                    state.guidedFlowModifications - action.flowRoute
+                }
+                state.copy(guidedFlowModifications = updatedModifications)
+            }
+
+            is NavigationAction.ClearAllGuidedFlowModifications -> {
+                state.copy(guidedFlowModifications = emptyMap())
             }
 
         }

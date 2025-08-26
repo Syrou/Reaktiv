@@ -154,9 +154,9 @@ class GuidedFlowDslTest {
         // Flow should now have 4 steps total
         val activeFlow = stateAfterOperations.activeGuidedFlowState
         assertNotNull(activeFlow)
-        val runtimeDefinition = activeFlow.runtimeDefinition
-        assertNotNull(runtimeDefinition)
-        assertEquals(4, runtimeDefinition.steps.size)
+        val modifiedDefinition = stateAfterOperations.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
+        assertEquals(4, modifiedDefinition.steps.size)
     }
 
     @Test
@@ -192,9 +192,9 @@ class GuidedFlowDslTest {
         // Verify the step was replaced with correct parameters
         val activeFlow = stateAfterOperations.activeGuidedFlowState
         assertNotNull(activeFlow)
-        val runtimeDefinition = activeFlow.runtimeDefinition
-        assertNotNull(runtimeDefinition)
-        val replacedStep = runtimeDefinition.steps[2]
+        val modifiedDefinition = stateAfterOperations.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
+        val replacedStep = modifiedDefinition.steps[2]
         val params = replacedStep.getParams()
         assertEquals(true, params.getBoolean("replaced"))
         assertEquals(2, params.getInt("version"))
@@ -238,9 +238,9 @@ class GuidedFlowDslTest {
         // Step 1 should have updated parameters
         val activeFlow = stateAfterOperations.activeGuidedFlowState
         assertNotNull(activeFlow)
-        val runtimeDefinition = activeFlow.runtimeDefinition
-        assertNotNull(runtimeDefinition)
-        val step1 = runtimeDefinition.steps[1]
+        val modifiedDefinition = stateAfterOperations.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
+        val step1 = modifiedDefinition.steps[1]
         val params = step1.getParams()
         assertEquals(true, params.getBoolean("backtracked"))
     }
@@ -305,12 +305,12 @@ class GuidedFlowDslTest {
         val stateAfter = store.selectState<NavigationState>().first()
         val activeFlowAfter = stateAfter.activeGuidedFlowState
         assertNotNull(activeFlowAfter)
-        val runtimeDefinition = activeFlowAfter.runtimeDefinition
-        assertNotNull(runtimeDefinition)
-        assertEquals(2, runtimeDefinition.steps.size)
+        val modifiedDefinition = stateAfter.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
+        assertEquals(2, modifiedDefinition.steps.size)
         
         // Verify DslTestScreen2 is no longer in the flow
-        val remainingSteps = runtimeDefinition.steps.map { 
+        val remainingSteps = modifiedDefinition.steps.map { 
             when (it) {
                 is GuidedFlowStep.TypedScreen -> it.screenClass
                 is GuidedFlowStep.Route -> it.route
@@ -342,12 +342,12 @@ class GuidedFlowDslTest {
         val stateAfter = store.selectState<NavigationState>().first()
         val activeFlow = stateAfter.activeGuidedFlowState
         assertNotNull(activeFlow)
-        val runtimeDefinition = activeFlow.runtimeDefinition
-        assertNotNull(runtimeDefinition)
-        assertEquals(3, runtimeDefinition.steps.size)
+        val modifiedDefinition = stateAfter.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
+        assertEquals(3, modifiedDefinition.steps.size)
         
         // Verify the replacement at index 1 (original DslTestScreen2 position)
-        val replacedStep = runtimeDefinition.steps[1]
+        val replacedStep = modifiedDefinition.steps[1]
         assertTrue(replacedStep is GuidedFlowStep.TypedScreen)
         assertEquals(DslTestScreen1::class.qualifiedName, replacedStep.screenClass)
         val params = replacedStep.getParams()
@@ -376,11 +376,11 @@ class GuidedFlowDslTest {
         val stateAfter = store.selectState<NavigationState>().first()
         val activeFlow = stateAfter.activeGuidedFlowState
         assertNotNull(activeFlow)
-        val runtimeDefinition = activeFlow.runtimeDefinition
-        assertNotNull(runtimeDefinition)
+        val modifiedDefinition = stateAfter.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
         
         // Verify DslTestScreen2 has the updated parameters
-        val updatedStep = runtimeDefinition.steps[1] // DslTestScreen2 is at index 1
+        val updatedStep = modifiedDefinition.steps[1] // DslTestScreen2 is at index 1
         val params = updatedStep.getParams()
         assertEquals("123", params.getString("userId"))
         assertEquals(99999, params.getInt("timestamp"))
@@ -418,11 +418,11 @@ class GuidedFlowDslTest {
         val stateAfter = store.selectState<NavigationState>().first()
         val activeFlow = stateAfter.activeGuidedFlowState
         assertNotNull(activeFlow)
-        val runtimeDefinition = activeFlow.runtimeDefinition
-        assertNotNull(runtimeDefinition)
+        val modifiedDefinition = stateAfter.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
         
         // Verify DslTestScreen3 has the updated typed parameters
-        val updatedStep = runtimeDefinition.steps[2] // DslTestScreen3 is at index 2
+        val updatedStep = modifiedDefinition.steps[2] // DslTestScreen3 is at index 2
         val params = updatedStep.getParams()
         
         // Check typed parameter (should be SerializableParam)
@@ -600,18 +600,18 @@ class GuidedFlowDslTest {
         val stateAfter = store.selectState<NavigationState>().first()
         val activeFlow = stateAfter.activeGuidedFlowState
         assertNotNull(activeFlow)
-        val runtimeDefinition = activeFlow.runtimeDefinition
-        assertNotNull(runtimeDefinition)
+        val modifiedDefinition = stateAfter.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
         
         // Should have 2 steps now (original 3 - 1 removed)
-        assertEquals(2, runtimeDefinition.steps.size)
+        assertEquals(2, modifiedDefinition.steps.size)
         
         // DslTestScreen2 should have updated parameters
-        val updatedStep = runtimeDefinition.steps[0] // DslTestScreen2 is now at index 0 after DslTestScreen1 was removed
+        val updatedStep = modifiedDefinition.steps[0] // DslTestScreen2 is now at index 0 after DslTestScreen1 was removed
         assertEquals("value", updatedStep.getParams().getString("test"))
         
         // DslTestScreen3 should have been replaced with DslTestScreen1
-        val replacedStep = runtimeDefinition.steps[1] // The replaced step
+        val replacedStep = modifiedDefinition.steps[1] // The replaced step
         assertTrue(replacedStep is GuidedFlowStep.TypedScreen)
         assertEquals(DslTestScreen1::class.qualifiedName, replacedStep.screenClass)
         assertEquals(true, replacedStep.getParams().getBoolean("replaced"))
@@ -658,10 +658,10 @@ class GuidedFlowDslTest {
         val stateAfter = store.selectState<NavigationState>().first()
         val activeFlow = stateAfter.activeGuidedFlowState
         assertNotNull(activeFlow)
-        val runtimeDefinition = activeFlow.runtimeDefinition
-        assertNotNull(runtimeDefinition)
+        val modifiedDefinition = stateAfter.guidedFlowModifications[Route.TestFlow]
+        assertNotNull(modifiedDefinition)
         
-        val updatedStep = runtimeDefinition.steps[1] // DslTestScreen2 is at index 1
+        val updatedStep = modifiedDefinition.steps[1] // DslTestScreen2 is at index 1
         val params = updatedStep.getParams()
 
         // Verify typed parameters exist as SerializableParam objects
@@ -841,7 +841,7 @@ class GuidedFlowDslTest {
         val stateAfterModification = store.selectState<NavigationState>().first()
         val activeFlow = stateAfterModification.activeGuidedFlowState
         assertNotNull(activeFlow, "Active guided flow should exist")
-        val modifiedDefinition = activeFlow.runtimeDefinition
+        val modifiedDefinition = stateAfterModification.guidedFlowModifications[Route.TestFlow]
         assertNotNull(modifiedDefinition, "Runtime definition should contain modifications")
         val modifiedStep = modifiedDefinition.steps[1]
         assertEquals("https://example.com", modifiedStep.getParams().getString("deeplink"))
@@ -873,6 +873,8 @@ class GuidedFlowDslTest {
         assertNotNull(freshFlow, "Second run should have active flow")
         
         // Should not have runtime modifications from the first run
-        assertNull(freshFlow.runtimeDefinition, "Second run should start with clean state (no runtime modifications)")
+        // Second run should start with clean state (no runtime modifications)
+        val freshModifications = stateSecondRun.guidedFlowModifications[Route.TestFlow]
+        assertNull(freshModifications, "Second run should start with clean state (no runtime modifications)")
     }
 }

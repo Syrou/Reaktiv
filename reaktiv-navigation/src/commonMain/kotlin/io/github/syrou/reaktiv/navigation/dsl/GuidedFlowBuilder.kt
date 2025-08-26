@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation.dsl
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -38,6 +39,7 @@ import kotlin.reflect.KClass
 class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
     private val steps = mutableListOf<GuidedFlowStep>()
     private var onCompleteBlock: (suspend (StoreAccessor) -> Unit)? = null
+    private var clearBehavior: ClearModificationBehavior = ClearModificationBehavior.CLEAR_ALL
     private var pendingStepBuilder: GuidedFlowStepBuilder? = null
 
     /**
@@ -90,6 +92,19 @@ class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
     fun clearOnComplete() {
         finalizePendingStep()
         onCompleteBlock = null
+    }
+
+    /**
+     * Configure how modifications should be cleared when this flow completes.
+     * 
+     * @param behavior The clearing behavior to use:
+     *   - CLEAR_ALL: Clear all flow modifications (default)
+     *   - CLEAR_SPECIFIC: Clear only this flow's modifications
+     *   - CLEAR_NONE: Don't clear any modifications
+     */
+    fun clearModificationsOnComplete(behavior: ClearModificationBehavior) {
+        finalizePendingStep()
+        clearBehavior = behavior
     }
 
     /**
@@ -202,6 +217,7 @@ class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
         return GuidedFlowDefinition(
             guidedFlow = guidedFlow,
             steps = steps.toList(),
+            clearModificationsOnComplete = clearBehavior,
             onComplete = onCompleteBlock
         )
     }

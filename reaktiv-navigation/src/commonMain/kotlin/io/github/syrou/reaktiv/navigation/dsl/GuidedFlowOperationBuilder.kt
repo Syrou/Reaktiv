@@ -2,7 +2,9 @@ package io.github.syrou.reaktiv.navigation.dsl
 
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationLogic
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
@@ -114,11 +116,20 @@ class GuidedFlowOperationBuilder(
     suspend fun findStepByType(screenClassName: String): Int {
         val navigationLogic = storeAccessor.selectLogic<NavigationLogic>()
         val flowDefinition = navigationLogic.getEffectiveGuidedFlowDefinitionByRoute(flowRoute) ?: return -1
+        val navigationState = storeAccessor.selectState<NavigationState>().first()
         
         return flowDefinition.steps.indexOfFirst { step ->
             when (step) {
                 is GuidedFlowStep.TypedScreen -> step.screenClass == screenClassName
-                is GuidedFlowStep.Route -> false // Route steps don't match type searches
+                is GuidedFlowStep.Route -> {
+                    // Check if this route step corresponds to the target screen type
+                    val baseRoute = step.route.split('?')[0]
+                    navigationState.allAvailableNavigatables.values
+                        .filterIsInstance<Screen>()
+                        .any { screen -> 
+                            screen.route == baseRoute && screen::class.qualifiedName == screenClassName
+                        }
+                }
             }
         }
     }

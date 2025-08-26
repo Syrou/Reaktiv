@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -31,6 +32,7 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
+import io.github.syrou.reaktiv.navigation.dsl.guidedFlow
 import kotlin.test.assertFalse
 
 // Test module for conditional navigation testing
@@ -887,66 +889,6 @@ class GuidedFlowTest {
     }
     
     @Test
-    fun `should preserve modifications when flow is started after being modified`() = runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        var modifiedOnCompleteTriggered = false
-        
-        val store = createStore {
-            module(createTestNavigationModule())
-            coroutineContext(testDispatcher)
-        }
-
-        val uri = "https://example.com/deeplink"
-        
-        // FIRST: Modify the guided flow (simulate the setupLoggedOutDeeplinkFlows scenario)
-        store.guidedFlow("test-flow") {
-            updateStepParams<TestWelcomeScreen> {
-                putString("DEEPLINK", uri)
-            }
-            updateOnComplete { storeAccessor ->
-                modifiedOnCompleteTriggered = true
-                storeAccessor.navigation {
-                    navigateTo(TestPreferencesScreen.route)
-                }
-            }
-        }
-        advanceUntilIdle()
-
-        // Verify that a placeholder flow state was created
-        var state = store.selectState<NavigationState>().first()
-        assertNotNull(state.activeGuidedFlowState, "Should have created placeholder flow state")
-        assertEquals("test-flow", state.activeGuidedFlowState?.flowRoute, "Placeholder should have correct flow route")
-        assertNotNull(state.activeGuidedFlowState?.runtimeDefinition, "Placeholder should have runtime definition")
-
-        // SECOND: Start the guided flow later (simulate the actual StartGuidedFlow call)
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
-        advanceUntilIdle()
-
-        // Verify that the flow started with modifications intact
-        state = store.selectState<NavigationState>().first()
-        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable, "Should navigate to first step")
-        
-        // This is the key assertion - the DEEPLINK parameter should be present
-        val deeplinkParam = state.currentEntry.params.getString("DEEPLINK")
-        assertEquals(uri, deeplinkParam, "TestWelcomeScreen should receive the modified DEEPLINK parameter")
-
-        // Complete the flow to verify the modified onComplete handler is used
-        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
-        advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen  
-        advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete the flow
-        advanceUntilIdle()
-
-        // Verify modified onComplete handler was called
-        assertTrue(modifiedOnCompleteTriggered, "Modified onComplete handler should be triggered")
-        
-        val finalState = store.selectState<NavigationState>().first()
-        assertEquals(TestPreferencesScreen, finalState.currentEntry.navigatable, "Should navigate to TestPreferencesScreen from modified onComplete")
-        assertEquals(null, finalState.activeGuidedFlowState, "Guided flow should be cleared after completion")
-    }
-    
-    @Test
     fun `should apply modifications and navigate in same DSL call - reproduce user bug`() = runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         var modifiedOnCompleteTriggered = false
@@ -1072,5 +1014,523 @@ class GuidedFlowTest {
         val prefDeeplink = state.currentEntry.params.getString("DEEPLINK")
         assertEquals("true", prefFinalStep, "TestPreferencesScreen should receive modified FINAL_STEP parameter")
         assertEquals(uri, prefDeeplink, "TestPreferencesScreen should receive modified DEEPLINK parameter")
+    }
+
+    @Test
+    fun `should handle multiple flows with different modifications simultaneously`() = runTest(timeout = 15.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        var signupOnCompleteTriggered = false
+        var onboardingOnCompleteTriggered = false
+        
+        // Create navigation module with CLEAR_NONE flows for this test
+        val testNavigationModule = createNavigationModule {
+            rootGraph {
+                startScreen(TestHomeScreen)
+                screens(TestHomeScreen, TestWelcomeScreen, TestProfileScreen, TestPreferencesScreen)
+            }
+            
+            guidedFlow("test-flow") {
+                step<TestWelcomeScreen>()
+                step<TestProfileScreen>()
+                step<TestPreferencesScreen>()
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_NONE)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo(TestHomeScreen.route)
+                        clearBackStack()
+                    }
+                }
+            }
+            
+            guidedFlow("builder-flow") {
+                step<TestWelcomeScreen>()
+                step("test-profile?source=guided").param("profileType", "basic")
+                step<TestPreferencesScreen>().param("step", "3")
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_NONE)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo("test-home")
+                        clearBackStack()
+                    }
+                }
+            }
+        }
+        
+        val store = createStore {
+            module(testNavigationModule)
+            coroutineContext(testDispatcher)
+        }
+
+        val signupDeeplink = "https://example.com/signup"
+        val onboardingDeeplink = "https://example.com/onboarding"
+        
+        // SCENARIO: Modify two different flows with same screen but different parameters
+        
+        // Modify signup-flow - modifications will persist based on flow definition
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("DEEPLINK", signupDeeplink)
+                putString("FLOW_TYPE", "SIGNUP")
+                putString("USER_ID", "signup-123")
+            }
+            updateOnComplete { storeAccessor ->
+                signupOnCompleteTriggered = true
+                storeAccessor.navigation {
+                    navigateTo(TestProfileScreen.route)
+                }
+            }
+        }
+        advanceUntilIdle()
+
+        // Modify builder-flow (different flow, same screen type but different params)
+        store.guidedFlow("builder-flow") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("DEEPLINK", onboardingDeeplink)
+                putString("FLOW_TYPE", "ONBOARDING")  
+                putString("USER_ID", "onboarding-456")
+            }
+            updateOnComplete { storeAccessor ->
+                onboardingOnCompleteTriggered = true
+                storeAccessor.navigation {
+                    navigateTo(TestPreferencesScreen.route)
+                }
+            }
+        }
+        advanceUntilIdle()
+
+        // Verify both flows have stored their modifications separately
+        val stateAfterModifications = store.selectState<NavigationState>().first()
+        assertTrue(stateAfterModifications.guidedFlowModifications.containsKey("test-flow"), "Should have modifications for test-flow")
+        assertTrue(stateAfterModifications.guidedFlowModifications.containsKey("builder-flow"), "Should have modifications for builder-flow")
+
+        // TEST 1: Start and complete signup flow - should use signup modifications
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        var state = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable, "Should start on TestWelcomeScreen")
+        
+        // Verify signup-specific parameters
+        assertEquals(signupDeeplink, state.currentEntry.params.getString("DEEPLINK"), "Should have signup deeplink")
+        assertEquals("SIGNUP", state.currentEntry.params.getString("FLOW_TYPE"), "Should have signup flow type")
+        assertEquals("signup-123", state.currentEntry.params.getString("USER_ID"), "Should have signup user ID")
+
+        // Complete signup flow
+        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        advanceUntilIdle()
+
+        // Verify signup completion
+        assertTrue(signupOnCompleteTriggered, "Signup onComplete should be triggered")
+        assertFalse(onboardingOnCompleteTriggered, "Onboarding onComplete should NOT be triggered yet")
+        
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestProfileScreen, state.currentEntry.navigatable, "Should navigate to TestProfileScreen (signup completion)")
+        assertEquals(null, state.activeGuidedFlowState, "Signup flow should be cleared")
+
+        // TEST 2: Start and complete onboarding flow - should use onboarding modifications
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("builder-flow")))
+        advanceUntilIdle()
+
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable, "Should start on TestWelcomeScreen for onboarding")
+        
+        // Verify onboarding-specific parameters (different from signup!)
+        assertEquals(onboardingDeeplink, state.currentEntry.params.getString("DEEPLINK"), "Should have onboarding deeplink")
+        assertEquals("ONBOARDING", state.currentEntry.params.getString("FLOW_TYPE"), "Should have onboarding flow type")
+        assertEquals("onboarding-456", state.currentEntry.params.getString("USER_ID"), "Should have onboarding user ID")
+
+        // Complete onboarding flow
+        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen  
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        advanceUntilIdle()
+
+        // Verify onboarding completion
+        assertTrue(onboardingOnCompleteTriggered, "Onboarding onComplete should be triggered")
+        
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestPreferencesScreen, state.currentEntry.navigatable, "Should navigate to TestPreferencesScreen (onboarding completion)")
+        assertEquals(null, state.activeGuidedFlowState, "Onboarding flow should be cleared")
+
+        // TEST 3: Verify modifications are preserved since both flows use CLEAR_NONE
+        val finalState = store.selectState<NavigationState>().first()
+        assertTrue(finalState.guidedFlowModifications.containsKey("test-flow"), "test-flow modifications should be preserved with CLEAR_NONE")
+        assertTrue(finalState.guidedFlowModifications.containsKey("builder-flow"), "builder-flow modifications should be preserved with CLEAR_NONE")
+    }
+
+    @Test
+    fun `should handle multiple flows with same screen type but different step parameters`() = runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        
+        // Create navigation module with CLEAR_NONE flows for this test
+        val testNavigationModule = createNavigationModule {
+            rootGraph {
+                startScreen(TestHomeScreen)
+                screens(TestHomeScreen, TestWelcomeScreen, TestProfileScreen, TestPreferencesScreen)
+            }
+            
+            guidedFlow("test-flow") {
+                step<TestWelcomeScreen>()
+                step<TestProfileScreen>()
+                step<TestPreferencesScreen>()
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_NONE)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo(TestHomeScreen.route)
+                        clearBackStack()
+                    }
+                }
+            }
+            
+            guidedFlow("builder-flow") {
+                step<TestWelcomeScreen>()
+                step("test-profile?source=guided").param("profileType", "basic")
+                step<TestPreferencesScreen>().param("step", "3")
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_NONE)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo("test-home")
+                        clearBackStack()
+                    }
+                }
+            }
+        }
+        
+        val store = createStore {
+            module(testNavigationModule)
+            coroutineContext(testDispatcher)
+        }
+
+        // SCENARIO: Two flows both have TestProfileScreen but with different step-level modifications
+
+        // Flow 1: Modify TestProfileScreen for test-flow
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestProfileScreen> {  // This is step 1 in test-flow
+                putString("SCREEN_TYPE", "SIGNUP_PROFILE")
+                putString("THEME", "DARK")
+                putInt("VERSION", 1)
+            }
+        }
+        advanceUntilIdle()
+
+        // Flow 2: Modify TestProfileScreen for builder-flow  
+        store.guidedFlow("builder-flow") {
+            updateStepParams<TestProfileScreen> {  // This is step 1 in builder-flow
+                putString("SCREEN_TYPE", "ONBOARDING_PROFILE")
+                putString("THEME", "LIGHT")
+                putInt("VERSION", 2)
+                putBoolean("SHOW_TUTORIAL", true)
+            }
+        }
+        advanceUntilIdle()
+
+        // Verify both modifications are stored separately
+        val stateAfterMods = store.selectState<NavigationState>().first()
+        assertEquals(2, stateAfterMods.guidedFlowModifications.size, "Should have modifications for both flows")
+
+        // TEST: Start test-flow and verify it gets test-flow's parameters
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Move to TestProfileScreen (step 1)
+        advanceUntilIdle()
+
+        var state = store.selectState<NavigationState>().first()
+        assertEquals(TestProfileScreen, state.currentEntry.navigatable, "Should be on TestProfileScreen")
+        assertEquals("SIGNUP_PROFILE", state.currentEntry.params.getString("SCREEN_TYPE"), "Should have test-flow's screen type")
+        assertEquals("DARK", state.currentEntry.params.getString("THEME"), "Should have test-flow's theme")
+        assertEquals(1, state.currentEntry.params.getInt("VERSION"), "Should have test-flow's version")
+        assertEquals(null, state.currentEntry.params.getBoolean("SHOW_TUTORIAL"), "Should NOT have route-flow's tutorial flag")
+
+        // Complete test-flow
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete
+        advanceUntilIdle()
+
+        // TEST: Start builder-flow and verify it gets builder-flow's parameters
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("builder-flow")))
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Move to TestProfileScreen (step 1)
+        advanceUntilIdle()
+
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestProfileScreen, state.currentEntry.navigatable, "Should be on TestProfileScreen")
+        assertEquals("ONBOARDING_PROFILE", state.currentEntry.params.getString("SCREEN_TYPE"), "Should have builder-flow's screen type")
+        assertEquals("LIGHT", state.currentEntry.params.getString("THEME"), "Should have builder-flow's theme")
+        assertEquals(2, state.currentEntry.params.getInt("VERSION"), "Should have builder-flow's version")
+        assertEquals(true, state.currentEntry.params.getBoolean("SHOW_TUTORIAL"), "Should have builder-flow's tutorial flag")
+    }
+
+    @Test
+    fun `should allow modifying multiple flows simultaneously without interference`() = runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        
+        // Create navigation module with CLEAR_NONE flows for this test
+        val testNavigationModule = createNavigationModule {
+            rootGraph {
+                startScreen(TestHomeScreen)
+                screens(TestHomeScreen, TestWelcomeScreen, TestProfileScreen, TestPreferencesScreen)
+            }
+            
+            guidedFlow("test-flow") {
+                step<TestWelcomeScreen>()
+                step<TestProfileScreen>()
+                step<TestPreferencesScreen>()
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_NONE)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo(TestHomeScreen.route)
+                        clearBackStack()
+                    }
+                }
+            }
+            
+            guidedFlow("route-flow") {
+                step("test-welcome")
+                step("test-profile?source=guided").param("profileType", "basic")
+                step("test-preferences")
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_NONE)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo("test-home")
+                        clearBackStack()
+                    }
+                }
+            }
+            
+            guidedFlow("builder-flow") {
+                step<TestWelcomeScreen>()
+                step("test-profile?source=guided").param("profileType", "basic")
+                step<TestPreferencesScreen>().param("step", "3")
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_NONE)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo("test-home")
+                        clearBackStack()
+                    }
+                }
+            }
+        }
+        
+        val store = createStore {
+            module(testNavigationModule)
+            coroutineContext(testDispatcher)
+        }
+
+        // SCENARIO: Rapidly modify multiple flows and verify they don't interfere with each other
+
+        // Modify multiple flows in quick succession
+        store.guidedFlow("test-flow") {
+            updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "TEST_FLOW_1") }
+            updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "TEST") }
+        }
+        
+        store.guidedFlow("route-flow") {
+            updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "ROUTE_FLOW_1") }
+            updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "ROUTE") }
+        }
+        
+        store.guidedFlow("builder-flow") {
+            updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "BUILDER_FLOW_1") }
+            updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "BUILDER") }
+        }
+        
+        advanceUntilIdle()
+
+        // Verify all three flows have their modifications stored
+        val state = store.selectState<NavigationState>().first()
+        assertEquals(3, state.guidedFlowModifications.size, "Should have modifications for all 3 flows")
+        assertTrue(state.guidedFlowModifications.containsKey("test-flow"), "Should have test-flow modifications")
+        assertTrue(state.guidedFlowModifications.containsKey("route-flow"), "Should have route-flow modifications") 
+        assertTrue(state.guidedFlowModifications.containsKey("builder-flow"), "Should have builder-flow modifications")
+
+        // TEST: Start each flow and verify they have their own parameters
+
+        // Test flow 1
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+        var currentState = store.selectState<NavigationState>().first()
+        assertEquals("TEST_FLOW_1", currentState.currentEntry.params.getString("FLOW_ID"), "test-flow should have its own ID")
+        
+        // Complete first flow
+        repeat(3) {
+            store.dispatch(NavigationAction.NextStep())
+            advanceUntilIdle()
+        }
+
+        // Test flow 2
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("route-flow")))
+        advanceUntilIdle()
+        currentState = store.selectState<NavigationState>().first()
+        assertEquals("ROUTE_FLOW_1", currentState.currentEntry.params.getString("FLOW_ID"), "route-flow should have its own ID")
+        
+        // Navigate to profile step and verify profile-specific params
+        store.dispatch(NavigationAction.NextStep())
+        advanceUntilIdle()
+        currentState = store.selectState<NavigationState>().first()
+        assertEquals("ROUTE", currentState.currentEntry.params.getString("PROFILE_TYPE"), "route-flow should have its own profile type")
+        
+        // Complete second flow
+        repeat(2) {
+            store.dispatch(NavigationAction.NextStep())
+            advanceUntilIdle()
+        }
+
+        // Test flow 3
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("builder-flow")))
+        advanceUntilIdle()
+        currentState = store.selectState<NavigationState>().first()
+        assertEquals("BUILDER_FLOW_1", currentState.currentEntry.params.getString("FLOW_ID"), "builder-flow should have its own ID")
+        
+        // Navigate to profile step and verify profile-specific params
+        store.dispatch(NavigationAction.NextStep())
+        advanceUntilIdle()
+        currentState = store.selectState<NavigationState>().first()
+        assertEquals("BUILDER", currentState.currentEntry.params.getString("PROFILE_TYPE"), "builder-flow should have its own profile type")
+    }
+
+    @Test
+    fun `should support configurable modification clearing behavior`() = runTest(timeout = 15.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        
+        // Create a test navigation module with flows that have different clearing behaviors
+        val testNavigationModule = createNavigationModule {
+            rootGraph {
+                startScreen(TestHomeScreen)
+                screens(TestHomeScreen, TestWelcomeScreen, TestProfileScreen, TestPreferencesScreen)
+            }
+            
+            // Flow 1: Uses CLEAR_SPECIFIC - only clears its own modifications
+            guidedFlow("flow-clear-specific") {
+                step<TestWelcomeScreen>()
+                step<TestProfileScreen>()
+                step<TestPreferencesScreen>()
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_SPECIFIC)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo(TestHomeScreen.route)
+                    }
+                }
+            }
+            
+            // Flow 2: Uses CLEAR_ALL - clears all modifications when it completes
+            guidedFlow("flow-clear-all") {
+                step<TestWelcomeScreen>()
+                step<TestProfileScreen>()
+                step<TestPreferencesScreen>()
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_ALL)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo(TestHomeScreen.route)
+                    }
+                }
+            }
+            
+            // Flow 3: Uses CLEAR_NONE - doesn't clear any modifications
+            guidedFlow("flow-clear-none") {
+                step<TestWelcomeScreen>()
+                step<TestProfileScreen>()
+                step<TestPreferencesScreen>()
+                clearModificationsOnComplete(ClearModificationBehavior.CLEAR_NONE)
+                onComplete { storeAccessor ->
+                    storeAccessor.navigation {
+                        navigateTo(TestHomeScreen.route)
+                    }
+                }
+            }
+        }
+        
+        val store = createStore {
+            module(testNavigationModule)
+            coroutineContext(testDispatcher)
+        }
+
+        // SCENARIO: Test different clearing behaviors
+        
+        // Apply runtime modifications to all flows (this should be allowed)
+        store.guidedFlow("flow-clear-specific") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("FLOW_TYPE", "CLEAR_SPECIFIC")
+            }
+        }
+        
+        store.guidedFlow("flow-clear-all") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("FLOW_TYPE", "CLEAR_ALL")
+            }
+        }
+        
+        store.guidedFlow("flow-clear-none") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("FLOW_TYPE", "CLEAR_NONE")
+            }
+        }
+        
+        advanceUntilIdle()
+
+        // Verify all three flows have their modifications stored
+        var state = store.selectState<NavigationState>().first()
+        assertEquals(3, state.guidedFlowModifications.size, "Should have modifications for all 3 flows")
+        assertTrue(state.guidedFlowModifications.containsKey("flow-clear-specific"), "Should have flow-clear-specific modifications")
+        assertTrue(state.guidedFlowModifications.containsKey("flow-clear-all"), "Should have flow-clear-all modifications")
+        assertTrue(state.guidedFlowModifications.containsKey("flow-clear-none"), "Should have flow-clear-none modifications")
+
+        // TEST 1: Complete flow-clear-specific - should only clear its own modifications
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("flow-clear-specific")))
+        advanceUntilIdle()
+        
+        // Complete the flow
+        repeat(3) {
+            store.dispatch(NavigationAction.NextStep())
+            advanceUntilIdle()
+        }
+
+        state = store.selectState<NavigationState>().first()
+        assertEquals(2, state.guidedFlowModifications.size, "Should have 2 modifications after CLEAR_SPECIFIC")
+        assertFalse(state.guidedFlowModifications.containsKey("flow-clear-specific"), "flow-clear-specific modifications should be cleared")
+        assertTrue(state.guidedFlowModifications.containsKey("flow-clear-all"), "flow-clear-all modifications should remain")
+        assertTrue(state.guidedFlowModifications.containsKey("flow-clear-none"), "flow-clear-none modifications should remain")
+
+        // TEST 2: Complete flow-clear-all - should clear ALL modifications
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("flow-clear-all")))
+        advanceUntilIdle()
+        
+        // Complete the flow
+        repeat(3) {
+            store.dispatch(NavigationAction.NextStep())
+            advanceUntilIdle()
+        }
+
+        state = store.selectState<NavigationState>().first()
+        assertEquals(0, state.guidedFlowModifications.size, "Should have 0 modifications after CLEAR_ALL")
+        assertFalse(state.guidedFlowModifications.containsKey("flow-clear-all"), "flow-clear-all modifications should be cleared")
+        assertFalse(state.guidedFlowModifications.containsKey("flow-clear-none"), "flow-clear-none modifications should also be cleared by CLEAR_ALL")
+
+        // TEST 3: Set up flow-clear-none again and verify CLEAR_NONE behavior
+        store.guidedFlow("flow-clear-none") {
+            updateStepParams<TestWelcomeScreen> {
+                putString("FLOW_TYPE", "CLEAR_NONE_AGAIN")
+            }
+        }
+        advanceUntilIdle()
+
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("flow-clear-none")))
+        advanceUntilIdle()
+        
+        // Complete the flow
+        repeat(3) {
+            store.dispatch(NavigationAction.NextStep())
+            advanceUntilIdle()
+        }
+
+        state = store.selectState<NavigationState>().first()
+        assertEquals(1, state.guidedFlowModifications.size, "Should have 1 modification after CLEAR_NONE")
+        assertTrue(state.guidedFlowModifications.containsKey("flow-clear-none"), "flow-clear-none modifications should remain with CLEAR_NONE")
     }
 }

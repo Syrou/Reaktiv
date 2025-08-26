@@ -15,6 +15,7 @@ import kotlinx.serialization.Transient
 data class GuidedFlowDefinition(
     val guidedFlow: GuidedFlow,
     val steps: List<GuidedFlowStep>,
+    val clearModificationsOnComplete: ClearModificationBehavior = ClearModificationBehavior.CLEAR_ALL,
     @Transient
     val onComplete: (suspend (StoreAccessor) -> Unit)? = null
 )

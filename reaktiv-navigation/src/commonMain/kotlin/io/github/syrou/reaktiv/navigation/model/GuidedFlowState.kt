@@ -16,8 +16,6 @@ data class GuidedFlowState(
     val currentStepIndex: Int = 0,
     val startedAt: Instant,
     val completedAt: Instant? = null,
-    
-    val runtimeDefinition: GuidedFlowDefinition? = null,
     val isOnFinalStep: Boolean = false,
     val progress: Float = 0f,
     val isCompleted: Boolean = false,

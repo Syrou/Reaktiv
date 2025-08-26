@@ -83,4 +83,13 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
     @Serializable
     data object ClearActiveGuidedFlow : NavigationAction(), HighPriorityAction
 
+    @Serializable
+    data class UpdateGuidedFlowModifications(
+        val flowRoute: String,
+        val modifiedDefinition: GuidedFlowDefinition?  // null to remove modifications
+    ) : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    data object ClearAllGuidedFlowModifications : NavigationAction(), HighPriorityAction
+
 }
