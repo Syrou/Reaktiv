@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.getGuidedFlow
+import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.guidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.getParams
@@ -62,7 +63,6 @@ object DslTestScreen3 : Screen {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GuidedFlowDslTest {
-    // Temporarily disabled while fixing other test issues
 
     private fun createTestNavigationModule() = createNavigationModule {
         rootGraph {
@@ -219,14 +219,13 @@ class GuidedFlowDslTest {
         val stateBeforeOperations = store.selectState<NavigationState>().first()
         assertEquals(2, stateBeforeOperations.activeGuidedFlowState?.currentStepIndex)
 
-        // Use DSL to go back and modify
+        // Use DSL to modify
         store.guidedFlow(Route.TestFlow) {
-            // Go back to previous step
-            previousStep()
             
             // Update parameters for the current step
             updateStepParams(1, Params.of("backtracked" to true))
         }
+        store.navigateBack()
         advanceUntilIdle()
 
         val stateAfterOperations = store.selectState<NavigationState>().first()
@@ -574,10 +573,6 @@ class GuidedFlowDslTest {
             coroutineContext(testDispatcher)
         }
 
-        // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
-        advanceUntilIdle()
-
         // Test that operations return true when they successfully find and operate on types
         var operationResults: Triple<Boolean, Boolean, Boolean>? = null
         store.guidedFlow(Route.TestFlow) {
@@ -587,6 +582,10 @@ class GuidedFlowDslTest {
             operationResults = Triple(updateResult, replaceResult, removeResult)
             nextStep()
         }
+        advanceUntilIdle()
+
+        // Start guided flow
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
         advanceUntilIdle()
 
         // All operations should return true indicating success

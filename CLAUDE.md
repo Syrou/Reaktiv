@@ -203,7 +203,6 @@ store.dispatch(NavigationAction.NextStep())
 - `updateStepParams(stepIndex, newParams)` - Update step parameters
 - `updateOnComplete(onComplete)` - Update completion handler
 - `nextStep(params)` - Navigate to next step
-- `previousStep()` - Navigate to previous step
 
 ## Key Directories
 

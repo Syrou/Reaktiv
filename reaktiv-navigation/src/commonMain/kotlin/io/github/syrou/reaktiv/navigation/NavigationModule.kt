@@ -203,10 +203,6 @@ class NavigationModule internal constructor(
                 state
             }
 
-            is NavigationAction.PreviousStep -> {
-                state
-            }
-
             is NavigationAction.UpdateActiveGuidedFlow -> {
                 state.copy(activeGuidedFlowState = action.flowState)
             }

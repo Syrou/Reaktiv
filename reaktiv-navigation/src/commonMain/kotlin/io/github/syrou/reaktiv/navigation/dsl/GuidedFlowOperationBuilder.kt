@@ -92,12 +92,6 @@ class GuidedFlowOperationBuilder(
         operations.add(GuidedFlowOperation.NextStep(params))
     }
     
-    /**
-     * Navigate to the previous step in the guided flow
-     */
-    fun previousStep() {
-        operations.add(GuidedFlowOperation.PreviousStep)
-    }
     
     /**
      * Find step index by Screen type in the current guided flow
@@ -342,5 +336,4 @@ class TypedParameterBuilder {
 sealed class GuidedFlowOperation {
     data class Modify(val modification: FlowModification) : GuidedFlowOperation()
     data class NextStep(val params: Params = Params.empty()) : GuidedFlowOperation()
-    object PreviousStep : GuidedFlowOperation()
 }

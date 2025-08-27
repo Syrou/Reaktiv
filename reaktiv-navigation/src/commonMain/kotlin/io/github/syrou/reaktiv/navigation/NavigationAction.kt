@@ -71,8 +71,6 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
         val params: Params = Params.empty()
     ) : NavigationAction()
 
-    @Serializable
-    data object PreviousStep : NavigationAction()
 
     // Internal GuidedFlow actions
     @Serializable

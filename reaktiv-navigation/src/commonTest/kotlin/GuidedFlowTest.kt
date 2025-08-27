@@ -33,6 +33,7 @@ import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.dsl.guidedFlow
+import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import kotlin.test.assertFalse
 
 // Test module for conditional navigation testing
@@ -263,7 +264,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // Move to previous step
-        store.dispatch(NavigationAction.PreviousStep)
+        store.navigateBack()
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -367,7 +368,7 @@ class GuidedFlowTest {
     }
 
     @Test
-    fun `should not allow previous step from first step`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+    fun `should exit guided flow when calling previous step from first step`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
             module(createTestNavigationModule())
@@ -378,15 +379,16 @@ class GuidedFlowTest {
         store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
         advanceUntilIdle()
 
-        // Try to go to previous step (should be ignored)
-        store.dispatch(NavigationAction.PreviousStep)
+        // Try to go to previous step (should exit the guided flow)
+        store.navigateBack()
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
 
-        // Should remain on first step
-        assertEquals(TestWelcomeScreen, state.currentEntry.screen)
-        assertEquals(0, state.activeGuidedFlowState?.currentStepIndex)
+        // Should have exited the guided flow and returned to previous screen
+        assertNull(state.activeGuidedFlowState)
+        // Should be back on the screen that was before the guided flow started
+        assertEquals(TestHomeScreen, state.currentEntry.screen)
     }
 
     @Test

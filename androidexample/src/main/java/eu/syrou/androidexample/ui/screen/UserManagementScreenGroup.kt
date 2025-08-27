@@ -26,6 +26,7 @@ import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
+import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -153,9 +154,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 }
                 Button(onClick = {
                     store.launch {
-                        store.guidedFlow("user-management") {
-                            previousStep()
-                        }
+                        store.navigateBack()
                     }
                 }) {
                     Text("Previous Step")
@@ -198,9 +197,7 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 }
                 Button(onClick = {
                     store.launch {
-                        store.guidedFlow("user-management") {
-                            previousStep()
-                        }
+                        store.navigateBack()
                     }
                 }) {
                     Text("Previous Step")
