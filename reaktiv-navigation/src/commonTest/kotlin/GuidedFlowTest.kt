@@ -1535,4 +1535,63 @@ class GuidedFlowTest {
         assertEquals(1, state.guidedFlowModifications.size, "Should have 1 modification after CLEAR_NONE")
         assertTrue(state.guidedFlowModifications.containsKey("flow-clear-none"), "flow-clear-none modifications should remain with CLEAR_NONE")
     }
+    
+    @Test
+    fun `should prevent starting concurrent guided flows`() = runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        
+        val store = createStore {
+            module(createTestNavigationModule())
+            coroutineContext(testDispatcher)
+        }
+
+        // Start first guided flow
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        advanceUntilIdle()
+
+        var state = store.selectState<NavigationState>().first()
+        assertNotNull(state.activeGuidedFlowState, "First flow should be active")
+        assertEquals("test-flow", state.activeGuidedFlowState?.flowRoute)
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable, "Should be on first step of first flow")
+
+        // Try to start second guided flow while first is still active
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow"), Params.of("userId" to "123")))
+        advanceUntilIdle()
+
+        state = store.selectState<NavigationState>().first()
+        assertNotNull(state.activeGuidedFlowState, "Active flow should still be the first one")
+        assertEquals("test-flow", state.activeGuidedFlowState?.flowRoute, "Active flow should still be the first one")
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable, "Should still be on first step of first flow")
+        assertEquals(0, state.activeGuidedFlowState?.currentStepIndex, "Should still be on first step")
+
+        // Advance the first flow to make sure it's still working normally
+        store.dispatch(NavigationAction.NextStep())
+        advanceUntilIdle()
+
+        state = store.selectState<NavigationState>().first()
+        assertEquals(TestProfileScreen, state.currentEntry.navigatable, "First flow should advance to next step")
+        assertEquals(1, state.activeGuidedFlowState?.currentStepIndex, "Should be on second step of first flow")
+
+        // Complete the first flow
+        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        advanceUntilIdle()
+        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        advanceUntilIdle()
+
+        state = store.selectState<NavigationState>().first()
+        assertNull(state.activeGuidedFlowState, "Flow should be completed and cleared")
+
+        // Now try to start another flow - this should succeed
+        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow"), Params.of("userId" to "456")))
+        advanceUntilIdle()
+
+        state = store.selectState<NavigationState>().first()
+        assertNotNull(state.activeGuidedFlowState, "New flow should be active")
+        assertEquals("test-flow", state.activeGuidedFlowState?.flowRoute)
+        assertEquals(TestWelcomeScreen, state.currentEntry.navigatable, "Should be on first step of new flow")
+        assertEquals(0, state.activeGuidedFlowState?.currentStepIndex, "Should be on first step of new flow")
+        
+        // Verify the new flow received the parameters
+        assertEquals("456", state.currentEntry.params.getString("userId"), "New flow should receive the parameters")
+    }
 }

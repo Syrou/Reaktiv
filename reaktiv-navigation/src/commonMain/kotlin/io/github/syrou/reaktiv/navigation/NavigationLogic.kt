@@ -963,6 +963,14 @@ class NavigationLogic(
     }
 
     private suspend fun handleStartGuidedFlow(action: NavigationAction.StartGuidedFlow) {
+        val currentState = getCurrentNavigationState()
+        
+        // Prevent starting a new guided flow if one is already active
+        if (currentState.activeGuidedFlowState != null && !currentState.activeGuidedFlowState.isCompleted) {
+            ReaktivDebug.nav("⛔ Cannot start guided flow '${action.guidedFlow.route}' - another guided flow '${currentState.activeGuidedFlowState.flowRoute}' is already active")
+            return
+        }
+        
         val effectiveDefinition = getEffectiveDefinition(action.guidedFlow.route)
         
         if (effectiveDefinition != null && effectiveDefinition.steps.isNotEmpty()) {
