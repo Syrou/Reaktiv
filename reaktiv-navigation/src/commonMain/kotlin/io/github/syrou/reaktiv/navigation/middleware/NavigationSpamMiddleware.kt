@@ -63,17 +63,10 @@ class NavigationSpamMiddleware(
             // Allow Back actions - users should be able to navigate back quickly
             is NavigationAction.Back -> return@withLock false
 
-            // Allow guided flow user actions - but they still get tracked
-            is NavigationAction.StartGuidedFlow,
-            is NavigationAction.NextStep -> {
-                /* Continue with spam detection */
-            }
-
             // Skip internal/high-priority actions completely
-            is NavigationAction.UpdateActiveGuidedFlow,
-            is NavigationAction.ClearActiveGuidedFlow,
             is NavigationAction.UpdateGuidedFlowModifications,
-            is NavigationAction.ClearAllGuidedFlowModifications -> return@withLock false
+            is NavigationAction.ClearAllGuidedFlowModifications,
+            is NavigationAction.CompleteGuidedFlow -> return@withLock false
 
             else -> {
                 /* Continue with spam detection */
@@ -144,9 +137,12 @@ class NavigationSpamMiddleware(
                 sequenceNumber++
 
                 // Clean old actions periodically to prevent memory leaks
-                // Keep reasonable history size
-                if (actionHistory.size > 50) {
-                    actionHistory.removeAll { currentTime - it.timestamp > windowSizeMs * 2 }
+                // Remove actions older than 2x window size, or if we exceed max history size
+                val maxHistorySize = 50
+                val cleanupThreshold = windowSizeMs * 2
+                
+                if (actionHistory.size > maxHistorySize || sequenceNumber % 10L == 0L) {
+                    actionHistory.removeAll { currentTime - it.timestamp > cleanupThreshold }
                 }
 
                 ReaktivDebug.nav("📊 Tracked action: ${action::class.simpleName} (route: $route) - history size: ${actionHistory.size}")

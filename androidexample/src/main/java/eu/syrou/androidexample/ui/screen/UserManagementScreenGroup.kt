@@ -28,6 +28,7 @@ import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.flow.first
@@ -41,11 +42,9 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
      * The flow definition is configured at module creation time in CustomApplication.kt
      */
     suspend fun startUserManagementFlow(store: Store, userId: String) {
-        store.dispatch(
-            NavigationAction.StartGuidedFlow(
-                GuidedFlow("user-management"),
-                Params.of("userId" to userId)
-            )
+        store.startGuidedFlow(
+            "user-management",
+            Params.of("userId" to userId)
         )
     }
 

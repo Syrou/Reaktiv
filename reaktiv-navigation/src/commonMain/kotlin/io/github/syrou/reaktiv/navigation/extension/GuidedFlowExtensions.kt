@@ -2,17 +2,10 @@ package io.github.syrou.reaktiv.navigation.extension
 
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectLogic
-import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationLogic
-import io.github.syrou.reaktiv.navigation.NavigationState
-import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
-import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
-import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperationBuilder
-import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
-import kotlinx.coroutines.flow.first
+import io.github.syrou.reaktiv.navigation.param.Params
 
 /**
  * Get a guided flow definition by route
@@ -24,19 +17,30 @@ suspend fun StoreAccessor.getGuidedFlow(route: String): GuidedFlowDefinition? {
 
 /**
  * Start a guided flow by route
+ * This method is suspending and waits for the flow state to be properly initialized
  */
 suspend fun StoreAccessor.startGuidedFlow(
     route: String,
     params: Params = Params.empty()
 ) {
-    dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(route), params))
+    this.selectLogic<NavigationLogic>().startGuidedFlow(route, params)
+}
+
+/**
+ * Navigate to the next step in the currently active guided flow
+ * This method is suspending and waits for the navigation to complete
+ */
+suspend fun StoreAccessor.nextGuidedFlowStep(
+    params: Params = Params.empty()
+) {
+    this.selectLogic<NavigationLogic>().nextGuidedFlowStep(params)
 }
 
 
 /**
  * Execute multiple guided flow operations atomically
  * This is the main DSL entry point for guided flow operations
- * 
+ *
  * Example:
  * ```
  * storeAccessor.guidedFlow("signup-flow") {

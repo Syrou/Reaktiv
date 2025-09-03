@@ -34,6 +34,8 @@ import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.dsl.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
+import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
+import io.github.syrou.reaktiv.navigation.extension.nextGuidedFlowStep
 import kotlin.test.assertFalse
 
 // Test module for conditional navigation testing
@@ -194,7 +196,7 @@ class GuidedFlowTest {
         }
 
         // Start guided flow (definition already configured in module)
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -226,11 +228,11 @@ class GuidedFlowTest {
         }
 
         // Start guided flow (definition already configured in module)
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Move to next step
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -258,9 +260,9 @@ class GuidedFlowTest {
         }
 
         // Start guided flow and move to step 2 (definition already configured in module)
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
 
         // Move to previous step
@@ -291,11 +293,11 @@ class GuidedFlowTest {
         }
 
         // Start guided flow and navigate to final step (definition already configured in module)
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Step 1
+        store.nextGuidedFlowStep() // Step 1
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Step 2 (final)
+        store.nextGuidedFlowStep() // Step 2 (final)
         advanceUntilIdle()
 
         val stateBeforeCompletion = store.selectState<NavigationState>().first()
@@ -303,7 +305,7 @@ class GuidedFlowTest {
         assertTrue(stateBeforeCompletion.activeGuidedFlowState?.isOnFinalStep == true)
 
         // Complete the flow
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
 
         val stateAfterCompletion = store.selectState<NavigationState>().first()
@@ -327,10 +329,10 @@ class GuidedFlowTest {
         }
 
         // Start guided flow with parameters (definition already configured in module)
-        store.dispatch(NavigationAction.StartGuidedFlow(
-            GuidedFlow("test-flow"), 
+        store.startGuidedFlow(
+            "test-flow", 
             Params.of("userId" to "123", "source" to "onboarding")
-        ))
+        )
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -352,11 +354,11 @@ class GuidedFlowTest {
         }
 
         // Start guided flow (definition already configured in module)
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Move to next step with parameters
-        store.dispatch(NavigationAction.NextStep(Params.of("stepData" to "profile_info")))
+        store.nextGuidedFlowStep(Params.of("stepData" to "profile_info"))
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -376,7 +378,7 @@ class GuidedFlowTest {
         }
 
         // Start guided flow (on first step) - definition already configured in module
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Try to go to previous step (should exit the guided flow)
@@ -400,7 +402,7 @@ class GuidedFlowTest {
         }
 
         // Start guided flow - definition already configured in module
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Step 1 of 3 = 1/3 ≈ 0.33
@@ -408,13 +410,13 @@ class GuidedFlowTest {
         assertEquals(0.33f, state.activeGuidedFlowState?.progress ?: 0f, 0.01f)
 
         // Step 2 of 3 = 2/3 ≈ 0.67
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         state = store.selectState<NavigationState>().first()
         assertEquals(0.67f, state.activeGuidedFlowState?.progress ?: 0f, 0.01f)
 
         // Step 3 of 3 = 3/3 = 1.0
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         state = store.selectState<NavigationState>().first()
         assertEquals(1.0f, state.activeGuidedFlowState?.progress ?: 0f, 0.01f)
@@ -432,7 +434,7 @@ class GuidedFlowTest {
         
         // Start and complete guided flow
         // Start guided flow - definition already configured in module
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
         
         var state = store.selectState<NavigationState>().first()
@@ -443,11 +445,11 @@ class GuidedFlowTest {
         assertEquals(false, state.activeGuidedFlowState?.isCompleted)
 
         // Complete the flow
-        store.dispatch(NavigationAction.NextStep()) // Step 1
+        store.nextGuidedFlowStep() // Step 1
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Step 2
+        store.nextGuidedFlowStep() // Step 2
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete
+        store.nextGuidedFlowStep() // Complete
         advanceUntilIdle()
 
         // Flow state should be cleared after completion, but we can test the timing logic
@@ -465,7 +467,7 @@ class GuidedFlowTest {
         }
 
         // Start route-based guided flow - definition already configured in module
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("route-flow")))
+        store.startGuidedFlow("route-flow")
         advanceUntilIdle()
 
         var state = store.selectState<NavigationState>().first()
@@ -474,7 +476,7 @@ class GuidedFlowTest {
         assertEquals(TestWelcomeScreen, state.currentEntry.screen)
         
         // Move to next step with query parameters and additional params
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         
         state = store.selectState<NavigationState>().first()
@@ -497,7 +499,7 @@ class GuidedFlowTest {
 
         // GuidedFlow using builder DSL is now configured at module creation time
         // Test that the flow can be started successfully
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("builder-flow")))
+        store.startGuidedFlow("builder-flow")
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -518,7 +520,7 @@ class GuidedFlowTest {
         }
 
         // Start mixed flow - definition already configured in module
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("mixed-flow")))
+        store.startGuidedFlow("mixed-flow")
         advanceUntilIdle()
 
         var state = store.selectState<NavigationState>().first()
@@ -528,7 +530,7 @@ class GuidedFlowTest {
         assertEquals("1", state.currentEntry.params["step"])
         
         // Move to second step: route with query params
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         
         state = store.selectState<NavigationState>().first()
@@ -536,7 +538,7 @@ class GuidedFlowTest {
         assertEquals("settings", state.currentEntry.params["tab"])
         
         // Move to third step: typed screen with params
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         
         state = store.selectState<NavigationState>().first()
@@ -594,13 +596,13 @@ class GuidedFlowTest {
         }
 
         // Test Case 1: Regular user (no special conditions) -> should go to home
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("conditional-flow")))
+        store.startGuidedFlow("conditional-flow")
         advanceUntilIdle()
         
         // Navigate through flow steps
-        store.dispatch(NavigationAction.NextStep()) // To profile
+        store.nextGuidedFlowStep() // To profile
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        store.nextGuidedFlowStep() // Complete flow
         advanceUntilIdle()
         
         var state = store.selectState<NavigationState>().first()
@@ -613,11 +615,11 @@ class GuidedFlowTest {
         store.dispatch(UserConditionAction.CompleteTutorial)
         advanceUntilIdle()
         
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("conditional-flow")))
+        store.startGuidedFlow("conditional-flow")
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To profile
+        store.nextGuidedFlowStep() // To profile
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        store.nextGuidedFlowStep() // Complete flow
         advanceUntilIdle()
         
         state = store.selectState<NavigationState>().first()
@@ -629,11 +631,11 @@ class GuidedFlowTest {
         store.dispatch(UserConditionAction.MakeVip)
         advanceUntilIdle()
         
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("conditional-flow")))
+        store.startGuidedFlow("conditional-flow")
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To profile
+        store.nextGuidedFlowStep() // To profile
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        store.nextGuidedFlowStep() // Complete flow
         advanceUntilIdle()
         
         state = store.selectState<NavigationState>().first()
@@ -649,11 +651,11 @@ class GuidedFlowTest {
         store.dispatch(UserConditionAction.AddPoints(150))
         advanceUntilIdle()
         
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("conditional-flow")))
+        store.startGuidedFlow("conditional-flow")
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To profile
+        store.nextGuidedFlowStep() // To profile
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        store.nextGuidedFlowStep() // Complete flow
         advanceUntilIdle()
         
         state = store.selectState<NavigationState>().first()
@@ -677,10 +679,10 @@ class GuidedFlowTest {
         }
         
         // Start guided flow with content URI as a parameter
-        store.dispatch(NavigationAction.StartGuidedFlow(
-            GuidedFlow("test-flow"),
+        store.startGuidedFlow(
+            "test-flow",
             Params.of("documentUri" to contentUri, "action" to "upload")
-        ))
+        )
         advanceUntilIdle()
         
         var state = store.selectState<NavigationState>().first()
@@ -701,7 +703,7 @@ class GuidedFlowTest {
         assertTrue(retrievedUri.contains("%3B")) // Semicolons remain encoded in original URI
         
         // Move to next step with additional content URI parameters
-        store.dispatch(NavigationAction.NextStep(Params.of("documentUri" to contentUri, "step" to "process")))
+        store.nextGuidedFlowStep(Params.of("documentUri" to contentUri, "step" to "process"))
         advanceUntilIdle()
         
         state = store.selectState<NavigationState>().first()
@@ -745,7 +747,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // Start the guided flow 
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Check that TestWelcomeScreen receives the modified parameters
@@ -757,11 +759,11 @@ class GuidedFlowTest {
         assertEquals(uri, deeplinkParam, "TestWelcomeScreen should receive modified DEEPLINK parameter")
 
         // Complete the flow (navigate past all steps)
-        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        store.nextGuidedFlowStep() // To TestProfileScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        store.nextGuidedFlowStep() // To TestPreferencesScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        store.nextGuidedFlowStep() // Complete the flow
         advanceUntilIdle()
 
         // Verify modified onComplete handler was called
@@ -801,7 +803,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // Start and complete the first guided flow run
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Verify first run has modified parameters
@@ -811,11 +813,11 @@ class GuidedFlowTest {
         assertEquals("FIRST", stateAfterFirstStart.currentEntry.params.getString("RUN"), "First run should have RUN=FIRST")
 
         // Complete the first flow (navigate through all steps)
-        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        store.nextGuidedFlowStep() // To TestProfileScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        store.nextGuidedFlowStep() // To TestPreferencesScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        store.nextGuidedFlowStep() // Complete the flow
         advanceUntilIdle()
 
         // Verify first run completed correctly
@@ -826,7 +828,7 @@ class GuidedFlowTest {
 
         // SECOND RUN: Start the same guided flow again WITHOUT any modifications
         // This should use the original, unmodified definition
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Verify second run has NO modifications (clean slate)
@@ -836,11 +838,11 @@ class GuidedFlowTest {
         assertEquals(null, stateAfterSecondStart.currentEntry.params.getString("RUN"), "Second run should NOT have RUN parameter")
 
         // Complete the second flow - should use original onComplete (navigates to TestHomeScreen)
-        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        store.nextGuidedFlowStep() // To TestProfileScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        store.nextGuidedFlowStep() // To TestPreferencesScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        store.nextGuidedFlowStep() // Complete the flow
         advanceUntilIdle()
 
         // Verify second run used original onComplete handler (navigates to TestHomeScreen with clearBackStack)
@@ -867,7 +869,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // Start and complete third run
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Verify third run has new modifications
@@ -876,11 +878,11 @@ class GuidedFlowTest {
         assertEquals("THIRD", stateAfterThirdStart.currentEntry.params.getString("RUN"), "Third run should have RUN=THIRD")
 
         // Complete third run
-        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        store.nextGuidedFlowStep() // To TestProfileScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        store.nextGuidedFlowStep() // To TestPreferencesScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        store.nextGuidedFlowStep() // Complete the flow
         advanceUntilIdle()
 
         // Verify third run completed with new modifications
@@ -917,7 +919,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // SECOND: Start the guided flow 
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // Should be on TestWelcomeScreen (step 0)
@@ -975,7 +977,7 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // STEP 2: Start the guided flow (simulates StartGuidedFlow from Start screen)
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         // STEP 3: Verify first step (TestWelcomeScreen) receives modified parameters
@@ -990,7 +992,7 @@ class GuidedFlowTest {
         assertEquals(sessionId, welcomeSessionId, "TestWelcomeScreen should receive modified SESSION_ID parameter")
 
         // STEP 4: Navigate to second step (TestProfileScreen)
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         
         // Verify second step receives modified parameters
@@ -1004,7 +1006,7 @@ class GuidedFlowTest {
         assertEquals(uri, profileDeeplink, "TestProfileScreen should receive modified DEEPLINK parameter")
 
         // STEP 5: Navigate to third step (TestPreferencesScreen)  
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         
         // Verify third step receives modified parameters
@@ -1106,7 +1108,7 @@ class GuidedFlowTest {
         assertTrue(stateAfterModifications.guidedFlowModifications.containsKey("builder-flow"), "Should have modifications for builder-flow")
 
         // TEST 1: Start and complete signup flow - should use signup modifications
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         var state = store.selectState<NavigationState>().first()
@@ -1118,11 +1120,11 @@ class GuidedFlowTest {
         assertEquals("signup-123", state.currentEntry.params.getString("USER_ID"), "Should have signup user ID")
 
         // Complete signup flow
-        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen
+        store.nextGuidedFlowStep() // To TestProfileScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        store.nextGuidedFlowStep() // To TestPreferencesScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        store.nextGuidedFlowStep() // Complete flow
         advanceUntilIdle()
 
         // Verify signup completion
@@ -1134,7 +1136,7 @@ class GuidedFlowTest {
         assertEquals(null, state.activeGuidedFlowState, "Signup flow should be cleared")
 
         // TEST 2: Start and complete onboarding flow - should use onboarding modifications
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("builder-flow")))
+        store.startGuidedFlow("builder-flow")
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
@@ -1146,11 +1148,11 @@ class GuidedFlowTest {
         assertEquals("onboarding-456", state.currentEntry.params.getString("USER_ID"), "Should have onboarding user ID")
 
         // Complete onboarding flow
-        store.dispatch(NavigationAction.NextStep()) // To TestProfileScreen  
+        store.nextGuidedFlowStep() // To TestProfileScreen  
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        store.nextGuidedFlowStep() // To TestPreferencesScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        store.nextGuidedFlowStep() // Complete flow
         advanceUntilIdle()
 
         // Verify onboarding completion
@@ -1237,9 +1239,9 @@ class GuidedFlowTest {
         assertEquals(2, stateAfterMods.guidedFlowModifications.size, "Should have modifications for both flows")
 
         // TEST: Start test-flow and verify it gets test-flow's parameters
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Move to TestProfileScreen (step 1)
+        store.nextGuidedFlowStep() // Move to TestProfileScreen (step 1)
         advanceUntilIdle()
 
         var state = store.selectState<NavigationState>().first()
@@ -1250,15 +1252,15 @@ class GuidedFlowTest {
         assertEquals(null, state.currentEntry.params.getBoolean("SHOW_TUTORIAL"), "Should NOT have route-flow's tutorial flag")
 
         // Complete test-flow
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        store.nextGuidedFlowStep() // To TestPreferencesScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete
+        store.nextGuidedFlowStep() // Complete
         advanceUntilIdle()
 
         // TEST: Start builder-flow and verify it gets builder-flow's parameters
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("builder-flow")))
+        store.startGuidedFlow("builder-flow")
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Move to TestProfileScreen (step 1)
+        store.nextGuidedFlowStep() // Move to TestProfileScreen (step 1)
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
@@ -1355,43 +1357,43 @@ class GuidedFlowTest {
         // TEST: Start each flow and verify they have their own parameters
 
         // Test flow 1
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
         var currentState = store.selectState<NavigationState>().first()
         assertEquals("TEST_FLOW_1", currentState.currentEntry.params.getString("FLOW_ID"), "test-flow should have its own ID")
         
         // Complete first flow
         repeat(3) {
-            store.dispatch(NavigationAction.NextStep())
+            store.nextGuidedFlowStep()
             advanceUntilIdle()
         }
 
         // Test flow 2
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("route-flow")))
+        store.startGuidedFlow("route-flow")
         advanceUntilIdle()
         currentState = store.selectState<NavigationState>().first()
         assertEquals("ROUTE_FLOW_1", currentState.currentEntry.params.getString("FLOW_ID"), "route-flow should have its own ID")
         
         // Navigate to profile step and verify profile-specific params
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         currentState = store.selectState<NavigationState>().first()
         assertEquals("ROUTE", currentState.currentEntry.params.getString("PROFILE_TYPE"), "route-flow should have its own profile type")
         
         // Complete second flow
         repeat(2) {
-            store.dispatch(NavigationAction.NextStep())
+            store.nextGuidedFlowStep()
             advanceUntilIdle()
         }
 
         // Test flow 3
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("builder-flow")))
+        store.startGuidedFlow("builder-flow")
         advanceUntilIdle()
         currentState = store.selectState<NavigationState>().first()
         assertEquals("BUILDER_FLOW_1", currentState.currentEntry.params.getString("FLOW_ID"), "builder-flow should have its own ID")
         
         // Navigate to profile step and verify profile-specific params
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
         currentState = store.selectState<NavigationState>().first()
         assertEquals("BUILDER", currentState.currentEntry.params.getString("PROFILE_TYPE"), "builder-flow should have its own profile type")
@@ -1484,12 +1486,12 @@ class GuidedFlowTest {
         assertTrue(state.guidedFlowModifications.containsKey("flow-clear-none"), "Should have flow-clear-none modifications")
 
         // TEST 1: Complete flow-clear-specific - should only clear its own modifications
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("flow-clear-specific")))
+        store.startGuidedFlow("flow-clear-specific")
         advanceUntilIdle()
         
         // Complete the flow
         repeat(3) {
-            store.dispatch(NavigationAction.NextStep())
+            store.nextGuidedFlowStep()
             advanceUntilIdle()
         }
 
@@ -1500,12 +1502,12 @@ class GuidedFlowTest {
         assertTrue(state.guidedFlowModifications.containsKey("flow-clear-none"), "flow-clear-none modifications should remain")
 
         // TEST 2: Complete flow-clear-all - should clear ALL modifications
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("flow-clear-all")))
+        store.startGuidedFlow("flow-clear-all")
         advanceUntilIdle()
         
         // Complete the flow
         repeat(3) {
-            store.dispatch(NavigationAction.NextStep())
+            store.nextGuidedFlowStep()
             advanceUntilIdle()
         }
 
@@ -1522,12 +1524,12 @@ class GuidedFlowTest {
         }
         advanceUntilIdle()
 
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("flow-clear-none")))
+        store.startGuidedFlow("flow-clear-none")
         advanceUntilIdle()
         
         // Complete the flow
         repeat(3) {
-            store.dispatch(NavigationAction.NextStep())
+            store.nextGuidedFlowStep()
             advanceUntilIdle()
         }
 
@@ -1546,7 +1548,7 @@ class GuidedFlowTest {
         }
 
         // Start first guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow")))
+        store.startGuidedFlow("test-flow")
         advanceUntilIdle()
 
         var state = store.selectState<NavigationState>().first()
@@ -1555,7 +1557,7 @@ class GuidedFlowTest {
         assertEquals(TestWelcomeScreen, state.currentEntry.navigatable, "Should be on first step of first flow")
 
         // Try to start second guided flow while first is still active
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow"), Params.of("userId" to "123")))
+        store.startGuidedFlow("test-flow", Params.of("userId" to "123"))
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
@@ -1565,7 +1567,7 @@ class GuidedFlowTest {
         assertEquals(0, state.activeGuidedFlowState?.currentStepIndex, "Should still be on first step")
 
         // Advance the first flow to make sure it's still working normally
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
@@ -1573,16 +1575,16 @@ class GuidedFlowTest {
         assertEquals(1, state.activeGuidedFlowState?.currentStepIndex, "Should be on second step of first flow")
 
         // Complete the first flow
-        store.dispatch(NavigationAction.NextStep()) // To TestPreferencesScreen
+        store.nextGuidedFlowStep() // To TestPreferencesScreen
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete flow
+        store.nextGuidedFlowStep() // Complete flow
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
         assertNull(state.activeGuidedFlowState, "Flow should be completed and cleared")
 
         // Now try to start another flow - this should succeed
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow("test-flow"), Params.of("userId" to "456")))
+        store.startGuidedFlow("test-flow", Params.of("userId" to "456"))
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()

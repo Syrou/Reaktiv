@@ -4,11 +4,11 @@ import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
-import io.github.syrou.reaktiv.navigation.model.FlowModification
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 
@@ -20,7 +20,8 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
         val currentEntry: NavigationEntry? = null,
         val backStack: List<NavigationEntry>? = null,
         val modalContexts: Map<String, ModalContext>? = null,
-        val operations: List<NavigationOperation> = emptyList()
+        val operations: List<NavigationOperation> = emptyList(),
+        val activeGuidedFlowState: GuidedFlowState? = null
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
@@ -58,29 +59,6 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
         val modalContexts: Map<String, ModalContext>? = null
     ) : NavigationAction(), HighPriorityAction
 
-    // GuidedFlow actions
-
-    @Serializable
-    data class StartGuidedFlow(
-        val guidedFlow: GuidedFlow,
-        val params: Params = Params.empty()
-    ) : NavigationAction()
-
-    @Serializable
-    data class NextStep(
-        val params: Params = Params.empty()
-    ) : NavigationAction()
-
-
-    // Internal GuidedFlow actions
-    @Serializable
-    data class UpdateActiveGuidedFlow(
-        val flowState: GuidedFlowState
-    ) : NavigationAction(), HighPriorityAction
-
-    @Serializable
-    data object ClearActiveGuidedFlow : NavigationAction(), HighPriorityAction
-
     @Serializable
     data class UpdateGuidedFlowModifications(
         val flowRoute: String,
@@ -89,5 +67,12 @@ sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
 
     @Serializable
     data object ClearAllGuidedFlowModifications : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    data class CompleteGuidedFlow(
+        val completedFlowState: GuidedFlowState,
+        val clearBehavior: ClearModificationBehavior,
+        val flowRoute: String
+    ) : NavigationAction(), HighPriorityAction
 
 }

@@ -11,7 +11,9 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
@@ -130,7 +132,9 @@ class NavigationModule internal constructor(
         state: NavigationState,
         currentEntry: NavigationEntry?,
         backStack: List<NavigationEntry>?,
-        modalContexts: Map<String, ModalContext>?
+        modalContexts: Map<String, ModalContext>?,
+        activeGuidedFlowState: GuidedFlowState? = state.activeGuidedFlowState,
+        updateGuidedFlowState: Boolean = false
     ): NavigationState {
         val newCurrentEntry = currentEntry ?: state.currentEntry
         val newBackStack = backStack ?: state.backStack
@@ -170,14 +174,15 @@ class NavigationModule internal constructor(
             graphHierarchyLookup = precomputedData.graphHierarchies,
             activeModalContexts = newModalContexts,
             guidedFlowModifications = state.guidedFlowModifications,
-            activeGuidedFlowState = state.activeGuidedFlowState
+            activeGuidedFlowState = if (updateGuidedFlowState) activeGuidedFlowState else state.activeGuidedFlowState
         )
     }
 
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
             is NavigationAction.BatchUpdate -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts
+                state, action.currentEntry, action.backStack, action.modalContexts, 
+                action.activeGuidedFlowState, updateGuidedFlowState = true
             )
             is NavigationAction.Back -> reduceNavigationStateUpdate(
                 state, action.currentEntry, action.backStack, action.modalContexts
@@ -195,22 +200,6 @@ class NavigationModule internal constructor(
                 state, action.currentEntry, action.backStack, action.modalContexts
             )
 
-            is NavigationAction.StartGuidedFlow -> {
-                state
-            }
-
-            is NavigationAction.NextStep -> {
-                state
-            }
-
-            is NavigationAction.UpdateActiveGuidedFlow -> {
-                state.copy(activeGuidedFlowState = action.flowState)
-            }
-
-            is NavigationAction.ClearActiveGuidedFlow -> {
-                state.copy(activeGuidedFlowState = null)
-            }
-
             is NavigationAction.UpdateGuidedFlowModifications -> {
                 val updatedModifications = if (action.modifiedDefinition != null) {
                     state.guidedFlowModifications + (action.flowRoute to action.modifiedDefinition)
@@ -222,6 +211,20 @@ class NavigationModule internal constructor(
 
             is NavigationAction.ClearAllGuidedFlowModifications -> {
                 state.copy(guidedFlowModifications = emptyMap())
+            }
+
+            is NavigationAction.CompleteGuidedFlow -> {
+                val newModifications = when (action.clearBehavior) {
+                    ClearModificationBehavior.CLEAR_ALL -> emptyMap()
+                    ClearModificationBehavior.CLEAR_SPECIFIC -> 
+                        state.guidedFlowModifications - action.flowRoute
+                    ClearModificationBehavior.CLEAR_NONE -> state.guidedFlowModifications
+                }
+                
+                state.copy(
+                    activeGuidedFlowState = null,
+                    guidedFlowModifications = newModifications
+                )
             }
 
         }

@@ -10,6 +10,8 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.getGuidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
+import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
+import io.github.syrou.reaktiv.navigation.extension.nextGuidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.guidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.getParams
@@ -90,11 +92,11 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Navigate to step 1
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
 
         val stateBeforeOperations = store.selectState<NavigationState>().first()
@@ -132,7 +134,7 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Use DSL to add steps and navigate
@@ -168,9 +170,9 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow and navigate to step 1
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
 
         // Use DSL to replace current step and navigate
@@ -209,10 +211,10 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow and navigate to step 2
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
         repeat(2) {
-            store.dispatch(NavigationAction.NextStep())
+            store.nextGuidedFlowStep()
             advanceUntilIdle()
         }
 
@@ -253,7 +255,7 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Test finding steps by type - we can't test return values inside the DSL,
@@ -287,7 +289,7 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         val stateBefore = store.selectState<NavigationState>().first()
@@ -329,7 +331,7 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Replace DslTestScreen2 with DslTestScreen1 that has parameters
@@ -363,7 +365,7 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Update DslTestScreen2 parameters by type with raw parameters
@@ -394,7 +396,7 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Create test data object for serialization
@@ -445,7 +447,7 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         val baseDefinition = store.getGuidedFlow(Route.TestFlow)
@@ -502,7 +504,7 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Create a dummy screen class that doesn't exist in our flow
@@ -585,7 +587,7 @@ class GuidedFlowDslTest {
         advanceUntilIdle()
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // All operations should return true indicating success
@@ -635,7 +637,7 @@ class GuidedFlowDslTest {
         val testSettings = Settings("dark", true, Params.of("language" to "en", "region" to "US"))
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Update step parameters with complex typed data
@@ -692,7 +694,7 @@ class GuidedFlowDslTest {
 
         // Test navigation to the screen to ensure parameters work in practice
         // Navigate to step 1 (DslTestScreen2) which now has our updated parameters
-        store.dispatch(NavigationAction.NextStep()) // Goes to step 1 (DslTestScreen2)
+        store.nextGuidedFlowStep() // Goes to step 1 (DslTestScreen2)
         advanceUntilIdle()
 
         val navigationState = store.selectState<NavigationState>().first()
@@ -724,7 +726,7 @@ class GuidedFlowDslTest {
         data class NonSerializableUser(val id: String, val name: String)
         val nonSerializableUser = NonSerializableUser("123", "John")
 
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // This should fail at compile time or runtime when trying to create the serializer
@@ -766,7 +768,7 @@ class GuidedFlowDslTest {
         )
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Step 1: Use typed parameters to modify DslTestScreen2 step
@@ -781,7 +783,7 @@ class GuidedFlowDslTest {
         advanceUntilIdle()
 
         // Step 2: Navigate to the modified step
-        store.dispatch(NavigationAction.NextStep()) // Goes to step 1 (DslTestScreen2)
+        store.nextGuidedFlowStep() // Goes to step 1 (DslTestScreen2)
         advanceUntilIdle()
 
         // Step 3: Verify we can read the parameters from the actual navigation state
@@ -819,11 +821,11 @@ class GuidedFlowDslTest {
         }
 
         // Start guided flow
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
 
         // Navigate to step 1 (DslTestScreen2)
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
 
         val stateAfterFirstStep = store.selectState<NavigationState>().first()
@@ -847,9 +849,9 @@ class GuidedFlowDslTest {
         assertEquals("user123", modifiedStep.getParams().getString("userId"))
 
         // Complete the flow: move through all remaining steps
-        store.dispatch(NavigationAction.NextStep()) // Move to step 2 (DslTestScreen3)
+        store.nextGuidedFlowStep() // Move to step 2 (DslTestScreen3)
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep()) // Complete the flow
+        store.nextGuidedFlowStep() // Complete the flow
         advanceUntilIdle()
 
         // Verify flow is completed and cleared
@@ -860,9 +862,9 @@ class GuidedFlowDslTest {
         assertNull(stateAfterCompletion.activeGuidedFlowState, "Flow state should be completely cleared including runtime modifications")
 
         // Verify we can start the flow again with fresh state
-        store.dispatch(NavigationAction.StartGuidedFlow(GuidedFlow(Route.TestFlow)))
+        store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
-        store.dispatch(NavigationAction.NextStep())
+        store.nextGuidedFlowStep()
         advanceUntilIdle()
 
         val stateSecondRun = store.selectState<NavigationState>().first()

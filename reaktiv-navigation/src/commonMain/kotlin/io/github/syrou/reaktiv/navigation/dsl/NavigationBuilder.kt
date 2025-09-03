@@ -14,6 +14,7 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.CommonUrlEncoder
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
+import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -107,6 +108,12 @@ class NavigationBuilder(
     
     @PublishedApi
     internal var guidedFlowContext: GuidedFlowContext? = null
+    
+    @PublishedApi
+    internal var activeGuidedFlowState: GuidedFlowState? = null
+    
+    @PublishedApi
+    internal var shouldClearActiveGuidedFlowState: Boolean = false
 
 
     fun navigateTo(path: String, replaceCurrent: Boolean = false, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
@@ -372,5 +379,23 @@ class NavigationBuilder(
             "Navigatable ${navigatableClass.simpleName} not found in navigation graph. " +
                     "Available navigatables: ${navigationState.allAvailableNavigatables.values.map { it::class.simpleName }}"
         )
+    }
+    
+    /**
+     * Set the active guided flow state to be included in the navigation update
+     */
+    fun setActiveGuidedFlowState(flowState: GuidedFlowState): NavigationBuilder {
+        this.activeGuidedFlowState = flowState
+        this.shouldClearActiveGuidedFlowState = false
+        return this
+    }
+    
+    /**
+     * Clear the active guided flow state in the navigation update
+     */
+    fun clearActiveGuidedFlowState(): NavigationBuilder {
+        this.activeGuidedFlowState = null
+        this.shouldClearActiveGuidedFlowState = true
+        return this
     }
 }
