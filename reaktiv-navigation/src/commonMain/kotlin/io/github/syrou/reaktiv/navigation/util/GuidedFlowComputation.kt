@@ -2,7 +2,6 @@ package io.github.syrou.reaktiv.navigation.util
 
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
-import kotlinx.datetime.Clock
 import kotlin.time.Duration
 
 /**

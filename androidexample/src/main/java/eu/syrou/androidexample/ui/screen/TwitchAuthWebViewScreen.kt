@@ -69,7 +69,7 @@ object TwitchAuthWebViewScreen : Screen {
                     store.dispatch.invoke(SettingsModule.SettingsAction.SetTwitchAccessToken(accessToken))
                     store.launch {
                         store.navigation {
-                            popUpTo(SettingsScreen.route, inclusive = true)
+                            popUpTo(SettingsScreen.route, inclusive = false)
                         }
                     }
                 }

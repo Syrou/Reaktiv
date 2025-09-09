@@ -181,7 +181,7 @@ class NavigationModule internal constructor(
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
             is NavigationAction.BatchUpdate -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, 
+                state, action.currentEntry, action.backStack, action.modalContexts,
                 action.activeGuidedFlowState, updateGuidedFlowState = true
             )
             is NavigationAction.Back -> reduceNavigationStateUpdate(

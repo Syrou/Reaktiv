@@ -7,5 +7,5 @@ data class NavigationAnimationState(
     val currentEntry: NavigationEntry,
     val previousEntry: NavigationEntry?,
     val isAnimating: Boolean,
-    val animationId: Long
+    val animationId: String
 )

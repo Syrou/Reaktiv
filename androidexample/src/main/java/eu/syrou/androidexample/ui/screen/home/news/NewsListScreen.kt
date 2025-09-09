@@ -20,6 +20,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +37,6 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
@@ -57,6 +57,9 @@ object NewsListScreen : Screen {
     override fun Content(
         params: Params
     ) {
+        LaunchedEffect(Unit) {
+            println("HERPADERPA - HMM")
+        }
         NewsListScreen()
     }
 }
@@ -70,7 +73,7 @@ fun NewsListScreen() {
         it.add(0, "All")
     }
 
-    Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+    Column {
         LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
             items(categories) { category ->
                 FilterChip(
@@ -139,7 +142,7 @@ fun NewsCard(newsItem: NewsItem, onNewsItemClick: (String) -> Unit) {
     }
 }
 
-fun formatDate(instant: Instant): String {
+fun formatDate(instant: kotlin.time.Instant): String {
     val localDate = instant.toLocalDateTime(TimeZone.currentSystemDefault()).date
     return "${localDate.month.name.lowercase().capitalize(Locale.ROOT)} ${localDate.dayOfMonth}, ${localDate.year}"
 }

@@ -30,7 +30,6 @@ import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +44,7 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.ui.NavigationBackgroundProvider
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -170,11 +170,10 @@ fun MainRender() {
                 }
             }
         ) {
-            NavigationRender(
-                modifier = Modifier.fillMaxSize(),
-                backgroundColor = MaterialTheme.colorScheme.background
-            ) { screen, params ->
-                screen.Content(params)
+            NavigationBackgroundProvider(MaterialTheme.colorScheme.background) {
+                NavigationRender(
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
     }

@@ -3,8 +3,8 @@ package eu.syrou.androidexample.domain.network.video
 import eu.syrou.androidexample.domain.data.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 class YouTubeRssSource(private val url: String, private val source: String) : BaseVideoSource() {
 

@@ -1,6 +1,5 @@
 package eu.syrou.androidexample.domain.model
 
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -17,7 +16,7 @@ data class PlayerProfile(
     val averageGameTime: Long,
     val achievements: List<Achievement> = emptyList(),
     val stats: PlayerStats,
-    val lastActive: Instant
+    val lastActive: kotlin.time.Instant
 )
 
 @Serializable
@@ -25,7 +24,7 @@ data class Achievement(
     val id: String,
     val name: String,
     val description: String,
-    val unlockedAt: Instant,
+    val unlockedAt: kotlin.time.Instant,
     val rarity: AchievementRarity
 )
 
@@ -49,7 +48,7 @@ data class PlayerStats(
 @Serializable
 data class RankingEntry(
     val rank: Int,
-    val recordedAt: Instant,
+    val recordedAt: kotlin.time.Instant,
     val season: String
 )
 
@@ -144,7 +143,7 @@ data class SkillProgress(
 data class Milestone(
     val name: String,
     val description: String,
-    val completedAt: Instant?,
+    val completedAt: kotlin.time.Instant?,
     val requirements: String,
     val reward: String
 )
@@ -164,7 +163,7 @@ data class TeamMember(
     val playerId: String,
     val name: String,
     val role: String,
-    val joinedAt: Instant,
+    val joinedAt: kotlin.time.Instant,
     val contributionScore: Double,
     val isLeader: Boolean,
     val isActive: Boolean
@@ -186,7 +185,7 @@ data class TeamAchievement(
     val achievementId: String,
     val name: String,
     val description: String,
-    val unlockedAt: Instant,
+    val unlockedAt: kotlin.time.Instant,
     val contributingMembers: List<String>,
     val difficulty: TeamAchievementDifficulty
 )
@@ -221,7 +220,7 @@ data class TournamentResult(
     val placement: Int,
     val totalTeams: Int,
     val prizeWon: Long,
-    val completedAt: Instant
+    val completedAt: kotlin.time.Instant
 )
 
 @Serializable
@@ -229,7 +228,7 @@ data class Rivalry(
     val opponentTeamName: String,
     val matchesPlayed: Int,
     val matchesWon: Int,
-    val lastMatch: Instant,
+    val lastMatch: kotlin.time.Instant,
     val intensity: RivalryIntensity
 )
 

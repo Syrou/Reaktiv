@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.model
 
+import androidx.compose.runtime.Stable
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
@@ -7,6 +8,7 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 
+@Stable
 @Serializable
 data class NavigationEntry(
     val navigatable: Navigatable,
@@ -32,6 +34,11 @@ data class NavigationEntry(
 
     val isModal: Boolean get() = navigatable is Modal
     val isScreen: Boolean get() = navigatable is Screen
+    
+    /**
+     * Stable key for compose key() functions and state tracking
+     */
+    val stableKey: String get() = "${navigatable.route}_${graphId}_${stackPosition}_${params.hashCode()}"
 }
 
 data class RouteResolution(
