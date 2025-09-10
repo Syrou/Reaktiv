@@ -51,10 +51,9 @@ fun RenderContentWithAnimation(
             }
         }
     } else {
-        // After animation completes, always use fallback content directly
-        // to avoid movableContentOf state resolution issues
-        key("direct_$currentContentKey") {
-            fallbackContent(navigatable, params)
+        // Use cached content if available, but with stable key to maintain context
+        key("post_animation_$currentContentKey") {
+            contentCache[currentContentKey]?.invoke() ?: fallbackContent(navigatable, params)
         }
     }
 }
