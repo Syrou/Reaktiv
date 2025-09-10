@@ -1,19 +1,13 @@
 package eu.syrou.androidexample.domain.network.news
 
 import eu.syrou.androidexample.domain.data.NewsItem
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
 import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.toInstant
+import kotlin.time.Clock.System
 
 
 class RssNewsSource(private val url: String, private val sourceName: String) : BaseNewsSource() {
@@ -40,7 +34,7 @@ class RssNewsSource(private val url: String, private val sourceName: String) : B
             val pubDate = try {
                 parseDateString(pubDateString.trim())
             } catch (e: Exception) {
-                Clock.System.now()
+                System.now()
             }
 
             items.add(
@@ -59,7 +53,7 @@ class RssNewsSource(private val url: String, private val sourceName: String) : B
         return items.sortedBy { it.pubDate }
     }
 
-    private fun parseDateString(dateString: String): Instant {
+    private fun parseDateString(dateString: String): kotlin.time.Instant {
         val parts = dateString.split(" ")
         if (parts.size < 6) throw IllegalArgumentException("Invalid date format")
 

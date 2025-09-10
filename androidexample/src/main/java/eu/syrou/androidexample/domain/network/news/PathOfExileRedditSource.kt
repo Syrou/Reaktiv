@@ -3,8 +3,8 @@ package eu.syrou.androidexample.domain.network.news
 import eu.syrou.androidexample.domain.data.NewsItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+import kotlin.time.Instant
 
 @Serializable
 data class RedditApiResponse(

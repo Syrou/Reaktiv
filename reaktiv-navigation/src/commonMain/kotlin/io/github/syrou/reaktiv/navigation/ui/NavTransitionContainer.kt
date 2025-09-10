@@ -38,6 +38,7 @@ fun NavTransitionContainer(
     content: @Composable (Navigatable, Params) -> Unit
 ) {
     val backgroundColor = rememberNavigationBackgroundColor()
+
     if (ReaktivDebug.isEnabled) {
         LaunchedEffect(animationDecision) {
             ReaktivDebug.nav("🎭 NavTransitionContainer:")
@@ -49,114 +50,112 @@ fun NavTransitionContainer(
         }
     }
 
-    if (!animationDecision.hasAnyAnimation) {
-        content(currentEntry.navigatable, currentEntry.params)
-        LaunchedEffect(animationId) { onAnimationComplete() }
-        return
-    }
-
-    val resolvedEnter =
-        remember(animationDecision.enterTransition, screenWidth, screenHeight, animationDecision.shouldAnimateEnter) {
-            if (animationDecision.shouldAnimateEnter) {
-                animationDecision.enterTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
-            } else null
-        }
-
-    val resolvedExit =
-        remember(animationDecision.exitTransition, screenWidth, screenHeight, animationDecision.shouldAnimateExit) {
-            if (animationDecision.shouldAnimateExit) {
-                animationDecision.exitTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
-            } else null
-        }
-
-    val animationTrigger = remember(animationId) { mutableStateOf(false) }
-
-    LaunchedEffect(animationId) {
-        if (animationId > 0L) {
-            ReaktivDebug.nav("🚀 Starting animation with ID: $animationId")
-            animationTrigger.value = true
-        }
-    }
-
-    val enterProgress by animateFloatAsState(
-        targetValue = if (animationTrigger.value && animationDecision.shouldAnimateEnter) 1f else 0f,
-        animationSpec = if (animationDecision.shouldAnimateEnter && resolvedEnter != null) {
-            tween(resolvedEnter.durationMillis, 0, LinearOutSlowInEasing)
-        } else tween(0),
-        label = "enter_progress_$animationId"
-    )
-
-    val exitProgress by animateFloatAsState(
-        targetValue = if (animationTrigger.value && animationDecision.shouldAnimateExit) 1f else 0f,
-        animationSpec = if (animationDecision.shouldAnimateExit && resolvedExit != null) {
-            tween(resolvedExit.durationMillis, 0, LinearOutSlowInEasing)
-        } else tween(0),
-        label = "exit_progress_$animationId"
-    )
-
-    LaunchedEffect(
-        enterProgress,
-        exitProgress,
-        animationDecision.shouldAnimateEnter,
-        animationDecision.shouldAnimateExit,
-        animationTrigger.value
-    ) {
-        if (animationTrigger.value) {
-            val enterFinished = !animationDecision.shouldAnimateEnter || enterProgress >= 1f
-            val exitFinished = !animationDecision.shouldAnimateExit || exitProgress >= 1f
-
-            if (enterFinished && exitFinished) {
-                ReaktivDebug.nav("🏁 Animation completed")
-                onAnimationComplete()
-            }
-        }
-    }
-
-    if (ReaktivDebug.isEnabled) {
-        LaunchedEffect(enterProgress, exitProgress) {
-            ReaktivDebug.nav("📊 Progress - Enter: $enterProgress, Exit: $exitProgress")
-        }
-    }
-
-    // Create movable content once for each screen to prevent recomposition
-    // This is the key fix - each screen gets its content composed exactly once
-    val currentScreenContent = remember(currentEntry.navigatable, currentEntry.params) {
-        movableContentOf {
-            content(currentEntry.navigatable, currentEntry.params)
-        }
-    }
-
-    val previousScreenContent = remember(previousEntry.navigatable, previousEntry.params) {
-        movableContentOf {
-            content(previousEntry.navigatable, previousEntry.params)
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        val enterScreenAnimated = animationDecision.shouldAnimateEnter
-        val exitScreenAnimated = animationDecision.shouldAnimateExit
-
-        when {
-            enterScreenAnimated && !exitScreenAnimated -> {
-                RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
-                RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+    if (animationDecision.hasAnyAnimation) {
+        val resolvedEnter =
+            remember(animationDecision.enterTransition, screenWidth, screenHeight, animationDecision.shouldAnimateEnter) {
+                if (animationDecision.shouldAnimateEnter) {
+                    animationDecision.enterTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
+                } else null
             }
 
-            !enterScreenAnimated && exitScreenAnimated -> {
-                RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
-                RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+        val resolvedExit =
+            remember(animationDecision.exitTransition, screenWidth, screenHeight, animationDecision.shouldAnimateExit) {
+                if (animationDecision.shouldAnimateExit) {
+                    animationDecision.exitTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
+                } else null
             }
 
-            else -> {
-                if (animationDecision.isForward) {
-                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
-                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
-                } else {
-                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
-                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+        val animationTrigger = remember(animationId) { mutableStateOf(false) }
+
+        LaunchedEffect(animationId) {
+            if (animationId > 0L) {
+                ReaktivDebug.nav("🚀 Starting animation with ID: $animationId")
+                animationTrigger.value = true
+            }
+        }
+
+        val enterProgress by animateFloatAsState(
+            targetValue = if (animationTrigger.value && animationDecision.shouldAnimateEnter) 1f else 0f,
+            animationSpec = if (animationDecision.shouldAnimateEnter && resolvedEnter != null) {
+                tween(resolvedEnter.durationMillis, 0, LinearOutSlowInEasing)
+            } else tween(0),
+            label = "enter_progress_$animationId"
+        )
+
+        val exitProgress by animateFloatAsState(
+            targetValue = if (animationTrigger.value && animationDecision.shouldAnimateExit) 1f else 0f,
+            animationSpec = if (animationDecision.shouldAnimateExit && resolvedExit != null) {
+                tween(resolvedExit.durationMillis, 0, LinearOutSlowInEasing)
+            } else tween(0),
+            label = "exit_progress_$animationId"
+        )
+
+        LaunchedEffect(
+            enterProgress,
+            exitProgress,
+            animationDecision.shouldAnimateEnter,
+            animationDecision.shouldAnimateExit,
+            animationTrigger.value
+        ) {
+            if (animationTrigger.value) {
+                val enterFinished = !animationDecision.shouldAnimateEnter || enterProgress >= 1f
+                val exitFinished = !animationDecision.shouldAnimateExit || exitProgress >= 1f
+
+                if (enterFinished && exitFinished) {
+                    ReaktivDebug.nav("🏁 Animation completed")
+                    onAnimationComplete()
                 }
             }
         }
+
+        if (ReaktivDebug.isEnabled) {
+            LaunchedEffect(enterProgress, exitProgress) {
+                ReaktivDebug.nav("📊 Progress - Enter: $enterProgress, Exit: $exitProgress")
+            }
+        }
+
+        val currentScreenContent = remember(currentEntry.navigatable, currentEntry.params) {
+            movableContentOf {
+                content(currentEntry.navigatable, currentEntry.params)
+            }
+        }
+
+        val previousScreenContent = remember(previousEntry.navigatable, previousEntry.params) {
+            movableContentOf {
+                content(previousEntry.navigatable, previousEntry.params)
+            }
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            val enterScreenAnimated = animationDecision.shouldAnimateEnter
+            val exitScreenAnimated = animationDecision.shouldAnimateExit
+
+            when {
+                enterScreenAnimated && !exitScreenAnimated -> {
+                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+                }
+
+                !enterScreenAnimated && exitScreenAnimated -> {
+                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+                }
+
+                else -> {
+                    if (animationDecision.isForward) {
+                        RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+                        RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+                    } else {
+                        RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+                        RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+                    }
+                }
+            }
+        }
+    } else {
+        // no animation case
+        content(currentEntry.navigatable, currentEntry.params)
+        LaunchedEffect(animationId) { onAnimationComplete() }
     }
 }
 

@@ -5,11 +5,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
-import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.param.Params
 
 
 @Composable
@@ -30,20 +30,19 @@ fun RenderLayoutsHierarchically(
         Box(modifier = Modifier.fillMaxSize()) {
             screenContent(entryToRender.navigatable, entryToRender.params)
         }
-        return
-    }
+    } else {
+        val currentGraph = layoutGraphs[currentIndex]
+        val layout = currentGraph.layout!!
 
-    val currentGraph = layoutGraphs[currentIndex]
-    val layout = currentGraph.layout!!
-
-    layout {
-        RenderLayoutsHierarchically(
-            layoutGraphs = layoutGraphs,
-            modifier = modifier,
-            navigationState = navigationState,
-            previousNavigationEntry = previousNavigationEntry,
-            screenContent = screenContent,
-            currentIndex = currentIndex + 1
-        )
+        layout {
+            RenderLayoutsHierarchically(
+                layoutGraphs = layoutGraphs,
+                modifier = modifier,
+                navigationState = navigationState,
+                previousNavigationEntry = previousNavigationEntry,
+                screenContent = screenContent,
+                currentIndex = currentIndex + 1
+            )
+        }
     }
 }

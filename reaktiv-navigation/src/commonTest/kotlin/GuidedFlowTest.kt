@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -430,7 +429,7 @@ class GuidedFlowTest {
             coroutineContext(testDispatcher)
         }
 
-        val startTime = Clock.System.now()
+        val startTime = kotlin.time.Clock.System.now()
         
         // Start and complete guided flow
         // Start guided flow - definition already configured in module

@@ -51,7 +51,6 @@ import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -280,7 +279,7 @@ fun createMockPlayerProfile(playerId: String, levelOverride: Int? = null): Playe
         averageGameTime = 1800L,
         achievements = createMockAchievements(),
         stats = createMockPlayerStats(),
-        lastActive = Clock.System.now()
+        lastActive = kotlin.time.Clock.System.now()
     )
 }
 
@@ -299,21 +298,21 @@ private fun createMockAchievements() = listOf(
         id = "first_win",
         name = "First Victory",
         description = "Win your first match",
-        unlockedAt = Clock.System.now(),
+        unlockedAt = kotlin.time.Clock.System.now(),
         rarity = AchievementRarity.COMMON
     ),
     Achievement(
         id = "streak_master",
         name = "Streak Master",
         description = "Win 10 games in a row",
-        unlockedAt = Clock.System.now(),
+        unlockedAt = kotlin.time.Clock.System.now(),
         rarity = AchievementRarity.EPIC
     ),
     Achievement(
         id = "damage_dealer",
         name = "Damage Dealer",
         description = "Deal 100,000 total damage",
-        unlockedAt = Clock.System.now(),
+        unlockedAt = kotlin.time.Clock.System.now(),
         rarity = AchievementRarity.RARE
     )
 )
@@ -380,7 +379,7 @@ private fun createMockTeamStats(playerId: String): TeamStatsData {
                 playerId = playerId,
                 name = "Player $playerId",
                 role = "Captain",
-                joinedAt = Clock.System.now(),
+                joinedAt = kotlin.time.Clock.System.now(),
                 contributionScore = 0.92,
                 isLeader = true,
                 isActive = true

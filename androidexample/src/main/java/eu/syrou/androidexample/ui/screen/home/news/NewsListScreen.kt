@@ -36,7 +36,6 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
@@ -139,7 +138,7 @@ fun NewsCard(newsItem: NewsItem, onNewsItemClick: (String) -> Unit) {
     }
 }
 
-fun formatDate(instant: Instant): String {
+fun formatDate(instant: kotlin.time.Instant): String {
     val localDate = instant.toLocalDateTime(TimeZone.currentSystemDefault()).date
     return "${localDate.month.name.lowercase().capitalize(Locale.ROOT)} ${localDate.dayOfMonth}, ${localDate.year}"
 }

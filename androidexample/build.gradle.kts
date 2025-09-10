@@ -75,6 +75,14 @@ android {
     }
 }
 
+kotlin {
+    sourceSets.all {
+        languageSettings {
+            optIn("kotlin.time.ExperimentalTime")
+        }
+    }
+}
+
 composeCompiler {
     enableStrongSkippingMode = true
 }
@@ -103,7 +111,7 @@ dependencies {
     implementation("io.ktor:ktor-client-logging:2.3.7")
     implementation("androidx.core:core-splashscreen:1.0.0")
     implementation("androidx.webkit:webkit:1.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
     implementation("io.coil-kt:coil:2.6.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
