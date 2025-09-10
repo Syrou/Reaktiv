@@ -36,15 +36,13 @@ fun RenderContentWithAnimation(
             onAnimationComplete = onAnimationComplete
         ) { nav, p ->
             val entryKey = "${nav.route}_${nav.hashCode()}_${p.hashCode()}"
-            when {
-                nav == animationState.currentEntry.navigatable && p == animationState.currentEntry.params -> {
+            when (nav) {
+                animationState.currentEntry.navigatable if p == animationState.currentEntry.params -> {
                     contentCache[currentContentKey]?.invoke() ?: fallbackContent(nav, p)
                 }
-
-                nav == animationState.previousEntry.navigatable && p == animationState.previousEntry.params -> {
+                animationState.previousEntry.navigatable if p == animationState.previousEntry.params -> {
                     contentCache[previousContentKey]?.invoke() ?: fallbackContent(nav, p)
                 }
-
                 else -> {
                     key("fallback_$entryKey") {
                         fallbackContent(nav, p)
