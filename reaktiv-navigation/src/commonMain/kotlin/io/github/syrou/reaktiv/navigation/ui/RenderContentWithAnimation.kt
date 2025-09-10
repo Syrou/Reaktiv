@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.NavigationAnimationState
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 
 @Composable
 fun RenderContentWithAnimation(
@@ -20,7 +21,10 @@ fun RenderContentWithAnimation(
     fallbackContent: @Composable (Navigatable, Params) -> Unit,
     onAnimationComplete: () -> Unit
 ) {
+    ReaktivDebug.trace("🎞️ RenderContentWithAnimation - isAnimating: ${animationState.isAnimating}, hasCache: ${contentCache.containsKey(currentContentKey)}, currentKey: $currentContentKey")
+    
     if (animationState.isAnimating && animationState.previousEntry != null) {
+        ReaktivDebug.trace("🎞️ Taking animation path - previousEntry exists")
         val animationDecision = determineContentAnimationDecision(
             animationState.previousEntry,
             animationState.currentEntry
@@ -51,13 +55,16 @@ fun RenderContentWithAnimation(
             }
         }
     } else {
+        ReaktivDebug.trace("🎞️ Taking post-animation path - isAnimating: ${animationState.isAnimating}")
         // Post-animation: try cached content first, but ensure it renders in proper context
         val cachedContent = contentCache[currentContentKey]
         if (cachedContent != null) {
+            ReaktivDebug.trace("🎞️ Using cached content for: $currentContentKey")
             key("cached_$currentContentKey") {
                 cachedContent()
             }
         } else {
+            ReaktivDebug.trace("🎞️ Using fallback content for: $currentContentKey")
             key("direct_$currentContentKey") {
                 fallbackContent(navigatable, params)
             }
