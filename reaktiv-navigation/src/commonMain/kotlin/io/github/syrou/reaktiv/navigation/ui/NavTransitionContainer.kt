@@ -37,6 +37,18 @@ fun NavTransitionContainer(
     onAnimationComplete: () -> Unit,
     content: @Composable (Navigatable, Params) -> Unit
 ) {
+    // Recomposition tracking
+    ReaktivDebug.trace("🔄 NavTransitionContainer recomposition - animationId: $animationId")
+    
+    // Entry object identity tracking
+    ReaktivDebug.trace("🏷️ Entry identity - Current: ${currentEntry.hashCode()}, Previous: ${previousEntry.hashCode()}")
+    ReaktivDebug.trace("🏷️ Entry details - Current: [${currentEntry.navigatable.route}@${currentEntry.stackPosition}:${currentEntry.graphId}], Previous: [${previousEntry.navigatable.route}@${previousEntry.stackPosition}:${previousEntry.graphId}]")
+    ReaktivDebug.trace("🏷️ Navigatable objects - Current: ${currentEntry.navigatable.hashCode()}, Previous: ${previousEntry.navigatable.hashCode()}")
+    
+    // Parameter analysis
+    ReaktivDebug.trace("📋 Params - Current hash: ${currentEntry.params.hashCode()}, Previous hash: ${previousEntry.params.hashCode()}")
+    ReaktivDebug.trace("📋 Params content - Current: ${currentEntry.params}, Previous: ${previousEntry.params}")
+    
     val backgroundColor = rememberNavigationBackgroundColor()
 
     if (ReaktivDebug.isEnabled) {
@@ -53,24 +65,40 @@ fun NavTransitionContainer(
     if (animationDecision.hasAnyAnimation) {
         val resolvedEnter =
             remember(animationDecision.enterTransition, screenWidth, screenHeight, animationDecision.shouldAnimateEnter) {
+                ReaktivDebug.trace("🔄 Resolving enter transition - shouldAnimate: ${animationDecision.shouldAnimateEnter}")
                 if (animationDecision.shouldAnimateEnter) {
-                    animationDecision.enterTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
-                } else null
+                    val resolved = animationDecision.enterTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
+                    ReaktivDebug.trace("⚙️ Enter transition resolved - duration: ${resolved.durationMillis}ms")
+                    resolved
+                } else {
+                    ReaktivDebug.trace("⏩ Enter transition skipped")
+                    null
+                }
             }
 
         val resolvedExit =
             remember(animationDecision.exitTransition, screenWidth, screenHeight, animationDecision.shouldAnimateExit) {
+                ReaktivDebug.trace("🔄 Resolving exit transition - shouldAnimate: ${animationDecision.shouldAnimateExit}")
                 if (animationDecision.shouldAnimateExit) {
-                    animationDecision.exitTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
-                } else null
+                    val resolved = animationDecision.exitTransition.resolve(screenWidth, screenHeight, animationDecision.isForward)
+                    ReaktivDebug.trace("⚙️ Exit transition resolved - duration: ${resolved.durationMillis}ms")
+                    resolved
+                } else {
+                    ReaktivDebug.trace("⏩ Exit transition skipped")
+                    null
+                }
             }
 
         val animationTrigger = remember(animationId) { mutableStateOf(false) }
+        ReaktivDebug.trace("🆔 Animation setup - ID: $animationId, trigger: ${animationTrigger.value}")
 
         LaunchedEffect(animationId) {
             if (animationId > 0L) {
                 ReaktivDebug.nav("🚀 Starting animation with ID: $animationId")
+                ReaktivDebug.trace("🎬 Animation trigger activated for ID: $animationId")
                 animationTrigger.value = true
+            } else {
+                ReaktivDebug.trace("⏸️ No animation - ID is $animationId")
             }
         }
 
@@ -90,6 +118,34 @@ fun NavTransitionContainer(
             label = "exit_progress_$animationId"
         )
 
+        val currentScreenKey = remember(currentEntry.navigatable.route, currentEntry.graphId, currentEntry.stackPosition) {
+            val key = "${currentEntry.navigatable.route}_${currentEntry.graphId}_${currentEntry.stackPosition}"
+            ReaktivDebug.trace("🔑 Current screen key: $key")
+            key
+        }
+
+        val previousScreenKey = remember(previousEntry.navigatable.route, previousEntry.graphId, previousEntry.stackPosition) {
+            val key = "${previousEntry.navigatable.route}_${previousEntry.graphId}_${previousEntry.stackPosition}"
+            ReaktivDebug.trace("🔑 Previous screen key: $key")
+            key
+        }
+
+        val currentScreenContent = remember(currentScreenKey, currentEntry.params) {
+            ReaktivDebug.trace("📱 Creating movableContent for current: $currentScreenKey, params: ${currentEntry.params}")
+            movableContentOf {
+                ReaktivDebug.trace("🎬 Rendering current screen content: ${currentEntry.navigatable.route}")
+                content(currentEntry.navigatable, currentEntry.params)
+            }
+        }
+
+        val previousScreenContent = remember(previousScreenKey, previousEntry.params) {
+            ReaktivDebug.trace("📱 Creating movableContent for previous: $previousScreenKey, params: ${previousEntry.params}")
+            movableContentOf {
+                ReaktivDebug.trace("🎬 Rendering previous screen content: ${previousEntry.navigatable.route}")
+                content(previousEntry.navigatable, previousEntry.params)
+            }
+        }
+
         LaunchedEffect(
             enterProgress,
             exitProgress,
@@ -97,14 +153,21 @@ fun NavTransitionContainer(
             animationDecision.shouldAnimateExit,
             animationTrigger.value
         ) {
+            ReaktivDebug.trace("🔄 Animation completion effect triggered - trigger: ${animationTrigger.value}")
             if (animationTrigger.value) {
                 val enterFinished = !animationDecision.shouldAnimateEnter || enterProgress >= 1f
                 val exitFinished = !animationDecision.shouldAnimateExit || exitProgress >= 1f
 
+                ReaktivDebug.trace("📊 Animation check - Enter finished: $enterFinished ($enterProgress), Exit finished: $exitFinished ($exitProgress)")
+
                 if (enterFinished && exitFinished) {
-                    ReaktivDebug.nav("🏁 Animation completed")
+                    ReaktivDebug.trace("🏁 Animation completed for current: $currentScreenKey, previous: $previousScreenKey")
                     onAnimationComplete()
+                } else {
+                    ReaktivDebug.trace("⏳ Animation in progress - waiting for completion")
                 }
+            } else {
+                ReaktivDebug.trace("⏸️ Animation trigger not activated yet")
             }
         }
 
@@ -114,42 +177,51 @@ fun NavTransitionContainer(
             }
         }
 
-        val currentScreenKey = remember(currentEntry.navigatable.route, currentEntry.graphId, currentEntry.stackPosition) {
-            "${currentEntry.navigatable.route}_${currentEntry.graphId}_${currentEntry.stackPosition}"
+        // Additional stability checks
+        ReaktivDebug.trace("🔍 Stability check - Animation hasAnyAnimation: ${animationDecision.hasAnyAnimation}")
+        ReaktivDebug.trace("🔍 Stability check - Background color: $backgroundColor")
+
+
+
+        // MovableContent identity tracking
+        ReaktivDebug.trace("🎭 MovableContent identity - Current: ${currentScreenContent.hashCode()}, Previous: ${previousScreenContent.hashCode()}")
+        ReaktivDebug.trace("🎭 MovableContent keys comparison - Current key: '$currentScreenKey', Previous key: '$previousScreenKey'")
+        
+        // Check for duplicate keys
+        if (currentScreenKey == previousScreenKey) {
+            ReaktivDebug.trace("⚠️ CRITICAL: Current and previous screen keys are identical: $currentScreenKey")
+            ReaktivDebug.trace("⚠️ This may cause movableContent runtime errors!")
+            ReaktivDebug.trace("⚠️ Entry routes - Current: ${currentEntry.navigatable.route}, Previous: ${previousEntry.navigatable.route}")
+            ReaktivDebug.trace("⚠️ Entry positions - Current: ${currentEntry.stackPosition}, Previous: ${previousEntry.stackPosition}")
+            ReaktivDebug.trace("⚠️ Entry graphIds - Current: ${currentEntry.graphId}, Previous: ${previousEntry.graphId}")
+            ReaktivDebug.trace("⚠️ Entry hashes - Current: ${currentEntry.hashCode()}, Previous: ${previousEntry.hashCode()}")
         }
 
-        val previousScreenKey = remember(previousEntry.navigatable.route, previousEntry.graphId, previousEntry.stackPosition) {
-            "${previousEntry.navigatable.route}_${previousEntry.graphId}_${previousEntry.stackPosition}"
-        }
-
-        val currentScreenContent = remember(currentScreenKey, currentEntry.params) {
-            movableContentOf {
-                content(currentEntry.navigatable, currentEntry.params)
-            }
-        }
-
-        val previousScreenContent = remember(previousScreenKey, previousEntry.params) {
-            movableContentOf {
-                content(previousEntry.navigatable, previousEntry.params)
-            }
-        }
+        ReaktivDebug.trace("🎭 Transition setup - Current: $currentScreenKey, Previous: $previousScreenKey")
+        ReaktivDebug.trace("🎭 Animation decision - Enter: ${animationDecision.shouldAnimateEnter}, Exit: ${animationDecision.shouldAnimateExit}")
+        ReaktivDebug.trace("🎭 Screen dimensions: ${screenWidth}x${screenHeight}")
 
         Box(modifier = Modifier.fillMaxSize()) {
             val enterScreenAnimated = animationDecision.shouldAnimateEnter
             val exitScreenAnimated = animationDecision.shouldAnimateExit
+            
+            ReaktivDebug.trace("🎨 Rendering phase - Enter animated: $enterScreenAnimated, Exit animated: $exitScreenAnimated, Forward: ${animationDecision.isForward}")
 
             when {
                 enterScreenAnimated && !exitScreenAnimated -> {
+                    ReaktivDebug.trace("🎨 Render case: Enter animated only")
                     RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
                     RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
                 }
 
                 !enterScreenAnimated && exitScreenAnimated -> {
+                    ReaktivDebug.trace("🎨 Render case: Exit animated only")
                     RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
                     RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
                 }
 
                 else -> {
+                    ReaktivDebug.trace("🎨 Render case: Both or neither animated, forward: ${animationDecision.isForward}")
                     if (animationDecision.isForward) {
                         RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
                         RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
@@ -162,8 +234,12 @@ fun NavTransitionContainer(
         }
     } else {
         // no animation case
+        ReaktivDebug.trace("🚫 No animation - rendering current screen directly: ${currentEntry.navigatable.route}")
         content(currentEntry.navigatable, currentEntry.params)
-        LaunchedEffect(animationId) { onAnimationComplete() }
+        LaunchedEffect(animationId) { 
+            ReaktivDebug.trace("🏁 No-animation completion callback")
+            onAnimationComplete() 
+        }
     }
 }
 
@@ -175,7 +251,9 @@ private fun RenderEnterScreen(
     backgroundColor: Color,
     content: @Composable () -> Unit
 ) {
-    key("enter_${entry.navigatable.route}_${entry.graphId}_${entry.stackPosition}") {
+    val screenKey = "enter_${entry.navigatable.route}_${entry.graphId}_${entry.stackPosition}"
+    ReaktivDebug.trace("🟢 RenderEnterScreen called: $screenKey, progress: $progress, hasTransition: ${resolvedTransition != null}")
+    key(screenKey) {
         if (resolvedTransition != null) {
             Box(
                 modifier = Modifier
@@ -196,6 +274,7 @@ private fun RenderEnterScreen(
                         .fillMaxSize()
                         .background(backgroundColor)
                 ) {
+                    ReaktivDebug.trace("🎬 Calling enter screen content (animated): ${entry.navigatable.route}")
                     content()
                 }
             }
@@ -206,6 +285,7 @@ private fun RenderEnterScreen(
                     .zIndex(0f)
                     .background(backgroundColor)
             ) {
+                ReaktivDebug.trace("🎬 Calling enter screen content (no animation): ${entry.navigatable.route}")
                 content()
             }
         }
@@ -220,7 +300,9 @@ private fun RenderExitScreen(
     backgroundColor: Color,
     content: @Composable () -> Unit
 ) {
-    key("exit_${entry.navigatable.route}_${entry.graphId}_${entry.stackPosition}") {
+    val screenKey = "exit_${entry.navigatable.route}_${entry.graphId}_${entry.stackPosition}"
+    ReaktivDebug.trace("🔴 RenderExitScreen called: $screenKey, progress: $progress, hasTransition: ${resolvedTransition != null}")
+    key(screenKey) {
         if (resolvedTransition != null) {
             Box(
                 modifier = Modifier
@@ -241,6 +323,7 @@ private fun RenderExitScreen(
                         .fillMaxSize()
                         .background(backgroundColor)
                 ) {
+                    ReaktivDebug.trace("🎬 Calling exit screen content (animated): ${entry.navigatable.route}")
                     content()
                 }
             }
@@ -250,6 +333,7 @@ private fun RenderExitScreen(
                     .fillMaxSize()
                     .background(backgroundColor)
             ) {
+                ReaktivDebug.trace("🎬 Calling exit screen content (no animation): ${entry.navigatable.route}")
                 content()
             }
         }

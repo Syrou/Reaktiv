@@ -3,7 +3,7 @@ package io.github.syrou.reaktiv.core.util
 object ReaktivDebug {
     var isEnabled: Boolean = false
         private set
-    private var enabledCategories: Set<String> = setOf("NAV", "STATE", "ACTION", "STORE", "GENERAL")
+    private var enabledCategories: Set<String> = setOf("NAV", "STATE", "ACTION", "STORE", "GENERAL", "TRACE")
     
     
     fun enable() {
@@ -44,6 +44,7 @@ object ReaktivDebug {
     fun store(message: String) = log("STORE", message)
     fun compose(message: String) = log("COMPOSE", message)
     fun general(message: String) = log("GENERAL", message)
+    fun trace(message: String) = log("TRACE", message)
     fun debug(category: String, message: String) = log(category, message)
     fun warn(message: String) {
         if (isEnabled) {

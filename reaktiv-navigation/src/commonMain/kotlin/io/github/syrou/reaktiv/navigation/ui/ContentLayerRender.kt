@@ -19,6 +19,7 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import kotlin.time.Clock
 
 
@@ -28,6 +29,7 @@ fun ContentLayerRender(
     navigationState: NavigationState,
     screenContent: @Composable (Navigatable, Params) -> Unit
 ) {
+    ReaktivDebug.trace("🎨 ContentLayerRender recomposition - entries: ${entries.size}, isModal: ${navigationState.isCurrentModal}")
     val preservedContentEntry = remember { mutableStateOf<NavigationEntry?>(null) }
 
     val contentEntry = when {
@@ -114,13 +116,18 @@ fun ContentLayerRender(
         append("_")
         append(contentEntry.params.hashCode())
     }
+    ReaktivDebug.trace("🔑 ContentLayerRender current key: $currentContentKey")
 
     if (!contentCache.containsKey(currentContentKey)) {
+        ReaktivDebug.trace("📱 Creating cached movableContent for key: $currentContentKey")
         contentCache[currentContentKey] = movableContentOf {
             key(currentContentKey) {
+                ReaktivDebug.trace("🎬 Rendering cached content for: ${contentEntry.navigatable.route}")
                 screenContent(contentEntry.navigatable, contentEntry.params)
             }
         }
+    } else {
+        ReaktivDebug.trace("♾️ Reusing cached movableContent for key: $currentContentKey")
     }
 
     val previousEntry = animationState.value.previousEntry
@@ -135,14 +142,23 @@ fun ContentLayerRender(
             append(previousEntry.params.hashCode())
         }
     } else null
+    ReaktivDebug.trace("🔑 ContentLayerRender previous key: $previousContentKey")
 
     if (previousEntry != null && previousContentKey != null && !contentCache.containsKey(previousContentKey)) {
+        ReaktivDebug.trace("📱 Creating cached movableContent for previous key: $previousContentKey")
         contentCache[previousContentKey] = movableContentOf {
             key(previousContentKey) {
+                ReaktivDebug.trace("🎬 Rendering cached previous content for: ${previousEntry.navigatable.route}")
                 screenContent(previousEntry.navigatable, previousEntry.params)
             }
         }
     }
+    
+    // Check for potential key conflicts
+    if (currentContentKey == previousContentKey) {
+        ReaktivDebug.trace("⚠️ CRITICAL: ContentLayerRender current and previous keys are identical: $currentContentKey")
+    }
+    ReaktivDebug.trace("💾 Content cache size: ${contentCache.size}, keys: ${contentCache.keys}")
 
     val layoutGraphs = findLayoutGraphsInHierarchy(contentEntry.graphId, navigationState)
 
@@ -168,12 +184,14 @@ fun ContentLayerRender(
                         previousContentKey = previousContentKey,
                         fallbackContent = screenContent,
                         onAnimationComplete = {
+                            ReaktivDebug.trace("🏁 ContentLayerRender animation complete - cleaning up")
                             animationState.value = animationState.value.copy(
                                 previousEntry = null,
                                 isAnimating = false
                             )
                             // Clean up previous content from cache
                             if (previousContentKey != null) {
+                                ReaktivDebug.trace("🗑️ Removing previous content from cache: $previousContentKey")
                                 contentCache.remove(previousContentKey)
                             }
                         }
@@ -192,11 +210,13 @@ fun ContentLayerRender(
                 previousContentKey = previousContentKey,
                 fallbackContent = screenContent,
                 onAnimationComplete = {
+                    ReaktivDebug.trace("🏁 ContentLayerRender animation complete (no layout) - cleaning up")
                     animationState.value = animationState.value.copy(
                         previousEntry = null,
                         isAnimating = false
                     )
                     if (previousContentKey != null) {
+                        ReaktivDebug.trace("🗑️ Removing previous content from cache (no layout): $previousContentKey")
                         contentCache.remove(previousContentKey)
                     }
                 }
