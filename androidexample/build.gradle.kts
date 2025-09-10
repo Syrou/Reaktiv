@@ -1,4 +1,6 @@
 import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+import org.gradle.kotlin.dsl.components
+import org.gradle.kotlin.dsl.resources
 
 plugins {
     id("com.android.application")
@@ -92,10 +94,10 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.1")
     implementation("androidx.activity:activity-compose:1.9.0")
-    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation(compose.runtime)
+    implementation(compose.foundation)
+    implementation(compose.material3)
+    implementation(compose.components.resources)
     implementation("androidx.compose.material3:material3")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.5.2")
