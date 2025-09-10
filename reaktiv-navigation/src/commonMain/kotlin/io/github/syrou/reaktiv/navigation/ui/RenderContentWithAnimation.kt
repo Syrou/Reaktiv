@@ -51,9 +51,16 @@ fun RenderContentWithAnimation(
             }
         }
     } else {
-        // Use cached content if available, but with stable key to maintain context
-        key("post_animation_$currentContentKey") {
-            contentCache[currentContentKey]?.invoke() ?: fallbackContent(navigatable, params)
+        // Post-animation: try cached content first, but ensure it renders in proper context
+        val cachedContent = contentCache[currentContentKey]
+        if (cachedContent != null) {
+            key("cached_$currentContentKey") {
+                cachedContent()
+            }
+        } else {
+            key("direct_$currentContentKey") {
+                fallbackContent(navigatable, params)
+            }
         }
     }
 }
