@@ -114,13 +114,21 @@ fun NavTransitionContainer(
             }
         }
 
-        val currentScreenContent = remember(currentEntry.navigatable, currentEntry.params) {
+        val currentScreenKey = remember(currentEntry.navigatable.route, currentEntry.graphId, currentEntry.stackPosition) {
+            "${currentEntry.navigatable.route}_${currentEntry.graphId}_${currentEntry.stackPosition}"
+        }
+
+        val previousScreenKey = remember(previousEntry.navigatable.route, previousEntry.graphId, previousEntry.stackPosition) {
+            "${previousEntry.navigatable.route}_${previousEntry.graphId}_${previousEntry.stackPosition}"
+        }
+
+        val currentScreenContent = remember(currentScreenKey, currentEntry.params) {
             movableContentOf {
                 content(currentEntry.navigatable, currentEntry.params)
             }
         }
 
-        val previousScreenContent = remember(previousEntry.navigatable, previousEntry.params) {
+        val previousScreenContent = remember(previousScreenKey, previousEntry.params) {
             movableContentOf {
                 content(previousEntry.navigatable, previousEntry.params)
             }
