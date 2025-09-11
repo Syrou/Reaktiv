@@ -118,16 +118,11 @@ fun ContentLayerRender(
     }
     ReaktivDebug.trace("🔑 ContentLayerRender current key: $currentContentKey")
 
-    if (!contentCache.containsKey(currentContentKey)) {
-        ReaktivDebug.trace("📱 Creating cached movableContent for key: $currentContentKey")
-        contentCache[currentContentKey] = movableContentOf {
-            key(currentContentKey) {
-                ReaktivDebug.trace("🎬 Rendering cached content for: ${contentEntry.navigatable.route}")
-                screenContent(contentEntry.navigatable, contentEntry.params)
-            }
-        }
+    // Content cache is now managed at NavigationRender level
+    if (contentCache.containsKey(currentContentKey)) {
+        ReaktivDebug.trace("♾️ Using top-level cached movableContent for key: $currentContentKey")
     } else {
-        ReaktivDebug.trace("♾️ Reusing cached movableContent for key: $currentContentKey")
+        ReaktivDebug.trace("⚠️ No cached content found for key: $currentContentKey")
     }
 
     val previousEntry = animationState.value.previousEntry
@@ -144,13 +139,12 @@ fun ContentLayerRender(
     } else null
     ReaktivDebug.trace("🔑 ContentLayerRender previous key: $previousContentKey")
 
-    if (previousEntry != null && previousContentKey != null && !contentCache.containsKey(previousContentKey)) {
-        ReaktivDebug.trace("📱 Creating cached movableContent for previous key: $previousContentKey")
-        contentCache[previousContentKey] = movableContentOf {
-            key(previousContentKey) {
-                ReaktivDebug.trace("🎬 Rendering cached previous content for: ${previousEntry.navigatable.route}")
-                screenContent(previousEntry.navigatable, previousEntry.params)
-            }
+    // Previous content cache is handled at NavigationRender level during its navigation
+    if (previousEntry != null && previousContentKey != null) {
+        if (contentCache.containsKey(previousContentKey)) {
+            ReaktivDebug.trace("♾️ Previous content available in cache: $previousContentKey")
+        } else {
+            ReaktivDebug.trace("⚠️ Previous content not in cache: $previousContentKey")
         }
     }
     
