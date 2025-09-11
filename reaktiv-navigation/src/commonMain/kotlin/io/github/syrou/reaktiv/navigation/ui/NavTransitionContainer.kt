@@ -35,6 +35,8 @@ fun NavTransitionContainer(
     animationId: Long,
     animationDecision: AnimationDecision,
     onAnimationComplete: () -> Unit,
+    currentScreenContent: (@Composable () -> Unit)? = null,
+    previousScreenContent: (@Composable () -> Unit)? = null,
     content: @Composable (Navigatable, Params) -> Unit
 ) {
     // Recomposition tracking
@@ -130,7 +132,7 @@ fun NavTransitionContainer(
             key
         }
 
-        val currentScreenContent = remember(currentScreenKey, currentEntry.params) {
+        val currentScreenContentComposable = currentScreenContent ?: remember(currentScreenKey, currentEntry.params) {
             ReaktivDebug.trace("📱 Creating movableContent for current: $currentScreenKey, params: ${currentEntry.params}")
             movableContentOf {
                 ReaktivDebug.trace("🎬 Rendering current screen content: ${currentEntry.navigatable.route}")
@@ -138,7 +140,7 @@ fun NavTransitionContainer(
             }
         }
 
-        val previousScreenContent = remember(previousScreenKey, previousEntry.params) {
+        val previousScreenContentComposable = previousScreenContent ?: remember(previousScreenKey, previousEntry.params) {
             ReaktivDebug.trace("📱 Creating movableContent for previous: $previousScreenKey, params: ${previousEntry.params}")
             movableContentOf {
                 ReaktivDebug.trace("🎬 Rendering previous screen content: ${previousEntry.navigatable.route}")
@@ -184,7 +186,7 @@ fun NavTransitionContainer(
 
 
         // MovableContent identity tracking
-        ReaktivDebug.trace("🎭 MovableContent identity - Current: ${currentScreenContent.hashCode()}, Previous: ${previousScreenContent.hashCode()}")
+        ReaktivDebug.trace("🎭 MovableContent identity - Current: ${currentScreenContentComposable.hashCode()}, Previous: ${previousScreenContentComposable.hashCode()}")
         ReaktivDebug.trace("🎭 MovableContent keys comparison - Current key: '$currentScreenKey', Previous key: '$previousScreenKey'")
         
         // Check for duplicate keys
@@ -210,24 +212,24 @@ fun NavTransitionContainer(
             when {
                 enterScreenAnimated && !exitScreenAnimated -> {
                     ReaktivDebug.trace("🎨 Render case: Enter animated only")
-                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
-                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContentComposable)
+                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContentComposable)
                 }
 
                 !enterScreenAnimated && exitScreenAnimated -> {
                     ReaktivDebug.trace("🎨 Render case: Exit animated only")
-                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
-                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+                    RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContentComposable)
+                    RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContentComposable)
                 }
 
                 else -> {
                     ReaktivDebug.trace("🎨 Render case: Both or neither animated, forward: ${animationDecision.isForward}")
                     if (animationDecision.isForward) {
-                        RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
-                        RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
+                        RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContentComposable)
+                        RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContentComposable)
                     } else {
-                        RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContent)
-                        RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContent)
+                        RenderEnterScreen(currentEntry, resolvedEnter, enterProgress, backgroundColor, currentScreenContentComposable)
+                        RenderExitScreen(previousEntry, resolvedExit, exitProgress, backgroundColor, previousScreenContentComposable)
                     }
                 }
             }

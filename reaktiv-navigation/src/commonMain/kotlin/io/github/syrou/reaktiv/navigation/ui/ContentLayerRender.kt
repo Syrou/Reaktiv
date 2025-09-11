@@ -1,12 +1,12 @@
 package io.github.syrou.reaktiv.navigation.ui
 
+import LocalContentCache
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -48,7 +48,7 @@ fun ContentLayerRender(
 
     val previousContentEntry = remember { mutableStateOf<NavigationEntry?>(null) }
     val wasShowingModal = remember { mutableStateOf(false) }
-    val contentCache = remember { mutableStateMapOf<String, @Composable () -> Unit>() }
+    val contentCache = LocalContentCache.current
     val isModalStateChange = wasShowingModal.value != navigationState.isCurrentModal
     val isContentNavigation = !isModalStateChange &&
             previousContentEntry.value != null &&
