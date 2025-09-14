@@ -38,7 +38,7 @@ data class NavigationEntry(
     /**
      * Stable key for compose key() functions and state tracking
      */
-    val stableKey: String get() = "${navigatable.route}_${graphId}_${stackPosition}_${params.hashCode()}"
+    val stableKey: String get() = "${navigatable.route}_${graphId}_${params.hashCode()}"
 }
 
 data class RouteResolution(

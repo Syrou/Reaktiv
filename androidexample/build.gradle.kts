@@ -17,12 +17,13 @@ repositories {
 
 android {
     namespace = "eu.syrou.androidexample"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "eu.syrou.androidexample"
         minSdk = 26
-        targetSdk = 33
+        //noinspection EditedTargetSdkVersion
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
