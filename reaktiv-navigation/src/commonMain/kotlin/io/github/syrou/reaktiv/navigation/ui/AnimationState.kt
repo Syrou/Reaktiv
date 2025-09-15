@@ -1,12 +1,15 @@
 package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
+import kotlinx.coroutines.delay
 
 /**
  * Unified animation state for layer rendering
@@ -26,7 +29,8 @@ data class LayerAnimationState(
  */
 @Composable
 fun rememberLayerAnimationState(
-    entries: List<NavigationEntry>
+    entries: List<NavigationEntry>,
+    navigationState: NavigationState? = null
 ): LayerAnimationState {
     // Get the active entry for this layer
     val currentEntry = entries.lastOrNull() ?: error("Layer must have at least one entry")
@@ -47,8 +51,9 @@ fun rememberLayerAnimationState(
     // Update previous entry when current entry changes
     if (currentEntryState.value.stableKey != currentEntry.stableKey) {
         // Store the old current entry and its EXISTING movable content as previous
-        previousEntryState.value = currentEntryState.value  
-        previousContentState.value = currentContentState.value // Use the existing content, don't recreate
+        previousEntryState.value = currentEntryState.value
+        // Use the existing content, don't recreate
+        previousContentState.value = currentContentState.value
         currentEntryState.value = currentEntry
     }
     
@@ -58,19 +63,33 @@ fun rememberLayerAnimationState(
     val previousEntry = previousEntryState.value
     val previousContent = previousContentState.value
     
+    // Memory leak prevention: cleanup previousContent after exit animation completes
+    if (navigationState != null && previousEntry != null && previousContent != null) {
+        LaunchedEffect(previousEntry.stableKey, navigationState.orderedBackStack.size) {
+            val backstackEntries = navigationState.orderedBackStack
+            val isInBackstack = backstackEntries.any { it.stableKey == previousEntry.stableKey }
+            
+            if (!isInBackstack) {
+                delay(previousEntry.navigatable.exitTransition.durationMillis.toLong())
+                previousEntryState.value = null
+                previousContentState.value = null
+            }
+        }
+    }
+    
     // Determine animation decision
-    val animationDecision = if (previousEntry != null) {
-        determineContentAnimationDecision(previousEntry, currentEntry)
+    val animationDecision = if (previousEntryState.value != null) {
+        determineContentAnimationDecision(previousEntryState.value!!, currentEntry)
     } else {
         null
     }
     
     return LayerAnimationState(
         currentEntry = currentEntry,
-        previousEntry = previousEntry,
+        previousEntry = previousEntryState.value,
         animationDecision = animationDecision,
         currentContent = currentMovableContent,
-        previousContent = previousContent
+        previousContent = previousContentState.value
     )
 }
 
@@ -139,7 +158,8 @@ data class ModalEntryState(
     
     fun markCompleted(): ModalEntryState? = when {
         isEntering -> copy(isEntering = false)
-        isExiting -> null // Remove from state
+        // Remove from state
+        isExiting -> null
         else -> this
     }
 }

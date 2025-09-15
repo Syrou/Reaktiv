@@ -54,7 +54,7 @@ private fun ContentLayerRenderer(
     val currentEntry = entries.lastOrNull() ?: navigationState.currentEntry
 
     // Get animation state with movable content protection
-    val animationState = rememberLayerAnimationState(listOf(currentEntry))
+    val animationState = rememberLayerAnimationState(listOf(currentEntry), navigationState)
 
     // Apply layout hierarchy for proper nesting
     val layoutGraphs = findLayoutGraphsInHierarchy(currentEntry.graphId, navigationState)
