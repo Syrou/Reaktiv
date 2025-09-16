@@ -1,23 +1,53 @@
 package io.github.syrou.reaktiv.navigation.middleware
 
 import io.github.syrou.reaktiv.core.Middleware
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationAction
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.time.Clock
+import kotlin.time.TimeSource
+
+/**
+ * Action category extensions for cleaner classification
+ */
+private val NavigationAction.isSystemAction: Boolean
+    get() = when (this) {
+        is NavigationAction.UpdateTransitionState -> true // System-generated transition management
+        else -> false
+    }
+
+private val NavigationAction.isNavigationOperation: Boolean
+    get() = when (this) {
+        is NavigationAction.Navigate,
+        is NavigationAction.Replace,
+        is NavigationAction.Back,
+        is NavigationAction.PopUpTo,
+        is NavigationAction.ClearBackstack,
+        is NavigationAction.BatchUpdate -> true
+        else -> false
+    }
+
+private val NavigationAction.isGuidedFlowManagement: Boolean
+    get() = when (this) {
+        is NavigationAction.UpdateGuidedFlowModifications,
+        is NavigationAction.ClearAllGuidedFlowModifications,
+        is NavigationAction.CompleteGuidedFlow -> true
+        else -> false
+    }
 
 class NavigationSpamMiddleware(
     private val debounceTimeMs: Long = 300L,
     private val maxActionsPerWindow: Int = 3,
     private val windowSizeMs: Long = 1000L,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val timeSource: TimeSource = TimeSource.Monotonic
 ) {
+    private val startTime = timeSource.markNow()
 
     private data class ActionRecord(
         val action: NavigationAction,
@@ -29,21 +59,41 @@ class NavigationSpamMiddleware(
     private val navigationMutex = Mutex()
     private var sequenceNumber = 0L
 
+    /**
+     * Time-based helper functions to eliminate duplicate calculations
+     */
+    private fun isWithinTimeWindow(timestamp: Long, currentTime: Long): Boolean =
+        currentTime - timestamp <= windowSizeMs
+
+    private fun isWithinDebounceWindow(timestamp: Long, currentTime: Long): Boolean =
+        currentTime - timestamp < debounceTimeMs
+
+    private fun timeSinceAction(timestamp: Long, currentTime: Long): Long =
+        currentTime - timestamp
+
+
     companion object {
+
         fun create(
             debounceTimeMs: Long = 300L,
             maxActionsPerWindow: Int = 3,
             windowSizeMs: Long = 1000L,
-            scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            timeSource: TimeSource = TimeSource.Monotonic
         ): Middleware {
-            val middleware = NavigationSpamMiddleware(debounceTimeMs, maxActionsPerWindow, windowSizeMs, scope)
+            // Create middleware instance once and reuse it
+            val middleware = NavigationSpamMiddleware(
+                debounceTimeMs,
+                maxActionsPerWindow,
+                windowSizeMs,
+                timeSource
+            )
 
             return { action, getAllStates, storeAccessor, updatedState ->
                 if (action is NavigationAction) {
-                    if (middleware.shouldBlockAction(action)) {
+                    if (middleware.shouldBlockAction(action, storeAccessor)) {
                         ReaktivDebug.nav("🚫 Blocked navigation spam: ${action::class.simpleName}")
                     } else {
-                        middleware.trackAction(action)
+                        middleware.trackAction(action, storeAccessor)
                         updatedState(action)
                     }
                 } else {
@@ -54,82 +104,122 @@ class NavigationSpamMiddleware(
     }
 
     private suspend fun shouldBlockAction(
-        action: NavigationAction
+        action: NavigationAction,
+        storeAccessor: StoreAccessor
     ): Boolean = navigationMutex.withLock {
-        val currentTime = Clock.System.now().toEpochMilliseconds()
+        val currentTime = startTime.elapsedNow().inWholeMilliseconds
 
-        // Skip spam prevention for certain action types
-        when (action) {
-            // Allow Back actions - users should be able to navigate back quickly
-            is NavigationAction.Back -> return@withLock false
-
-            // Skip internal/high-priority actions completely
-            is NavigationAction.UpdateGuidedFlowModifications,
-            is NavigationAction.ClearAllGuidedFlowModifications,
-            is NavigationAction.CompleteGuidedFlow -> return@withLock false
-
-            else -> {
-                /* Continue with spam detection */
-            }
+        // 1. System actions bypass all protection
+        if (action.isSystemAction) {
+            return@withLock false
         }
 
-        // Clean old actions from history (older than window)
-        actionHistory.removeAll { currentTime - it.timestamp > windowSizeMs }
+        // 2. Block navigation operations during animation
+        if (shouldBlockDuringAnimation(action, storeAccessor)) {
+            return@withLock true
+        }
+
+        // 3. Apply spam detection for user actions
+        return@withLock shouldBlockSpam(action, currentTime)
+    }
+
+    private suspend fun shouldBlockDuringAnimation(
+        action: NavigationAction,
+        storeAccessor: StoreAccessor
+    ): Boolean {
+        val navigationState = storeAccessor.selectState<NavigationState>().first()
+        if (navigationState.transitionState != NavigationTransitionState.ANIMATING) {
+            return false
+        }
+
+        return if (action.isNavigationOperation) {
+            ReaktivDebug.nav("🚫 Blocking navigation operation: navigation is animating (${action::class.simpleName})")
+            true
+        } else {
+            false // Allow guided flow management and other actions during animation
+        }
+    }
+
+    private fun shouldBlockSpam(action: NavigationAction, currentTime: Long): Boolean {
+        // Clean old actions from history
+        actionHistory.removeAll { !isWithinTimeWindow(it.timestamp, currentTime) }
 
         val currentRoute = extractRouteFromAction(action)
         val actionType = action::class.simpleName
 
-        // Count recent similar actions in the time window
+        // Check window-based spam protection
         val recentSimilarActions = actionHistory.count { record ->
-            val timeDiff = currentTime - record.timestamp
-            val isSameType = record.action::class.simpleName == actionType
-            val isSameRoute = when {
-                currentRoute != null && record.route != null -> currentRoute == record.route
-                currentRoute == null && record.route == null -> true
-                else -> false
-            }
-
-            timeDiff <= windowSizeMs && isSameType && isSameRoute
+            isWithinTimeWindow(record.timestamp, currentTime) &&
+            record.action::class.simpleName == actionType &&
+            record.route == currentRoute
         }
 
         if (recentSimilarActions >= maxActionsPerWindow) {
             ReaktivDebug.nav("🚫 Blocking spam: $actionType (route: $currentRoute) - $recentSimilarActions actions in ${windowSizeMs}ms window")
-            return@withLock true
+            return true
         }
 
-        // Also check for rapid identical actions within debounce period
+        // Check debounce-based rapid duplicate protection
         val lastIdenticalAction = actionHistory.findLast { record ->
             record.action::class.simpleName == actionType && record.route == currentRoute
         }
 
-        if (lastIdenticalAction != null && (currentTime - lastIdenticalAction.timestamp) < debounceTimeMs) {
-            ReaktivDebug.nav("🎯 Blocking rapid duplicate: $actionType (route: $currentRoute) - ${currentTime - lastIdenticalAction.timestamp}ms since last")
-            return@withLock true
+        return if (lastIdenticalAction != null && isWithinDebounceWindow(lastIdenticalAction.timestamp, currentTime)) {
+            val timeSince = timeSinceAction(lastIdenticalAction.timestamp, currentTime)
+            ReaktivDebug.nav("🎯 Blocking rapid duplicate: $actionType (route: $currentRoute) - ${timeSince}ms since last (debounce: ${debounceTimeMs}ms)")
+            true
+        } else {
+            if (lastIdenticalAction != null) {
+                val timeSince = timeSinceAction(lastIdenticalAction.timestamp, currentTime)
+                ReaktivDebug.nav("⏱️ Allowing after debounce: $actionType (route: $currentRoute) - ${timeSince}ms since last (debounce: ${debounceTimeMs}ms)")
+            }
+            false
         }
-
-        return@withLock false
     }
+
 
     /**
      * Extract route information from various NavigationAction types for spam detection
      */
     private fun extractRouteFromAction(action: NavigationAction?): String? {
         return when (action) {
-            is NavigationAction.BatchUpdate -> action.currentEntry?.navigatable?.route
+            is NavigationAction.BatchUpdate -> extractBatchUpdateRoute(action)
+            
+            // Navigation actions with currentEntry
             is NavigationAction.Navigate -> action.currentEntry?.navigatable?.route
             is NavigationAction.Replace -> action.currentEntry?.navigatable?.route
             is NavigationAction.Back -> action.currentEntry?.navigatable?.route
             is NavigationAction.PopUpTo -> action.currentEntry?.navigatable?.route
             is NavigationAction.ClearBackstack -> action.currentEntry?.navigatable?.route
-            // Guided flow actions are handled by business logic, not spam middleware
+            
+            // Guided flow management actions with flowRoute
+            is NavigationAction.UpdateGuidedFlowModifications -> action.flowRoute
+            is NavigationAction.CompleteGuidedFlow -> action.flowRoute
+            
+            // Special guided flow actions
+            is NavigationAction.ClearAllGuidedFlowModifications -> "guided_flow_clear_all"
+            
             else -> null
         }
     }
 
-    private fun trackAction(action: NavigationAction) {
-        scope.launch {
+    private fun extractBatchUpdateRoute(action: NavigationAction.BatchUpdate): String? {
+        return if (action.activeGuidedFlowState != null) {
+            val flowRoute = action.activeGuidedFlowState.flowRoute
+            val isStartFlow = action.activeGuidedFlowState.currentStepIndex == 0 && action.operations.isNotEmpty()
+            if (isStartFlow) "${flowRoute}_start" else "${flowRoute}_next"
+        } else {
+            action.currentEntry?.navigatable?.route
+        }
+    }
+
+    private fun trackAction(
+        action: NavigationAction,
+        storeAccessor: StoreAccessor
+    ) {
+        storeAccessor.launch {
             navigationMutex.withLock {
-                val currentTime = Clock.System.now().toEpochMilliseconds()
+                val currentTime = startTime.elapsedNow().inWholeMilliseconds
                 val route = extractRouteFromAction(action)
 
                 // Add to action history
@@ -140,11 +230,10 @@ class NavigationSpamMiddleware(
                 // Remove actions older than 2x window size, or if we exceed max history size
                 val maxHistorySize = 50
                 val cleanupThreshold = windowSizeMs * 2
-                
+
                 if (actionHistory.size > maxHistorySize || sequenceNumber % 10L == 0L) {
                     actionHistory.removeAll { currentTime - it.timestamp > cleanupThreshold }
                 }
-
                 ReaktivDebug.nav("📊 Tracked action: ${action::class.simpleName} (route: $route) - history size: ${actionHistory.size}")
             }
         }

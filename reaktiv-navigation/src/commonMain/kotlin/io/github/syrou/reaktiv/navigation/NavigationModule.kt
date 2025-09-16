@@ -15,6 +15,7 @@ import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
+import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
@@ -89,6 +90,7 @@ class NavigationModule internal constructor(
             isCurrentModal = computedState.isCurrentModal,
             isCurrentScreen = computedState.isCurrentScreen,
             hasModalsInStack = computedState.hasModalsInStack,
+            transitionState = NavigationTransitionState.IDLE,
             effectiveDepth = computedState.effectiveDepth,
             navigationDepth = computedState.navigationDepth,
             contentLayerEntries = computedState.contentLayerEntries,
@@ -134,7 +136,8 @@ class NavigationModule internal constructor(
         backStack: List<NavigationEntry>?,
         modalContexts: Map<String, ModalContext>?,
         activeGuidedFlowState: GuidedFlowState? = state.activeGuidedFlowState,
-        updateGuidedFlowState: Boolean = false
+        updateGuidedFlowState: Boolean = false,
+        transitionState: NavigationTransitionState = state.transitionState
     ): NavigationState {
         val newCurrentEntry = currentEntry ?: state.currentEntry
         val newBackStack = backStack ?: state.backStack
@@ -160,6 +163,7 @@ class NavigationModule internal constructor(
             isCurrentModal = computedState.isCurrentModal,
             isCurrentScreen = computedState.isCurrentScreen,
             hasModalsInStack = computedState.hasModalsInStack,
+            transitionState = transitionState,
             effectiveDepth = computedState.effectiveDepth,
             navigationDepth = computedState.navigationDepth,
             contentLayerEntries = computedState.contentLayerEntries,
@@ -182,22 +186,22 @@ class NavigationModule internal constructor(
         when (action) {
             is NavigationAction.BatchUpdate -> reduceNavigationStateUpdate(
                 state, action.currentEntry, action.backStack, action.modalContexts,
-                action.activeGuidedFlowState, updateGuidedFlowState = true
+                action.activeGuidedFlowState, updateGuidedFlowState = true, transitionState = action.transitionState
             )
             is NavigationAction.Back -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
             )
             is NavigationAction.ClearBackstack -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
             )
             is NavigationAction.Navigate -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
             )
             is NavigationAction.PopUpTo -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
             )
             is NavigationAction.Replace -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
             )
 
             is NavigationAction.UpdateGuidedFlowModifications -> {
@@ -225,6 +229,10 @@ class NavigationModule internal constructor(
                     activeGuidedFlowState = null,
                     guidedFlowModifications = newModifications
                 )
+            }
+
+            is NavigationAction.UpdateTransitionState -> {
+                state.copy(transitionState = action.transitionState)
             }
 
         }

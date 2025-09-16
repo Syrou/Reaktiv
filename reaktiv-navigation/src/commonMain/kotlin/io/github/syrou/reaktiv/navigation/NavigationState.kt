@@ -10,6 +10,7 @@ import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
+import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import kotlinx.serialization.Serializable
 
 @Stable
@@ -32,6 +33,7 @@ data class NavigationState(
     val isCurrentModal: Boolean,
     val isCurrentScreen: Boolean,
     val hasModalsInStack: Boolean,
+    val transitionState: NavigationTransitionState,
     val effectiveDepth: Int,
     val navigationDepth: Int,
 

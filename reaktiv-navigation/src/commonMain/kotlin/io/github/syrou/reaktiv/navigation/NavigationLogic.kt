@@ -19,6 +19,7 @@ import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.model.applyModification
 import io.github.syrou.reaktiv.navigation.model.getParams
@@ -26,7 +27,9 @@ import io.github.syrou.reaktiv.navigation.model.getRoute
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.computeGuidedFlowProperties
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
@@ -127,8 +130,64 @@ class NavigationLogic(
         val initialState = getCurrentNavigationState()
 
         val finalState = computeFinalNavigationState(builder.operations, initialState, builder.guidedFlowContext)
-        val action = determineNavigationAction(builder.operations, finalState, initialState, builder)
+        
+        // Check if this navigation will cause a screen transition (has animation)
+        val willAnimate = willNavigationAnimate(initialState, finalState)
+        val transitionState = if (willAnimate) NavigationTransitionState.ANIMATING else NavigationTransitionState.IDLE
+        
+        val action = determineNavigationAction(builder.operations, finalState, initialState, builder, transitionState)
+        
+        // Single atomic dispatch - navigation state + transition state change together
         storeAccessor.dispatch(action)
+        
+        // Schedule reset only AFTER successful dispatch
+        if (willAnimate) {
+            scheduleTransitionStateReset(finalState.currentEntry)
+        }
+    }
+
+    /**
+     * Check if navigation will cause a screen transition that requires animation
+     */
+    private fun willNavigationAnimate(
+        initialState: NavigationState, 
+        finalState: ComputedNavigationState
+    ): Boolean {
+        // Check if current entry is changing to a different screen
+        val isRouteChanging = initialState.currentEntry.navigatable.route != finalState.currentEntry.navigatable.route
+        
+        if (!isRouteChanging) {
+            return false // No route change = no animation needed
+        }
+        
+        // Check if either enter or exit transition has actual duration
+        val enterDuration = finalState.currentEntry.navigatable.enterTransition.durationMillis
+        val exitDuration = initialState.currentEntry.navigatable.exitTransition.durationMillis
+        
+        // Only animate if at least one transition has duration > 0
+        return enterDuration > 0 || exitDuration > 0
+    }
+
+    /**
+     * Schedule transition state reset after animation completes
+     */
+    private suspend fun scheduleTransitionStateReset(targetEntry: NavigationEntry) {
+        val currentState = getCurrentNavigationState()
+        val previousEntry = currentState.currentEntry
+        
+        // Calculate animation duration considering both enter and exit transitions
+        val enterDuration = targetEntry.navigatable.enterTransition.durationMillis
+        val exitDuration = previousEntry.navigatable.exitTransition.durationMillis
+        
+        // Use the longer of the two durations to ensure both animations complete
+        val totalAnimationDuration = maxOf(enterDuration, exitDuration)
+        
+        storeAccessor.launch {
+            delay(totalAnimationDuration.toLong())
+            
+            // Use dedicated action to reset transition state back to IDLE
+            storeAccessor.dispatch(NavigationAction.UpdateTransitionState(NavigationTransitionState.IDLE))
+        }
     }
 
     /**
@@ -139,7 +198,8 @@ class NavigationLogic(
         operations: List<NavigationStep>,
         finalState: ComputedNavigationState,
         initialState: NavigationState,
-        builder: NavigationBuilder
+        builder: NavigationBuilder,
+        transitionState: NavigationTransitionState = NavigationTransitionState.IDLE
     ): NavigationAction {
         val modalContexts = if (finalState.modalContexts != initialState.activeModalContexts) {
             finalState.modalContexts
@@ -163,31 +223,36 @@ class NavigationLogic(
                 NavigationOperation.Back -> NavigationAction.Back(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = modalContexts
+                    modalContexts = modalContexts,
+                    transitionState = transitionState
                 )
 
                 NavigationOperation.PopUpTo -> NavigationAction.PopUpTo(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = modalContexts
+                    modalContexts = modalContexts,
+                    transitionState = transitionState
                 )
 
                 NavigationOperation.Navigate -> NavigationAction.Navigate(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = modalContexts
+                    modalContexts = modalContexts,
+                    transitionState = transitionState
                 )
 
                 NavigationOperation.Replace -> NavigationAction.Replace(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = modalContexts
+                    modalContexts = modalContexts,
+                    transitionState = transitionState
                 )
 
                 NavigationOperation.ClearBackStack -> NavigationAction.ClearBackstack(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = modalContexts
+                    modalContexts = modalContexts,
+                    transitionState = transitionState
                 )
             }
         }
@@ -198,7 +263,8 @@ class NavigationLogic(
             backStack = finalState.backStack,
             modalContexts = modalContexts,
             operations = operations.map { it.operation },
-            activeGuidedFlowState = activeGuidedFlowState
+            activeGuidedFlowState = activeGuidedFlowState,
+            transitionState = transitionState
         )
     }
 
@@ -530,14 +596,19 @@ class NavigationLogic(
                         // Don't clear any modifications
                     }
                 }
-            } else {
-                // Update active guided flow state via BatchUpdate
+            } else if (finalNavigationRoute != null) {
+                // Navigate and update guided flow state in single BatchUpdate
+                val builder = NavigationBuilder(storeAccessor, parameterEncoder)
+                builder.params(finalNavigationParams)
+                builder.navigateTo(finalNavigationRoute, false)
+                guidedFlowContext?.let { builder.setGuidedFlowContext(it) }
+                builder.setActiveGuidedFlowState(updatedFlowState)
+                builder.validate()
+                
+                executeNavigation(builder)
+            } else if (updatedFlowState != null) {
+                // Only update guided flow state (no navigation)
                 storeAccessor.dispatch(NavigationAction.BatchUpdate(activeGuidedFlowState = updatedFlowState))
-            }
-        }
-        if (finalNavigationRoute != null) {
-            navigate(finalNavigationRoute, finalNavigationParams, false) {
-                guidedFlowContext?.let { setGuidedFlowContext(it) }
             }
         }
     }
