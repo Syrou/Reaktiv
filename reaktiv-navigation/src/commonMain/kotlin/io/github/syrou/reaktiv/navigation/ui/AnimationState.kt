@@ -35,44 +35,42 @@ fun rememberLayerAnimationState(
     // Get the active entry for this layer
     val currentEntry = entries.lastOrNull() ?: error("Layer must have at least one entry")
     
-    // State tracking for entries and their movable content
+    // Content cache to preserve compositions across navigation cycles
+    val contentCache = remember { mutableMapOf<String, @Composable () -> Unit>() }
+    
+    // Track previous entry for animation detection  
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
-    val previousContentState = remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
-    val currentContentState = remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
     
-    // Create movable content for current entry to preserve composition
-    val currentMovableContent = remember(currentEntry.stableKey) {
-        movableContentOf {
-            currentEntry.navigatable.Content(currentEntry.params)
-        }
-    }
-    
-    // Update previous entry when current entry changes
+    // Update entries when current changes
     if (currentEntryState.value.stableKey != currentEntry.stableKey) {
-        // Store the old current entry and its EXISTING movable content as previous
         previousEntryState.value = currentEntryState.value
-        // Use the existing content, don't recreate
-        previousContentState.value = currentContentState.value
         currentEntryState.value = currentEntry
     }
     
-    // Always update current content state
-    currentContentState.value = currentMovableContent
+    // Create or retrieve cached content (remember prevents recomposition access)
+    val currentMovableContent = remember(currentEntry.stableKey) {
+        contentCache.getOrPut(currentEntry.stableKey) {
+            movableContentOf {
+                currentEntry.navigatable.Content(currentEntry.params)
+            }
+        }
+    }
     
-    val previousEntry = previousEntryState.value
-    val previousContent = previousContentState.value
-    
-    // Memory leak prevention: cleanup previousContent after exit animation completes
-    if (navigationState != null && previousEntry != null && previousContent != null) {
-        LaunchedEffect(previousEntry.stableKey, navigationState.orderedBackStack.size) {
-            val backstackEntries = navigationState.orderedBackStack
-            val isInBackstack = backstackEntries.any { it.stableKey == previousEntry.stableKey }
+    // Get previous content from cache
+    val previousContent = previousEntryState.value?.let { contentCache[it.stableKey] }
+
+    // Memory leak prevention: cleanup cached content for entries no longer reachable
+    if (navigationState != null) {
+        LaunchedEffect(navigationState.orderedBackStack.size) {
+            val reachableKeys = navigationState.orderedBackStack.map { it.stableKey }.toSet()
+            val currentKey = currentEntry.stableKey
+            val allReachable = reachableKeys + currentKey
             
-            if (!isInBackstack) {
-                delay(previousEntry.navigatable.exitTransition.durationMillis.toLong())
-                previousEntryState.value = null
-                previousContentState.value = null
+            // Remove cached content for entries not in backstack or current
+            val keysToRemove = contentCache.keys.filter { it !in allReachable }
+            keysToRemove.forEach { key ->
+                contentCache.remove(key)
             }
         }
     }
@@ -89,7 +87,7 @@ fun rememberLayerAnimationState(
         previousEntry = previousEntryState.value,
         animationDecision = animationDecision,
         currentContent = currentMovableContent,
-        previousContent = previousContentState.value
+        previousContent = previousContent
     )
 }
 

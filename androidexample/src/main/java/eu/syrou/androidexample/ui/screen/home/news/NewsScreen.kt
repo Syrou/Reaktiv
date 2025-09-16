@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
@@ -31,6 +32,9 @@ object NewsScreen : Screen {
     override fun Content(
         params: Params
     ) {
+        LaunchedEffect(Unit) {
+            println("HERPADERPA - NewsScreen Should trigger once")
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
