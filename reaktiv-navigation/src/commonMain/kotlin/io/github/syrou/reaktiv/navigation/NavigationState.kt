@@ -12,6 +12,7 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration
 
 @Stable
 @Serializable
@@ -22,6 +23,9 @@ data class NavigationState(
     
     // Track last navigation action for content preservation
     val lastNavigationAction: NavigationAction? = null,
+    
+    // Screen content retention configuration
+    val screenRetentionDuration: Duration,
 
     // Computed state properties (set by reducer, fully serializable)
     val orderedBackStack: List<NavigationEntry>,

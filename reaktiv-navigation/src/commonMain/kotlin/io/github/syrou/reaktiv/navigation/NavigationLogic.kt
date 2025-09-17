@@ -157,7 +157,8 @@ class NavigationLogic(
         val isRouteChanging = initialState.currentEntry.navigatable.route != finalState.currentEntry.navigatable.route
         
         if (!isRouteChanging) {
-            return false // No route change = no animation needed
+            // No route change = no animation needed
+            return false
         }
         
         // Check if either enter or exit transition has actual duration
@@ -165,7 +166,7 @@ class NavigationLogic(
         val exitDuration = initialState.currentEntry.navigatable.exitTransition.durationMillis
         
         // Only animate if at least one transition has duration > 0
-        return enterDuration > 0 || exitDuration > 0
+        return maxOf(enterDuration, exitDuration) > 0
     }
 
     /**
@@ -552,6 +553,7 @@ class NavigationLogic(
                 is GuidedFlowOperation.NextStep -> {
                     if (updatedFlowState != null) {
                         val result = computeNextStep(updatedFlowState, currentDefinition, operation.params)
+                        println("HERPADERPA - computeNextStep: $result")
                         updatedFlowState = result.flowState
                         if (result.shouldNavigate) {
                             finalNavigationRoute = result.route
@@ -1140,6 +1142,7 @@ class NavigationLogic(
                                 isCompleted = true,
                                 duration = Clock.System.now() - flowState.startedAt
                             )
+                            println("HERPADERPA - completedFlowState: $completedFlowState")
 
                             // Execute onComplete callback before clearing state
                             definition.onComplete?.let { onCompleteBlock ->

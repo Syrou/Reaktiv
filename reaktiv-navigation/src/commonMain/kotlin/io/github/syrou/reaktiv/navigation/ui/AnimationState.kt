@@ -45,6 +45,8 @@ fun rememberLayerAnimationState(
     entries: List<NavigationEntry>,
     navigationState: NavigationState? = null
 ): LayerAnimationState {
+    // Get navigation state for retention duration config
+    val navState by composeState<NavigationState>()
     // Get the active entry for this layer
     val currentEntry = entries.lastOrNull() ?: error("Layer must have at least one entry")
 
@@ -68,14 +70,13 @@ fun rememberLayerAnimationState(
         is NavigationAction.BatchUpdate -> lastAction.operations.contains(NavigationOperation.ClearBackStack)
         else -> false
     }
-
-    // Create content: preserve for back navigation, fresh for forward navigation
-    val currentMovableContent = if (isBackNavigation && contentCache.containsKey(currentEntry.stableKey)) {
-        // Back navigation: reuse existing content (preserves LaunchedEffect state)
+    // Create content: preserve cached content, fresh only for first visit
+    val currentMovableContent = if (contentCache.containsKey(currentEntry.stableKey)) {
+        // Reuse existing cached content (preserves LaunchedEffect state)
         contentCache[currentEntry.stableKey]!!
     } else {
-        // Forward navigation or first visit: create fresh content (triggers LaunchedEffect)
-        remember(currentEntry.stableKey, isBackNavigation) {
+        // First visit: create fresh content (triggers LaunchedEffect)
+        remember(currentEntry.stableKey) {
             movableContentOf {
                 currentEntry.navigatable.Content(currentEntry.params)
             }
@@ -121,10 +122,13 @@ fun rememberLayerAnimationState(
             val animationDuration = (animationDecision.enterTransition.durationMillis) +
                                    (animationDecision.exitTransition.durationMillis)
             if (animationDuration > 0) {
-                delay(animationDuration.toLong() + 100) // 100ms buffer
-                // Clean up previous content after animation
+                delay(animationDuration.toLong() + navState.screenRetentionDuration.inWholeMilliseconds)
+                // Clean up previous content after animation ONLY if it's not the current entry
+                // This prevents cleanup while user is on that screen
                 previousEntryState.value?.let { prevEntry ->
-                    contentCache.remove(prevEntry.stableKey)
+                    if (prevEntry.stableKey != currentEntry.stableKey) {
+                        contentCache.remove(prevEntry.stableKey)
+                    }
                 }
             }
         }

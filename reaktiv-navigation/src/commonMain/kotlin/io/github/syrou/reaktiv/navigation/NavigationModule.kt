@@ -28,11 +28,13 @@ import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
+import kotlin.time.Duration
 
 
 class NavigationModule internal constructor(
     private val rootGraph: NavigationGraph,
-    private val originalGuidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap()
+    private val originalGuidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
+    private val screenRetentionDuration: Duration
 ) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
     private val precomputedData: PrecomputedNavigationData by lazy {
         PrecomputedNavigationData.create(rootGraph)
@@ -81,6 +83,7 @@ class NavigationModule internal constructor(
             currentEntry = initialEntry,
             backStack = initialBackStack,
             lastNavigationAction = null,
+            screenRetentionDuration = screenRetentionDuration,
             orderedBackStack = computedState.orderedBackStack,
             visibleLayers = computedState.visibleLayers,
             currentFullPath = computedState.currentFullPath,
@@ -156,6 +159,7 @@ class NavigationModule internal constructor(
             currentEntry = newCurrentEntry,
             backStack = newBackStack,
             lastNavigationAction = navigationAction,
+            screenRetentionDuration = state.screenRetentionDuration,
             orderedBackStack = computedState.orderedBackStack,
             visibleLayers = computedState.visibleLayers,
             currentFullPath = computedState.currentFullPath,
