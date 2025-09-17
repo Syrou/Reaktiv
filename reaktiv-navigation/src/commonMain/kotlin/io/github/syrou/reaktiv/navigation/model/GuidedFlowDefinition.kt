@@ -17,5 +17,5 @@ data class GuidedFlowDefinition(
     val steps: List<GuidedFlowStep>,
     val clearModificationsOnComplete: ClearModificationBehavior = ClearModificationBehavior.CLEAR_ALL,
     @Transient
-    val onComplete: (suspend (StoreAccessor) -> Unit)? = null
+    val onComplete: (suspend NavigationBuilder.(StoreAccessor) -> Unit)? = null
 )

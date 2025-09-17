@@ -38,7 +38,7 @@ import kotlin.reflect.KClass
  */
 class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
     private val steps = mutableListOf<GuidedFlowStep>()
-    private var onCompleteBlock: (suspend (StoreAccessor) -> Unit)? = null
+    private var onCompleteBlock: (suspend NavigationBuilder.(StoreAccessor) -> Unit)? = null
     private var clearBehavior: ClearModificationBehavior = ClearModificationBehavior.CLEAR_ALL
     private var pendingStepBuilder: GuidedFlowStepBuilder? = null
 
@@ -78,10 +78,10 @@ class GuidedFlowBuilder(private val guidedFlow: GuidedFlow) {
 
     /**
      * Define what happens when the guided flow completes
-     * The StoreAccessor parameter allows access to all module states and navigation operations.
-     * Use storeAccessor.navigation {} to perform navigation operations.
+     * Use navigateTo, clearBackStack, and other navigation operations directly.
+     * The storeAccessor parameter provides access to other module states when needed.
      */
-    fun onComplete(block: suspend (StoreAccessor) -> Unit) {
+    fun onComplete(block: suspend NavigationBuilder.(StoreAccessor) -> Unit) {
         finalizePendingStep()
         onCompleteBlock = block
     }

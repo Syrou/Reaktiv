@@ -58,16 +58,14 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
             updateOnComplete { storeAccessor ->
                 val twitchState = storeAccessor.selectState<TwitchStreamsModule.TwitchStreamsState>().first()
 
-                storeAccessor.navigation {
-                    clearBackStack()
-                    if (twitchState.twitchStreamers.isEmpty()) {
-                        navigateTo("home")
-                    } else {
-                        navigateTo("home")
-                        navigateTo<VideosListScreen>()
-                    }
-                    navigateTo<NotificationModal>()
+                clearBackStack()
+                if (twitchState.twitchStreamers.isEmpty()) {
+                    navigateTo("home")
+                } else {
+                    navigateTo("home")
+                    navigateTo<VideosListScreen>()
                 }
+                navigateTo<NotificationModal>()
             }
             nextStep()
         }

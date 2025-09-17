@@ -54,7 +54,7 @@ sealed class FlowModification {
     @Serializable
     data class UpdateOnComplete(
         @Transient
-        val onComplete: (suspend (StoreAccessor) -> Unit)? = null
+        val onComplete: (suspend NavigationBuilder.(StoreAccessor) -> Unit)? = null
     ) : FlowModification()
 }
 

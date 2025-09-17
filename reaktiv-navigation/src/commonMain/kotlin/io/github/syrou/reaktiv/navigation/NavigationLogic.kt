@@ -578,24 +578,53 @@ class NavigationLogic(
         // Update active flow state if there's a currently executing flow
         if (updatedFlowState != null) {
             if (updatedFlowState.isCompleted) {
+                // Handle completion with potential onComplete navigation operations
+                val completionBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                
+                // Execute onComplete callback with the navigation builder to capture operations
                 currentDefinition.onComplete?.let { onCompleteBlock ->
-                    onCompleteBlock(storeAccessor)
+                    completionBuilder.onCompleteBlock(storeAccessor)
                 }
-                // Clear the active flow state via BatchUpdate
-                storeAccessor.dispatch(NavigationAction.BatchUpdate(activeGuidedFlowState = null))
+                
+                // If onComplete has navigation operations, execute them atomically with completion
+                if (completionBuilder.operations.isNotEmpty()) {
+                    completionBuilder.clearActiveGuidedFlowState()
+                    completionBuilder.validate()
+                    
+                    // Execute navigation with flow completion
+                    executeNavigation(completionBuilder)
+                    
+                    // Clear modifications after successful navigation
+                    when (currentDefinition.clearModificationsOnComplete) {
+                        ClearModificationBehavior.CLEAR_ALL -> {
+                            storeAccessor.dispatch(NavigationAction.ClearAllGuidedFlowModifications)
+                        }
 
-                // Clear modifications based on the flow's configuration
-                when (currentDefinition.clearModificationsOnComplete) {
-                    ClearModificationBehavior.CLEAR_ALL -> {
-                        storeAccessor.dispatch(NavigationAction.ClearAllGuidedFlowModifications)
+                        ClearModificationBehavior.CLEAR_SPECIFIC -> {
+                            storeAccessor.dispatch(NavigationAction.UpdateGuidedFlowModifications(flowRoute, null))
+                        }
+
+                        ClearModificationBehavior.CLEAR_NONE -> {
+                            // Don't clear any modifications
+                        }
                     }
+                } else {
+                    // No navigation operations, just clear the flow state
+                    storeAccessor.dispatch(NavigationAction.BatchUpdate(activeGuidedFlowState = null))
 
-                    ClearModificationBehavior.CLEAR_SPECIFIC -> {
-                        storeAccessor.dispatch(NavigationAction.UpdateGuidedFlowModifications(flowRoute, null))
-                    }
+                    // Clear modifications based on the flow's configuration
+                    when (currentDefinition.clearModificationsOnComplete) {
+                        ClearModificationBehavior.CLEAR_ALL -> {
+                            storeAccessor.dispatch(NavigationAction.ClearAllGuidedFlowModifications)
+                        }
 
-                    ClearModificationBehavior.CLEAR_NONE -> {
-                        // Don't clear any modifications
+                        ClearModificationBehavior.CLEAR_SPECIFIC -> {
+                            storeAccessor.dispatch(NavigationAction.UpdateGuidedFlowModifications(flowRoute, null))
+                        }
+
+                        ClearModificationBehavior.CLEAR_NONE -> {
+                            // Don't clear any modifications
+                        }
                     }
                 }
             } else if (finalNavigationRoute != null) {
@@ -1144,19 +1173,46 @@ class NavigationLogic(
                             )
                             println("HERPADERPA - completedFlowState: $completedFlowState")
 
-                            // Execute onComplete callback before clearing state
+                            // Handle completion with potential onComplete navigation operations
+                            val completionBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                            
+                            // Execute onComplete callback with the navigation builder to capture operations
                             definition.onComplete?.let { onCompleteBlock ->
-                                onCompleteBlock(storeAccessor)
+                                completionBuilder.onCompleteBlock(storeAccessor)
                             }
+                            
+                            // If onComplete has navigation operations, execute them atomically with completion
+                            if (completionBuilder.operations.isNotEmpty()) {
+                                completionBuilder.clearActiveGuidedFlowState()
+                                completionBuilder.validate()
+                                
+                                // Execute navigation with flow completion
+                                executeNavigation(completionBuilder)
+                                
+                                // Clear modifications after successful navigation
+                                when (definition.clearModificationsOnComplete) {
+                                    ClearModificationBehavior.CLEAR_ALL -> {
+                                        storeAccessor.dispatch(NavigationAction.ClearAllGuidedFlowModifications)
+                                    }
 
-                            // Atomically complete the flow and clear state/modifications
-                            storeAccessor.dispatch(
-                                NavigationAction.CompleteGuidedFlow(
-                                    completedFlowState = completedFlowState,
-                                    clearBehavior = definition.clearModificationsOnComplete,
-                                    flowRoute = flowState.flowRoute
+                                    ClearModificationBehavior.CLEAR_SPECIFIC -> {
+                                        storeAccessor.dispatch(NavigationAction.UpdateGuidedFlowModifications(flowState.flowRoute, null))
+                                    }
+
+                                    ClearModificationBehavior.CLEAR_NONE -> {
+                                        // Don't clear any modifications
+                                    }
+                                }
+                            } else {
+                                // No navigation operations, use CompleteGuidedFlow action
+                                storeAccessor.dispatch(
+                                    NavigationAction.CompleteGuidedFlow(
+                                        completedFlowState = completedFlowState,
+                                        clearBehavior = definition.clearModificationsOnComplete,
+                                        flowRoute = flowState.flowRoute
+                                    )
                                 )
-                            )
+                            }
                         }
 
                         else -> {

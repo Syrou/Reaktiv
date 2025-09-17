@@ -80,7 +80,7 @@ class GuidedFlowOperationBuilder(
      * Update the onComplete handler for the guided flow
      * @param onComplete New completion handler function
      */
-    fun updateOnComplete(onComplete: (suspend (StoreAccessor) -> Unit)?) {
+    fun updateOnComplete(onComplete: (suspend NavigationBuilder.(StoreAccessor) -> Unit)?) {
         operations.add(GuidedFlowOperation.Modify(FlowModification.UpdateOnComplete(onComplete)))
     }
     

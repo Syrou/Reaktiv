@@ -122,11 +122,9 @@ class CustomApplication : Application() {
                     // Mixed: route string with query param
                     step("user/67/edit?query=EDIT")
                     step<UserManagementScreens.DeleteUser>()
-                    onComplete { storeAccessor ->
-                        storeAccessor.navigation {
-                            clearBackStack()
-                            navigateTo("home")
-                        }
+                    onComplete {
+                        clearBackStack()
+                        navigateTo("home")
                     }
                 }
             }
