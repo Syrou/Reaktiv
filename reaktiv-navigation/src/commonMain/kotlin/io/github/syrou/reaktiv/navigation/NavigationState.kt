@@ -19,6 +19,9 @@ data class NavigationState(
     // Core navigation data
     val currentEntry: NavigationEntry,
     val backStack: List<NavigationEntry>,
+    
+    // Track last navigation action for content preservation
+    val lastNavigationAction: NavigationAction? = null,
 
     // Computed state properties (set by reducer, fully serializable)
     val orderedBackStack: List<NavigationEntry>,

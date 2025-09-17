@@ -80,6 +80,7 @@ class NavigationModule internal constructor(
         return NavigationState(
             currentEntry = initialEntry,
             backStack = initialBackStack,
+            lastNavigationAction = null,
             orderedBackStack = computedState.orderedBackStack,
             visibleLayers = computedState.visibleLayers,
             currentFullPath = computedState.currentFullPath,
@@ -137,7 +138,8 @@ class NavigationModule internal constructor(
         modalContexts: Map<String, ModalContext>?,
         activeGuidedFlowState: GuidedFlowState? = state.activeGuidedFlowState,
         updateGuidedFlowState: Boolean = false,
-        transitionState: NavigationTransitionState = state.transitionState
+        transitionState: NavigationTransitionState = state.transitionState,
+        navigationAction: NavigationAction? = null
     ): NavigationState {
         val newCurrentEntry = currentEntry ?: state.currentEntry
         val newBackStack = backStack ?: state.backStack
@@ -153,6 +155,7 @@ class NavigationModule internal constructor(
         return state.copy(
             currentEntry = newCurrentEntry,
             backStack = newBackStack,
+            lastNavigationAction = navigationAction,
             orderedBackStack = computedState.orderedBackStack,
             visibleLayers = computedState.visibleLayers,
             currentFullPath = computedState.currentFullPath,
@@ -186,22 +189,28 @@ class NavigationModule internal constructor(
         when (action) {
             is NavigationAction.BatchUpdate -> reduceNavigationStateUpdate(
                 state, action.currentEntry, action.backStack, action.modalContexts,
-                action.activeGuidedFlowState, updateGuidedFlowState = true, transitionState = action.transitionState
+                action.activeGuidedFlowState, updateGuidedFlowState = true, transitionState = action.transitionState,
+                navigationAction = action
             )
             is NavigationAction.Back -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                navigationAction = action
             )
             is NavigationAction.ClearBackstack -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                navigationAction = action
             )
             is NavigationAction.Navigate -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                navigationAction = action
             )
             is NavigationAction.PopUpTo -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                navigationAction = action
             )
             is NavigationAction.Replace -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState
+                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                navigationAction = action
             )
 
             is NavigationAction.UpdateGuidedFlowModifications -> {

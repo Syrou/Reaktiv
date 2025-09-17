@@ -13,8 +13,8 @@ import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 
-
-sealed class NavigationAction() : ModuleAction(NavigationModule::class) {
+@Serializable
+sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 
     @Serializable
     data class BatchUpdate(
