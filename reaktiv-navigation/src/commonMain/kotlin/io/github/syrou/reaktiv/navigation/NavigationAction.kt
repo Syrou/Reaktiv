@@ -23,6 +23,7 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
         val modalContexts: Map<String, ModalContext>? = null,
         val operations: List<NavigationOperation> = emptyList(),
         val activeGuidedFlowState: GuidedFlowState? = null,
+        val guidedFlowModifications: Map<String, GuidedFlowDefinition>? = null,
         val transitionState: NavigationTransitionState = NavigationTransitionState.IDLE
     ) : NavigationAction(), HighPriorityAction
 

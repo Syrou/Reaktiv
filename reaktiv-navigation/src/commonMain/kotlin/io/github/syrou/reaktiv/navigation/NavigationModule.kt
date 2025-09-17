@@ -142,6 +142,7 @@ class NavigationModule internal constructor(
         activeGuidedFlowState: GuidedFlowState? = state.activeGuidedFlowState,
         updateGuidedFlowState: Boolean = false,
         transitionState: NavigationTransitionState = state.transitionState,
+        guidedFlowModifications: Map<String, GuidedFlowDefinition>? = null,
         navigationAction: NavigationAction? = null
     ): NavigationState {
         val newCurrentEntry = currentEntry ?: state.currentEntry
@@ -184,7 +185,7 @@ class NavigationModule internal constructor(
             allAvailableNavigatables = precomputedData.allNavigatables,
             graphHierarchyLookup = precomputedData.graphHierarchies,
             activeModalContexts = newModalContexts,
-            guidedFlowModifications = state.guidedFlowModifications,
+            guidedFlowModifications = guidedFlowModifications ?: state.guidedFlowModifications,
             activeGuidedFlowState = if (updateGuidedFlowState) activeGuidedFlowState else state.activeGuidedFlowState
         )
     }
@@ -194,6 +195,7 @@ class NavigationModule internal constructor(
             is NavigationAction.BatchUpdate -> reduceNavigationStateUpdate(
                 state, action.currentEntry, action.backStack, action.modalContexts,
                 action.activeGuidedFlowState, updateGuidedFlowState = true, transitionState = action.transitionState,
+                guidedFlowModifications = action.guidedFlowModifications,
                 navigationAction = action
             )
             is NavigationAction.Back -> reduceNavigationStateUpdate(

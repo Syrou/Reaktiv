@@ -10,9 +10,9 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.dsl.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.nextGuidedFlowStep
 import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
 import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
@@ -26,6 +26,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -563,20 +564,23 @@ class GuidedFlowTest {
                     onComplete { storeAccessor ->
                         // Access user condition state for conditional navigation
                         val userState = storeAccessor.selectState<UserConditionState>().first()
-                        
+
                         when {
                             userState.isVip && userState.hasCompletedTutorial && userState.points >= 100 -> {
                                 // Premium VIP users with high points go to preferences
                                 navigateTo(TestPreferencesScreen.route)
                             }
+
                             userState.isVip -> {
                                 // VIP users go to profile  
                                 navigateTo(TestProfileScreen.route)
                             }
+
                             userState.hasCompletedTutorial -> {
                                 // Users who completed tutorial go to welcome (advanced section)
                                 navigateTo(TestWelcomeScreen.route)
                             }
+
                             else -> {
                                 // Regular users go to home
                                 navigateTo(TestHomeScreen.route)
@@ -1111,7 +1115,7 @@ class GuidedFlowTest {
                         clearBackStack()
                     }
                 }
-                
+
                 guidedFlow("builder-flow") {
                     step<TestWelcomeScreen>()
                     step("test-profile?source=guided").param("profileType", "basic")
@@ -1288,7 +1292,7 @@ class GuidedFlowTest {
                         clearBackStack()
                     }
                 }
-                
+
                 guidedFlow("builder-flow") {
                     step<TestWelcomeScreen>()
                     step("test-profile?source=guided").param("profileType", "basic")
@@ -1404,7 +1408,7 @@ class GuidedFlowTest {
                         clearBackStack()
                     }
                 }
-                
+
                 guidedFlow("route-flow") {
                     step("test-welcome")
                     step("test-profile?source=guided").param("profileType", "basic")
@@ -1554,7 +1558,7 @@ class GuidedFlowTest {
                         navigateTo(TestHomeScreen.route)
                     }
                 }
-                
+
                 // Flow 2: Uses CLEAR_ALL - clears all modifications when it completes
                 guidedFlow("flow-clear-all") {
                     step<TestWelcomeScreen>()
@@ -1750,5 +1754,218 @@ class GuidedFlowTest {
 
         // Verify the new flow received the parameters
         assertEquals("456", state.currentEntry.params.getString("userId"), "New flow should receive the parameters")
+    }
+
+    @Test
+    fun `test atomic navigation with single guided flow operation`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createTestNavigationModule())
+                coroutineContext(testDispatcher)
+            }
+
+            // Start guided flow
+            store.startGuidedFlow("test-flow")
+            advanceUntilIdle()
+
+            // Execute atomic navigation with guided flow operations
+            store.navigation {
+                guidedFlow("test-flow") {
+                    nextStep() // Move to profile screen - this should navigate automatically
+                }
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+
+            // Should be on test-profile (guided flow navigation took effect)
+            assertEquals(TestProfileScreen.route, state.currentEntry.navigatable.route)
+
+            // Guided flow should have advanced to step 1 (profile screen step)
+            assertNotNull(state.activeGuidedFlowState)
+            assertEquals(1, state.activeGuidedFlowState?.currentStepIndex)
+        }
+
+    @Test
+    fun `test atomic navigation with multiple guided flow operations`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createTestNavigationModule())
+                coroutineContext(testDispatcher)
+            }
+
+            // Start guided flows
+            store.startGuidedFlow("test-flow")
+            advanceUntilIdle()
+
+            // Execute atomic navigation with multiple guided flow operations
+            store.navigation {
+                guidedFlow("test-flow") {
+                    // Remove the preferences screen (step 2)
+                    removeSteps(listOf(2))
+                    // Move to next step
+                    nextStep()
+                }
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+
+            // Should be on test-profile (guided flow navigation)
+            assertEquals(TestProfileScreen.route, state.currentEntry.navigatable.route)
+
+            // Guided flow should have advanced to step 1
+            assertNotNull(state.activeGuidedFlowState)
+            assertEquals(1, state.activeGuidedFlowState?.currentStepIndex)
+
+            // Flow modifications should be applied (preferences screen removed)
+            assertTrue(state.guidedFlowModifications.containsKey("test-flow"))
+        }
+
+    @Test
+    fun `test atomic navigation with multiple guided flows`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createTestNavigationModuleWithMultipleFlows())
+                coroutineContext(testDispatcher)
+            }
+
+            // Start first flow
+            store.startGuidedFlow("test-flow")
+            advanceUntilIdle()
+
+            // Execute atomic operations on multiple flows (only modifications, no navigation conflict)
+            store.navigation {
+                guidedFlow("test-flow") {
+                    // Just modify, don't navigate
+                    updateStepParams(1, Params.of("modified" to true))
+                }
+                guidedFlow("test-flow-2") {
+                    // Modify second flow even though it's not active
+                    updateStepParams(0, Params.of("modified" to true))
+                }
+                navigateTo("test-home") // Explicit navigation is OK when no nextStep()
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+
+            // Should be on test-home (explicit navigation)
+            assertEquals("test-home", state.currentEntry.navigatable.route)
+
+            // First flow should still be active but not advanced (no nextStep)
+            assertNotNull(state.activeGuidedFlowState)
+            assertEquals("test-flow", state.activeGuidedFlowState?.flowRoute)
+            assertEquals(0, state.activeGuidedFlowState?.currentStepIndex) // Still on step 0
+
+            // Both flows should have modifications applied
+            assertTrue(state.guidedFlowModifications.containsKey("test-flow"))
+            assertTrue(state.guidedFlowModifications.containsKey("test-flow-2"))
+        }
+
+    @Test
+    fun `test atomic navigation with only guided flow operations`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createTestNavigationModule())
+                coroutineContext(testDispatcher)
+            }
+
+            // Start guided flow
+            store.startGuidedFlow("test-flow")
+            advanceUntilIdle()
+
+            val initialRoute = store.selectState<NavigationState>().first().currentEntry.navigatable.route
+
+            // Execute atomic navigation with only guided flow operations (no regular navigation)
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams(1, Params.of("modified" to true))
+                    nextStep()
+                }
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+
+            // Should have moved to the next step in the flow
+            assertEquals(TestProfileScreen.route, state.currentEntry.navigatable.route)
+
+            // Flow should have advanced
+            assertNotNull(state.activeGuidedFlowState)
+            assertEquals(1, state.activeGuidedFlowState?.currentStepIndex)
+
+            // Modifications should be applied
+            assertTrue(state.guidedFlowModifications.containsKey("test-flow"))
+        }
+
+    @Test
+    fun `test exception thrown when mixing guided flow nextStep with explicit navigation`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createTestNavigationModule())
+                coroutineContext(testDispatcher)
+            }
+
+            // Start guided flow
+            store.startGuidedFlow("test-flow")
+            advanceUntilIdle()
+
+            // This should throw an exception because we're mixing nextStep() with navigateTo()
+            assertFailsWith<IllegalStateException> {
+                store.navigation {
+                    guidedFlow("test-flow") {
+                        nextStep() // This triggers guided flow navigation
+                    }
+                    navigateTo("test-home") // This conflicts with guided flow navigation
+                }
+            }
+            
+            // Verify the exception message contains helpful information
+            val exception = try {
+                store.navigation {
+                    guidedFlow("test-flow") {
+                        nextStep()
+                    }
+                    navigateTo("test-home")
+                }
+                null
+            } catch (e: IllegalStateException) {
+                e
+            }
+            
+            assertNotNull(exception)
+            assertEquals(
+                exception.message?.contains("Cannot combine guided flow nextStep() operations with explicit navigation operations"),
+                true
+            )
+            assertEquals(
+                exception.message?.contains("Use either guided flow navigation OR explicit navigation, not both"),
+                true
+            )
+        }
+
+
+    private fun createTestNavigationModuleWithMultipleFlows() = createNavigationModule {
+        rootGraph {
+            startScreen(TestHomeScreen)
+            screens(TestHomeScreen, TestWelcomeScreen, TestProfileScreen, TestPreferencesScreen)
+
+            guidedFlow("test-flow") {
+                step<TestWelcomeScreen>()
+                step<TestProfileScreen>()
+                step<TestPreferencesScreen>()
+            }
+
+            guidedFlow("test-flow-2") {
+                step<TestHomeScreen>()
+                step<TestWelcomeScreen>()
+            }
+        }
     }
 }

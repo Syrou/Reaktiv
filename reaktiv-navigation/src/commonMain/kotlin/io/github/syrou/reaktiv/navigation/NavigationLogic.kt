@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.collections.emptyList
 import kotlin.time.Clock
 
 class NavigationLogic(
@@ -128,14 +129,35 @@ class NavigationLogic(
      */
     private suspend fun executeNavigation(builder: NavigationBuilder) {
         val initialState = getCurrentNavigationState()
+        val hasExplicitNavigation = builder.operations.isNotEmpty()
 
-        val finalState = computeFinalNavigationState(builder.operations, initialState, builder.guidedFlowContext)
+        // Check for conflicts between guided flow nextStep() and explicit navigation
+        if (hasExplicitNavigation && builder.hasGuidedFlowOperations()) {
+            val hasNextStepOperations = builder.getGuidedFlowOperations().values.any { operationBuilder ->
+                operationBuilder.getOperations().any { it is GuidedFlowOperation.NextStep }
+            }
+            
+            if (hasNextStepOperations) {
+                throw IllegalStateException(
+                    "Cannot combine guided flow nextStep() operations with explicit navigation operations (navigateTo, navigateBack, etc.) " +
+                    "in the same atomic block. Use either guided flow navigation OR explicit navigation, not both."
+                )
+            }
+        }
+
+        // First, execute guided flow operations if any
+        var currentState = initialState
+        if (builder.hasGuidedFlowOperations()) {
+            currentState = executeGuidedFlowOperationsForBuilder(builder, currentState)
+        }
+
+        val finalState = computeFinalNavigationState(builder.operations, currentState, builder.guidedFlowContext)
         
         // Check if this navigation will cause a screen transition (has animation)
         val willAnimate = willNavigationAnimate(initialState, finalState)
         val transitionState = if (willAnimate) NavigationTransitionState.ANIMATING else NavigationTransitionState.IDLE
         
-        val action = determineNavigationAction(builder.operations, finalState, initialState, builder, transitionState)
+        val action = determineNavigationAction(builder.operations, finalState, currentState, builder, transitionState)
         
         // Single atomic dispatch - navigation state + transition state change together
         storeAccessor.dispatch(action)
@@ -144,6 +166,80 @@ class NavigationLogic(
         if (willAnimate) {
             scheduleTransitionStateReset(finalState.currentEntry)
         }
+    }
+
+    /**
+     * Execute guided flow operations from NavigationBuilder without dispatching
+     * Returns updated navigation state with guided flow changes applied
+     * Also adds any necessary navigation operations to the builder for step changes
+     */
+    private suspend fun executeGuidedFlowOperationsForBuilder(
+        builder: NavigationBuilder, 
+        currentState: NavigationState
+    ): NavigationState {
+        var updatedState = currentState
+        
+        // Execute each guided flow operation
+        for ((flowRoute, operationBuilder) in builder.getGuidedFlowOperations()) {
+            val operations = operationBuilder.getOperations()
+            val effectiveDefinition = getEffectiveGuidedFlowDefinitionByRoute(flowRoute)
+                ?: continue // Skip if flow definition not found
+                
+            var currentDefinition = effectiveDefinition
+            var updatedFlowState = updatedState.activeGuidedFlowState?.takeIf { it.flowRoute == flowRoute }
+            
+            // Apply all operations for this flow
+            for (operation in operations) {
+                when (operation) {
+                    is GuidedFlowOperation.Modify -> {
+                        currentDefinition = currentDefinition.applyModification(operation.modification)
+                        
+                        // If there's an active flow state for this route, update it
+                        if (updatedFlowState != null) {
+                            updatedFlowState = adjustFlowStateForModification(
+                                updatedFlowState,
+                                operation.modification,
+                                currentDefinition
+                            )
+                        }
+                    }
+                    is GuidedFlowOperation.NextStep -> {
+                        if (updatedFlowState != null) {
+                            val result = computeNextStep(updatedFlowState, currentDefinition, operation.params)
+                            updatedFlowState = result.flowState
+                            
+                            // If navigation should happen, add it to the builder
+                            if (result.shouldNavigate) {
+                                builder.navigateTo(result.route, paramBuilder = { 
+                                    result.params.toMap().forEach { (key, value) ->
+                                        putRaw(key, value)
+                                    }
+                                })
+                                result.guidedFlowContext?.let { context ->
+                                    builder.setGuidedFlowContext(context)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Update the state with any flow state changes
+            if (updatedFlowState != null) {
+                updatedState = updatedState.copy(activeGuidedFlowState = updatedFlowState)
+            }
+            
+            // Update flow modifications in state if any modifications were applied
+            val hasModifications = operations.any { it is GuidedFlowOperation.Modify }
+            if (hasModifications) {
+                // Store the modified definition in the state
+                updatedState = updatedState.copy(
+                    guidedFlowModifications = updatedState.guidedFlowModifications + (flowRoute to currentDefinition)
+                )
+            }
+        }
+        
+        return updatedState
     }
 
     /**
@@ -198,11 +294,11 @@ class NavigationLogic(
     private fun determineNavigationAction(
         operations: List<NavigationStep>,
         finalState: ComputedNavigationState,
-        initialState: NavigationState,
+        currentState: NavigationState,
         builder: NavigationBuilder,
         transitionState: NavigationTransitionState = NavigationTransitionState.IDLE
     ): NavigationAction {
-        val modalContexts = if (finalState.modalContexts != initialState.activeModalContexts) {
+        val modalContexts = if (finalState.modalContexts != currentState.activeModalContexts) {
             finalState.modalContexts
         } else null
 
@@ -210,14 +306,16 @@ class NavigationLogic(
         val activeGuidedFlowState = when {
             builder.shouldClearActiveGuidedFlowState -> null
             builder.activeGuidedFlowState != null -> builder.activeGuidedFlowState
-            else -> initialState.activeGuidedFlowState
+            else -> currentState.activeGuidedFlowState
         }
 
-        // If there's guided flow state changes, always use BatchUpdate to preserve it
+        // If there's guided flow state changes or guided flow operations, always use BatchUpdate to preserve it
         val hasGuidedFlowChanges = builder.activeGuidedFlowState != null ||
                 builder.shouldClearActiveGuidedFlowState ||
-                activeGuidedFlowState != initialState.activeGuidedFlowState
+                activeGuidedFlowState != currentState.activeGuidedFlowState ||
+                builder.hasGuidedFlowOperations()
 
+        // Use single operation actions only if there's exactly one navigation operation and no guided flow changes
         if (operations.size == 1 && !hasGuidedFlowChanges) {
             val operation = operations.first()
             return when (operation.operation) {
@@ -258,13 +356,17 @@ class NavigationLogic(
             }
         }
 
-        // Use BatchUpdate for multiple operations or when guided flow state changes
+        // Use BatchUpdate for multiple operations, guided flow changes, or guided flow operations only
+        // Include guided flow modifications from the current state if any exist
+        val guidedFlowModifications = currentState.guidedFlowModifications.ifEmpty { null }
+        
         return NavigationAction.BatchUpdate(
             currentEntry = finalState.currentEntry,
             backStack = finalState.backStack,
             modalContexts = modalContexts,
             operations = operations.map { it.operation },
             activeGuidedFlowState = activeGuidedFlowState,
+            guidedFlowModifications = guidedFlowModifications,
             transitionState = transitionState
         )
     }

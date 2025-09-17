@@ -42,6 +42,15 @@ data class NavigationStep(
     val shouldDismissModals: Boolean = false
 )
 
+/**
+ * Represents guided flow operations that can be batched with navigation operations
+ */
+@Serializable
+data class GuidedFlowBatchOperation(
+    val flowRoute: String,
+    val operations: List<String> // Serialized form of operations for BatchUpdate
+)
+
 class NavigationParameterBuilder {
     @PublishedApi
     internal val params = mutableMapOf<String, Any>()
@@ -99,6 +108,9 @@ class NavigationBuilder(
 ) {
     @PublishedApi
     internal val operations = mutableListOf<NavigationStep>()
+    
+    @PublishedApi
+    internal val guidedFlowOperations = mutableMapOf<String, GuidedFlowOperationBuilder>()
     
     @PublishedApi
     internal var currentParams = Params.empty()
@@ -311,6 +323,32 @@ class NavigationBuilder(
     // Shorter aliases
     fun param(key: String, value: Any) = putRaw(key, value)
     
+    /**
+     * Execute guided flow operations atomically with navigation operations.
+     * All guided flow modifications and steps will be executed as part of the same BatchUpdate.
+     * 
+     * Example:
+     * ```kotlin
+     * navigation {
+     *     guidedFlow("signup") {
+     *         removeSteps(listOf(2, 3))
+     *         nextStep()
+     *     }
+     *     guidedFlow("onboarding") { 
+     *         updateStepParams(0, mapOf("userId" to "123")) 
+     *     }
+     *     navigateTo("dashboard")
+     * }
+     * ```
+     */
+    suspend fun guidedFlow(flowRoute: String, block: suspend GuidedFlowOperationBuilder.() -> Unit): NavigationBuilder {
+        val builder = guidedFlowOperations.getOrPut(flowRoute) { 
+            GuidedFlowOperationBuilder(flowRoute, storeAccessor) 
+        }
+        builder.block()
+        return this
+    }
+    
     // GuidedFlow support
     fun setGuidedFlowContext(context: GuidedFlowContext): NavigationBuilder {
         guidedFlowContext = context
@@ -318,8 +356,13 @@ class NavigationBuilder(
     }
 
     internal fun validate() {
-        if (operations.isEmpty()) {
-            throw IllegalStateException("No navigation operations specified")
+        if (operations.isEmpty() && guidedFlowOperations.isEmpty()) {
+            throw IllegalStateException("No navigation or guided flow operations specified")
+        }
+        
+        // Validate guided flow operations
+        guidedFlowOperations.values.forEach { builder ->
+            builder.validate()
         }
         
         // Validate each operation has required targets
@@ -379,6 +422,20 @@ class NavigationBuilder(
             "Navigatable ${navigatableClass.simpleName} not found in navigation graph. " +
                     "Available navigatables: ${navigationState.allAvailableNavigatables.values.map { it::class.simpleName }}"
         )
+    }
+    
+    /**
+     * Get all guided flow operations for execution
+     */
+    internal fun getGuidedFlowOperations(): Map<String, GuidedFlowOperationBuilder> {
+        return guidedFlowOperations.toMap()
+    }
+    
+    /**
+     * Check if there are any guided flow operations
+     */
+    internal fun hasGuidedFlowOperations(): Boolean {
+        return guidedFlowOperations.isNotEmpty()
     }
     
     /**

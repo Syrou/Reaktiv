@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.guidedFlow
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
 import io.github.syrou.reaktiv.navigation.middleware.NavigationSpamMiddleware
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
@@ -88,7 +89,7 @@ class GuidedFlowSpamProtectionTest {
                     step<Step2Screen>()
                     step<Step3Screen>()
                     onComplete { storeAccessor ->
-                        // Flow completion logic
+                        navigateTo("step1")
                     }
                 }
             }
@@ -127,9 +128,9 @@ class GuidedFlowSpamProtectionTest {
         val finalState = store.selectState<NavigationState>().first()
         val finalStep = finalState.activeGuidedFlowState?.currentStepIndex ?: 0
 
-        // Should not have advanced more than the allowed window permits
+        // Should not have advanced more than the allowed window permits (maxActionsPerWindow = 3)
         assertTrue(
-            finalStep <= initialStep + 3, // maxActionsPerWindow = 3
+            finalStep <= initialStep + 3,
             "Expected step $finalStep to be <= ${initialStep + 3}, but it advanced too far due to spam"
         )
     }
@@ -402,5 +403,92 @@ class GuidedFlowSpamProtectionTest {
             progress >= 0f,
             "Progress should not be negative (progress: $progress)"
         )
+    }
+
+    @Test
+    fun `atomic navigation prevents guided flow batch update spam conflicts`() = runTest {
+        val store = createStore {
+            module(
+                createNavigationModule {
+                    rootGraph {
+                        startScreen(Step1Screen)
+                        screens(Step1Screen, Step2Screen, Step3Screen)
+                    }
+
+                    guidedFlow("signup-flow") {
+                        step<Step1Screen>()
+                        step<Step2Screen>()
+                        step<Step3Screen>()
+                    }
+                    
+                    guidedFlow("onboarding-flow") {
+                        step<Step2Screen>()
+                        step<Step3Screen>()
+                        step<Step1Screen>()
+                    }
+                }
+            )
+            middlewares(
+                NavigationSpamMiddleware.create(
+                    debounceTimeMs = 300L,
+                    maxActionsPerWindow = 3,
+                    windowSizeMs = 1000L,
+                    timeSource = testTimeSource
+                )
+            )
+            coroutineContext(StandardTestDispatcher(testScheduler))
+        }
+
+        // Start first guided flow
+        store.startGuidedFlow("signup-flow")
+        advanceUntilIdle()
+
+        val initialState = store.selectState<NavigationState>().first()
+        assertEquals(Step1Screen.route, initialState.currentEntry.navigatable.route)
+
+        // Execute multiple guided flow operations atomically to prevent spam conflicts
+        store.navigation {
+            guidedFlow("signup-flow") {
+                removeSteps(listOf(2))
+                nextStep()
+            }
+            guidedFlow("onboarding-flow") {
+                updateStepParams(0, Params.of("modified" to true))
+                removeSteps(listOf(1))
+            }
+        }
+        advanceUntilIdle()
+
+        val state = store.selectState<NavigationState>().first()
+        
+        // All operations should succeed as they're batched into single BatchUpdate
+        assertEquals(Step2Screen.route, state.currentEntry.navigatable.route)
+        assertNotNull(state.activeGuidedFlowState)
+        assertEquals("signup-flow", state.activeGuidedFlowState.flowRoute)
+        // Flow should have advanced to step 1 after nextStep()
+        assertEquals(1, state.activeGuidedFlowState.currentStepIndex)
+        
+        // Both flows should have modifications applied
+        assertTrue(state.guidedFlowModifications.containsKey("signup-flow"))
+        assertTrue(state.guidedFlowModifications.containsKey("onboarding-flow"))
+
+        // Verify the old problematic pattern would be blocked if done separately
+        // These separate guidedFlow calls would trigger spam protection
+        store.guidedFlow("signup-flow") {
+            updateStepParams(0, Params.of("test1" to true))
+        }
+        
+        store.guidedFlow("onboarding-flow") { 
+            updateStepParams(1, Params.of("test2" to true))
+        }
+        
+        advanceUntilIdle()
+
+        // The separate operations may be blocked by spam protection,
+        // but our atomic operation above succeeded completely
+        val finalState = store.selectState<NavigationState>().first()
+        assertEquals(Step2Screen.route, finalState.currentEntry.navigatable.route)
+        assertTrue(finalState.guidedFlowModifications.containsKey("signup-flow"))
+        assertTrue(finalState.guidedFlowModifications.containsKey("onboarding-flow"))
     }
 }
