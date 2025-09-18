@@ -33,14 +33,6 @@ private val NavigationAction.isNavigationOperation: Boolean
         else -> false
     }
 
-private val NavigationAction.isGuidedFlowManagement: Boolean
-    get() = when (this) {
-        is NavigationAction.UpdateGuidedFlowModifications,
-        is NavigationAction.ClearAllGuidedFlowModifications,
-        is NavigationAction.CompleteGuidedFlow -> true
-        else -> false
-    }
-
 class NavigationSpamMiddleware(
     private val debounceTimeMs: Long = 300L,
     private val maxActionsPerWindow: Int = 3,
@@ -191,13 +183,6 @@ class NavigationSpamMiddleware(
             is NavigationAction.Back -> action.currentEntry?.navigatable?.route
             is NavigationAction.PopUpTo -> action.currentEntry?.navigatable?.route
             is NavigationAction.ClearBackstack -> action.currentEntry?.navigatable?.route
-            
-            // Guided flow management actions with flowRoute
-            is NavigationAction.UpdateGuidedFlowModifications -> action.flowRoute
-            is NavigationAction.CompleteGuidedFlow -> action.flowRoute
-            
-            // Special guided flow actions
-            is NavigationAction.ClearAllGuidedFlowModifications -> "guided_flow_clear_all"
             
             else -> null
         }

@@ -5,15 +5,14 @@ import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.createStore
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.extension.nextGuidedFlowStep
 import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
 import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -24,6 +23,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.reflect.KClass
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -166,6 +166,11 @@ class GuidedFlowTest {
         }
     }
 
+    @BeforeTest
+    fun beforeTest() {
+        ReaktivDebug.enable()
+    }
+
 
     @Test
     fun `should create guided flow definition`() = runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
@@ -230,7 +235,11 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // Move to next step
-        store.nextGuidedFlowStep()
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -260,7 +269,11 @@ class GuidedFlowTest {
         // Start guided flow and move to step 2 (definition already configured in module)
         store.startGuidedFlow("test-flow")
         advanceUntilIdle()
-        store.nextGuidedFlowStep()
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         // Move to previous step
@@ -293,17 +306,29 @@ class GuidedFlowTest {
         // Start guided flow and navigate to final step (definition already configured in module)
         store.startGuidedFlow("test-flow")
         advanceUntilIdle()
-        store.nextGuidedFlowStep() // Step 1
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
-        store.nextGuidedFlowStep() // Step 2 (final)
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         val stateBeforeCompletion = store.selectState<NavigationState>().first()
         assertEquals(TestPreferencesScreen, stateBeforeCompletion.currentEntry.screen)
-        assertTrue(stateBeforeCompletion.activeGuidedFlowState?.isOnFinalStep == true)
+        assertEquals(stateBeforeCompletion.activeGuidedFlowState?.isOnFinalStep, true)
 
         // Complete the flow
-        store.nextGuidedFlowStep()
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         val stateAfterCompletion = store.selectState<NavigationState>().first()
@@ -356,7 +381,11 @@ class GuidedFlowTest {
         advanceUntilIdle()
 
         // Move to next step with parameters
-        store.nextGuidedFlowStep(Params.of("stepData" to "profile_info"))
+        store.navigation {
+            activeGuidedFlow {
+                nextStep(Params.of("stepData" to "profile_info"))
+            }
+        }
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
@@ -409,13 +438,21 @@ class GuidedFlowTest {
         assertEquals(0.33f, state.activeGuidedFlowState?.progress ?: 0f, 0.01f)
 
         // Step 2 of 3 = 2/3 ≈ 0.67
-        store.nextGuidedFlowStep()
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
         state = store.selectState<NavigationState>().first()
         assertEquals(0.67f, state.activeGuidedFlowState?.progress ?: 0f, 0.01f)
 
         // Step 3 of 3 = 3/3 = 1.0
-        store.nextGuidedFlowStep()
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
         state = store.selectState<NavigationState>().first()
         assertEquals(1.0f, state.activeGuidedFlowState?.progress ?: 0f, 0.01f)
@@ -444,11 +481,23 @@ class GuidedFlowTest {
         assertEquals(false, state.activeGuidedFlowState?.isCompleted)
 
         // Complete the flow
-        store.nextGuidedFlowStep() // Step 1
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
-        store.nextGuidedFlowStep() // Step 2
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
-        store.nextGuidedFlowStep() // Complete
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         // Flow state should be cleared after completion, but we can test the timing logic
@@ -476,7 +525,11 @@ class GuidedFlowTest {
             assertEquals(TestWelcomeScreen, state.currentEntry.screen)
 
             // Move to next step with query parameters and additional params
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             state = store.selectState<NavigationState>().first()
@@ -530,7 +583,11 @@ class GuidedFlowTest {
         assertEquals("1", state.currentEntry.params["step"])
 
         // Move to second step: route with query params
-        store.nextGuidedFlowStep()
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
@@ -538,7 +595,11 @@ class GuidedFlowTest {
         assertEquals("settings", state.currentEntry.params["tab"])
 
         // Move to third step: typed screen with params
-        store.nextGuidedFlowStep()
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
@@ -602,9 +663,17 @@ class GuidedFlowTest {
             advanceUntilIdle()
 
             // Navigate through flow steps
-            store.nextGuidedFlowStep() // To profile
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             var state = store.selectState<NavigationState>().first()
@@ -619,9 +688,17 @@ class GuidedFlowTest {
 
             store.startGuidedFlow("conditional-flow")
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To profile
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             state = store.selectState<NavigationState>().first()
@@ -639,9 +716,17 @@ class GuidedFlowTest {
 
             store.startGuidedFlow("conditional-flow")
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To profile
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             state = store.selectState<NavigationState>().first()
@@ -659,9 +744,17 @@ class GuidedFlowTest {
 
             store.startGuidedFlow("conditional-flow")
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To profile
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             state = store.selectState<NavigationState>().first()
@@ -715,7 +808,11 @@ class GuidedFlowTest {
             assertTrue(retrievedUri.contains("%3B")) // Semicolons remain encoded in original URI
 
             // Move to next step with additional content URI parameters
-            store.nextGuidedFlowStep(Params.of("documentUri" to contentUri, "step" to "process"))
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep(Params.of("documentUri" to contentUri, "step" to "process"))
+                }
+            }
             advanceUntilIdle()
 
             state = store.selectState<NavigationState>().first()
@@ -745,13 +842,15 @@ class GuidedFlowTest {
             val uri = "https://example.com/invite"
 
             // Modify the guided flow with step parameters AND onComplete handler
-            store.guidedFlow("test-flow") {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("DEEPLINK", uri)
-                }
-                updateOnComplete { storeAccessor ->
-                    modifiedOnCompleteTriggered = true
-                    navigateTo(TestPreferencesScreen.route)
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("DEEPLINK", uri)
+                    }
+                    updateOnComplete { storeAccessor ->
+                        modifiedOnCompleteTriggered = true
+                        navigateTo(TestPreferencesScreen.route)
+                    }
                 }
             }
 
@@ -770,11 +869,23 @@ class GuidedFlowTest {
             assertEquals(uri, deeplinkParam, "TestWelcomeScreen should receive modified DEEPLINK parameter")
 
             // Complete the flow (navigate past all steps)
-            store.nextGuidedFlowStep() // To TestProfileScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To TestPreferencesScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete the flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify modified onComplete handler was called
@@ -804,15 +915,17 @@ class GuidedFlowTest {
             val uri = "https://example.com/invite"
 
             // FIRST RUN: Modify the guided flow with step parameters AND onComplete handler
-            store.guidedFlow("test-flow") {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("DEEPLINK", uri)
-                    putString("RUN", "FIRST")
-                }
-                updateOnComplete { storeAccessor ->
-                    firstRunOnCompleteTriggered = true
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("DEEPLINK", uri)
+                        putString("RUN", "FIRST")
+                    }
+                    updateOnComplete { storeAccessor ->
+                        firstRunOnCompleteTriggered = true
 
-                    navigateTo(TestPreferencesScreen.route)
+                        navigateTo(TestPreferencesScreen.route)
+                    }
                 }
             }
             advanceUntilIdle()
@@ -836,11 +949,23 @@ class GuidedFlowTest {
             )
 
             // Complete the first flow (navigate through all steps)
-            store.nextGuidedFlowStep() // To TestProfileScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To TestPreferencesScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete the flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify first run completed correctly
@@ -877,11 +1002,23 @@ class GuidedFlowTest {
             )
 
             // Complete the second flow - should use original onComplete (navigates to TestHomeScreen)
-            store.nextGuidedFlowStep() // To TestProfileScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To TestPreferencesScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete the flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify second run used original onComplete handler (navigates to TestHomeScreen with clearBackStack)
@@ -901,16 +1038,16 @@ class GuidedFlowTest {
             )
 
             // THIRD RUN: Apply different modifications and verify they work
-            store.guidedFlow("test-flow")
-            {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("DEEPLINK", "https://different.com")
-                    putString("RUN", "THIRD")
-                }
-                updateOnComplete { storeAccessor ->
-                    secondRunOnCompleteTriggered = true
-
-                    navigateTo(TestProfileScreen.route) // Navigate to different screen
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("DEEPLINK", "https://different.com")
+                        putString("RUN", "THIRD")
+                    }
+                    updateOnComplete { storeAccessor ->
+                        secondRunOnCompleteTriggered = true
+                        navigateTo(TestProfileScreen.route) // Navigate to different screen
+                    }
                 }
             }
 
@@ -934,11 +1071,23 @@ class GuidedFlowTest {
             )
 
             // Complete third run
-            store.nextGuidedFlowStep() // To TestProfileScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To TestPreferencesScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete the flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify third run completed with new modifications
@@ -965,15 +1114,15 @@ class GuidedFlowTest {
 
             val uri = "https://example.com/deeplink"
 
-            // FIRST: Setup the modifications (simulate setupLoggedOutDeeplinkFlows)
-            store.guidedFlow("test-flow") {
-                updateStepParams<TestProfileScreen> {  // This is step 1 in our 3-step flow
-                    putString("DEEPLINK", uri)
-                }
-                updateOnComplete { storeAccessor ->
-                    modifiedOnCompleteTriggered = true
-
-                    navigateTo(TestPreferencesScreen.route)
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams<TestProfileScreen> {
+                        putString("DEEPLINK", uri)
+                    }
+                    updateOnComplete { storeAccessor ->
+                        modifiedOnCompleteTriggered = true
+                        navigateTo(TestPreferencesScreen.route)
+                    }
                 }
             }
 
@@ -988,11 +1137,10 @@ class GuidedFlowTest {
             assertEquals(TestWelcomeScreen, state.currentEntry.navigatable)
             assertEquals(0, state.activeGuidedFlowState?.currentStepIndex)
 
-            // THIRD: This is the key part - simulate being on step 0 and calling nextStep with the flow
-            // This simulates your scenario: from SignUpPreCheckScreen calling storeAccessor.guidedFlow(Route.SignupFlow){ nextStep() }
-            store.guidedFlow("test-flow")
-            {
-                nextStep()  // Should navigate to TestProfileScreen WITH the modified DEEPLINK parameter
+            store.navigation {
+                guidedFlow("test-flow") {
+                    nextStep()
+                }
             }
             advanceUntilIdle()
 
@@ -1031,18 +1179,20 @@ class GuidedFlowTest {
 
             // STEP 1: From another place, modify the guided flow to add parameters to multiple steps
             // This simulates the user's setupLoggedOutDeeplinkFlows scenario
-            store.guidedFlow("test-flow") {
-                updateStepParams<TestWelcomeScreen> {  // Step 0 - first step
-                    putString("DEEPLINK", uri)
-                    putString("SESSION_ID", sessionId)
-                }
-                updateStepParams<TestProfileScreen> {  // Step 1 - middle step
-                    putString("USER_ID", userId)
-                    putString("DEEPLINK", uri)
-                }
-                updateStepParams<TestPreferencesScreen> {  // Step 2 - last step
-                    putString("FINAL_STEP", "true")
-                    putString("DEEPLINK", uri)
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams<TestWelcomeScreen> {  // Step 0 - first step
+                        putString("DEEPLINK", uri)
+                        putString("SESSION_ID", sessionId)
+                    }
+                    updateStepParams<TestProfileScreen> {  // Step 1 - middle step
+                        putString("USER_ID", userId)
+                        putString("DEEPLINK", uri)
+                    }
+                    updateStepParams<TestPreferencesScreen> {  // Step 2 - last step
+                        putString("FINAL_STEP", "true")
+                        putString("DEEPLINK", uri)
+                    }
                 }
             }
             advanceUntilIdle()
@@ -1063,7 +1213,11 @@ class GuidedFlowTest {
             assertEquals(sessionId, welcomeSessionId, "TestWelcomeScreen should receive modified SESSION_ID parameter")
 
             // STEP 4: Navigate to second step (TestProfileScreen)
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify second step receives modified parameters
@@ -1077,7 +1231,11 @@ class GuidedFlowTest {
             assertEquals(uri, profileDeeplink, "TestProfileScreen should receive modified DEEPLINK parameter")
 
             // STEP 5: Navigate to third step (TestPreferencesScreen)
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify third step receives modified parameters
@@ -1138,32 +1296,35 @@ class GuidedFlowTest {
 
             // SCENARIO: Modify two different flows with same screen but different parameters
             // Modify signup-flow - modifications will persist based on flow definition
-            store.guidedFlow("test-flow") {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("DEEPLINK", signupDeeplink)
-                    putString("FLOW_TYPE", "SIGNUP")
-                    putString("USER_ID", "signup-123")
-                }
-                updateOnComplete { storeAccessor ->
-                    signupOnCompleteTriggered = true
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("DEEPLINK", signupDeeplink)
+                        putString("FLOW_TYPE", "SIGNUP")
+                        putString("USER_ID", "signup-123")
+                    }
+                    updateOnComplete { storeAccessor ->
+                        signupOnCompleteTriggered = true
 
-                    navigateTo(TestProfileScreen.route)
+                        navigateTo(TestProfileScreen.route)
+                    }
                 }
             }
             advanceUntilIdle()
 
             // Modify builder-flow (different flow, same screen type but different params)
-            store.guidedFlow("builder-flow")
-            {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("DEEPLINK", onboardingDeeplink)
-                    putString("FLOW_TYPE", "ONBOARDING")
-                    putString("USER_ID", "onboarding-456")
-                }
-                updateOnComplete { storeAccessor ->
-                    onboardingOnCompleteTriggered = true
+            store.navigation {
+                guidedFlow("builder-flow") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("DEEPLINK", onboardingDeeplink)
+                        putString("FLOW_TYPE", "ONBOARDING")
+                        putString("USER_ID", "onboarding-456")
+                    }
+                    updateOnComplete { storeAccessor ->
+                        onboardingOnCompleteTriggered = true
 
-                    navigateTo(TestPreferencesScreen.route)
+                        navigateTo(TestPreferencesScreen.route)
+                    }
                 }
             }
             advanceUntilIdle()
@@ -1192,11 +1353,23 @@ class GuidedFlowTest {
             assertEquals("signup-123", state.currentEntry.params.getString("USER_ID"), "Should have signup user ID")
 
             // Complete signup flow
-            store.nextGuidedFlowStep() // To TestProfileScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To TestPreferencesScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify signup completion
@@ -1240,11 +1413,23 @@ class GuidedFlowTest {
             )
 
             // Complete onboarding flow
-            store.nextGuidedFlowStep() // To TestProfileScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // To TestPreferencesScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify onboarding completion
@@ -1313,22 +1498,26 @@ class GuidedFlowTest {
 
             // SCENARIO: Two flows both have TestProfileScreen but with different step-level modifications
             // Flow 1: Modify TestProfileScreen for test-flow
-            store.guidedFlow("test-flow") {
-                updateStepParams<TestProfileScreen> {  // This is step 1 in test-flow
-                    putString("SCREEN_TYPE", "SIGNUP_PROFILE")
-                    putString("THEME", "DARK")
-                    putInt("VERSION", 1)
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams<TestProfileScreen> {  // This is step 1 in test-flow
+                        putString("SCREEN_TYPE", "SIGNUP_PROFILE")
+                        putString("THEME", "DARK")
+                        putInt("VERSION", 1)
+                    }
                 }
             }
             advanceUntilIdle()
 
             // Flow 2: Modify TestProfileScreen for builder-flow
-            store.guidedFlow("builder-flow") {
-                updateStepParams<TestProfileScreen> {  // This is step 1 in builder-flow
-                    putString("SCREEN_TYPE", "ONBOARDING_PROFILE")
-                    putString("THEME", "LIGHT")
-                    putInt("VERSION", 2)
-                    putBoolean("SHOW_TUTORIAL", true)
+            store.navigation {
+                guidedFlow("builder-flow") {
+                    updateStepParams<TestProfileScreen> {  // This is step 1 in builder-flow
+                        putString("SCREEN_TYPE", "ONBOARDING_PROFILE")
+                        putString("THEME", "LIGHT")
+                        putInt("VERSION", 2)
+                        putBoolean("SHOW_TUTORIAL", true)
+                    }
                 }
             }
             advanceUntilIdle()
@@ -1340,7 +1529,11 @@ class GuidedFlowTest {
             // TEST: Start test-flow and verify it gets test-flow's parameters
             store.startGuidedFlow("test-flow")
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Move to TestProfileScreen (step 1)
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             var state = store.selectState<NavigationState>().first()
@@ -1359,15 +1552,27 @@ class GuidedFlowTest {
             )
 
             // Complete test-flow
-            store.nextGuidedFlowStep() // To TestPreferencesScreen
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // TEST: Start builder-flow and verify it gets builder-flow's parameters
             store.startGuidedFlow("builder-flow")
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Move to TestProfileScreen (step 1)
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             state = store.selectState<NavigationState>().first()
@@ -1440,22 +1645,21 @@ class GuidedFlowTest {
             // SCENARIO: Rapidly modify multiple flows and verify they don't interfere with each other
 
             // Modify multiple flows in quick succession
-            store.guidedFlow("test-flow")
-            {
-                updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "TEST_FLOW_1") }
-                updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "TEST") }
-            }
+            store.navigation {
+                guidedFlow("test-flow") {
+                    updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "TEST_FLOW_1") }
+                    updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "TEST") }
+                }
 
-            store.guidedFlow("route-flow")
-            {
-                updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "ROUTE_FLOW_1") }
-                updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "ROUTE") }
-            }
+                guidedFlow("route-flow") {
+                    updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "ROUTE_FLOW_1") }
+                    updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "ROUTE") }
+                }
 
-            store.guidedFlow("builder-flow")
-            {
-                updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "BUILDER_FLOW_1") }
-                updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "BUILDER") }
+                guidedFlow("builder-flow") {
+                    updateStepParams<TestWelcomeScreen> { putString("FLOW_ID", "BUILDER_FLOW_1") }
+                    updateStepParams<TestProfileScreen> { putString("PROFILE_TYPE", "BUILDER") }
+                }
             }
 
             advanceUntilIdle()
@@ -1484,7 +1688,11 @@ class GuidedFlowTest {
             // Complete first flow
             repeat(3)
             {
-                store.nextGuidedFlowStep()
+                store.navigation {
+                    activeGuidedFlow {
+                        nextStep()
+                    }
+                }
                 advanceUntilIdle()
             }
 
@@ -1499,7 +1707,11 @@ class GuidedFlowTest {
             )
 
             // Navigate to profile step and verify profile-specific params
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
             currentState = store.selectState<NavigationState>().first()
             assertEquals(
@@ -1509,9 +1721,12 @@ class GuidedFlowTest {
             )
 
             // Complete second flow
-            repeat(2)
-            {
-                store.nextGuidedFlowStep()
+            repeat(2) {
+                store.navigation {
+                    activeGuidedFlow {
+                        nextStep()
+                    }
+                }
                 advanceUntilIdle()
             }
 
@@ -1526,7 +1741,11 @@ class GuidedFlowTest {
             )
 
             // Navigate to profile step and verify profile-specific params
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
             currentState = store.selectState<NavigationState>().first()
             assertEquals(
@@ -1590,21 +1809,23 @@ class GuidedFlowTest {
             // SCENARIO: Test different clearing behaviors
 
             // Apply runtime modifications to all flows (this should be allowed)
-            store.guidedFlow("flow-clear-specific") {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("FLOW_TYPE", "CLEAR_SPECIFIC")
+            store.navigation {
+                guidedFlow("flow-clear-specific") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("FLOW_TYPE", "CLEAR_SPECIFIC")
+                    }
                 }
-            }
 
-            store.guidedFlow("flow-clear-all") {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("FLOW_TYPE", "CLEAR_ALL")
+                guidedFlow("flow-clear-all") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("FLOW_TYPE", "CLEAR_ALL")
+                    }
                 }
-            }
 
-            store.guidedFlow("flow-clear-none") {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("FLOW_TYPE", "CLEAR_NONE")
+                guidedFlow("flow-clear-none") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("FLOW_TYPE", "CLEAR_NONE")
+                    }
                 }
             }
 
@@ -1632,7 +1853,11 @@ class GuidedFlowTest {
 
             // Complete the flow
             repeat(3) {
-                store.nextGuidedFlowStep()
+                store.navigation {
+                    activeGuidedFlow {
+                        nextStep()
+                    }
+                }
                 advanceUntilIdle()
             }
 
@@ -1657,7 +1882,11 @@ class GuidedFlowTest {
 
             // Complete the flow
             repeat(3) {
-                store.nextGuidedFlowStep()
+                store.navigation {
+                    activeGuidedFlow {
+                        nextStep()
+                    }
+                }
                 advanceUntilIdle()
             }
 
@@ -1673,9 +1902,11 @@ class GuidedFlowTest {
             )
 
             // TEST 3: Set up flow-clear-none again and verify CLEAR_NONE behavior
-            store.guidedFlow("flow-clear-none") {
-                updateStepParams<TestWelcomeScreen> {
-                    putString("FLOW_TYPE", "CLEAR_NONE_AGAIN")
+            store.navigation {
+                guidedFlow("flow-clear-none") {
+                    updateStepParams<TestWelcomeScreen> {
+                        putString("FLOW_TYPE", "CLEAR_NONE_AGAIN")
+                    }
                 }
             }
             advanceUntilIdle()
@@ -1685,7 +1916,11 @@ class GuidedFlowTest {
 
             // Complete the flow
             repeat(3) {
-                store.nextGuidedFlowStep()
+                store.navigation {
+                    activeGuidedFlow {
+                        nextStep()
+                    }
+                }
                 advanceUntilIdle()
             }
 
@@ -1726,7 +1961,11 @@ class GuidedFlowTest {
         assertEquals(0, state.activeGuidedFlowState?.currentStepIndex, "Should still be on first step")
 
         // Advance the first flow to make sure it's still working normally
-        store.nextGuidedFlowStep()
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
@@ -1734,9 +1973,17 @@ class GuidedFlowTest {
         assertEquals(1, state.activeGuidedFlowState?.currentStepIndex, "Should be on second step of first flow")
 
         // Complete the first flow
-        store.nextGuidedFlowStep() // To TestPreferencesScreen
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
-        store.nextGuidedFlowStep() // Complete flow
+        store.navigation {
+            activeGuidedFlow {
+                nextStep()
+            }
+        }
         advanceUntilIdle()
 
         state = store.selectState<NavigationState>().first()
@@ -1847,7 +2094,7 @@ class GuidedFlowTest {
                     // Modify second flow even though it's not active
                     updateStepParams(0, Params.of("modified" to true))
                 }
-                navigateTo("test-home") // Explicit navigation is OK when no nextStep()
+                navigateTo("test-home")
             }
             advanceUntilIdle()
 
@@ -1925,7 +2172,7 @@ class GuidedFlowTest {
                     navigateTo("test-home") // This conflicts with guided flow navigation
                 }
             }
-            
+
             // Verify the exception message contains helpful information
             val exception = try {
                 store.navigation {
@@ -1938,7 +2185,7 @@ class GuidedFlowTest {
             } catch (e: IllegalStateException) {
                 e
             }
-            
+
             assertNotNull(exception)
             assertEquals(
                 exception.message?.contains("Cannot combine guided flow nextStep() operations with explicit navigation operations"),

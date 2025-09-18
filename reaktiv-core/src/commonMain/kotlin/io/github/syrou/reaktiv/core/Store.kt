@@ -14,7 +14,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,18 +44,17 @@ interface HighPriorityAction
 
 
 @Serializable
-abstract class ModuleAction(@Transient internal val moduleTag: KClass<*> = KClass::class    )
+abstract class ModuleAction(@Transient internal val moduleTag: KClass<*> = KClass::class)
 
 
 typealias Dispatch = (ModuleAction) -> Unit
-
+typealias DispatchSuspend = (suspend (ModuleAction) -> Unit)
 
 
 interface Logic {
-    
+
     suspend operator fun invoke(action: ModuleAction)
 }
-
 
 
 open class ModuleLogic<A : ModuleAction> : Logic {
@@ -64,7 +62,7 @@ open class ModuleLogic<A : ModuleAction> : Logic {
     }
 
     companion object {
-        
+
         operator fun <A : ModuleAction> invoke(logic: suspend (ModuleAction) -> Unit): ModuleLogic<A> {
             return object : ModuleLogic<A>() {
                 override suspend fun invoke(action: ModuleAction) {
@@ -77,13 +75,13 @@ open class ModuleLogic<A : ModuleAction> : Logic {
 
 
 interface Module<S : ModuleState, A : ModuleAction> {
-    
+
     val initialState: S
 
-    
+
     val reducer: (S, A) -> S
 
-    
+
     val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<A>
 }
 
@@ -105,13 +103,13 @@ typealias Middleware = suspend (
 abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     override val coroutineContext: CoroutineContext = scope.coroutineContext
 
-    
+
     abstract suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
 
-    
+
     abstract suspend fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L
 
-    
+
     abstract val dispatch: Dispatch
 }
 
@@ -129,7 +127,7 @@ class Store private constructor(
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
 
-    
+
     @OptIn(DelicateCoroutinesApi::class)
     override val dispatch: Dispatch = { action ->
         if (lowPriorityChannel.isClosedForSend || highPriorityChannel.isClosedForSend) {
@@ -169,7 +167,7 @@ class Store private constructor(
         }
     }
 
-    
+
     fun reset() {
         if (!initialized.value) {
             throw IllegalArgumentException("Reset can not be called until the Store has been constructed!")
@@ -203,8 +201,9 @@ class Store private constructor(
 
     private suspend fun createMiddlewareChain(): suspend (ModuleAction) -> Unit {
         val baseHandler: suspend (ModuleAction) -> Unit = { action ->
-            val info = moduleInfo[action.moduleTag.qualifiedName]
-                ?: throw IllegalArgumentException("No module found for action: ${action::class}")
+            val info = moduleInfo[action.moduleTag.qualifiedName] ?: throw IllegalArgumentException(
+                "No module found for action: ${action::class}"
+            )
 
             val currentState = info.state.value
             val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
@@ -238,7 +237,7 @@ class Store private constructor(
         return@withLock moduleInfo.values.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
     }
 
-    
+
     @Suppress("UNCHECKED_CAST")
     override suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
         initialized.first { it }
@@ -263,12 +262,12 @@ class Store private constructor(
             )
     }
 
-    
+
     suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = selectState(S::class)
 
     inline fun <reified S : ModuleState> selectStateNonSuspend(): StateFlow<S> = selectStateNonSuspend(S::class)
 
-    
+
     @Suppress("UNCHECKED_CAST")
     override suspend fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L {
         initialized.first { it }
@@ -281,21 +280,21 @@ class Store private constructor(
         }
     }
 
-    
+
     suspend inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = selectLogic(L::class)
 
-    
+
     fun cleanup() {
         coroutineScope.cancel()
         lowPriorityChannel.close()
     }
 
-    
+
     suspend fun saveState(state: Map<String, ModuleState>) {
         persistenceManager?.persistState(state) ?: throw IllegalStateException("No persistence strategy set")
     }
 
-    
+
     suspend fun loadState() {
         val restoredState = persistenceManager?.restoreState()
         if (restoredState == null) {
@@ -306,7 +305,7 @@ class Store private constructor(
         }
     }
 
-    
+
     suspend fun hasPersistedState(): Boolean = persistenceManager?.hasPersistedState() ?: false
 
     companion object {
@@ -336,7 +335,7 @@ class StoreDSL {
     private val customTypeRegistrars = mutableListOf<CustomTypeRegistrar>()
 
     @OptIn(InternalSerializationApi::class)
-            
+
     fun <S : ModuleState, A : ModuleAction> module(
         stateClass: KClass<S>,
         module: Module<S, A>
@@ -353,22 +352,21 @@ class StoreDSL {
     }
 
 
-    
     inline fun <reified S : ModuleState, A : ModuleAction> module(module: Module<S, A>) {
         module(S::class, module)
     }
 
-    
+
     fun middlewares(vararg newMiddlewares: Middleware) {
         middlewares.addAll(newMiddlewares)
     }
 
-    
+
     fun coroutineContext(context: CoroutineContext) {
         coroutineScope = CoroutineScope(context)
     }
 
-    
+
     fun persistenceManager(persistenceStrategy: PersistenceStrategy) {
         this.persistenceStrategy = persistenceStrategy
     }

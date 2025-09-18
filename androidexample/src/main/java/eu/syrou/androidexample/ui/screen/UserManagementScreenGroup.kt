@@ -19,13 +19,10 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
-import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
-import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
@@ -54,20 +51,22 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
      */
     suspend fun completeFlowWithNotification(store: Store) {
         // Use the new guidedFlow DSL for atomic operations
-        store.guidedFlow("user-management") {
-            updateOnComplete { storeAccessor ->
-                val twitchState = storeAccessor.selectState<TwitchStreamsModule.TwitchStreamsState>().first()
+        store.navigation {
+            guidedFlow("user-management") {
+                updateOnComplete { storeAccessor ->
+                    val twitchState = storeAccessor.selectState<TwitchStreamsModule.TwitchStreamsState>().first()
 
-                clearBackStack()
-                if (twitchState.twitchStreamers.isEmpty()) {
-                    navigateTo("home")
-                } else {
-                    navigateTo("home")
-                    navigateTo<VideosListScreen>()
+                    clearBackStack()
+                    if (twitchState.twitchStreamers.isEmpty()) {
+                        navigateTo("home")
+                    } else {
+                        navigateTo("home")
+                        navigateTo<VideosListScreen>()
+                    }
+                    navigateTo<NotificationModal>()
                 }
-                navigateTo<NotificationModal>()
+                nextStep()
             }
-            nextStep()
         }
     }
 
@@ -101,8 +100,10 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 Text("User view based on param: $id")
                 Button(onClick = {
                     store.launch {
-                        store.guidedFlow("user-management") {
-                            nextStep(Params.of("userId" to "667"))
+                        store.navigation {
+                            guidedFlow("user-management") {
+                                nextStep(Params.of("userId" to "667"))
+                            }
                         }
                     }
                 }) {
@@ -142,8 +143,10 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
                 )
                 Button(onClick = {
                     store.launch {
-                        store.guidedFlow("user-management") {
-                            nextStep()
+                        store.navigation {
+                            guidedFlow("user-management") {
+                                nextStep()
+                            }
                         }
                     }
                 }) {

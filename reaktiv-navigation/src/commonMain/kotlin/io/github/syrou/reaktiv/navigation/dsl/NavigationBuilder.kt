@@ -42,15 +42,6 @@ data class NavigationStep(
     val shouldDismissModals: Boolean = false
 )
 
-/**
- * Represents guided flow operations that can be batched with navigation operations
- */
-@Serializable
-data class GuidedFlowBatchOperation(
-    val flowRoute: String,
-    val operations: List<String> // Serialized form of operations for BatchUpdate
-)
-
 class NavigationParameterBuilder {
     @PublishedApi
     internal val params = mutableMapOf<String, Any>()
@@ -136,11 +127,11 @@ class NavigationBuilder(
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
-            stepParams = stepParams + Params.fromMap(parameterBuilder.params)
+            stepParams += Params.fromMap(parameterBuilder.params)
         }
         
         // Add current accumulated params
-        stepParams = stepParams + currentParams
+        stepParams += currentParams
         currentParams = Params.empty()
         
         val step = NavigationStep(
@@ -187,11 +178,11 @@ class NavigationBuilder(
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
-            stepParams = stepParams + Params.fromMap(parameterBuilder.params)
+            stepParams += Params.fromMap(parameterBuilder.params)
         }
         
         // Add current accumulated params
-        stepParams = stepParams + currentParams
+        stepParams += currentParams
         currentParams = Params.empty()
         
         val step = NavigationStep(
@@ -268,9 +259,8 @@ class NavigationBuilder(
         return this
     }
 
-    // NEW: Direct Params integration
     fun params(params: Params): NavigationBuilder {
-        currentParams = currentParams + params
+        currentParams += params
         return this
     }
 
@@ -347,6 +337,30 @@ class NavigationBuilder(
         }
         builder.block()
         return this
+    }
+    
+    /**
+     * Execute guided flow operations on the currently active guided flow.
+     * Automatically detects the active flow route and operates on it.
+     * 
+     * Example:
+     * ```kotlin
+     * store.navigation {
+     *     activeGuidedFlow {
+     *         nextStep()
+     *         updateStepParams(0, mapOf("data" to "value"))
+     *     }
+     * }
+     * ```
+     * 
+     * @throws IllegalStateException if no guided flow is currently active
+     */
+    suspend fun activeGuidedFlow(block: suspend GuidedFlowOperationBuilder.() -> Unit): NavigationBuilder {
+        val currentState = storeAccessor.selectState<NavigationState>().first()
+        val activeFlowRoute = currentState.activeGuidedFlowState?.flowRoute
+            ?: throw IllegalStateException("No active guided flow to operate on")
+        
+        return guidedFlow(activeFlowRoute, block)
     }
     
     // GuidedFlow support

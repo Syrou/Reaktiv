@@ -7,7 +7,6 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
 import io.github.syrou.reaktiv.navigation.middleware.NavigationSpamMiddleware
@@ -92,6 +91,10 @@ class GuidedFlowSpamProtectionTest {
                         navigateTo("step1")
                     }
                 }
+
+                guidedFlow("other-flow") {
+                    // Empty flow - will be populated via runtime modifications
+                }
             }
         )
         middlewares(
@@ -117,8 +120,10 @@ class GuidedFlowSpamProtectionTest {
 
         // Spam nextStep calls rapidly
         repeat(10) {
-            store.guidedFlow("test-flow") {
-                nextStep()
+            store.navigation {
+                guidedFlow("test-flow") {
+                    nextStep()
+                }
             }
         }
 
@@ -139,30 +144,34 @@ class GuidedFlowSpamProtectionTest {
     fun `different guided flows should not interfere with each other`() = runTest {
         val store = createTestStore(StandardTestDispatcher(testScheduler), testTimeSource)
 
-        // Create second flow definition
-        val otherFlowDefinition = GuidedFlowDefinition(
-            guidedFlow = GuidedFlow("other-flow"),
-            steps = listOf(
-                GuidedFlowStep.Route("step1"),
-                GuidedFlowStep.Route("step2")
-            )
-        )
-
-        store.dispatch(
-            NavigationAction.UpdateGuidedFlowModifications(
-                "other-flow",
-                otherFlowDefinition
-            )
-        )
-
-        // Start both flows
+        // Add steps to the empty other-flow using runtime modifications
+        store.navigation {
+            guidedFlow("other-flow") {
+                addSteps(
+                    listOf(
+                        GuidedFlowStep.Route("step1"),
+                        GuidedFlowStep.Route("step2")
+                    ),
+                    0
+                )
+            }
+        }
+        advanceUntilIdle()
+        // Start the first flow
         store.startGuidedFlow("test-flow")
+        advanceUntilIdle()
 
         // Rapid operations on different flows should not block each other
-        store.guidedFlow("test-flow") { nextStep() }
-        store.guidedFlow("other-flow") { nextStep() }
-        store.guidedFlow("test-flow") { nextStep() }
-        store.guidedFlow("other-flow") { nextStep() }
+        store.navigation {
+            guidedFlow("test-flow") { nextStep() }
+            guidedFlow("other-flow") {
+                updateStepParams(0, Params.of("modified" to true))
+            }
+            guidedFlow("test-flow") { nextStep() }
+            guidedFlow("other-flow") {
+                addSteps(listOf(GuidedFlowStep.Route("step3")), 2)
+            }
+        }
 
         advanceUntilIdle()
 
@@ -182,8 +191,10 @@ class GuidedFlowSpamProtectionTest {
         val initialStep = initialState.activeGuidedFlowState?.currentStepIndex ?: 0
 
         // Single nextStep should always work
-        store.guidedFlow("test-flow") {
-            nextStep()
+        store.navigation {
+            guidedFlow("test-flow") {
+                nextStep()
+            }
         }
 
         advanceUntilIdle()
@@ -202,8 +213,10 @@ class GuidedFlowSpamProtectionTest {
         advanceUntilIdle()
 
         // Another nextStep after debounce should work
-        store.guidedFlow("test-flow") {
-            nextStep()
+        store.navigation {
+            guidedFlow("test-flow") {
+                nextStep()
+            }
         }
 
         advanceUntilIdle()
@@ -229,10 +242,12 @@ class GuidedFlowSpamProtectionTest {
         val initialStep = initialState.activeGuidedFlowState?.currentStepIndex ?: 0
 
         // Multiple operations in atomic block should all execute
-        store.guidedFlow("test-flow") {
-            updateStepParams(0, Params.of("test" to "value"))
-            nextStep()
-            updateStepParams(1, Params.of("test2" to "value2"))
+        store.navigation {
+            guidedFlow("test-flow") {
+                updateStepParams(0, Params.of("test" to "value"))
+                nextStep()
+                updateStepParams(1, Params.of("test2" to "value2"))
+            }
         }
 
         advanceUntilIdle()
@@ -258,14 +273,18 @@ class GuidedFlowSpamProtectionTest {
         val initialStep = initialState.activeGuidedFlowState?.currentStepIndex ?: 0
 
         // First call - should work and advance step
-        store.guidedFlow("test-flow") { nextStep() }
+        store.navigation {
+            guidedFlow("test-flow") { nextStep() }
+        }
         advanceUntilIdle()
 
         val afterFirstState = store.selectState<NavigationState>().first()
         val afterFirstStep = afterFirstState.activeGuidedFlowState?.currentStepIndex ?: 0
 
         // Second call immediately - should be blocked by debounce
-        store.guidedFlow("test-flow") { nextStep() }
+        store.navigation {
+            guidedFlow("test-flow") { nextStep() }
+        }
         advanceUntilIdle()
 
         val midState = store.selectState<NavigationState>().first()
@@ -285,7 +304,9 @@ class GuidedFlowSpamProtectionTest {
         advanceUntilIdle()
 
         // Third call after debounce - should work
-        store.guidedFlow("test-flow") { nextStep() }
+        store.navigation {
+            guidedFlow("test-flow") { nextStep() }
+        }
         advanceUntilIdle()
 
         val finalState = store.selectState<NavigationState>().first()
@@ -338,7 +359,9 @@ class GuidedFlowSpamProtectionTest {
         // 2. During ANIMATING, nextStep should be blocked by middleware
         val preSpamStep = animatingState.activeGuidedFlowState?.currentStepIndex ?: 0
 
-        store.guidedFlow("test-flow") { nextStep() }
+        store.navigation {
+            guidedFlow("test-flow") { nextStep() }
+        }
         advanceUntilIdle()
 
         val duringAnimationState = store.selectState<NavigationState>().first()
@@ -362,7 +385,9 @@ class GuidedFlowSpamProtectionTest {
         )
 
         // Now nextStep should work again
-        store.guidedFlow("test-flow") { nextStep() }
+        store.navigation {
+            guidedFlow("test-flow") { nextStep() }
+        }
         advanceUntilIdle()
 
         val afterIdleStep = store.selectState<NavigationState>().first()
@@ -383,8 +408,10 @@ class GuidedFlowSpamProtectionTest {
 
         // Spam nextStep beyond the flow length
         repeat(20) {
-            store.guidedFlow("test-flow") {
-                nextStep()
+            store.navigation {
+                guidedFlow("test-flow") {
+                    nextStep()
+                }
             }
         }
 
@@ -420,7 +447,7 @@ class GuidedFlowSpamProtectionTest {
                         step<Step2Screen>()
                         step<Step3Screen>()
                     }
-                    
+
                     guidedFlow("onboarding-flow") {
                         step<Step2Screen>()
                         step<Step3Screen>()
@@ -460,28 +487,32 @@ class GuidedFlowSpamProtectionTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        
+
         // All operations should succeed as they're batched into single BatchUpdate
         assertEquals(Step2Screen.route, state.currentEntry.navigatable.route)
         assertNotNull(state.activeGuidedFlowState)
         assertEquals("signup-flow", state.activeGuidedFlowState.flowRoute)
         // Flow should have advanced to step 1 after nextStep()
         assertEquals(1, state.activeGuidedFlowState.currentStepIndex)
-        
+
         // Both flows should have modifications applied
         assertTrue(state.guidedFlowModifications.containsKey("signup-flow"))
         assertTrue(state.guidedFlowModifications.containsKey("onboarding-flow"))
 
         // Verify the old problematic pattern would be blocked if done separately
         // These separate guidedFlow calls would trigger spam protection
-        store.guidedFlow("signup-flow") {
-            updateStepParams(0, Params.of("test1" to true))
+        store.navigation {
+            guidedFlow("signup-flow") {
+                updateStepParams(0, Params.of("test1" to true))
+            }
         }
-        
-        store.guidedFlow("onboarding-flow") { 
-            updateStepParams(1, Params.of("test2" to true))
+
+        store.navigation {
+            guidedFlow("onboarding-flow") {
+                updateStepParams(1, Params.of("test2" to true))
+            }
         }
-        
+
         advanceUntilIdle()
 
         // The separate operations may be blocked by spam protection,

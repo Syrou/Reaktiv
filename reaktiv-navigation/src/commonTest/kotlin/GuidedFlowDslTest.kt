@@ -1,13 +1,13 @@
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.getGuidedFlow
-import io.github.syrou.reaktiv.navigation.extension.guidedFlow
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import io.github.syrou.reaktiv.navigation.extension.nextGuidedFlowStep
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.startGuidedFlow
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
 import io.github.syrou.reaktiv.navigation.model.getParams
@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -86,6 +87,12 @@ class GuidedFlowDslTest {
         const val TestFlow = "dsl-test-flow"
     }
 
+    @BeforeTest
+    fun beforeSetup() {
+        ReaktivDebug.enable()
+    }
+
+
     @Test
     fun `should execute multiple operations atomically with DSL`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
@@ -100,7 +107,11 @@ class GuidedFlowDslTest {
             advanceUntilIdle()
 
             // Navigate to step 1
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             val stateBeforeOperations = store.selectState<NavigationState>().first()
@@ -108,15 +119,17 @@ class GuidedFlowDslTest {
             assertEquals(DslTestScreen2, stateBeforeOperations.currentEntry.navigatable)
 
             // Use DSL to perform multiple operations atomically
-            store.guidedFlow(Route.TestFlow) {
-                // Remove the last step
-                removeSteps(listOf(2))
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    // Remove the last step
+                    removeSteps(listOf(2))
 
-                // Update parameters for current step
-                updateStepParams(1, Params.of("modified" to true, "timestamp" to 12345))
+                    // Update parameters for current step
+                    updateStepParams(1, Params.of("modified" to true, "timestamp" to 12345))
 
-                // Navigate to next step (which should now complete the flow since we removed the last step)
-                nextStep()
+                    // Navigate to next step (which should now complete the flow since we removed the last step)
+                    nextStep()
+                }
             }
             advanceUntilIdle()
 
@@ -143,12 +156,14 @@ class GuidedFlowDslTest {
             advanceUntilIdle()
 
             // Use DSL to add steps and navigate
-            store.guidedFlow(Route.TestFlow) {
-                // Add a new step at the beginning
-                addSteps(listOf(guidedFlowStep<DslTestScreen3>(Params.of("inserted" to true))), 0)
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    // Add a new step at the beginning
+                    addSteps(listOf(guidedFlowStep<DslTestScreen3>(Params.of("inserted" to true))), 0)
 
-                // Navigate to next step (should go to the newly inserted step)
-                nextStep()
+                    // Navigate to next step (should go to the newly inserted step)
+                    nextStep()
+                }
             }
             advanceUntilIdle()
 
@@ -178,16 +193,22 @@ class GuidedFlowDslTest {
             // Start guided flow and navigate to step 1
             store.startGuidedFlow(Route.TestFlow)
             advanceUntilIdle()
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Use DSL to replace current step and navigate
-            store.guidedFlow(Route.TestFlow) {
-                // Replace step 2 with a different configuration
-                replaceStep(2, guidedFlowStep<DslTestScreen1>(Params.of("replaced" to true, "version" to 2)))
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    // Replace step 2 with a different configuration
+                    replaceStep(2, guidedFlowStep<DslTestScreen1>(Params.of("replaced" to true, "version" to 2)))
 
-                // Navigate to that step
-                nextStep()
+                    // Navigate to that step
+                    nextStep()
+                }
             }
             advanceUntilIdle()
 
@@ -220,7 +241,11 @@ class GuidedFlowDslTest {
         store.startGuidedFlow(Route.TestFlow)
         advanceUntilIdle()
         repeat(2) {
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
         }
 
@@ -228,11 +253,13 @@ class GuidedFlowDslTest {
         assertEquals(2, stateBeforeOperations.activeGuidedFlowState?.currentStepIndex)
 
         // Use DSL to modify
-        store.guidedFlow(Route.TestFlow) {
-
-            // Update parameters for the current step
-            updateStepParams(1, Params.of("backtracked" to true))
+        store.navigation {
+            guidedFlow(Route.TestFlow) {
+                // Update parameters for the current step
+                updateStepParams(1, Params.of("backtracked" to true))
+            }
         }
+        advanceUntilIdle()
         store.navigateBack()
         advanceUntilIdle()
 
@@ -267,14 +294,16 @@ class GuidedFlowDslTest {
         // Test finding steps by type - we can't test return values inside the DSL,
         // but we can test that the operations work correctly
         var indices: Triple<Int, Int, Int>? = null
-        store.guidedFlow(Route.TestFlow) {
-            val screen1Index = findStepByType<DslTestScreen1>()
-            val screen2Index = findStepByType<DslTestScreen2>()
-            val screen3Index = findStepByType<DslTestScreen3>()
-            indices = Triple(screen1Index, screen2Index, screen3Index)
+        store.navigation {
+            guidedFlow(Route.TestFlow) {
+                val screen1Index = findStepByType<DslTestScreen1>()
+                val screen2Index = findStepByType<DslTestScreen2>()
+                val screen3Index = findStepByType<DslTestScreen3>()
+                indices = Triple(screen1Index, screen2Index, screen3Index)
 
-            // Just add some no-op operations to complete the DSL block
-            nextStep(Params.of("test" to true))
+                // Just add some no-op operations to complete the DSL block
+                nextStep(Params.of("test" to true))
+            }
         }
         advanceUntilIdle()
 
@@ -304,8 +333,10 @@ class GuidedFlowDslTest {
         assertEquals(3, store.getGuidedFlow(Route.TestFlow)!!.steps.size)
 
         // Remove DslTestScreen2 by type
-        store.guidedFlow(Route.TestFlow) {
-            removeStep<DslTestScreen2>()
+        store.navigation {
+            guidedFlow(Route.TestFlow) {
+                removeStep<DslTestScreen2>()
+            }
         }
         advanceUntilIdle()
 
@@ -341,8 +372,17 @@ class GuidedFlowDslTest {
         advanceUntilIdle()
 
         // Replace DslTestScreen2 with DslTestScreen1 that has parameters
-        store.guidedFlow(Route.TestFlow) {
-            replaceStep<DslTestScreen2>(guidedFlowStep<DslTestScreen1>(Params.of("replaced" to true, "version" to 3)))
+        store.navigation {
+            guidedFlow(Route.TestFlow) {
+                replaceStep<DslTestScreen2>(
+                    guidedFlowStep<DslTestScreen1>(
+                        Params.of(
+                            "replaced" to true,
+                            "version" to 3
+                        )
+                    )
+                )
+            }
         }
         advanceUntilIdle()
 
@@ -376,8 +416,10 @@ class GuidedFlowDslTest {
             advanceUntilIdle()
 
             // Update DslTestScreen2 parameters by type with raw parameters
-            store.guidedFlow(Route.TestFlow) {
-                updateStepParams<DslTestScreen2>(Params.of("userId" to "123", "timestamp" to 99999))
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    updateStepParams<DslTestScreen2>(Params.of("userId" to "123", "timestamp" to 99999))
+                }
             }
             advanceUntilIdle()
 
@@ -414,13 +456,15 @@ class GuidedFlowDslTest {
             val testUser = UserProfile("user123", "Test User", 25)
 
             // Update DslTestScreen3 parameters by type with typed parameters
-            store.guidedFlow(Route.TestFlow) {
-                updateStepParams<DslTestScreen3> {
-                    put("user", testUser)
-                    putString("action", "view")
-                    putInt("retryCount", 3)
-                    putBoolean("isActive", true)
-                    param("rawData", Params.of("key" to "value"))
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    updateStepParams<DslTestScreen3> {
+                        put("user", testUser)
+                        putString("action", "view")
+                        putInt("retryCount", 3)
+                        putBoolean("isActive", true)
+                        param("rawData", Params.of("key" to "value"))
+                    }
                 }
             }
             advanceUntilIdle()
@@ -479,13 +523,15 @@ class GuidedFlowDslTest {
 
             // Try operations on non-existent screen type using IfExists methods (should not fail)
             var operationResults: Triple<Boolean, Boolean, Boolean>? = null
-            store.guidedFlow(Route.TestFlow) {
-                val removeResult = removeStepIfExists<NonExistentScreen>()
-                val updateResult = updateStepParamsIfExists<NonExistentScreen>(Params.of("test" to "value"))
-                val replaceResult = replaceStepIfExists<NonExistentScreen>(guidedFlowStep<DslTestScreen1>())
-                operationResults = Triple(removeResult, updateResult, replaceResult)
-                // Add a real operation so the DSL validation passes
-                nextStep()
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    val removeResult = removeStepIfExists<NonExistentScreen>()
+                    val updateResult = updateStepParamsIfExists<NonExistentScreen>(Params.of("test" to "value"))
+                    val replaceResult = replaceStepIfExists<NonExistentScreen>(guidedFlowStep<DslTestScreen1>())
+                    operationResults = Triple(removeResult, updateResult, replaceResult)
+                    // Add a real operation so the DSL validation passes
+                    nextStep()
+                }
             }
             advanceUntilIdle()
 
@@ -536,9 +582,11 @@ class GuidedFlowDslTest {
             // Test that removeStep throws exception
             var removeException: Exception? = null
             try {
-                store.guidedFlow(Route.TestFlow) {
-                    removeStep<NonExistentScreen>()
-                    nextStep() // Add operation to pass validation
+                store.navigation {
+                    guidedFlow(Route.TestFlow) {
+                        removeStep<NonExistentScreen>()
+                        nextStep()
+                    }
                 }
                 advanceUntilIdle()
             } catch (e: Exception) {
@@ -552,9 +600,11 @@ class GuidedFlowDslTest {
             // Test that replaceStep throws exception
             var replaceException: Exception? = null
             try {
-                store.guidedFlow(Route.TestFlow) {
-                    replaceStep<NonExistentScreen>(guidedFlowStep<DslTestScreen1>())
-                    nextStep() // Add operation to pass validation
+                store.navigation {
+                    guidedFlow(Route.TestFlow) {
+                        replaceStep<NonExistentScreen>(guidedFlowStep<DslTestScreen1>())
+                        nextStep() // Add operation to pass validation
+                    }
                 }
                 advanceUntilIdle()
             } catch (e: Exception) {
@@ -568,9 +618,11 @@ class GuidedFlowDslTest {
             // Test that updateStepParams throws exception
             var updateException: Exception? = null
             try {
-                store.guidedFlow(Route.TestFlow) {
-                    updateStepParams<NonExistentScreen>(Params.of("test" to "value"))
-                    nextStep() // Add operation to pass validation
+                store.navigation {
+                    guidedFlow(Route.TestFlow) {
+                        updateStepParams<NonExistentScreen>(Params.of("test" to "value"))
+                        nextStep() // Add operation to pass validation
+                    }
                 }
                 advanceUntilIdle()
             } catch (e: Exception) {
@@ -593,13 +645,15 @@ class GuidedFlowDslTest {
 
             // Test that operations return true when they successfully find and operate on types
             var operationResults: Triple<Boolean, Boolean, Boolean>? = null
-            store.guidedFlow(Route.TestFlow) {
-                val updateResult = updateStepParamsIfExists<DslTestScreen2>(Params.of("test" to "value"))
-                val replaceResult =
-                    replaceStepIfExists<DslTestScreen3>(guidedFlowStep<DslTestScreen1>(Params.of("replaced" to true)))
-                val removeResult = removeStepIfExists<DslTestScreen1>()
-                operationResults = Triple(updateResult, replaceResult, removeResult)
-                nextStep()
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    val updateResult = updateStepParamsIfExists<DslTestScreen2>(Params.of("test" to "value"))
+                    val replaceResult =
+                        replaceStepIfExists<DslTestScreen3>(guidedFlowStep<DslTestScreen1>(Params.of("replaced" to true)))
+                    val removeResult = removeStepIfExists<DslTestScreen1>()
+                    operationResults = Triple(updateResult, replaceResult, removeResult)
+                    nextStep()
+                }
             }
             advanceUntilIdle()
 
@@ -660,16 +714,18 @@ class GuidedFlowDslTest {
             advanceUntilIdle()
 
             // Update step parameters with complex typed data
-            store.guidedFlow(Route.TestFlow) {
-                updateStepParams<DslTestScreen2> {
-                    put("user", testUser)
-                    put("settings", testSettings)
-                    putString("sessionId", "session-456")
-                    putInt("retryCount", 3)
-                    putBoolean("debugMode", true)
-                    putDouble("version", 1.5)
-                    put("tags", listOf("important", "user-data", "test"))
-                    param("rawMetadata", Params.of("source" to "test", "timestamp" to 1234567890))
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    updateStepParams<DslTestScreen2> {
+                        put("user", testUser)
+                        put("settings", testSettings)
+                        putString("sessionId", "session-456")
+                        putInt("retryCount", 3)
+                        putBoolean("debugMode", true)
+                        putDouble("version", 1.5)
+                        put("tags", listOf("important", "user-data", "test"))
+                        param("rawMetadata", Params.of("source" to "test", "timestamp" to 1234567890))
+                    }
                 }
             }
             advanceUntilIdle()
@@ -716,7 +772,12 @@ class GuidedFlowDslTest {
 
             // Test navigation to the screen to ensure parameters work in practice
             // Navigate to step 1 (DslTestScreen2) which now has our updated parameters
-            store.nextGuidedFlowStep() // Goes to step 1 (DslTestScreen2)
+            // Goes to step 1 (DslTestScreen2)
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             val navigationState = store.selectState<NavigationState>().first()
@@ -756,9 +817,11 @@ class GuidedFlowDslTest {
             // This should fail at compile time or runtime when trying to create the serializer
             var exceptionThrown = false
             try {
-                store.guidedFlow(Route.TestFlow) {
-                    updateStepParams<DslTestScreen2> {
-                        put("badUser", nonSerializableUser) // This should fail
+                store.navigation {
+                    guidedFlow(Route.TestFlow) {
+                        updateStepParams<DslTestScreen2> {
+                            put("badUser", nonSerializableUser) // This should fail
+                        }
                     }
                 }
                 advanceUntilIdle()
@@ -799,18 +862,25 @@ class GuidedFlowDslTest {
             advanceUntilIdle()
 
             // Step 1: Use typed parameters to modify DslTestScreen2 step
-            store.guidedFlow(Route.TestFlow) {
-                updateStepParams<DslTestScreen2> {
-                    put("userData", userData)                    // Typed parameter
-                    putString("sessionId", "session-456")       // Raw string parameter
-                    putInt("version", 2)                         // Raw int parameter
-                    putBoolean("isDebug", true)                  // Raw boolean parameter
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    updateStepParams<DslTestScreen2> {
+                        put("userData", userData)                    // Typed parameter
+                        putString("sessionId", "session-456")       // Raw string parameter
+                        putInt("version", 2)                         // Raw int parameter
+                        putBoolean("isDebug", true)                  // Raw boolean parameter
+                    }
                 }
             }
             advanceUntilIdle()
 
             // Step 2: Navigate to the modified step
-            store.nextGuidedFlowStep() // Goes to step 1 (DslTestScreen2)
+            // Goes to step 1 (DslTestScreen2)
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Step 3: Verify we can read the parameters from the actual navigation state
@@ -853,7 +923,11 @@ class GuidedFlowDslTest {
             advanceUntilIdle()
 
             // Navigate to step 1 (DslTestScreen2)
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             val stateAfterFirstStep = store.selectState<NavigationState>().first()
@@ -861,8 +935,10 @@ class GuidedFlowDslTest {
             assertEquals(DslTestScreen2, stateAfterFirstStep.currentEntry.navigatable)
 
             // Modify guided flow: add parameters to step 1
-            store.guidedFlow(Route.TestFlow) {
-                updateStepParams(1, Params.of("deeplink" to "https://example.com", "userId" to "user123"))
+            store.navigation {
+                guidedFlow(Route.TestFlow) {
+                    updateStepParams(1, Params.of("deeplink" to "https://example.com", "userId" to "user123"))
+                }
             }
             advanceUntilIdle()
 
@@ -877,9 +953,19 @@ class GuidedFlowDslTest {
             assertEquals("user123", modifiedStep.getParams().getString("userId"))
 
             // Complete the flow: move through all remaining steps
-            store.nextGuidedFlowStep() // Move to step 2 (DslTestScreen3)
+            // Move to step 2 (DslTestScreen3)
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
-            store.nextGuidedFlowStep() // Complete the flow
+            // Complete the flow
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             // Verify flow is completed and cleared
@@ -898,7 +984,11 @@ class GuidedFlowDslTest {
             // Verify we can start the flow again with fresh state
             store.startGuidedFlow(Route.TestFlow)
             advanceUntilIdle()
-            store.nextGuidedFlowStep()
+            store.navigation {
+                activeGuidedFlow {
+                    nextStep()
+                }
+            }
             advanceUntilIdle()
 
             val stateSecondRun = store.selectState<NavigationState>().first()

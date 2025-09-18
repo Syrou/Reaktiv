@@ -45,7 +45,6 @@ class NavigationModule internal constructor(
     }
 
     private fun createInitialState(): NavigationState {
-        ReaktivDebug.nav("🚀 Creating  initial navigation state")
 
         val resolution = when (val dest = rootGraph.startDestination) {
             is StartDestination.DirectScreen -> {
@@ -125,7 +124,6 @@ class NavigationModule internal constructor(
                             navigatable::class.serializer() as KSerializer<Navigatable>
                         )
                     } catch (e: Exception) {
-                        ReaktivDebug.warn("Could not register serializer for navigatable ${navigatable.route}: ${e.message}")
                     }
                 }
                 graph.nestedGraphs.forEach { registerGraphNavigatables(it) }
@@ -218,33 +216,6 @@ class NavigationModule internal constructor(
                 state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
                 navigationAction = action
             )
-
-            is NavigationAction.UpdateGuidedFlowModifications -> {
-                val updatedModifications = if (action.modifiedDefinition != null) {
-                    state.guidedFlowModifications + (action.flowRoute to action.modifiedDefinition)
-                } else {
-                    state.guidedFlowModifications - action.flowRoute
-                }
-                state.copy(guidedFlowModifications = updatedModifications)
-            }
-
-            is NavigationAction.ClearAllGuidedFlowModifications -> {
-                state.copy(guidedFlowModifications = emptyMap())
-            }
-
-            is NavigationAction.CompleteGuidedFlow -> {
-                val newModifications = when (action.clearBehavior) {
-                    ClearModificationBehavior.CLEAR_ALL -> emptyMap()
-                    ClearModificationBehavior.CLEAR_SPECIFIC -> 
-                        state.guidedFlowModifications - action.flowRoute
-                    ClearModificationBehavior.CLEAR_NONE -> state.guidedFlowModifications
-                }
-                
-                state.copy(
-                    activeGuidedFlowState = null,
-                    guidedFlowModifications = newModifications
-                )
-            }
 
             is NavigationAction.UpdateTransitionState -> {
                 state.copy(transitionState = action.transitionState)
@@ -341,8 +312,6 @@ data class PrecomputedNavigationData(
                 graphHierarchies[graphId] = hierarchy
             }
 
-            ReaktivDebug.nav("🎯 Precomputed ${allNavigatables.size} navigatables across ${graphDefinitions.size} graphs")
-            ReaktivDebug.nav("📍 Built ${navigatableToFullPath.size} navigatable-to-path mappings for NavigationTarget resolution")
 
             return PrecomputedNavigationData(
                 routeResolver = routeResolver,

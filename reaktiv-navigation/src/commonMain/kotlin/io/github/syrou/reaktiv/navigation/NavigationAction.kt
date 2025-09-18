@@ -68,22 +68,6 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class UpdateGuidedFlowModifications(
-        val flowRoute: String,
-        val modifiedDefinition: GuidedFlowDefinition?  // null to remove modifications
-    ) : NavigationAction(), HighPriorityAction
-
-    @Serializable
-    data object ClearAllGuidedFlowModifications : NavigationAction(), HighPriorityAction
-
-    @Serializable
-    data class CompleteGuidedFlow(
-        val completedFlowState: GuidedFlowState,
-        val clearBehavior: ClearModificationBehavior,
-        val flowRoute: String
-    ) : NavigationAction(), HighPriorityAction
-
-    @Serializable
     data class UpdateTransitionState(
         val transitionState: NavigationTransitionState
     ) : NavigationAction(), HighPriorityAction

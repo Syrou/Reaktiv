@@ -1,14 +1,9 @@
 package eu.syrou.androidexample.reaktiv.middleware
 
 import eu.syrou.androidexample.reaktiv.TestNavigationModule.TestNavigationAction
-import eu.syrou.androidexample.ui.screen.home.leaderboard.LeaderboardDetailScreen
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
-import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 fun createTestNavigationMiddleware(): Middleware = { action, getAllStates, storeAccessor, updatedState ->

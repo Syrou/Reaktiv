@@ -1,6 +1,7 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Modal
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -69,6 +71,11 @@ class ModalNavigationContextTest {
             screens(workspaceScreen, videosListScreen)
             modals(notificationModal)
         }
+    }
+
+    @BeforeTest
+    fun beforeTest() {
+        ReaktivDebug.enable()
     }
 
     @Test
@@ -145,6 +152,7 @@ class ModalNavigationContextTest {
             state = store.selectState<NavigationState>().first()
             assertEquals("videos", state.currentEntry.navigatable.route, "Should be on videos screen")
             assertFalse(state.isCurrentModal, "Should not be showing a modal")
+            println("DEBUG: Modal contexts after dismissal: ${state.activeModalContexts}")
             assertTrue(state.activeModalContexts.isEmpty(), "Should have no active modal contexts after dismissal")
 
             // Step 4: Go back - should return to workspace WITHOUT restoring the modal

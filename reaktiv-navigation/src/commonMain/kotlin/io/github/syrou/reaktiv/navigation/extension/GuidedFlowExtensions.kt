@@ -26,34 +26,5 @@ suspend fun StoreAccessor.startGuidedFlow(
     this.selectLogic<NavigationLogic>().startGuidedFlow(route, params)
 }
 
-/**
- * Navigate to the next step in the currently active guided flow
- * This method is suspending and waits for the navigation to complete
- */
-suspend fun StoreAccessor.nextGuidedFlowStep(
-    params: Params = Params.empty()
-) {
-    this.selectLogic<NavigationLogic>().nextGuidedFlowStep(params)
-}
 
 
-/**
- * Execute multiple guided flow operations atomically
- * This is the main DSL entry point for guided flow operations
- *
- * Example:
- * ```
- * storeAccessor.guidedFlow("signup-flow") {
- *     removeSteps(listOf(2, 3))
- *     updateStepParams(1, mapOf("userId" to "123"))
- *     nextStep()
- * }
- * ```
- */
-suspend fun StoreAccessor.guidedFlow(
-    flowRoute: String,
-    block: suspend GuidedFlowOperationBuilder.() -> Unit
-) {
-    val navigationLogic = selectLogic<NavigationLogic>()
-    navigationLogic.executeGuidedFlowOperations(flowRoute, block)
-}

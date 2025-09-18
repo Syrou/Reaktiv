@@ -1,10 +1,8 @@
 package io.github.syrou.reaktiv.navigation.model
 
-import io.github.syrou.reaktiv.navigation.definition.GuidedFlow
-import io.github.syrou.reaktiv.navigation.definition.Screen
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 /**
  * Represents the current state of an active guided flow
