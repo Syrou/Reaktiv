@@ -1,7 +1,6 @@
 package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -9,6 +8,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
@@ -36,7 +37,7 @@ fun UnifiedLayerRenderer(
     if (entries.isNotEmpty()) {
         when (layerType) {
             LayerType.Content -> ContentLayerRenderer(entries, navigationState)
-            LayerType.GlobalOverlay -> OverlayLayerRenderer(entries, navigationState)
+            LayerType.GlobalOverlay -> OverlayLayerRenderer(entries)
             LayerType.System -> SystemLayerRenderer(entries, navigationState)
         }
     }
@@ -68,8 +69,7 @@ private fun ContentLayerRenderer(
  */
 @Composable
 private fun OverlayLayerRenderer(
-    entries: List<NavigationEntry>,
-    navigationState: NavigationState
+    entries: List<NavigationEntry>
 ) {
     val modalStates = rememberModalAnimationState(entries)
     val activeStates = remember { mutableStateMapOf<String, ModalEntryState>() }
@@ -79,9 +79,10 @@ private fun OverlayLayerRenderer(
         activeStates[state.entry.stableKey] = state
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val screenWidth = maxWidth.value * LocalDensity.current.density
-        val screenHeight = maxHeight.value * LocalDensity.current.density
+    Box(modifier = Modifier.fillMaxSize()) {
+        val windowInfo = LocalWindowInfo.current
+        val screenWidth = windowInfo.containerSize.width.toFloat()
+        val screenHeight = windowInfo.containerSize.height.toFloat()
 
         activeStates.values
             .sortedBy { it.entry.navigatable.elevation }
@@ -136,46 +137,46 @@ private fun SystemLayerRenderer(
  */
 @Composable
 private fun ContentRenderer(animationState: LayerAnimationState) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val screenWidth = maxWidth.value * LocalDensity.current.density
-        val screenHeight = maxHeight.value * LocalDensity.current.density
 
-        // Determine zIndex ordering based on animation requirements
-        val shouldExitBeOnTop = animationState.animationDecision?.let { decision ->
-            decision.enterTransition is io.github.syrou.reaktiv.navigation.transition.NavTransition.None &&
-                    decision.exitTransition !is io.github.syrou.reaktiv.navigation.transition.NavTransition.None
-        } ?: false
+    val windowInfo = LocalWindowInfo.current
+    // Use full window dimensions for proper edge-to-edge animations
+    val screenWidth = windowInfo.containerSize.width.toFloat()
+    val screenHeight = windowInfo.containerSize.height.toFloat()
+    // Determine zIndex ordering based on animation requirements
+    val shouldExitBeOnTop = animationState.animationDecision?.let { decision ->
+        decision.enterTransition is io.github.syrou.reaktiv.navigation.transition.NavTransition.None &&
+                decision.exitTransition !is io.github.syrou.reaktiv.navigation.transition.NavTransition.None
+    } ?: false
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Render current screen
-            val currentZIndex = if (shouldExitBeOnTop) 2f else 3f
-            key(animationState.currentEntry.stableKey) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Render current screen
+        val currentZIndex = if (shouldExitBeOnTop) 2f else 3f
+        key(animationState.currentEntry.stableKey) {
+            NavigationAnimations.AnimatedEntry(
+                entry = animationState.currentEntry,
+                animationType = NavigationAnimations.AnimationType.SCREEN_ENTER,
+                animationDecision = animationState.animationDecision,
+                screenWidth = screenWidth,
+                screenHeight = screenHeight,
+                zIndex = currentZIndex
+            ) {
+                animationState.currentContent()
+            }
+        }
+
+        // Render previous screen during animation
+        if (animationState.hasAnimation && animationState.previousContent != null) {
+            val previousZIndex = if (shouldExitBeOnTop) 3f else 2f
+            key(animationState.previousEntry!!.stableKey) {
                 NavigationAnimations.AnimatedEntry(
-                    entry = animationState.currentEntry,
-                    animationType = NavigationAnimations.AnimationType.SCREEN_ENTER,
+                    entry = animationState.previousEntry,
+                    animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
                     animationDecision = animationState.animationDecision,
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
-                    zIndex = currentZIndex
+                    zIndex = previousZIndex
                 ) {
-                    animationState.currentContent()
-                }
-            }
-
-            // Render previous screen during animation
-            if (animationState.hasAnimation && animationState.previousContent != null) {
-                val previousZIndex = if (shouldExitBeOnTop) 3f else 2f
-                key(animationState.previousEntry!!.stableKey) {
-                    NavigationAnimations.AnimatedEntry(
-                        entry = animationState.previousEntry,
-                        animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
-                        animationDecision = animationState.animationDecision,
-                        screenWidth = screenWidth,
-                        screenHeight = screenHeight,
-                        zIndex = previousZIndex
-                    ) {
-                        animationState.previousContent.invoke()
-                    }
+                    animationState.previousContent.invoke()
                 }
             }
         }

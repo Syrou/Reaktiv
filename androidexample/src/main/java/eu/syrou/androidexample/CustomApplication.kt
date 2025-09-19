@@ -128,7 +128,7 @@ class CustomApplication : Application() {
                         navigateTo("home")
                     }
                 }
-                screenRetentionDuration(10.toDuration(DurationUnit.SECONDS))
+                screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
             }
         )
         middlewares(loggingMiddleware, NavigationSpamMiddleware.create(), createTestNavigationMiddleware())

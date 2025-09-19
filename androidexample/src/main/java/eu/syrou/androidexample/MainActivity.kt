@@ -2,10 +2,14 @@ package eu.syrou.androidexample
 
 import NavigationRender
 import android.content.Intent
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -79,6 +83,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         //runBlocking { customApp.store.loadState() }
         handleDeepLink(intent, "onCreate")
+        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
         /*lifecycleScope.launch {
             val newsState = customApp.store.selectState<NewsModule.NewsState>()
@@ -95,13 +103,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        runBlocking {
-
         }
     }
 }
