@@ -64,7 +64,13 @@ fun rememberLayerAnimationState(
 
     // Get the actual navigation intent from last action
     val lastAction = rememberLastNavigationAction()
-    val isBackNavigation = lastAction is NavigationAction.Back
+    val isBackNavigation = when (lastAction) {
+        is NavigationAction.Back -> true
+        is NavigationAction.PopUpTo -> true
+        is NavigationAction.BatchUpdate -> lastAction.operations.contains(NavigationOperation.Back) || 
+                                          lastAction.operations.contains(NavigationOperation.PopUpTo)
+        else -> false
+    }
     val isClearBackstack = when (lastAction) {
         is NavigationAction.ClearBackstack -> true
         is NavigationAction.BatchUpdate -> lastAction.operations.contains(NavigationOperation.ClearBackStack)

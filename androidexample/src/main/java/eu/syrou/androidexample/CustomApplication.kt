@@ -39,9 +39,10 @@ import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.middleware.NavigationSpamMiddleware
-import io.github.syrou.reaktiv.navigation.extension.navigation
 import kotlinx.coroutines.Dispatchers
 import java.util.concurrent.TimeUnit
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 lateinit var customApp: CustomApplication
 
@@ -115,7 +116,7 @@ class CustomApplication : Application() {
 
                     screenGroup(UserManagementScreens)
                 }
-                
+
                 // Configure GuidedFlow definitions
                 guidedFlow("user-management") {
                     step<UserManagementScreens.ViewUser>()
@@ -127,6 +128,7 @@ class CustomApplication : Application() {
                         navigateTo("home")
                     }
                 }
+                screenRetentionDuration(10.toDuration(DurationUnit.SECONDS))
             }
         )
         middlewares(loggingMiddleware, NavigationSpamMiddleware.create(), createTestNavigationMiddleware())

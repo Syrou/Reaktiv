@@ -4,22 +4,19 @@ import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
-import io.github.syrou.reaktiv.core.util.ReaktivDebug
-import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
-import io.github.syrou.reaktiv.navigation.model.ClearModificationBehavior
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
-import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
+import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
-import io.github.syrou.reaktiv.navigation.model.applyModification
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import kotlinx.serialization.InternalSerializationApi
@@ -55,6 +52,7 @@ class NavigationModule internal constructor(
                     navigationGraphId = rootGraph.route
                 )
             }
+
             is StartDestination.GraphReference -> {
                 precomputedData.routeResolver.resolve(dest.graphId)
                     ?: throw IllegalStateException("Could not resolve root graph reference to '${dest.graphId}'")
@@ -68,9 +66,9 @@ class NavigationModule internal constructor(
             params = Params.empty(),
             graphId = effectiveGraphId
         )
-        
+
         val initialBackStack = listOf(initialEntry)
-        
+
         val computedState = computeNavigationDerivedState(
             currentEntry = initialEntry,
             backStack = initialBackStack,
@@ -146,14 +144,14 @@ class NavigationModule internal constructor(
         val newCurrentEntry = currentEntry ?: state.currentEntry
         val newBackStack = backStack ?: state.backStack
         val newModalContexts = modalContexts ?: state.activeModalContexts
-        
+
         val computedState = computeNavigationDerivedState(
             currentEntry = newCurrentEntry,
             backStack = newBackStack,
             precomputedData = precomputedData,
             existingModalContexts = newModalContexts
         )
-        
+
         return state.copy(
             currentEntry = newCurrentEntry,
             backStack = newBackStack,
@@ -191,29 +189,59 @@ class NavigationModule internal constructor(
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
         when (action) {
             is NavigationAction.BatchUpdate -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts,
-                action.activeGuidedFlowState, updateGuidedFlowState = true, transitionState = action.transitionState,
+                state = state,
+                currentEntry = action.currentEntry,
+                backStack = action.backStack,
+                modalContexts = action.modalContexts,
+                activeGuidedFlowState = action.activeGuidedFlowState,
+                updateGuidedFlowState = true,
+                transitionState = action.transitionState,
                 guidedFlowModifications = action.guidedFlowModifications,
                 navigationAction = action
             )
+
             is NavigationAction.Back -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                state = state,
+                currentEntry = action.currentEntry,
+                backStack = action.backStack,
+                modalContexts = action.modalContexts,
+                transitionState = action.transitionState,
                 navigationAction = action
             )
-            is NavigationAction.ClearBackstack -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+
+            is NavigationAction.ClearBackstack -> this.reduceNavigationStateUpdate(
+                state = state,
+                currentEntry = action.currentEntry,
+                backStack = action.backStack,
+                modalContexts = action.modalContexts,
+                transitionState = action.transitionState,
                 navigationAction = action
             )
+
             is NavigationAction.Navigate -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                state = state,
+                currentEntry = action.currentEntry,
+                backStack = action.backStack,
+                modalContexts = action.modalContexts,
+                transitionState = action.transitionState,
                 navigationAction = action
             )
+
             is NavigationAction.PopUpTo -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                state = state,
+                currentEntry = action.currentEntry,
+                backStack = action.backStack,
+                modalContexts = action.modalContexts,
+                transitionState = action.transitionState,
                 navigationAction = action
             )
+
             is NavigationAction.Replace -> reduceNavigationStateUpdate(
-                state, action.currentEntry, action.backStack, action.modalContexts, transitionState = action.transitionState,
+                state = state,
+                currentEntry = action.currentEntry,
+                backStack = action.backStack,
+                modalContexts = action.modalContexts,
+                transitionState = action.transitionState,
                 navigationAction = action
             )
 
@@ -226,7 +254,7 @@ class NavigationModule internal constructor(
 
     override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor ->
         NavigationLogic(
-            storeAccessor = storeAccessor, 
+            storeAccessor = storeAccessor,
             precomputedData = precomputedData,
             guidedFlowDefinitions = originalGuidedFlowDefinitions
         )
@@ -356,7 +384,7 @@ private data class ComputedNavigationState(
     val effectiveDepth: Int,
     val navigationDepth: Int,
     val contentLayerEntries: List<NavigationEntry>,
-    val globalOverlayEntries: List<NavigationEntry>, 
+    val globalOverlayEntries: List<NavigationEntry>,
     val systemLayerEntries: List<NavigationEntry>,
     val renderableEntries: List<NavigationEntry>,
     val underlyingScreen: NavigationEntry?,
@@ -373,37 +401,37 @@ private fun computeNavigationDerivedState(
     val orderedBackStack = backStack.mapIndexed { index, entry ->
         entry.copy(stackPosition = index)
     }
-    
+
     val visibleLayers = computeVisibleLayers(orderedBackStack, existingModalContexts)
-    
+
     val currentFullPath = precomputedData.routeResolver.buildFullPathForEntry(currentEntry)
         ?: currentEntry.navigatable.route
-        
+
     val currentPathSegments = currentFullPath.split("/").filter { it.isNotEmpty() }
-    
-    val currentGraphHierarchy = precomputedData.graphHierarchies[currentEntry.graphId] 
+
+    val currentGraphHierarchy = precomputedData.graphHierarchies[currentEntry.graphId]
         ?: listOf(currentEntry.graphId)
-    
+
     val breadcrumbs = buildBreadcrumbs(currentPathSegments, precomputedData.graphDefinitions)
-    
+
     val canGoBack = backStack.size > 1
     val isCurrentModal = currentEntry.isModal
     val isCurrentScreen = currentEntry.isScreen
     val hasModalsInStack = backStack.any { it.isModal }
     val effectiveDepth = backStack.size
     val navigationDepth = currentPathSegments.size
-    
+
     val entriesByLayer = visibleLayers.map { it.entry }.groupBy { it.navigatable.renderLayer }
     val contentLayerEntries = entriesByLayer[RenderLayer.CONTENT] ?: emptyList()
     val globalOverlayEntries = entriesByLayer[RenderLayer.GLOBAL_OVERLAY] ?: emptyList()
     val systemLayerEntries = entriesByLayer[RenderLayer.SYSTEM] ?: emptyList()
     val renderableEntries = visibleLayers.map { it.entry }
-    
+
     val underlyingScreen = if (isCurrentModal) {
         findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, existingModalContexts)
     } else null
     val modalsInStack = backStack.filter { it.isModal }
-    
+
     return ComputedNavigationState(
         orderedBackStack = orderedBackStack,
         visibleLayers = visibleLayers,
@@ -474,7 +502,7 @@ private fun computeVisibleLayers(
 }
 
 private fun buildBreadcrumbs(
-    pathSegments: List<String>, 
+    pathSegments: List<String>,
     graphDefinitions: Map<String, NavigationGraph>
 ): List<NavigationBreadcrumb> {
     val breadcrumbs = mutableListOf<NavigationBreadcrumb>()
@@ -497,7 +525,7 @@ private fun buildBreadcrumbs(
 }
 
 private fun findOriginalUnderlyingScreenForModal(
-    modalEntry: NavigationEntry, 
+    modalEntry: NavigationEntry,
     backStack: List<NavigationEntry>,
     modalContexts: Map<String, ModalContext> = emptyMap()
 ): NavigationEntry? {
@@ -506,10 +534,10 @@ private fun findOriginalUnderlyingScreenForModal(
     if (modalContext != null) {
         return modalContext.originalUnderlyingScreenEntry
     }
-    
+
     val modalIndex = backStack.indexOf(modalEntry)
     if (modalIndex <= 0) return null
-    
+
     return backStack.subList(0, modalIndex).lastOrNull { it.isScreen }
 }
 
