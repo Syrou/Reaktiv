@@ -30,6 +30,7 @@ private val NavigationAction.isNavigationOperation: Boolean
         is NavigationAction.PopUpTo,
         is NavigationAction.ClearBackstack,
         is NavigationAction.BatchUpdate -> true
+
         else -> false
     }
 
@@ -37,7 +38,8 @@ class NavigationSpamMiddleware(
     private val debounceTimeMs: Long = 300L,
     private val maxActionsPerWindow: Int = 3,
     private val windowSizeMs: Long = 1000L,
-    private val timeSource: TimeSource = TimeSource.Monotonic
+    private val timeSource: TimeSource = TimeSource.Monotonic,
+    private val debounceWithSameRoute: Boolean = false
 ) {
     private val startTime = timeSource.markNow()
 
@@ -70,14 +72,16 @@ class NavigationSpamMiddleware(
             debounceTimeMs: Long = 300L,
             maxActionsPerWindow: Int = 3,
             windowSizeMs: Long = 1000L,
-            timeSource: TimeSource = TimeSource.Monotonic
+            timeSource: TimeSource = TimeSource.Monotonic,
+            debounceWithSameRoute: Boolean = false
         ): Middleware {
             // Create middleware instance once and reuse it
             val middleware = NavigationSpamMiddleware(
-                debounceTimeMs,
-                maxActionsPerWindow,
-                windowSizeMs,
-                timeSource
+                debounceTimeMs = debounceTimeMs,
+                maxActionsPerWindow = maxActionsPerWindow,
+                windowSizeMs = windowSizeMs,
+                timeSource = timeSource,
+                debounceWithSameRoute = debounceWithSameRoute
             )
 
             return { action, getAllStates, storeAccessor, updatedState ->
@@ -142,8 +146,8 @@ class NavigationSpamMiddleware(
         // Check window-based spam protection
         val recentSimilarActions = actionHistory.count { record ->
             isWithinTimeWindow(record.timestamp, currentTime) &&
-            record.action::class.simpleName == actionType &&
-            record.route == currentRoute
+                    record.action::class.simpleName == actionType &&
+                    (!debounceWithSameRoute || record.route == currentRoute)
         }
 
         if (recentSimilarActions >= maxActionsPerWindow) {
@@ -153,7 +157,8 @@ class NavigationSpamMiddleware(
 
         // Check debounce-based rapid duplicate protection
         val lastIdenticalAction = actionHistory.findLast { record ->
-            record.action::class.simpleName == actionType && record.route == currentRoute
+            record.action::class.simpleName == actionType &&
+                    (!debounceWithSameRoute || record.route == currentRoute)
         }
 
         return if (lastIdenticalAction != null && isWithinDebounceWindow(lastIdenticalAction.timestamp, currentTime)) {
@@ -176,14 +181,14 @@ class NavigationSpamMiddleware(
     private fun extractRouteFromAction(action: NavigationAction?): String? {
         return when (action) {
             is NavigationAction.BatchUpdate -> extractBatchUpdateRoute(action)
-            
+
             // Navigation actions with currentEntry
             is NavigationAction.Navigate -> action.currentEntry?.navigatable?.route
             is NavigationAction.Replace -> action.currentEntry?.navigatable?.route
             is NavigationAction.Back -> action.currentEntry?.navigatable?.route
             is NavigationAction.PopUpTo -> action.currentEntry?.navigatable?.route
             is NavigationAction.ClearBackstack -> action.currentEntry?.navigatable?.route
-            
+
             else -> null
         }
     }
