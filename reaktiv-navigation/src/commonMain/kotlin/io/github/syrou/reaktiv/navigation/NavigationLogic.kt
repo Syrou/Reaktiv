@@ -2,7 +2,6 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
@@ -28,6 +27,9 @@ import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.computeGuidedFlowProperties
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -44,6 +46,18 @@ class NavigationLogic(
 
 
     private val guidedFlowMutex = Mutex()
+    private var transitionResetJob: Job? = null
+    
+    /**
+     * Coroutine scope for transition state reset timers.
+     * Uses SupervisorJob + store context minus job to:
+     * - Survive store resets (won't be cancelled by store.reset())
+     * - Work with test time control (inherits store's dispatcher)
+     * - Prevent stuck ANIMATING states after animation completion
+     */
+    private val timerScope = CoroutineScope(
+        SupervisorJob() + storeAccessor.coroutineContext.minusKey(Job)
+    )
 
 
     /**
@@ -125,12 +139,12 @@ class NavigationLogic(
     private suspend fun executeNavigation(builder: NavigationBuilder, source: String) {
         val initialState = getCurrentNavigationState()
         val unifiedOps = collectUnifiedOperations(builder, initialState)
-        
+
         validateUnifiedOperations(unifiedOps)
-        
+
         val finalState = computeFinalNavigationState(unifiedOps, initialState)
         val willAnimate = willNavigationAnimate(initialState, finalState)
-        
+
         val action = NavigationAction.BatchUpdate(
             currentEntry = finalState.currentEntry,
             backStack = finalState.backStack,
@@ -231,47 +245,57 @@ class NavigationLogic(
                         finalGuidedFlowContext = result.guidedFlowContext
 
                         if (result.shouldNavigate) {
-                            allNavigationSteps.add(NavigationStep(
-                                operation = NavigationOperation.Navigate,
-                                target = NavigationTarget.Path(result.route),
-                                params = result.params
-                            ))
+                            allNavigationSteps.add(
+                                NavigationStep(
+                                    operation = NavigationOperation.Navigate,
+                                    target = NavigationTarget.Path(result.route),
+                                    params = result.params
+                                )
+                            )
                         } else if (result.flowState.isCompleted) {
                             currentDefinition.onComplete?.let { onCompleteHandler ->
                                 val completionBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
                                 onCompleteHandler(completionBuilder, storeAccessor)
-                                
+
                                 allNavigationSteps.addAll(completionBuilder.operations)
-                                
+
                                 for ((completionFlowRoute, completionFlowBuilder) in completionBuilder.getGuidedFlowOperations()) {
                                     val completionOperations = completionFlowBuilder.getOperations()
-                                    var completionDefinition = allGuidedFlowModifications[completionFlowRoute] 
+                                    var completionDefinition = allGuidedFlowModifications[completionFlowRoute]
                                         ?: getEffectiveGuidedFlowDefinitionByRoute(completionFlowRoute)
-                                    
+
                                     for (completionOperation in completionOperations) {
                                         when (completionOperation) {
                                             is GuidedFlowOperation.Modify -> {
                                                 if (completionDefinition != null) {
-                                                    completionDefinition = completionDefinition.applyModification(completionOperation.modification)
+                                                    completionDefinition =
+                                                        completionDefinition.applyModification(completionOperation.modification)
                                                 }
                                             }
+
                                             is GuidedFlowOperation.NextStep -> {
                                                 if (completionDefinition != null && completionFlowRoute == flowRoute) {
                                                     finalActiveGuidedFlowState?.let { activeFlow ->
-                                                        val completionResult = computeNextStep(activeFlow, completionDefinition, completionOperation.params)
+                                                        val completionResult = computeNextStep(
+                                                            activeFlow,
+                                                            completionDefinition,
+                                                            completionOperation.params
+                                                        )
                                                         if (completionResult.shouldNavigate) {
-                                                            allNavigationSteps.add(NavigationStep(
-                                                                operation = NavigationOperation.Navigate,
-                                                                target = NavigationTarget.Path(completionResult.route),
-                                                                params = completionResult.params
-                                                            ))
+                                                            allNavigationSteps.add(
+                                                                NavigationStep(
+                                                                    operation = NavigationOperation.Navigate,
+                                                                    target = NavigationTarget.Path(completionResult.route),
+                                                                    params = completionResult.params
+                                                                )
+                                                            )
                                                         }
                                                     }
                                                 }
                                             }
                                         }
                                     }
-                                    
+
                                     completionDefinition?.let {
                                         allGuidedFlowModifications[completionFlowRoute] = it
                                     }
@@ -454,9 +478,13 @@ class NavigationLogic(
 
 
     /**
-     * Schedule transition state reset after animation completes
+     * Schedule transition state reset after animation completes.
+     * Cancels any previous pending reset to prevent race conditions.
      */
     private suspend fun scheduleTransitionStateReset(targetEntry: NavigationEntry, previousEntry: NavigationEntry) {
+        // Cancel any existing transition reset job to prevent conflicts
+        transitionResetJob?.cancel()
+
         // Calculate animation duration considering both enter and exit transitions
         val enterDuration = targetEntry.navigatable.enterTransition.durationMillis
         val exitDuration = previousEntry.navigatable.exitTransition.durationMillis
@@ -464,11 +492,14 @@ class NavigationLogic(
         // Use the longer of the two durations to ensure both animations complete
         val totalAnimationDuration = maxOf(enterDuration, exitDuration)
 
-        storeAccessor.launch {
+        transitionResetJob = timerScope.launch {
             delay(totalAnimationDuration.toLong())
 
-            // Use dedicated action to reset transition state back to IDLE
-            storeAccessor.dispatch(NavigationAction.UpdateTransitionState(NavigationTransitionState.IDLE))
+            // Verify we're still in ANIMATING state before resetting
+            val currentState = storeAccessor.selectState<NavigationState>().first()
+            if (currentState.transitionState == NavigationTransitionState.ANIMATING) {
+                storeAccessor.dispatch(NavigationAction.UpdateTransitionState(NavigationTransitionState.IDLE))
+            }
         }
     }
 
@@ -828,6 +859,7 @@ class NavigationLogic(
             step.shouldDismissModals -> {
                 emptyMap()
             }
+
             isNavigatingToModal -> {
                 val modalContext = createModalContext(newEntry, currentEntry, modalContexts)
                 if (modalContext != null) {
@@ -1052,7 +1084,7 @@ class NavigationLogic(
                 }
 
                 val effectiveDefinition = getEffectiveDefinition(flowRoute)
-                
+
                 if (effectiveDefinition != null) {
                 } else {
                     val currentState = getCurrentNavigationState()
