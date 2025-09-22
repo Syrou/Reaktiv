@@ -7,6 +7,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
@@ -55,7 +56,7 @@ private fun ContentLayerRenderer(
     val currentEntry = entries.lastOrNull() ?: navigationState.currentEntry
 
     // Get animation state with movable content protection
-    val animationState = rememberLayerAnimationState(listOf(currentEntry), navigationState)
+    val animationState = rememberLayerAnimationState(listOf(currentEntry))
 
     // Apply layout hierarchy for proper nesting
     val layoutGraphs = findLayoutGraphsInHierarchy(currentEntry.graphId, navigationState)
@@ -177,6 +178,20 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
                     zIndex = previousZIndex
                 ) {
                     animationState.previousContent.invoke()
+                }
+            }
+        }
+
+        // Render content being disposed (invisible) to trigger DisposableEffect
+        animationState.disposingContent.forEachIndexed { index, content ->
+            key("disposing_$index") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(-1000f) // Render behind everything
+                        .alpha(0f) // Make completely transparent
+                ) {
+                    content()
                 }
             }
         }
