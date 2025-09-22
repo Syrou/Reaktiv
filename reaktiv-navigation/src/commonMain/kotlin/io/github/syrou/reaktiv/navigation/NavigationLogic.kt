@@ -145,21 +145,119 @@ class NavigationLogic(
         val finalState = computeFinalNavigationState(unifiedOps, initialState)
         val willAnimate = willNavigationAnimate(initialState, finalState)
 
-        val action = NavigationAction.BatchUpdate(
-            currentEntry = finalState.currentEntry,
-            backStack = finalState.backStack,
-            modalContexts = finalState.modalContexts,
-            operations = unifiedOps.navigationSteps.map { it.operation },
-            activeGuidedFlowState = finalState.activeGuidedFlowState,
-            guidedFlowModifications = finalState.guidedFlowModifications,
-            transitionState = if (willAnimate) NavigationTransitionState.ANIMATING else NavigationTransitionState.IDLE
-        )
+        val action = determineNavigationAction(unifiedOps, finalState, initialState, willAnimate)
 
         storeAccessor.dispatch(action)
 
         if (willAnimate) {
             scheduleTransitionStateReset(finalState.currentEntry, initialState.currentEntry)
         }
+    }
+
+    /**
+     * Determines the appropriate NavigationAction based on the operation type and complexity
+     */
+    private fun determineNavigationAction(
+        operations: UnifiedOperations,
+        finalState: FinalNavigationState,
+        initialState: NavigationState,
+        willAnimate: Boolean
+    ): NavigationAction {
+        val transitionState = if (willAnimate) NavigationTransitionState.ANIMATING else NavigationTransitionState.IDLE
+
+        return when {
+            isSimpleBackOperation(operations, finalState, initialState) -> {
+                NavigationAction.Back(
+                    currentEntry = finalState.currentEntry,
+                    backStack = finalState.backStack,
+                    modalContexts = finalState.modalContexts,
+                    transitionState = transitionState
+                )
+            }
+
+            isSimpleNavigateOperation(operations, finalState, initialState) -> {
+                NavigationAction.Navigate(
+                    currentEntry = finalState.currentEntry,
+                    backStack = finalState.backStack,
+                    modalContexts = finalState.modalContexts,
+                    transitionState = transitionState
+                )
+            }
+
+            isSimpleReplaceOperation(operations, finalState, initialState) -> {
+                NavigationAction.Replace(
+                    currentEntry = finalState.currentEntry,
+                    backStack = finalState.backStack,
+                    modalContexts = finalState.modalContexts,
+                    transitionState = transitionState
+                )
+            }
+
+            else -> {
+                // Complex operations use BatchUpdate
+                NavigationAction.BatchUpdate(
+                    currentEntry = finalState.currentEntry,
+                    backStack = finalState.backStack,
+                    modalContexts = finalState.modalContexts,
+                    operations = operations.navigationSteps.map { it.operation },
+                    activeGuidedFlowState = finalState.activeGuidedFlowState,
+                    guidedFlowModifications = finalState.guidedFlowModifications,
+                    transitionState = transitionState
+                )
+            }
+        }
+    }
+
+    /**
+     * Checks if this is a simple back operation that can use NavigationAction.Back
+     */
+    private fun isSimpleBackOperation(
+        operations: UnifiedOperations,
+        finalState: FinalNavigationState,
+        initialState: NavigationState
+    ): Boolean {
+        return operations.navigationSteps.size == 1 &&
+               operations.navigationSteps.first().operation == NavigationOperation.Back &&
+               !hasComplexStateChanges(operations, finalState, initialState)
+    }
+
+    /**
+     * Checks if this is a simple navigate operation that can use NavigationAction.Navigate
+     */
+    private fun isSimpleNavigateOperation(
+        operations: UnifiedOperations,
+        finalState: FinalNavigationState,
+        initialState: NavigationState
+    ): Boolean {
+        return operations.navigationSteps.size == 1 &&
+               operations.navigationSteps.first().operation == NavigationOperation.Navigate &&
+               !hasComplexStateChanges(operations, finalState, initialState)
+    }
+
+    /**
+     * Checks if this is a simple replace operation that can use NavigationAction.Replace
+     */
+    private fun isSimpleReplaceOperation(
+        operations: UnifiedOperations,
+        finalState: FinalNavigationState,
+        initialState: NavigationState
+    ): Boolean {
+        return operations.navigationSteps.size == 1 &&
+               operations.navigationSteps.first().operation == NavigationOperation.Replace &&
+               !hasComplexStateChanges(operations, finalState, initialState)
+    }
+
+    /**
+     * Determines if the operation involves complex state changes that require BatchUpdate
+     */
+    private fun hasComplexStateChanges(
+        operations: UnifiedOperations,
+        finalState: FinalNavigationState,
+        initialState: NavigationState
+    ): Boolean {
+        return operations.guidedFlowModifications.isNotEmpty() ||
+               finalState.activeGuidedFlowState != initialState.activeGuidedFlowState ||
+               operations.hasGuidedFlowNavigation
     }
 
     /**
