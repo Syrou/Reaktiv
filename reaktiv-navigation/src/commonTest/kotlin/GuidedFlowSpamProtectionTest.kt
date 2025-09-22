@@ -102,7 +102,8 @@ class GuidedFlowSpamProtectionTest {
                 debounceTimeMs = 300L,
                 maxActionsPerWindow = 3,
                 windowSizeMs = 1000L,
-                timeSource = timeSource
+                timeSource = timeSource,
+                debounceWithSameRoute = true
             )
         )
         coroutineContext(testScope)
@@ -460,7 +461,8 @@ class GuidedFlowSpamProtectionTest {
                     debounceTimeMs = 300L,
                     maxActionsPerWindow = 3,
                     windowSizeMs = 1000L,
-                    timeSource = testTimeSource
+                    timeSource = testTimeSource,
+                    debounceWithSameRoute = true
                 )
             )
             coroutineContext(StandardTestDispatcher(testScheduler))
