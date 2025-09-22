@@ -181,20 +181,6 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
                 }
             }
         }
-
-        // Render content being disposed (invisible) to trigger DisposableEffect
-        animationState.disposingContent.forEachIndexed { index, content ->
-            key("disposing_$index") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(-1000f) // Render behind everything
-                        .alpha(0f) // Make completely transparent
-                ) {
-                    content()
-                }
-            }
-        }
     }
 }
 

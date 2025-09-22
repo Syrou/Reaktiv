@@ -33,7 +33,7 @@ data class LayerAnimationState(
     val animationDecision: AnimationDecision?,
     val currentContent: @Composable () -> Unit,
     val previousContent: (@Composable () -> Unit)?,
-    val disposingContent: List<@Composable () -> Unit> = emptyList()
+    val disposingContent: (@Composable () -> Unit)? = null
 ) {
     val hasAnimation: Boolean = previousEntry != null && animationDecision != null
 }
@@ -52,8 +52,8 @@ fun rememberLayerAnimationState(
 
     // Content cache to preserve compositions across navigation cycles
     val contentCache = remember { mutableMapOf<String, @Composable () -> Unit>() }
-    // Track content that needs to be disposed
-    val disposingContentState = remember { mutableStateOf<List<@Composable () -> Unit>>(emptyList()) }
+    // Track content that needs disposal to trigger DisposableEffect
+    val disposingContentState = remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
     // Track previous entry for animation detection  
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
@@ -100,7 +100,7 @@ fun rememberLayerAnimationState(
         null
     }
     
-    // Get previous content from cache
+    // Get previous content - only from cache to ensure it matches previousEntry
     val previousContent = previousEntryState.value?.let { contentCache[it.stableKey] }
 
     // Memory management: clean up based on navigation action and animation state
@@ -119,14 +119,19 @@ fun rememberLayerAnimationState(
         // Remove cached content for entries not needed
         val keysToRemove = contentCache.keys.filter { it !in keysToKeep }
         if (keysToRemove.isNotEmpty()) {
-            // Move content to disposing list for proper disposal
-            val contentToDispose = keysToRemove.mapNotNull { key -> contentCache[key] }
-            disposingContentState.value = contentToDispose
+            // Keep first content available for disposal
+            val contentToDispose = keysToRemove.firstNotNullOfOrNull { key -> contentCache[key] }
+            if (contentToDispose != null) {
+                disposingContentState.value = contentToDispose
+            }
             
-            // Remove from cache after adding to disposing list
+            // Remove from cache
             keysToRemove.forEach { key ->
                 contentCache.remove(key)
             }
+            
+            // Clear disposing content after disposal frame to trigger DisposableEffect
+            disposingContentState.value = null
         }
     }
     
@@ -144,20 +149,14 @@ fun rememberLayerAnimationState(
                     if (prevEntry.stableKey != currentEntry.stableKey) {
                         val contentToDispose = contentCache[prevEntry.stableKey]
                         if (contentToDispose != null) {
-                            // Move to disposing list for proper disposal
-                            disposingContentState.value = listOf(contentToDispose)
+                            // Keep content for disposal
+                            disposingContentState.value = contentToDispose
                         }
                         contentCache.remove(prevEntry.stableKey)
+                        disposingContentState.value = null
                     }
                 }
             }
-        }
-    }
-
-    // Clear disposing content after one frame to ensure DisposableEffect is triggered
-    LaunchedEffect(disposingContentState.value) {
-        if (disposingContentState.value.isNotEmpty()) {
-            disposingContentState.value = emptyList()
         }
     }
 

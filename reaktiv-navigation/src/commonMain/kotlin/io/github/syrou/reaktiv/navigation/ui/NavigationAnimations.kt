@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.rememberStore
@@ -113,6 +114,21 @@ object NavigationAnimations {
                     screenHeight = screenHeight,
                     entryKey = entry.stableKey
                 )
+                .let { modifier ->
+                    // Block interactions for exit animations
+                    if (!isEntering) {
+                        modifier.pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    event.changes.forEach { it.consume() }
+                                }
+                            }
+                        }
+                    } else {
+                        modifier
+                    }
+                }
         ) {
             Box(
                 modifier = Modifier
