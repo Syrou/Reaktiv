@@ -70,6 +70,10 @@ kotlin {
         }
     }
 
+    compilerOptions {
+        freeCompilerArgs.add("-opt-in=kotlin.experimental.ExperimentalObjCName")
+    }
+
     jvmToolchain(17)
 }
 
