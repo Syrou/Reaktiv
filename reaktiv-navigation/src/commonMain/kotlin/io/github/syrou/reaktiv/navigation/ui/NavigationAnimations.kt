@@ -158,7 +158,7 @@ object NavigationAnimations {
         val store = rememberStore()
         
         val transition = when {
-            isEntering -> entry.navigatable.enterTransition
+            isEntering -> entry.navigatable.popEnterTransition ?: entry.navigatable.enterTransition
             else -> entry.navigatable.popExitTransition ?: entry.navigatable.exitTransition
         }
         
