@@ -69,7 +69,7 @@ class StateSelectorTest {
     }
 
     @Test
-    fun `stateSelector select() returns correct StateFlow`() = runTest {
+    fun `stateSelector select returns correct StateFlow`() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
             coroutineContext(testDispatcher)
@@ -92,7 +92,7 @@ class StateSelectorTest {
     }
 
     @Test
-    fun `stateSelector selectNow() works without suspend`() = runTest {
+    fun `stateSelector selectNow works without suspend`() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
             coroutineContext(testDispatcher)
@@ -115,7 +115,7 @@ class StateSelectorTest {
     }
 
     @Test
-    fun `stateSelector getValue() returns current state value`() = runTest {
+    fun `stateSelector getValue returns current state value`() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
             coroutineContext(testDispatcher)
@@ -178,7 +178,7 @@ class StateSelectorTest {
     }
 
     @Test
-    fun `stateSelector getValue() reflects latest state after actions`() = runTest {
+    fun `stateSelector getValue reflects latest state after actions`() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val store = createStore {
             coroutineContext(testDispatcher)
