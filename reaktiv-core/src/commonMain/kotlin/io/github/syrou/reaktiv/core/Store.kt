@@ -84,11 +84,15 @@ interface Module<S : ModuleState, A : ModuleAction> {
 
     val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<A>
 
-    val selectStateFlow: suspend (Store) -> StateFlow<S>
-        get() = { store ->
-            @Suppress("UNCHECKED_CAST")
-            store.selectState(initialState::class as KClass<S>)
-        }
+    suspend fun selectStateFlow(store: Store): StateFlow<S> {
+        @Suppress("UNCHECKED_CAST")
+        return store.selectState(initialState::class as KClass<S>)
+    }
+
+    fun selectStateFlowNonSuspend(store: Store): StateFlow<S> {
+        @Suppress("UNCHECKED_CAST")
+        return store.selectStateNonSuspend(initialState::class as KClass<S>)
+    }
 }
 
 internal data class ModuleInfo(
