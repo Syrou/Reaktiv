@@ -84,16 +84,11 @@ interface Module<S : ModuleState, A : ModuleAction> {
 
     val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<A>
 
-    /**
-     * State selector for Swift/iOS access.
-     * Provides generic, type-safe state selection without exposing KClass.
-     *
-     * Default implementation uses reflection to create the selector from initialState.
-     * You can override this if needed, but the default should work for most cases.
-     */
-    val stateSelector: StateSelector<S>
-        @Suppress("UNCHECKED_CAST")
-        get() = StateSelector(initialState::class as KClass<S>)
+    val selectStateFlow: suspend (Store) -> StateFlow<S>
+        get() = { store ->
+            @Suppress("UNCHECKED_CAST")
+            store.selectState(initialState::class as KClass<S>)
+        }
 }
 
 internal data class ModuleInfo(
