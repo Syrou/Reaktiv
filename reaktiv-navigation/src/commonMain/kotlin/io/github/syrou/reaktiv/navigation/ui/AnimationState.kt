@@ -3,58 +3,56 @@ package io.github.syrou.reaktiv.navigation.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import io.github.syrou.reaktiv.compose.composeState
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
-import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
 import kotlinx.coroutines.delay
 
 /**
- * Composable that returns the last navigation action for content preservation logic
- */
-@Composable
-fun rememberLastNavigationAction(): NavigationAction? {
-    val navigationState by composeState<NavigationState>()
-    return navigationState.lastNavigationAction
-}
-
-/**
- * Unified animation state for layer rendering
+ * Animation state for content layer rendering
+ *
+ * Tracks current and previous entries to enable smooth transitions while preserving state.
+ *
+ * @property currentEntry The currently active screen
+ * @property previousEntry The screen being transitioned away from (if any)
+ * @property animationDecision Determines which animations to play
+ * @property aliveEntries List of entries to keep composed (max 2: current + previous)
  */
 data class LayerAnimationState(
     val currentEntry: NavigationEntry,
     val previousEntry: NavigationEntry?,
     val animationDecision: AnimationDecision?,
-    val currentContent: @Composable () -> Unit,
-    val previousContent: (@Composable () -> Unit)?,
-    val disposingContent: (@Composable () -> Unit)? = null
+    val aliveEntries: List<NavigationEntry>
 ) {
     val hasAnimation: Boolean = previousEntry != null && animationDecision != null
 }
 
 /**
- * State management for tracking entries and their movable content across layer renders
+ * Manages animation state for content layer screen transitions
+ *
+ * Strategy:
+ * - Forward navigation (A → B): Keep both A and B composed; A preserved for back navigation
+ * - Back navigation (B → A): Keep both during animation, dispose B after completion
+ * - Multi-step forward (A → B → C): Dispose A when navigating to C (not in immediate backstack)
+ *
+ * This preserves LaunchedEffect and composition state without movableContentOf by keeping
+ * the previous screen composed in the background during forward navigation.
+ *
+ * @param entries The content layer entries (typically just the current entry)
+ * @return Animation state containing current, previous, and all entries to keep composed
  */
 @Composable
 fun rememberLayerAnimationState(
     entries: List<NavigationEntry>
 ): LayerAnimationState {
-    // Get navigation state for retention duration config
     val navState by composeState<NavigationState>()
-    // Get the active entry for this layer
     val currentEntry = entries.lastOrNull() ?: error("Layer must have at least one entry")
 
-    // Content cache to preserve compositions across navigation cycles
-    val contentCache = remember { mutableMapOf<String, @Composable () -> Unit>() }
-    // Track content that needs disposal to trigger DisposableEffect
-    val disposingContentState = remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
-    // Track previous entry for animation detection  
+    // Track previous entry for animation detection
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
 
@@ -64,98 +62,43 @@ fun rememberLayerAnimationState(
         currentEntryState.value = currentEntry
     }
 
-    // Get the actual navigation intent from last action
-    val lastAction = rememberLastNavigationAction()
-    val isBackNavigation = when (lastAction) {
-        is NavigationAction.Back -> true
-        is NavigationAction.PopUpTo -> true
-        is NavigationAction.BatchUpdate -> lastAction.operations.contains(NavigationOperation.Back) || 
-                                          lastAction.operations.contains(NavigationOperation.PopUpTo)
-        else -> false
-    }
-    val isClearBackstack = when (lastAction) {
-        is NavigationAction.ClearBackstack -> true
-        is NavigationAction.BatchUpdate -> lastAction.operations.contains(NavigationOperation.ClearBackStack)
-        else -> false
-    }
-    // Create content: preserve cached content, fresh only for first visit
-    val currentMovableContent = if (contentCache.containsKey(currentEntry.stableKey)) {
-        // Reuse existing cached content (preserves LaunchedEffect state)
-        contentCache[currentEntry.stableKey]!!
-    } else {
-        // First visit: create fresh content (triggers LaunchedEffect)
-        remember(currentEntry.stableKey) {
-            movableContentOf {
-                currentEntry.navigatable.Content(currentEntry.params)
-            }
-        }.also { content ->
-            contentCache[currentEntry.stableKey] = content
-        }
-    }
-
-    // Determine animation decision early for cleanup logic
+    // Determine animation decision
     val animationDecision = if (previousEntryState.value != null) {
         determineContentAnimationDecision(previousEntryState.value!!, currentEntry)
     } else {
         null
     }
-    
-    // Get previous content - only from cache to ensure it matches previousEntry
-    val previousContent = previousEntryState.value?.let { contentCache[it.stableKey] }
 
-    // Memory management: clean up based on navigation action and animation state
-    LaunchedEffect(currentEntry.stableKey, isClearBackstack) {
-        val keysToKeep = if (isClearBackstack) {
-            // ClearBackstack: only keep current entry since previous is no longer reachable
-            setOf(currentEntry.stableKey)
-        } else {
-            // Normal navigation: keep current and previous for back navigation support
-            setOfNotNull(
-                currentEntry.stableKey,
-                previousEntryState.value?.stableKey
-            )
-        }
-        
-        // Remove cached content for entries not needed
-        val keysToRemove = contentCache.keys.filter { it !in keysToKeep }
-        if (keysToRemove.isNotEmpty()) {
-            // Keep first content available for disposal
-            val contentToDispose = keysToRemove.firstNotNullOfOrNull { key -> contentCache[key] }
-            if (contentToDispose != null) {
-                disposingContentState.value = contentToDispose
+    // Check if this is back navigation
+    val isBackNavigation = previousEntryState.value?.let { prev ->
+        currentEntry.stackPosition < prev.stackPosition
+    } ?: false
+
+    // Dispose previous entry after animation completes on back navigation
+    LaunchedEffect(currentEntry.stableKey) {
+        if (isBackNavigation && animationDecision != null && previousEntryState.value != null) {
+            val duration = animationDecision.enterTransition.durationMillis +
+                          animationDecision.exitTransition.durationMillis
+            if (duration > 0) {
+                delay(duration.toLong() + navState.screenRetentionDuration.inWholeMilliseconds)
             }
-            
-            // Remove from cache
-            keysToRemove.forEach { key ->
-                contentCache.remove(key)
+            // Check if previous entry is still not in backstack, then dispose
+            val prevKey = previousEntryState.value?.stableKey
+            val isInBackstack = navState.backStack.any { it.stableKey == prevKey }
+            if (!isInBackstack) {
+                previousEntryState.value = null
             }
-            
-            // Clear disposing content after disposal frame to trigger DisposableEffect
-            disposingContentState.value = null
         }
     }
-    
-    // Clean up previous content after animation completes for back navigation
-    if (isBackNavigation && animationDecision != null) {
-        LaunchedEffect(currentEntry.stableKey) {
-            // Wait for animation duration + small buffer
-            val animationDuration = (animationDecision.enterTransition.durationMillis) +
-                                   (animationDecision.exitTransition.durationMillis)
-            if (animationDuration > 0) {
-                delay(animationDuration.toLong() + navState.screenRetentionDuration.inWholeMilliseconds)
-                // Clean up previous content after animation ONLY if it's not the current entry
-                // This prevents cleanup while user is on that screen
-                previousEntryState.value?.let { prevEntry ->
-                    if (prevEntry.stableKey != currentEntry.stableKey) {
-                        val contentToDispose = contentCache[prevEntry.stableKey]
-                        if (contentToDispose != null) {
-                            // Keep content for disposal
-                            disposingContentState.value = contentToDispose
-                        }
-                        contentCache.remove(prevEntry.stableKey)
-                        disposingContentState.value = null
-                    }
-                }
+
+    // Keep only current and previous entries composed
+    // This gives us smooth animations while preserving state for back navigation
+    val entriesToRender = buildList {
+        add(currentEntry)
+        previousEntryState.value?.let { prev ->
+            // Only add if it's different from current
+            if (prev.stableKey != currentEntry.stableKey) {
+                add(prev)
             }
         }
     }
@@ -164,14 +107,20 @@ fun rememberLayerAnimationState(
         currentEntry = currentEntry,
         previousEntry = previousEntryState.value,
         animationDecision = animationDecision,
-        currentContent = currentMovableContent,
-        previousContent = previousContent,
-        disposingContent = disposingContentState.value
+        aliveEntries = entriesToRender
     )
 }
 
 /**
- * Simplified animation state for modal layers that don't need movable content
+ * Manages animation state for modal overlays
+ *
+ * Modals have different lifecycle requirements than screens:
+ * - Can have multiple modals stacked simultaneously
+ * - Each modal animates independently (enter/exit)
+ * - No backstack preservation needed since modals are ephemeral
+ *
+ * @param entries The list of currently active modal entries
+ * @return List of modal states with enter/exit animation tracking
  */
 @Composable
 fun rememberModalAnimationState(

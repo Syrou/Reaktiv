@@ -5,7 +5,7 @@ plugins {
     id("com.android.application") apply false
     id("com.android.library") apply false
     id("org.jetbrains.dokka") version "2.0.0"
-    id("org.jetbrains.compose") version "1.8.2"
+    id("org.jetbrains.compose") version "1.9.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.10"
 }
 

@@ -7,10 +7,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
@@ -45,17 +42,19 @@ fun UnifiedLayerRenderer(
 }
 
 /**
- * Content layer renderer with animation support and movable content
+ * Content layer renderer with animation support
+ *
+ * Manages screen transitions by keeping current and previous screens composed simultaneously.
+ * State is preserved through composition lifecycle rather than movableContentOf.
  */
 @Composable
 private fun ContentLayerRenderer(
     entries: List<NavigationEntry>,
     navigationState: NavigationState
 ) {
-    // Content layer expects exactly one entry (the current screen)
     val currentEntry = entries.lastOrNull() ?: navigationState.currentEntry
 
-    // Get animation state with movable content protection
+    // Get animation state managing current + previous entries
     val animationState = rememberLayerAnimationState(listOf(currentEntry))
 
     // Apply layout hierarchy for proper nesting
@@ -135,14 +134,17 @@ private fun SystemLayerRenderer(
 
 /**
  * Content renderer with screen transition animations
+ *
+ * Keeps both current and previous screens composed simultaneously.
+ * Only these two screens participate in animations, controlled via zIndex.
  */
 @Composable
 private fun ContentRenderer(animationState: LayerAnimationState) {
 
     val windowInfo = LocalWindowInfo.current
-    // Use full window dimensions for proper edge-to-edge animations
     val screenWidth = windowInfo.containerSize.width.toFloat()
     val screenHeight = windowInfo.containerSize.height.toFloat()
+
     // Determine zIndex ordering based on animation requirements
     val shouldExitBeOnTop = animationState.animationDecision?.let { decision ->
         decision.enterTransition is io.github.syrou.reaktiv.navigation.transition.NavTransition.None &&
@@ -150,34 +152,30 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
     } ?: false
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Render current screen
-        val currentZIndex = if (shouldExitBeOnTop) 2f else 3f
-        key(animationState.currentEntry.stableKey) {
-            NavigationAnimations.AnimatedEntry(
-                entry = animationState.currentEntry,
-                animationType = NavigationAnimations.AnimationType.SCREEN_ENTER,
-                animationDecision = animationState.animationDecision,
-                screenWidth = screenWidth,
-                screenHeight = screenHeight,
-                zIndex = currentZIndex
-            ) {
-                animationState.currentContent()
-            }
-        }
+        // Render current and previous entries (max 2 screens)
+        animationState.aliveEntries.forEach { entry ->
+            val isCurrentScreen = entry.stableKey == animationState.currentEntry.stableKey
+            val isPreviousScreen = entry.stableKey == animationState.previousEntry?.stableKey
 
-        // Render previous screen during animation
-        if (animationState.hasAnimation && animationState.previousContent != null) {
-            val previousZIndex = if (shouldExitBeOnTop) 3f else 2f
-            key(animationState.previousEntry!!.stableKey) {
+            key(entry.stableKey) {
+                val zIndex = when {
+                    isCurrentScreen -> if (shouldExitBeOnTop) 2f else 3f
+                    isPreviousScreen -> if (shouldExitBeOnTop) 3f else 2f
+                    else -> 1f
+                }
+
                 NavigationAnimations.AnimatedEntry(
-                    entry = animationState.previousEntry,
-                    animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
+                    entry = entry,
+                    animationType = if (isCurrentScreen)
+                        NavigationAnimations.AnimationType.SCREEN_ENTER
+                    else
+                        NavigationAnimations.AnimationType.SCREEN_EXIT,
                     animationDecision = animationState.animationDecision,
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
-                    zIndex = previousZIndex
+                    zIndex = zIndex
                 ) {
-                    animationState.previousContent.invoke()
+                    entry.navigatable.Content(entry.params)
                 }
             }
         }
