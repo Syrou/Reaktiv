@@ -93,6 +93,12 @@ interface Module<S : ModuleState, A : ModuleAction> {
         @Suppress("UNCHECKED_CAST")
         return store.selectStateNonSuspend(initialState::class as KClass<S>)
     }
+
+    suspend fun selectLogic(store: Store): ModuleLogic<A> {
+        @Suppress("UNCHECKED_CAST")
+        return store.moduleInfo[initialState::class.qualifiedName]?.logic as? ModuleLogic<A>
+            ?: throw IllegalStateException("No logic found for module with state: ${initialState::class}")
+    }
 }
 
 internal data class ModuleInfo(
@@ -133,7 +139,7 @@ class Store private constructor(
     private val stateUpdateMutex = Mutex()
     private val highPriorityChannel: Channel<ModuleAction> = Channel(Channel.UNLIMITED)
     private val lowPriorityChannel: Channel<ModuleAction> = Channel<ModuleAction>(Channel.UNLIMITED)
-    private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
+    internal val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
 
