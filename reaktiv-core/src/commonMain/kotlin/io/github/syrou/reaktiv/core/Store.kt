@@ -96,8 +96,7 @@ interface Module<S : ModuleState, A : ModuleAction> {
 
     suspend fun selectLogic(store: Store): ModuleLogic<A> {
         @Suppress("UNCHECKED_CAST")
-        return store.moduleInfo[initialState::class.qualifiedName]?.logic as? ModuleLogic<A>
-            ?: throw IllegalStateException("No logic found for module with state: ${initialState::class}")
+        return store.selectLogicThroughState(initialState::class as KClass<ModuleState>) as ModuleLogic<A>
     }
 }
 
@@ -139,7 +138,7 @@ class Store private constructor(
     private val stateUpdateMutex = Mutex()
     private val highPriorityChannel: Channel<ModuleAction> = Channel(Channel.UNLIMITED)
     private val lowPriorityChannel: Channel<ModuleAction> = Channel<ModuleAction>(Channel.UNLIMITED)
-    internal val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
+    private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
 
@@ -291,6 +290,18 @@ class Store private constructor(
         try {
             return moduleInfo[logicClass.qualifiedName]?.logic as? L
                 ?: throw IllegalStateException("No logic found for logic class: $logicClass")
+        } finally {
+            stateUpdateMutex.unlock()
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    suspend fun <S : ModuleState> selectLogicThroughState(stateClass: KClass<S>): ModuleLogic<out ModuleAction> {
+        initialized.first { it }
+        stateUpdateMutex.lock()
+        try {
+            return moduleInfo[stateClass.qualifiedName]?.logic
+                ?: throw IllegalStateException("No logic found for state class: $stateClass")
         } finally {
             stateUpdateMutex.unlock()
         }
