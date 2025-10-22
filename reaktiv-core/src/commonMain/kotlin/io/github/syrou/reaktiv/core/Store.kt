@@ -73,6 +73,15 @@ open class ModuleLogic<A : ModuleAction> : Logic {
     }
 }
 
+interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic<A>> : Module<S, A> {
+
+    override val createLogic: (StoreAccessor) -> L
+
+    suspend fun selectLogicTyped(store: Store): L {
+        @Suppress("UNCHECKED_CAST")
+        return super.selectLogic(store) as L
+    }
+}
 
 interface Module<S : ModuleState, A : ModuleAction> {
 
