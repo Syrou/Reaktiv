@@ -54,6 +54,15 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                     selectedActionIndex = null
                 )
             }
+            is DevToolsAction.AddActionExclusion -> {
+                state.copy(excludedActionTypes = state.excludedActionTypes + action.actionType)
+            }
+            is DevToolsAction.RemoveActionExclusion -> {
+                state.copy(excludedActionTypes = state.excludedActionTypes - action.actionType)
+            }
+            is DevToolsAction.SetActionExclusions -> {
+                state.copy(excludedActionTypes = action.actionTypes)
+            }
         }
     }
 

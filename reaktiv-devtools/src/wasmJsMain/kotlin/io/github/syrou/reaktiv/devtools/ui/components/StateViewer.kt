@@ -19,6 +19,7 @@ fun StateViewer(
     actions: List<io.github.syrou.reaktiv.devtools.ui.ActionEvent>,
     selectedActionIndex: Int?,
     showAsDiff: Boolean,
+    excludedActionTypes: Set<String>,
     onToggleDiffMode: () -> Unit,
     onClear: () -> Unit
 ) {
@@ -30,7 +31,11 @@ fun StateViewer(
     }
     val previousState = if (showAsDiff && correspondingState != null) {
         val stateIndex = states.indexOf(correspondingState)
-        if (stateIndex > 0) states[stateIndex - 1] else null
+        if (stateIndex > 0) {
+            // Find the last state whose triggering action is NOT excluded
+            states.subList(0, stateIndex)
+                .findLast { !excludedActionTypes.contains(it.triggeringAction) }
+        } else null
     } else {
         null
     }

@@ -89,11 +89,15 @@ private fun DevToolsContent(store: Store) {
     val dispatch = rememberDispatcher()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(state.actionHistory.size, state.autoSelectLatest) {
+    LaunchedEffect(state.actionHistory.size, state.autoSelectLatest, state.excludedActionTypes) {
         if (state.autoSelectLatest && state.actionHistory.isNotEmpty()) {
-            val latestIndex = state.actionHistory.size - 1
-            if (state.selectedActionIndex != latestIndex) {
-                dispatch(DevToolsAction.SelectAction(latestIndex))
+            // Find the latest non-excluded action
+            val latestNonExcludedIndex = state.actionHistory.indexOfLast { action ->
+                !state.excludedActionTypes.contains(action.actionType)
+            }
+
+            if (latestNonExcludedIndex >= 0 && state.selectedActionIndex != latestNonExcludedIndex) {
+                dispatch(DevToolsAction.SelectAction(latestNonExcludedIndex))
             }
         }
     }
@@ -152,8 +156,12 @@ private fun DevToolsContent(store: Store) {
                     actions = state.actionHistory,
                     selectedIndex = state.selectedActionIndex,
                     autoSelectLatest = state.autoSelectLatest,
+                    excludedActionTypes = state.excludedActionTypes,
                     onSelectAction = { dispatch(DevToolsAction.SelectAction(it)) },
                     onToggleAutoSelect = { dispatch(DevToolsAction.ToggleAutoSelectLatest) },
+                    onAddExclusion = { dispatch(DevToolsAction.AddActionExclusion(it)) },
+                    onRemoveExclusion = { dispatch(DevToolsAction.RemoveActionExclusion(it)) },
+                    onSetExclusions = { dispatch(DevToolsAction.SetActionExclusions(it)) },
                     onClear = { dispatch(DevToolsAction.ClearHistory) }
                 )
             }
@@ -174,6 +182,7 @@ private fun DevToolsContent(store: Store) {
                     actions = state.actionHistory,
                     selectedActionIndex = state.selectedActionIndex,
                     showAsDiff = state.showStateAsDiff,
+                    excludedActionTypes = state.excludedActionTypes,
                     onToggleDiffMode = { dispatch(DevToolsAction.ToggleStateViewMode) },
                     onClear = { dispatch(DevToolsAction.ClearHistory) }
                 )

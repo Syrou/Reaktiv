@@ -8,7 +8,19 @@ on:
 jobs:
   build-devtools:
     runs-on: ubuntu-latest
+    environment: SONATYPE
+    env:
+      # GPG Configuration
+      SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+      SIGNING_SECRET_KEY: ${{ secrets.SIGNING_SECRET_KEY }}
+      SIGNING_PUBLIC_KEY: ${{ secrets.SIGNING_PUBLIC_KEY }}
 
+      # Maven Central API Credentials
+      CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+      CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+
+      # GitHub Token for JReleaser (required even if not releasing to GitHub)
+      JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -149,20 +161,20 @@ jobs:
             Add the DevTools middleware to your app:
 
             ```kotlin
-            val devToolsMiddleware = DevToolsMiddleware(
-                config = DevToolsConfig(
-                    serverUrl = "ws://localhost:8080/ws",
-                    clientName = "My App",
-                    platform = "Android",
-                    enabled = true
-                ),
-                scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-                stateSerializers = yourSerializersModule
-            )
-
             val store = createStore {
-                // ... your modules
-                middlewares(devToolsMiddleware.middleware)
+                module(UserModule)
+                module(navigationModule)
+
+                middlewares(
+                    DevToolsMiddleware(
+                        config = DevToolsConfig(
+                            serverUrl = "ws://localhost:8080/ws",
+                            clientName = "My App",
+                            platform = "Android"
+                        ),
+                        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+                    ).middleware
+                )
             }
             ```
           files: |
