@@ -84,6 +84,7 @@ kotlin {
             optIn("kotlin.time.ExperimentalTime")
         }
     }
+    jvmToolchain(17)
 }
 
 composeCompiler {
@@ -109,10 +110,10 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
-    implementation("io.ktor:ktor-client-okhttp:2.3.7")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
-    implementation("io.ktor:ktor-client-logging:2.3.7")
+    implementation("io.ktor:ktor-client-okhttp:3.1.0")
+    implementation("io.ktor:ktor-client-content-negotiation:3.1.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.1.0")
+    implementation("io.ktor:ktor-client-logging:3.1.0")
     implementation("androidx.core:core-splashscreen:1.0.0")
     implementation("androidx.webkit:webkit:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
@@ -124,4 +125,5 @@ dependencies {
     implementation(project(":reaktiv-core"))
     implementation(project(":reaktiv-compose"))
     implementation(project(":reaktiv-navigation"))
+    implementation(project(":reaktiv-devtools"))
 }

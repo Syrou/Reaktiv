@@ -1,0 +1,201 @@
+name: Publish DevTools Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  build-devtools:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Build DevTools Server (All Platforms)
+        run: ./gradlew buildDevToolsServer
+
+      - name: Package binaries with UI
+        run: |
+          VERSION=${{ github.ref_name }}
+          mkdir -p release-packages
+
+          # Create packages for each platform
+          for platform in "linuxX64:linux-x64" "linuxArm64:linux-arm64" "macosX64:macos-x64" "macosArm64:macos-arm64" "mingwX64:windows-x64"; do
+            IFS=: read -r gradle_platform package_name <<< "$platform"
+
+            # Create package directory
+            pkg_dir="reaktiv-devtools-${package_name}-${VERSION}"
+            mkdir -p "${pkg_dir}"
+
+            # Copy executable
+            if [[ "$gradle_platform" == "mingwX64" ]]; then
+              cp "reaktiv-devtools/build/bin/${gradle_platform}/releaseExecutable/reaktiv-devtools.exe" \
+                 "${pkg_dir}/reaktiv-devtools.exe"
+            else
+              cp "reaktiv-devtools/build/bin/${gradle_platform}/releaseExecutable/reaktiv-devtools.kexe" \
+                 "${pkg_dir}/reaktiv-devtools"
+              chmod +x "${pkg_dir}/reaktiv-devtools"
+            fi
+
+            # Copy WASM UI to resources folder
+            mkdir -p "${pkg_dir}/resources"
+            cp -r reaktiv-devtools/build/dist/wasmJs/productionExecutable/* "${pkg_dir}/resources/"
+
+            # Create README
+            cat > "${pkg_dir}/README.md" << EOF
+          # Reaktiv DevTools ${VERSION}
+
+          ## Quick Start
+
+          ### Linux/macOS
+          \`\`\`bash
+          ./reaktiv-devtools resources
+          \`\`\`
+
+          ### Windows
+          \`\`\`cmd
+          reaktiv-devtools.exe resources
+          \`\`\`
+
+          Then open your browser to the URL shown in the console (default: http://localhost:8080).
+
+          ## Configuration
+
+          You can specify a custom port:
+          \`\`\`bash
+          ./reaktiv-devtools resources --port 3000
+          \`\`\`
+
+          ## Documentation
+
+          For full documentation, visit: https://github.com/${{ github.repository }}
+          EOF
+
+            # Create zip package
+            zip -r "release-packages/reaktiv-devtools-${package_name}-${VERSION}.zip" "${pkg_dir}"
+
+            # Cleanup
+            rm -rf "${pkg_dir}"
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Reaktiv DevTools ${{ github.ref_name }}
+          body: |
+            ## Reaktiv DevTools ${{ github.ref_name }}
+
+            ### 📦 Download
+
+            Choose the package for your platform. Each package includes the DevTools server and UI.
+
+            - **Linux x64**: `reaktiv-devtools-linux-x64-${{ github.ref_name }}.zip`
+            - **Linux ARM64**: `reaktiv-devtools-linux-arm64-${{ github.ref_name }}.zip`
+            - **macOS x64** (Intel): `reaktiv-devtools-macos-x64-${{ github.ref_name }}.zip`
+            - **macOS ARM64** (Apple Silicon): `reaktiv-devtools-macos-arm64-${{ github.ref_name }}.zip`
+            - **Windows x64**: `reaktiv-devtools-windows-x64-${{ github.ref_name }}.zip`
+
+            ### 🚀 Quick Start
+
+            1. Download the package for your platform
+            2. Extract the zip file
+            3. Run the server:
+               - **Linux/macOS**: `./reaktiv-devtools resources`
+               - **Windows**: `reaktiv-devtools.exe resources`
+            4. Open your browser to the URL shown in the console
+
+            ### 📦 Package Contents
+
+            Each package contains:
+            - DevTools server executable
+            - WASM UI in `resources/` folder
+            - README with usage instructions
+
+            ### 📚 Library Release
+
+            The Reaktiv libraries for this version are available on Maven Central:
+
+            ```kotlin
+            dependencies {
+                implementation("io.github.syrou:reaktiv-core:${{ github.ref_name }}")
+                implementation("io.github.syrou:reaktiv-compose:${{ github.ref_name }}")
+                implementation("io.github.syrou:reaktiv-navigation:${{ github.ref_name }}")
+            }
+            ```
+
+            ### 🔗 Integration
+
+            Add the DevTools middleware to your app:
+
+            ```kotlin
+            val devToolsMiddleware = DevToolsMiddleware(
+                config = DevToolsConfig(
+                    serverUrl = "ws://localhost:8080/ws",
+                    clientName = "My App",
+                    platform = "Android",
+                    enabled = true
+                ),
+                scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+                stateSerializers = yourSerializersModule
+            )
+
+            val store = createStore {
+                // ... your modules
+                middlewares(devToolsMiddleware.middleware)
+            }
+            ```
+          files: |
+            release-packages/*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+      - name: Release Summary
+        if: success()
+        run: |
+          echo "## ✅ DevTools Release Published! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release URL**: [View Release](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Published Packages:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Linux x64 (with UI)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Linux ARM64 (with UI)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ macOS x64 (with UI)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ macOS ARM64 (with UI)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Windows x64 (with UI)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Each package includes the server executable and WASM UI in a resources folder." >> $GITHUB_STEP_SUMMARY
+
+      - name: Failure Summary
+        if: failure()
+        run: |
+          echo "## ❌ DevTools Release Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🛠️ Common fixes:" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify the buildDevToolsServer task completes successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- Ensure all platform binaries are built" >> $GITHUB_STEP_SUMMARY
+          echo "- Check GitHub token permissions for creating releases" >> $GITHUB_STEP_SUMMARY

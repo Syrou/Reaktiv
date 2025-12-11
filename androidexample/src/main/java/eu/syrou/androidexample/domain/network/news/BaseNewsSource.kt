@@ -23,14 +23,14 @@ abstract class BaseNewsSource : NewsSource {
                 explicitNulls = false
             })
         }
-        install(Logging){
+        /*install(Logging){
             /*logger = object: Logger {
                 override fun log(message: String) {
                     println(message)
                 }
             }*/
             level = LogLevel.ALL
-        }
+        }^*/
     }
 
     protected suspend inline fun <reified T> getAndParseJson(url: String): T {

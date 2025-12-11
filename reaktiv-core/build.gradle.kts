@@ -1,4 +1,5 @@
 import org.gradle.kotlin.dsl.support.kotlinCompilerOptions
+import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform")
@@ -51,7 +52,13 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
     linuxX64()
+    linuxArm64()
     mingwX64()
+
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+    }
 
     applyDefaultHierarchyTemplate()
 

@@ -117,6 +117,51 @@ object ExampleModule : Module<ExampleState, ExampleAction> {
 }
 ```
 
+### Custom Serializers Pattern
+
+**Important**: When your module's state contains polymorphic types, sealed classes, or types requiring custom serializers, implement `CustomTypeRegistrar`:
+
+```kotlin
+@Serializable
+sealed interface AppSettings
+
+@Serializable
+data class BasicSettings(val theme: String) : AppSettings
+
+@Serializable
+data class AdvancedSettings(val theme: String, val locale: String) : AppSettings
+
+@Serializable
+data class UserState(
+    val settings: AppSettings,
+    val timestamp: Instant
+) : ModuleState
+
+object UserModule : Module<UserState, UserAction>, CustomTypeRegistrar {
+    override val initialState = UserState(...)
+    override val reducer = { state, action -> ... }
+    override val createLogic = { dispatch -> UserLogic(dispatch) }
+
+    override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {
+        builder.polymorphic(AppSettings::class) {
+            subclass(BasicSettings::class)
+            subclass(AdvancedSettings::class)
+        }
+        builder.contextual(Instant::class, InstantSerializer)
+    }
+}
+```
+
+**How it works:**
+- Store automatically detects modules implementing `CustomTypeRegistrar`
+- Serializers are collected during Store construction
+- Available to both persistence and DevToolsMiddleware
+- No manual SerializersModule building required
+
+**Example modules:**
+- `NavigationModule` uses this for Screen, Modal, and NavigationGraph types
+- User modules can use it for their own polymorphic types
+
 ### NavigationLogic Pattern for Complex Operations
 
 **Important**: When adding new navigation features that involve complex logic, side effects, or coordinated state updates, follow this pattern:

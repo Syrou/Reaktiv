@@ -9,5 +9,6 @@ data class MutableNavigationGraph(
     override val startDestination: StartDestination,
     override val navigatables: List<Navigatable>,
     override val nestedGraphs: List<NavigationGraph>,
-    override val layout: (@Composable (@Composable () -> Unit) -> Unit)?
+    @kotlinx.serialization.Transient
+    override val layout: (@Composable (@Composable () -> Unit) -> Unit)? = null
 ) : NavigationGraph

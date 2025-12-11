@@ -37,6 +37,15 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KClass
 
 
+@RequiresOptIn(
+    message = "This API is for specialized DevTools and testing use only. " +
+            "Using it in application code bypasses MVLI patterns and is strongly discouraged.",
+    level = RequiresOptIn.Level.WARNING
+)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
+annotation class ExperimentalReaktivApi
+
+
 interface ModuleState
 
 
@@ -109,6 +118,51 @@ interface Module<S : ModuleState, A : ModuleAction> {
     }
 }
 
+/**
+ * Extension of Module that allows custom merging of externally synced state.
+ *
+ * Used when modules need to preserve local state properties that shouldn't be
+ * replaced by synced state (e.g., DevTools state sync where graph definitions
+ * with Composable layouts should be preserved locally).
+ *
+ * Usage:
+ * ```kotlin
+ * object NavigationModule : StatefulModule<NavigationState, NavigationAction> {
+ *     override fun mergeExternalState(local: NavigationState, synced: NavigationState): NavigationState {
+ *         return synced.copy(
+ *             graphDefinitions = local.graphDefinitions
+ *         )
+ *     }
+ * }
+ * ```
+ */
+interface StatefulModule<S : ModuleState, A : ModuleAction> : Module<S, A> {
+    /**
+     * Merges externally synced state with local state.
+     *
+     * @param local The current local state with properties that should be preserved
+     * @param synced The incoming synced state from external source
+     * @return Merged state combining synced updates with preserved local properties
+     */
+    fun mergeExternalState(local: S, synced: S): S
+}
+
+/**
+ * Combination of StatefulModule and ModuleWithLogic.
+ * Use this when you need both typed logic access and custom state merging.
+ *
+ * Usage:
+ * ```kotlin
+ * object NavigationModule : StatefulModuleWithLogic<NavigationState, NavigationAction, NavigationLogic> {
+ *     override fun mergeExternalState(local: NavigationState, synced: NavigationState): NavigationState {
+ *         return synced.copy(graphDefinitions = local.graphDefinitions)
+ *     }
+ * }
+ * ```
+ */
+interface StatefulModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic<A>> :
+    StatefulModule<S, A>, ModuleWithLogic<S, A, L>
+
 internal data class ModuleInfo(
     val module: Module<*, *>,
     val state: MutableStateFlow<ModuleState>,
@@ -124,6 +178,44 @@ typealias Middleware = suspend (
 ) -> Unit
 
 
+/**
+ * Internal operations for specialized use cases like DevTools and testing.
+ *
+ * This interface provides low-level access to store internals that bypasses
+ * the normal MVLI action/reducer/logic pipeline. It should ONLY be used for:
+ *
+ * - DevTools state synchronization from remote sources
+ * - Test fixtures and state setup
+ * - State restoration from external systems
+ *
+ * Using this in normal application logic defeats the purpose of the MVLI
+ * architecture and should be avoided.
+ */
+@ExperimentalReaktivApi
+interface InternalStoreOperations {
+    /**
+     * Applies external state updates directly to the store, bypassing the
+     * action/reducer/logic pipeline.
+     *
+     * This method updates the store's state without dispatching actions or
+     * executing reducers. The states are applied atomically within the store's
+     * internal mutex lock to ensure thread safety.
+     *
+     * Example usage:
+     * ```kotlin
+     * val internalOps = storeAccessor.asInternalOperations()
+     * internalOps?.applyExternalStates(mapOf(
+     *     "com.example.CounterState" to CounterState(value = 42),
+     *     "com.example.UserState" to UserState(name = "Alice")
+     * ))
+     * ```
+     *
+     * @param states Map of state class qualified names to new state instances
+     */
+    suspend fun applyExternalStates(states: Map<String, ModuleState>)
+}
+
+
 abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     override val coroutineContext: CoroutineContext = scope.coroutineContext
 
@@ -135,15 +227,32 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
 
 
     abstract val dispatch: Dispatch
+
+    /**
+     * Provides access to internal store operations for specialized use cases.
+     *
+     * This method returns an [InternalStoreOperations] instance if the store
+     * supports it, allowing access to low-level operations like external state
+     * application.
+     *
+     * This is intentionally not a direct property to make misuse less discoverable.
+     * Requires [ExperimentalReaktivApi] opt-in.
+     *
+     * @return InternalStoreOperations instance or null if not supported
+     */
+    @ExperimentalReaktivApi
+    fun asInternalOperations(): InternalStoreOperations? = this as? InternalStoreOperations
 }
 
 
+@OptIn(ExperimentalReaktivApi::class)
 class Store private constructor(
     private val coroutineScope: CoroutineScope,
     private val middlewares: List<Middleware>,
     private val modules: List<Module<ModuleState, ModuleAction>>,
     private val persistenceManager: PersistenceManager?,
-) : StoreAccessor(coroutineScope) {
+    val serializersModule: SerializersModule,
+) : StoreAccessor(coroutineScope), InternalStoreOperations {
     private val stateUpdateMutex = Mutex()
     private val highPriorityChannel: Channel<ModuleAction> = Channel(Channel.UNLIMITED)
     private val lowPriorityChannel: Channel<ModuleAction> = Channel<ModuleAction>(Channel.UNLIMITED)
@@ -151,6 +260,11 @@ class Store private constructor(
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
 
+    fun debug(){
+        modules.forEach { module ->
+            println("module state: ${module.initialState}")
+        }
+    }
 
     @OptIn(DelicateCoroutinesApi::class)
     override val dispatch: Dispatch = { action ->
@@ -180,6 +294,9 @@ class Store private constructor(
             val info = moduleInfo[module::class.qualifiedName!!]!!
             info.logic = module.createLogic(this)
             info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
+        }
+        moduleInfo.forEach { entry ->
+            println("moduleInfo: ${entry.key} - ${entry.value.state.value}")
         }
         _initialized.update { true }
     }
@@ -259,6 +376,34 @@ class Store private constructor(
 
     private suspend fun getAllStates(): Map<String, ModuleState> = stateUpdateMutex.withLock {
         return@withLock moduleInfo.values.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
+    }
+
+    @ExperimentalReaktivApi
+    override suspend fun applyExternalStates(states: Map<String, ModuleState>) = stateUpdateMutex.withLock {
+        states.forEach { (stateClassName, newState) ->
+            val info = moduleInfo[stateClassName]
+
+            when {
+                info == null -> {
+                    println("DevTools: Cannot apply state for unknown module: $stateClassName")
+                }
+                info.state.value::class != newState::class -> {
+                    println("DevTools: State type mismatch for $stateClassName - expected ${info.state.value::class.simpleName}, got ${newState::class.simpleName}")
+                }
+                else -> {
+                    val finalState = if (info.module is StatefulModule<*, *>) {
+                        @Suppress("UNCHECKED_CAST")
+                        (info.module as StatefulModule<ModuleState, *>).mergeExternalState(
+                            local = info.state.value,
+                            synced = newState
+                        )
+                    } else {
+                        newState
+                    }
+                    info.state.value = finalState
+                }
+            }
+        }
     }
 
 
@@ -350,12 +495,14 @@ class Store private constructor(
             middlewares: List<Middleware>,
             modules: List<Module<ModuleState, ModuleAction>>,
             persistenceManager: PersistenceManager?,
+            serializersModule: SerializersModule,
         ): Store {
             return Store(
                 coroutineScope = coroutineScope,
                 middlewares = middlewares,
                 modules = modules.toList(),
                 persistenceManager = persistenceManager,
+                serializersModule = serializersModule,
             )
         }
     }
@@ -408,23 +555,25 @@ class StoreDSL {
     }
 
     internal fun build(): Store {
+        val serializersModule = SerializersModule {
+            polymorphic(ModuleState::class) {
+                moduleStateRegistrations.forEach { it(this) }
+            }
+            customTypeRegistrars.forEach { registrar ->
+                registrar.registerAdditionalSerializers(this)
+            }
+        }
+
         val persistenceManager = persistenceStrategy?.let {
             PersistenceManager(
                 json = Json {
                     ignoreUnknownKeys = true
-                    serializersModule = SerializersModule {
-                        polymorphic(ModuleState::class) {
-                            moduleStateRegistrations.forEach { it(this) }
-                        }
-                        customTypeRegistrars.forEach { registrar ->
-                            registrar.registerAdditionalSerializers(this)
-                        }
-                    }
+                    this.serializersModule = serializersModule
                 },
                 persistenceStrategy = it
             )
         }
-        return Store.create(coroutineScope, middlewares, modules, persistenceManager)
+        return Store.create(coroutineScope, middlewares, modules, persistenceManager, serializersModule)
     }
 }
 

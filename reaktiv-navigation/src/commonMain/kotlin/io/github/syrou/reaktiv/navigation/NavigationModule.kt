@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleLogic
+import io.github.syrou.reaktiv.core.StatefulModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import io.github.syrou.reaktiv.navigation.definition.Modal
@@ -32,7 +33,7 @@ class NavigationModule internal constructor(
     private val rootGraph: NavigationGraph,
     private val originalGuidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
     private val screenRetentionDuration: Duration
-) : Module<NavigationState, NavigationAction>, CustomTypeRegistrar {
+) : StatefulModuleWithLogic<NavigationState, NavigationAction, NavigationLogic>, CustomTypeRegistrar {
     private val precomputedData: PrecomputedNavigationData by lazy {
         PrecomputedNavigationData.create(rootGraph)
     }
@@ -127,6 +128,55 @@ class NavigationModule internal constructor(
                 graph.nestedGraphs.forEach { registerGraphNavigatables(it) }
             }
             registerGraphNavigatables(rootGraph)
+        }
+
+        builder.polymorphic(io.github.syrou.reaktiv.navigation.definition.Screen::class) {
+            fun registerScreens(graph: NavigationGraph) {
+                graph.navigatables.filterIsInstance<io.github.syrou.reaktiv.navigation.definition.Screen>().forEach { screen ->
+                    try {
+                        @Suppress("UNCHECKED_CAST")
+                        subclass(
+                            screen::class as KClass<io.github.syrou.reaktiv.navigation.definition.Screen>,
+                            screen::class.serializer() as KSerializer<io.github.syrou.reaktiv.navigation.definition.Screen>
+                        )
+                    } catch (e: Exception) {
+                    }
+                }
+                graph.nestedGraphs.forEach { registerScreens(it) }
+            }
+            registerScreens(rootGraph)
+        }
+
+        builder.polymorphic(Modal::class) {
+            fun registerModals(graph: NavigationGraph) {
+                graph.navigatables.filterIsInstance<Modal>().forEach { modal ->
+                    try {
+                        @Suppress("UNCHECKED_CAST")
+                        subclass(
+                            modal::class as KClass<Modal>,
+                            modal::class.serializer() as KSerializer<Modal>
+                        )
+                    } catch (e: Exception) {
+                    }
+                }
+                graph.nestedGraphs.forEach { registerModals(it) }
+            }
+            registerModals(rootGraph)
+        }
+
+        builder.polymorphic(NavigationGraph::class) {
+            fun registerGraphTypes(graph: NavigationGraph) {
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    subclass(
+                        graph::class as KClass<NavigationGraph>,
+                        graph::class.serializer() as KSerializer<NavigationGraph>
+                    )
+                } catch (e: Exception) {
+                }
+                graph.nestedGraphs.forEach { registerGraphTypes(it) }
+            }
+            registerGraphTypes(rootGraph)
         }
     }
 
@@ -252,11 +302,21 @@ class NavigationModule internal constructor(
         }
     }
 
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NavigationAction> = { storeAccessor ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> NavigationLogic = { storeAccessor ->
         NavigationLogic(
             storeAccessor = storeAccessor,
             precomputedData = precomputedData,
             guidedFlowDefinitions = originalGuidedFlowDefinitions
+        )
+    }
+
+    override fun mergeExternalState(local: NavigationState, synced: NavigationState): NavigationState {
+        return synced.copy(
+            graphDefinitions = local.graphDefinitions,
+            availableRoutes = local.availableRoutes,
+            allAvailableNavigatables = local.allAvailableNavigatables,
+            graphHierarchyLookup = local.graphHierarchyLookup,
+            screenRetentionDuration = local.screenRetentionDuration
         )
     }
 

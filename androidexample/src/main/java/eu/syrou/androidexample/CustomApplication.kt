@@ -1,6 +1,7 @@
 package eu.syrou.androidexample
 
 import android.app.Application
+import android.os.Build
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -9,6 +10,7 @@ import eu.syrou.androidexample.domain.logic.NotificationHelper
 import eu.syrou.androidexample.domain.network.news.PeriodicNewsFetches
 import eu.syrou.androidexample.domain.network.news.PeriodicNewsFetchesFactory
 import eu.syrou.androidexample.reaktiv.TestNavigationModule.TestNavigationModule
+import eu.syrou.androidexample.reaktiv.TestNavigationModule.TestNavigationState
 import eu.syrou.androidexample.reaktiv.middleware.createTestNavigationMiddleware
 import eu.syrou.androidexample.reaktiv.news.NewsModule
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
@@ -37,9 +39,13 @@ import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTasksScre
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
+import io.github.syrou.reaktiv.devtools.middleware.DevToolsMiddleware
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.middleware.NavigationSpamMiddleware
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.util.concurrent.TimeUnit
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -58,6 +64,75 @@ class CustomApplication : Application() {
         println("---------- End of Action -------------\n")
     }
 
+    private val navigationModule = createNavigationModule {
+        rootGraph {
+            startScreen(SplashScreen)
+            screens(
+                SettingsScreen,
+                TwitchAuthWebViewScreen,
+                VideosListScreen,
+                StreamsListScreen,
+            )
+            modals(NotificationModal)
+            graph("home") {
+                startGraph("news")
+                layout { content ->
+                    HomeNavigationScaffold(content)
+                }
+
+                graph("news") {
+                    startScreen(NewsScreen)
+                    screens(NewsListScreen)
+                }
+
+                graph("workspace") {
+                    startScreen(WorkspaceScreen)
+
+                    graph("projects") {
+                        startScreen(ProjectOverviewScreen)
+                        screens(
+                            ProjectOverviewScreen,
+                            ProjectTasksScreen,
+                            ProjectFilesScreen,
+                            ProjectSettingsScreen
+                        )
+                        layout { content ->
+                            ProjectTabLayout(content)
+                        }
+                    }
+                }
+
+                graph("leaderboard") {
+                    startScreen(LeaderboardListScreen)
+                    screens(LeaderboardDetailScreen, PlayerProfileScreen, StatsDetailScreen)
+                }
+            }
+
+            screenGroup(UserManagementScreens)
+        }
+
+        guidedFlow("user-management") {
+            step<UserManagementScreens.ViewUser>()
+            step("user/67/edit?query=EDIT")
+            step<UserManagementScreens.DeleteUser>()
+            onComplete {
+                clearBackStack()
+                navigateTo("home")
+            }
+        }
+        screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
+    }
+
+    private val devToolsMiddleware = DevToolsMiddleware(
+        config = DevToolsConfig(
+            serverUrl = "ws://100.125.101.2:8080/ws",
+            clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
+            platform = "Android ${Build.VERSION.RELEASE}",
+            enabled = true
+        ),
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    )
+
     val store = createStore {
         persistenceManager(
             PlatformPersistenceStrategy(this@CustomApplication)
@@ -69,69 +144,13 @@ class CustomApplication : Application() {
         module(VideosModule)
         module(TestNavigationModule)
         module(TwitchStreamsModule)
-        module(
-            createNavigationModule {
-                rootGraph {
-                    startScreen(SplashScreen)
-                    screens(
-                        SettingsScreen,
-                        TwitchAuthWebViewScreen,
-                        VideosListScreen,
-                        StreamsListScreen,
-                    )
-                    modals(NotificationModal)
-                    graph("home") {
-                        startGraph("news")
-                        layout { content ->
-                            HomeNavigationScaffold(content)
-                        }
-
-                        graph("news") {
-                            startScreen(NewsScreen)
-                            screens(NewsListScreen)
-                        }
-
-                        graph("workspace") {
-                            startScreen(WorkspaceScreen)
-
-                            graph("projects") {
-                                startScreen(ProjectOverviewScreen)
-                                screens(
-                                    ProjectOverviewScreen,
-                                    ProjectTasksScreen,
-                                    ProjectFilesScreen,
-                                    ProjectSettingsScreen
-                                )
-                                layout { content ->
-                                    ProjectTabLayout(content)
-                                }
-                            }
-                        }
-
-                        graph("leaderboard") {
-                            startScreen(LeaderboardListScreen)
-                            screens(LeaderboardDetailScreen, PlayerProfileScreen, StatsDetailScreen)
-                        }
-                    }
-
-                    screenGroup(UserManagementScreens)
-                }
-
-                // Configure GuidedFlow definitions
-                guidedFlow("user-management") {
-                    step<UserManagementScreens.ViewUser>()
-                    // Mixed: route string with query param
-                    step("user/67/edit?query=EDIT")
-                    step<UserManagementScreens.DeleteUser>()
-                    onComplete {
-                        clearBackStack()
-                        navigateTo("home")
-                    }
-                }
-                screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
-            }
+        module(navigationModule)
+        middlewares(
+            devToolsMiddleware.middleware,
+            loggingMiddleware,
+            NavigationSpamMiddleware.create(),
+            createTestNavigationMiddleware()
         )
-        middlewares(loggingMiddleware, NavigationSpamMiddleware.create(), createTestNavigationMiddleware())
         coroutineContext(Dispatchers.Default)
     }
 
