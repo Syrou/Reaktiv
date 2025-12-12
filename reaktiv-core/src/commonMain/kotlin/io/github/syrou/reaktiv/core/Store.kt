@@ -514,7 +514,7 @@ class StoreDSL {
     private val middlewares = mutableListOf<Middleware>()
     private val modules: MutableList<Module<ModuleState, ModuleAction>> = mutableListOf()
     private var persistenceStrategy: PersistenceStrategy? = null
-    private val moduleStateRegistrations = mutableListOf<(PolymorphicModuleBuilder<ModuleState>) -> Unit>()
+    private val moduleStateRegistrations = mutableMapOf<String, (PolymorphicModuleBuilder<ModuleState>) -> Unit>()
     private val customTypeRegistrars = mutableListOf<CustomTypeRegistrar>()
 
     @OptIn(InternalSerializationApi::class)
@@ -523,8 +523,19 @@ class StoreDSL {
         stateClass: KClass<S>,
         module: Module<S, A>
     ) {
+        val stateClassName = module.initialState::class.qualifiedName
+            ?: throw IllegalArgumentException("Module state class must have a qualified name")
+
+        if (moduleStateRegistrations.containsKey(stateClassName)) {
+            throw IllegalArgumentException(
+                "Duplicate module state registration detected: $stateClassName. " +
+                "Each state class can only be registered once. " +
+                "Check that you're not adding the same module multiple times or using the same state class in different modules."
+            )
+        }
+
         modules.add(module as Module<ModuleState, ModuleAction>)
-        moduleStateRegistrations.add { builder ->
+        moduleStateRegistrations[stateClassName] = { builder ->
             @Suppress("UNCHECKED_CAST")
             builder.subclass(stateClass, module.initialState::class.serializer() as KSerializer<S>)
         }
@@ -557,7 +568,7 @@ class StoreDSL {
     internal fun build(): Store {
         val serializersModule = SerializersModule {
             polymorphic(ModuleState::class) {
-                moduleStateRegistrations.forEach { it(this) }
+                moduleStateRegistrations.values.forEach { it(this) }
             }
             customTypeRegistrars.forEach { registrar ->
                 registrar.registerAdditionalSerializers(this)

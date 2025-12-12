@@ -134,9 +134,9 @@ class CustomApplication : Application() {
     )
 
     val store = createStore {
-        persistenceManager(
+        /*persistenceManager(
             PlatformPersistenceStrategy(this@CustomApplication)
-        )
+        )*/
         module(
             NewsModule
         )
