@@ -1,34 +1,57 @@
 package io.github.syrou.reaktiv.navigation.transition
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+
+@Serializable
 sealed class NavTransition(open val durationMillis: Int = DEFAULT_ANIMATION_DURATION) {
+    @Serializable
     data object None : NavTransition(0)
     @Deprecated("This is deprecated and will be removed in future versions, use None")
+    @Serializable
     data object Hold : NavTransition(0)
+    @Serializable
     data object Fade : NavTransition()
+    @Serializable
     data object FadeOut : NavTransition()
+    @Serializable
     data object SlideInRight : NavTransition()
+    @Serializable
     data object SlideOutRight : NavTransition()
+    @Serializable
     data object SlideInLeft : NavTransition()
+    @Serializable
     data object SlideOutLeft : NavTransition()
+    @Serializable
     data object SlideUpBottom : NavTransition()
+    @Serializable
     data object SlideOutBottom : NavTransition()
 
+    @Serializable
     class Scale(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
+    @Serializable
     class ScaleOut(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
+    @Serializable
     data object IOSSlideIn : NavTransition()
+    @Serializable
     data object IOSSlideOut : NavTransition()
+    @Serializable
     data object MaterialSlideIn : NavTransition()
+    @Serializable
     data object MaterialSlideOut : NavTransition()
+    @Serializable
     data object StackPush : NavTransition()
+    @Serializable
     data object StackPop : NavTransition()
+    @Serializable
     class Custom(
         override val durationMillis: Int = DEFAULT_ANIMATION_DURATION,
-        val alpha: (Float) -> Float = { 1f },
-        val scaleX: (Float) -> Float = { 1f },
-        val scaleY: (Float) -> Float = { 1f },
-        val translationX: (Float) -> Float = { 0f },
-        val translationY: (Float) -> Float = { 0f },
-        val rotationZ: (Float) -> Float = { 0f }
+        @Transient val alpha: (Float) -> Float = { 1f },
+        @Transient val scaleX: (Float) -> Float = { 1f },
+        @Transient val scaleY: (Float) -> Float = { 1f },
+        @Transient val translationX: (Float) -> Float = { 0f },
+        @Transient val translationY: (Float) -> Float = { 0f },
+        @Transient val rotationZ: (Float) -> Float = { 0f }
     ) : NavTransition(durationMillis)
 
     companion object {
