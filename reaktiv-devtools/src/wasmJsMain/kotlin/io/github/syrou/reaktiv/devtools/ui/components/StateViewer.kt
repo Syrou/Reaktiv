@@ -8,7 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Displays state snapshot for the selected action.
@@ -187,11 +189,8 @@ private fun StateSnapshotView(
 }
 
 private fun formatTimestamp(timestamp: Long): String {
-    val duration = timestamp.milliseconds
-    val hours = duration.inWholeHours
-    val minutes = (duration.inWholeMinutes % 60)
-    val seconds = (duration.inWholeSeconds % 60)
-    val millis = (duration.inWholeMilliseconds % 1000)
+    val instant = Instant.fromEpochMilliseconds(timestamp)
+    val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
 
-    return "${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}"
+    return "${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}:${dateTime.second.toString().padStart(2, '0')}"
 }

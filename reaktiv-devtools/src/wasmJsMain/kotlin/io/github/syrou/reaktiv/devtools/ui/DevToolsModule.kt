@@ -59,6 +59,23 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
             is DevToolsAction.SetActionExclusions -> {
                 state.copy(excludedActionTypes = action.actionTypes)
             }
+            is DevToolsAction.ToggleTimeTravel -> {
+                val newEnabled = !state.timeTravelEnabled
+                state.copy(
+                    timeTravelEnabled = newEnabled,
+                    timeTravelPosition = if (newEnabled) state.actionStateHistory.size - 1 else 0,
+                    selectedActionIndex = if (newEnabled) state.actionStateHistory.size - 1 else state.selectedActionIndex
+                )
+            }
+            is DevToolsAction.SetTimeTravelPosition -> {
+                state.copy(
+                    timeTravelPosition = action.position,
+                    selectedActionIndex = action.position
+                )
+            }
+            is DevToolsAction.ToggleTimeTravelExpanded -> {
+                state.copy(timeTravelExpanded = !state.timeTravelExpanded)
+            }
         }
     }
 
@@ -98,6 +115,20 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
             println("DevTools UI: Assigned $clientId as $role")
         } catch (e: Exception) {
             println("DevTools UI: Failed to assign role - ${e.message}")
+        }
+    }
+
+    suspend fun sendTimeTravelSync(event: ActionStateEvent, publisherClientId: String) {
+        try {
+            val message = DevToolsMessage.StateSync(
+                fromClientId = publisherClientId,
+                timestamp = event.timestamp,
+                stateJson = event.resultingStateJson
+            )
+            connection.send(message)
+            println("DevTools UI: Sent time travel sync for action ${event.actionType} from publisher $publisherClientId")
+        } catch (e: Exception) {
+            println("DevTools UI: Failed to send time travel sync - ${e.message}")
         }
     }
 

@@ -142,6 +142,11 @@ object DevToolsServer {
                 clientManager.broadcastToListeners(message.clientId, stateSync)
             }
 
+            is DevToolsMessage.StateSync -> {
+                println("DevTools Server: StateSync from ${message.fromClientId} (orchestrated: ${message.orchestrated})")
+                clientManager.broadcastToListeners(message.fromClientId, message)
+            }
+
             is DevToolsMessage.RoleAssignment -> {
                 println("DevTools Server: Role assignment request - ${message.role} for ${message.targetClientId}")
                 clientManager.assignRole(

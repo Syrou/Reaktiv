@@ -126,7 +126,7 @@ class DevToolsMiddleware(
                 }
             }
 
-            ClientRole.LISTENER, ClientRole.OBSERVER, ClientRole.UNASSIGNED -> {
+            ClientRole.SUBSCRIBER, ClientRole.ORCHESTRATOR, ClientRole.UNASSIGNED -> {
                 updatedState(action)
             }
         }
@@ -141,7 +141,7 @@ class DevToolsMiddleware(
             }
 
             is DevToolsMessage.StateSync -> {
-                if (_currentRole.value == ClientRole.LISTENER && config.allowStateSync) {
+                if (_currentRole.value == ClientRole.SUBSCRIBER) {
                     applyStateSync(message)
                 }
             }

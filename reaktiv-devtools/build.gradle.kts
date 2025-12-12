@@ -157,6 +157,8 @@ kotlin {
                 implementation("io.ktor:ktor-client-core:3.1.0")
                 implementation("io.ktor:ktor-client-js:3.1.0")
                 implementation("io.ktor:ktor-client-websockets:3.1.0")
+
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
             }
         }
 

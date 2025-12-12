@@ -161,15 +161,15 @@ private fun ClientCard(
 private fun RoleBadge(role: ClientRole, publisherClientId: String?) {
     val roleText = when (role) {
         ClientRole.PUBLISHER -> "PUBLISHER"
-        ClientRole.LISTENER -> "LISTENER${publisherClientId?.let { " ($it)" } ?: ""}"
-        ClientRole.OBSERVER -> "OBSERVER"
+        ClientRole.SUBSCRIBER -> "SUBSCRIBER${publisherClientId?.let { " ($it)" } ?: ""}"
+        ClientRole.ORCHESTRATOR -> "ORCHESTRATOR${publisherClientId?.let { " ($it)" } ?: ""}"
         ClientRole.UNASSIGNED -> "UNASSIGNED"
     }
 
     val roleColor = when (role) {
         ClientRole.PUBLISHER -> MaterialTheme.colorScheme.primary
-        ClientRole.LISTENER -> MaterialTheme.colorScheme.secondary
-        ClientRole.OBSERVER -> MaterialTheme.colorScheme.tertiary
+        ClientRole.SUBSCRIBER -> MaterialTheme.colorScheme.secondary
+        ClientRole.ORCHESTRATOR -> MaterialTheme.colorScheme.tertiary
         ClientRole.UNASSIGNED -> MaterialTheme.colorScheme.outline
     }
 

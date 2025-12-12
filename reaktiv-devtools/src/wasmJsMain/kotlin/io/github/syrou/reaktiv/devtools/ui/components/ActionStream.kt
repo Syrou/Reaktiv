@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -24,7 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Displays a stream of actions dispatched by publisher clients.
@@ -35,11 +39,13 @@ fun ActionStream(
     selectedIndex: Int? = null,
     autoSelectLatest: Boolean = true,
     excludedActionTypes: Set<String>,
+    timeTravelEnabled: Boolean = false,
     onSelectAction: (Int?) -> Unit = {},
     onToggleAutoSelect: () -> Unit = {},
     onAddExclusion: (String) -> Unit = {},
     onRemoveExclusion: (String) -> Unit = {},
     onSetExclusions: (Set<String>) -> Unit = {},
+    onToggleTimeTravel: () -> Unit = {},
     onClear: () -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -69,6 +75,16 @@ fun ActionStream(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                if (actions.isNotEmpty()) {
+                    IconButton(onClick = onToggleTimeTravel) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = if (timeTravelEnabled) "Exit Time Travel" else "Time Travel",
+                            tint = if (timeTravelEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
                 TextButton(onClick = onToggleAutoSelect) {
                     Text(if (autoSelectLatest) "Auto: ON" else "Auto: OFF")
                 }
@@ -81,7 +97,7 @@ fun ActionStream(
             }
         }
 
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Exclusion filter section
         Card(
@@ -164,7 +180,7 @@ fun ActionStream(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Divider(modifier = Modifier.padding(vertical = 8.dp))
 
         if (filteredActions.isEmpty()) {
             Box(
@@ -181,8 +197,13 @@ fun ActionStream(
         } else {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = if (timeTravelEnabled) {
+                    PaddingValues(bottom = 80.dp)
+                } else {
+                    PaddingValues(0.dp)
+                }
             ) {
                 itemsIndexed(reversedActions) { reversedIndex, action ->
                     val originalIndex = actions.indexOf(action)
@@ -294,11 +315,8 @@ private fun ActionEventCard(
 }
 
 private fun formatTimestamp(timestamp: Long): String {
-    val duration = timestamp.milliseconds
-    val hours = duration.inWholeHours
-    val minutes = (duration.inWholeMinutes % 60)
-    val seconds = (duration.inWholeSeconds % 60)
-    val millis = (duration.inWholeMilliseconds % 1000)
+    val instant = Instant.fromEpochMilliseconds(timestamp)
+    val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
 
-    return "${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}"
+    return "${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}:${dateTime.second.toString().padStart(2, '0')}"
 }

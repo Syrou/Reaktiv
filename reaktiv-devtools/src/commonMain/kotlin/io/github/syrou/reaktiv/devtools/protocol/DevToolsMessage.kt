@@ -32,7 +32,8 @@ sealed class DevToolsMessage {
     data class StateSync(
         val fromClientId: String,
         val timestamp: Long,
-        val stateJson: String
+        val stateJson: String,
+        val orchestrated: Boolean = false
     ) : DevToolsMessage()
 
     @Serializable
@@ -53,8 +54,8 @@ sealed class DevToolsMessage {
 enum class ClientRole {
     UNASSIGNED,
     PUBLISHER,
-    LISTENER,
-    OBSERVER
+    SUBSCRIBER,
+    ORCHESTRATOR
 }
 
 @Serializable

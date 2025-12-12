@@ -54,7 +54,7 @@ class ClientManager {
     suspend fun unregisterClient(clientId: String) = mutex.withLock {
         val client = clients.remove(clientId)
 
-        if (client?.info?.role == ClientRole.LISTENER) {
+        if (client?.info?.role == ClientRole.SUBSCRIBER || client?.info?.role == ClientRole.ORCHESTRATOR) {
             subscriptions[client.info.publisherClientId]?.remove(clientId)
         }
 
@@ -78,7 +78,7 @@ class ClientManager {
     ) = mutex.withLock {
         val client = clients[clientId] ?: return@withLock
 
-        if (client.info.role == ClientRole.LISTENER && client.info.publisherClientId != null) {
+        if ((client.info.role == ClientRole.SUBSCRIBER || client.info.role == ClientRole.ORCHESTRATOR) && client.info.publisherClientId != null) {
             subscriptions[client.info.publisherClientId]?.remove(clientId)
         }
 
@@ -87,7 +87,7 @@ class ClientManager {
             publisherClientId = publisherClientId
         )
 
-        if (role == ClientRole.LISTENER && publisherClientId != null) {
+        if ((role == ClientRole.SUBSCRIBER || role == ClientRole.ORCHESTRATOR) && publisherClientId != null) {
             subscriptions.getOrPut(publisherClientId) { mutableSetOf() }.add(clientId)
         }
 
