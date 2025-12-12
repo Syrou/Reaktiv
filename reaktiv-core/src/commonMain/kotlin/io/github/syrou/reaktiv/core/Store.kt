@@ -537,7 +537,8 @@ class StoreDSL {
         modules.add(module as Module<ModuleState, ModuleAction>)
         moduleStateRegistrations[stateClassName] = { builder ->
             @Suppress("UNCHECKED_CAST")
-            builder.subclass(stateClass, module.initialState::class.serializer() as KSerializer<S>)
+            val actualStateClass = module.initialState::class as KClass<S>
+            builder.subclass(actualStateClass, actualStateClass.serializer() as KSerializer<S>)
         }
 
         if (module is CustomTypeRegistrar) {
