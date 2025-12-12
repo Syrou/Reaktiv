@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
 @Serializable
-sealed class NavTransition(open val durationMillis: Int = DEFAULT_ANIMATION_DURATION) {
+sealed class NavTransition(@Transient open val durationMillis: Int = DEFAULT_ANIMATION_DURATION) {
     @Serializable
     data object None : NavTransition(0)
     @Deprecated("This is deprecated and will be removed in future versions, use None")
