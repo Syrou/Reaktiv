@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.Serializable
 import kotlin.reflect.KClass
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -35,6 +36,7 @@ import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 // Test module for conditional navigation testing
+@Serializable
 data class UserConditionState(
     val isVip: Boolean = false,
     val hasCompletedTutorial: Boolean = false,

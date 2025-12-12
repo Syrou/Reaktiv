@@ -15,12 +15,14 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
+import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertTrue
 
 object TestModule : Module<TestModule.TestState, TestModule.Action> {
+    @Serializable
     data class TestState(val value: Int, val text: String) : ModuleState
 
     override val initialState = TestState(0, "")
@@ -52,6 +54,7 @@ object TestModule : Module<TestModule.TestState, TestModule.Action> {
 
 object TestModule2 : Module<TestModule2.TestState2, TestModule2.Action> {
 
+    @Serializable
     data class TestState2(val value: String) : ModuleState
     sealed class Action : ModuleAction(TestState2::class) {
         data class UpdateAction(val newValue: String) : Action()
@@ -69,7 +72,9 @@ object TestModule2 : Module<TestModule2.TestState2, TestModule2.Action> {
         ModuleLogic { action -> }
     }
 }
+
 object ComplexModule : Module<ComplexModule.ComplexState, ComplexModule.ComplexAction> {
+    @Serializable
     data class ComplexState(val count: Int, val text: String) : ModuleState
     sealed class ComplexAction : ModuleAction(ComplexModule::class) {
         data class UpdateBoth(val increment: Int, val append: String) : ComplexAction()
@@ -93,6 +98,7 @@ object ComplexModule : Module<ComplexModule.ComplexState, ComplexModule.ComplexA
 }
 
 object LargeStateModule : Module<LargeStateModule.LargeState, LargeStateModule.LargeAction> {
+    @Serializable
     data class LargeState(val items: List<Int>) : ModuleState
     sealed class LargeAction : ModuleAction(LargeStateModule::class) {
         data class AddItem(val item: Int) : LargeAction()

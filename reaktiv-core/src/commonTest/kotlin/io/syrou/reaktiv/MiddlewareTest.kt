@@ -10,11 +10,13 @@ import io.github.syrou.reaktiv.core.createStore
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class MiddlewareTest {
+    @Serializable
     data class MiddlewareTestState(val value: Int) : ModuleState
 
     sealed class MiddlewareTestAction : ModuleAction(MiddlewareTestModule::class) {
