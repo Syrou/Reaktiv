@@ -23,11 +23,8 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
             is DevToolsAction.UpdateClientList -> {
                 state.copy(connectedClients = action.clients)
             }
-            is DevToolsAction.AddActionEvent -> {
-                state.copy(actionHistory = state.actionHistory + action.event)
-            }
-            is DevToolsAction.AddStateEvent -> {
-                state.copy(stateHistory = state.stateHistory + action.event)
+            is DevToolsAction.AddActionStateEvent -> {
+                state.copy(actionStateHistory = state.actionStateHistory + action.event)
             }
             is DevToolsAction.SelectPublisher -> {
                 state.copy(selectedPublisher = action.clientId)
@@ -49,8 +46,7 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
             }
             is DevToolsAction.ClearHistory -> {
                 state.copy(
-                    actionHistory = emptyList(),
-                    stateHistory = emptyList(),
+                    actionStateHistory = emptyList(),
                     selectedActionIndex = null
                 )
             }
@@ -111,22 +107,14 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                 storeAccessor.dispatch(DevToolsAction.UpdateClientList(message.clients))
             }
             is DevToolsMessage.ActionDispatched -> {
-                val event = ActionEvent(
+                val event = ActionStateEvent(
                     clientId = message.clientId,
                     timestamp = message.timestamp,
                     actionType = message.actionType,
-                    actionData = message.actionData
+                    actionData = message.actionData,
+                    resultingStateJson = message.resultingStateJson
                 )
-                storeAccessor.dispatch(DevToolsAction.AddActionEvent(event))
-            }
-            is DevToolsMessage.StateUpdate -> {
-                val event = StateEvent(
-                    clientId = message.clientId,
-                    timestamp = message.timestamp,
-                    triggeringAction = message.triggeringAction,
-                    stateJson = message.stateJson
-                )
-                storeAccessor.dispatch(DevToolsAction.AddStateEvent(event))
+                storeAccessor.dispatch(DevToolsAction.AddActionStateEvent(event))
             }
             else -> {
                 // Ignore other message types

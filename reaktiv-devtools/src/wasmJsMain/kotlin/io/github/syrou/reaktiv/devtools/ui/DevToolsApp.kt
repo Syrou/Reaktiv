@@ -89,11 +89,11 @@ private fun DevToolsContent(store: Store) {
     val dispatch = rememberDispatcher()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(state.actionHistory.size, state.autoSelectLatest, state.excludedActionTypes) {
-        if (state.autoSelectLatest && state.actionHistory.isNotEmpty()) {
+    LaunchedEffect(state.actionStateHistory.size, state.autoSelectLatest, state.excludedActionTypes) {
+        if (state.autoSelectLatest && state.actionStateHistory.isNotEmpty()) {
             // Find the latest non-excluded action
-            val latestNonExcludedIndex = state.actionHistory.indexOfLast { action ->
-                !state.excludedActionTypes.contains(action.actionType)
+            val latestNonExcludedIndex = state.actionStateHistory.indexOfLast { event ->
+                !state.excludedActionTypes.contains(event.actionType)
             }
 
             if (latestNonExcludedIndex >= 0 && state.selectedActionIndex != latestNonExcludedIndex) {
@@ -153,7 +153,7 @@ private fun DevToolsContent(store: Store) {
                     .weight(0.6f)
             ) {
                 ActionStream(
-                    actions = state.actionHistory,
+                    actions = state.actionStateHistory,
                     selectedIndex = state.selectedActionIndex,
                     autoSelectLatest = state.autoSelectLatest,
                     excludedActionTypes = state.excludedActionTypes,
@@ -178,8 +178,7 @@ private fun DevToolsContent(store: Store) {
                     .weight(0.4f)
             ) {
                 StateViewer(
-                    states = state.stateHistory,
-                    actions = state.actionHistory,
+                    actionStateHistory = state.actionStateHistory,
                     selectedActionIndex = state.selectedActionIndex,
                     showAsDiff = state.showStateAsDiff,
                     excludedActionTypes = state.excludedActionTypes,

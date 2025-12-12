@@ -24,15 +24,8 @@ sealed class DevToolsMessage {
         val clientId: String,
         val timestamp: Long,
         val actionType: String,
-        val actionData: String
-    ) : DevToolsMessage()
-
-    @Serializable
-    data class StateUpdate(
-        val clientId: String,
-        val timestamp: Long,
-        val triggeringAction: String,
-        val stateJson: String
+        val actionData: String,
+        val resultingStateJson: String
     ) : DevToolsMessage()
 
     @Serializable

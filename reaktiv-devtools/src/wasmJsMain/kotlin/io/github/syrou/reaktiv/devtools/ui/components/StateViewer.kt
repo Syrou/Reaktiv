@@ -7,7 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.github.syrou.reaktiv.devtools.ui.StateEvent
+import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -15,8 +15,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 @Composable
 fun StateViewer(
-    states: List<StateEvent>,
-    actions: List<io.github.syrou.reaktiv.devtools.ui.ActionEvent>,
+    actionStateHistory: List<ActionStateEvent>,
     selectedActionIndex: Int?,
     showAsDiff: Boolean,
     excludedActionTypes: Set<String>,
@@ -25,16 +24,11 @@ fun StateViewer(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    val selectedAction = selectedActionIndex?.let { actions.getOrNull(it) }
-    val correspondingState = selectedAction?.let { action ->
-        states.findLast { it.triggeringAction == action.actionType && it.timestamp >= action.timestamp }
-    }
-    val previousState = if (showAsDiff && correspondingState != null) {
-        val stateIndex = states.indexOf(correspondingState)
-        if (stateIndex > 0) {
-            // Find the last state whose triggering action is NOT excluded
-            states.subList(0, stateIndex)
-                .findLast { !excludedActionTypes.contains(it.triggeringAction) }
+    val selectedEvent = selectedActionIndex?.let { actionStateHistory.getOrNull(it) }
+    val previousEvent = if (showAsDiff && selectedEvent != null && selectedActionIndex != null) {
+        if (selectedActionIndex > 0) {
+            actionStateHistory.subList(0, selectedActionIndex)
+                .findLast { !excludedActionTypes.contains(it.actionType) }
         } else null
     } else {
         null
@@ -66,7 +60,7 @@ fun StateViewer(
 
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-        if (selectedAction == null) {
+        if (selectedEvent == null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -78,23 +72,10 @@ fun StateViewer(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        } else if (correspondingState == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp)
-            ) {
-                Text(
-                    text = "No state found for selected action",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         } else {
             StateSnapshotView(
-                action = selectedAction,
-                state = correspondingState,
-                previousState = previousState,
+                event = selectedEvent,
+                previousEvent = previousEvent,
                 showAsDiff = showAsDiff,
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it }
@@ -105,9 +86,8 @@ fun StateViewer(
 
 @Composable
 private fun StateSnapshotView(
-    action: io.github.syrou.reaktiv.devtools.ui.ActionEvent,
-    state: StateEvent,
-    previousState: StateEvent?,
+    event: ActionStateEvent,
+    previousEvent: ActionStateEvent?,
     showAsDiff: Boolean,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit
@@ -128,7 +108,7 @@ private fun StateSnapshotView(
                     .padding(12.dp)
             ) {
                 Text(
-                    text = "For Action: ${action.actionType}",
+                    text = "For Action: ${event.actionType}",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -136,19 +116,19 @@ private fun StateSnapshotView(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Timestamp: ${formatTimestamp(action.timestamp)}",
+                    text = "Timestamp: ${formatTimestamp(event.timestamp)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text(
-                    text = "Client: ${state.clientId}",
+                    text = "Client: ${event.clientId}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text(
-                    text = "Size: ${state.stateJson.length} bytes",
+                    text = "Size: ${event.resultingStateJson.length} bytes",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -194,10 +174,10 @@ private fun StateSnapshotView(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     JsonTreeViewer(
-                        jsonString = state.stateJson,
-                        previousJsonString = previousState?.stateJson,
+                        jsonString = event.resultingStateJson,
+                        previousJsonString = previousEvent?.resultingStateJson,
                         searchQuery = searchQuery,
-                        showDiff = showAsDiff && previousState != null,
+                        showDiff = showAsDiff && previousEvent != null,
                         modifier = Modifier.padding(8.dp)
                     )
                 }

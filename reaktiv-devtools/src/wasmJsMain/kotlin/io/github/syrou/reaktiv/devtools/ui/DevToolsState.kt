@@ -13,8 +13,7 @@ import kotlinx.serialization.Serializable
 data class DevToolsState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val connectedClients: List<ClientInfo> = emptyList(),
-    val actionHistory: List<ActionEvent> = emptyList(),
-    val stateHistory: List<StateEvent> = emptyList(),
+    val actionStateHistory: List<ActionStateEvent> = emptyList(),
     val selectedPublisher: String? = null,
     val selectedListener: String? = null,
     val showStateAsDiff: Boolean = false,
@@ -30,8 +29,7 @@ data class DevToolsState(
 sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data class UpdateConnectionState(val state: ConnectionState) : DevToolsAction()
     data class UpdateClientList(val clients: List<ClientInfo>) : DevToolsAction()
-    data class AddActionEvent(val event: ActionEvent) : DevToolsAction()
-    data class AddStateEvent(val event: StateEvent) : DevToolsAction()
+    data class AddActionStateEvent(val event: ActionStateEvent) : DevToolsAction()
     data class SelectPublisher(val clientId: String?) : DevToolsAction()
     data class SelectListener(val clientId: String?) : DevToolsAction()
     data object ToggleStateViewMode : DevToolsAction()
@@ -45,24 +43,13 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
 }
 
 /**
- * Represents an action dispatched by a client.
+ * Represents an action dispatched by a client with its resulting state.
  */
 @Serializable
-data class ActionEvent(
+data class ActionStateEvent(
     val clientId: String,
     val timestamp: Long,
     val actionType: String,
-    val actionData: String
-)
-
-/**
- * Represents a state update from a client.
- */
-@Serializable
-data class StateEvent(
-    val clientId: String,
-    val timestamp: Long,
-    val triggeringAction: String,
-    val stateJson: String,
-    val diff: String? = null
+    val actionData: String,
+    val resultingStateJson: String
 )

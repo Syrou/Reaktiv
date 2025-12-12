@@ -116,18 +116,12 @@ class DevToolsMiddleware(
 
         when (role) {
             ClientRole.PUBLISHER -> {
-                if (config.allowActionCapture) {
-                    scope.launch {
-                        sendAction(action)
-                    }
-                }
-
                 val newState = updatedState(action)
 
-                if (config.allowStateCapture) {
+                if (config.allowActionCapture && config.allowStateCapture) {
                     scope.launch {
                         val allStates = getAllStates()
-                        sendStateUpdate(action, allStates)
+                        sendActionWithState(action, allStates)
                     }
                 }
             }
@@ -188,33 +182,20 @@ class DevToolsMiddleware(
         }
     }
 
-    private suspend fun sendAction(action: ModuleAction) {
+    private suspend fun sendActionWithState(action: ModuleAction, states: Map<String, ModuleState>) {
         try {
+            val stateJson = json.encodeToString(states)
+
             val message = DevToolsMessage.ActionDispatched(
                 clientId = config.clientId,
                 timestamp = getCurrentTimestamp(),
                 actionType = action::class.simpleName ?: "Unknown",
-                actionData = action.toString()
+                actionData = action.toString(),
+                resultingStateJson = stateJson
             )
             connection.send(message)
         } catch (e: Exception) {
-            println("DevTools: Failed to send action - ${e.message}")
-        }
-    }
-
-    private suspend fun sendStateUpdate(action: ModuleAction, states: Map<String, ModuleState>) {
-        try {
-            val stateJson = json.encodeToString(states)
-
-            val message = DevToolsMessage.StateUpdate(
-                clientId = config.clientId,
-                timestamp = getCurrentTimestamp(),
-                triggeringAction = action::class.simpleName ?: "Unknown",
-                stateJson = stateJson
-            )
-            connection.send(message)
-        } catch (e: Exception) {
-            println("DevTools: Failed to send state update - ${e.message}")
+            println("DevTools: Failed to send action with state - ${e.message}")
         }
     }
 

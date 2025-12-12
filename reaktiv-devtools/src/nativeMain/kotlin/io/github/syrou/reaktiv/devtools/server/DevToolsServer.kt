@@ -133,16 +133,11 @@ object DevToolsServer {
             is DevToolsMessage.ActionDispatched -> {
                 println("DevTools Server: Action from ${message.clientId} - ${message.actionType}")
                 clientManager.broadcastToListeners(message.clientId, message)
-            }
-
-            is DevToolsMessage.StateUpdate -> {
-                println("DevTools Server: State update from ${message.clientId}")
-                clientManager.broadcastToListeners(message.clientId, message)
 
                 val stateSync = DevToolsMessage.StateSync(
                     fromClientId = message.clientId,
                     timestamp = message.timestamp,
-                    stateJson = message.stateJson
+                    stateJson = message.resultingStateJson
                 )
                 clientManager.broadcastToListeners(message.clientId, stateSync)
             }

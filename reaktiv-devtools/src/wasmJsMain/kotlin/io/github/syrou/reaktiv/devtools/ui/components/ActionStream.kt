@@ -23,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import io.github.syrou.reaktiv.devtools.ui.ActionEvent
+import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 @Composable
 fun ActionStream(
-    actions: List<ActionEvent>,
+    actions: List<ActionStateEvent>,
     selectedIndex: Int? = null,
     autoSelectLatest: Boolean = true,
     excludedActionTypes: Set<String>,
@@ -200,7 +200,7 @@ fun ActionStream(
 
 @Composable
 private fun ActionEventCard(
-    action: ActionEvent,
+    action: ActionStateEvent,
     isSelected: Boolean = false,
     onClick: () -> Unit = {},
     onExclude: () -> Unit = {}
