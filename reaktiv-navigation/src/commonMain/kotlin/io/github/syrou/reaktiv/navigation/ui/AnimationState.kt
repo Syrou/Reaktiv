@@ -1,7 +1,6 @@
 package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -10,7 +9,6 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
-import kotlinx.coroutines.delay
 
 /**
  * Animation state for content layer rendering
@@ -21,12 +19,16 @@ import kotlinx.coroutines.delay
  * @property previousEntry The screen being transitioned away from (if any)
  * @property animationDecision Determines which animations to play
  * @property aliveEntries List of entries to keep composed (max 2: current + previous)
+ * @property isBackNavigation Whether this is a back navigation (for disposal logic)
+ * @property onAnimationComplete Callback to invoke when animation completes
  */
 data class LayerAnimationState(
     val currentEntry: NavigationEntry,
     val previousEntry: NavigationEntry?,
     val animationDecision: AnimationDecision?,
-    val aliveEntries: List<NavigationEntry>
+    val aliveEntries: List<NavigationEntry>,
+    val isBackNavigation: Boolean,
+    val onAnimationComplete: () -> Unit
 ) {
     val hasAnimation: Boolean = previousEntry != null && animationDecision != null
 }
@@ -37,77 +39,47 @@ data class LayerAnimationState(
  * Strategy:
  * - Forward navigation (A → B): Keep both A and B composed; A preserved for back navigation
  * - Back navigation (B → A): Keep both during animation, dispose B after completion
- * - Multi-step forward (A → B → C): Dispose A when navigating to C (not in immediate backstack)
  *
- * This preserves LaunchedEffect and composition state without movableContentOf by keeping
- * the previous screen composed in the background during forward navigation.
+ * The animation state is read from NavigationState (single source of truth).
+ * When animation completes, the onAnimationComplete callback dispatches AnimationCompleted action.
  *
  * @param entries The content layer entries (typically just the current entry)
+ * @param onAnimationComplete Callback to invoke when animation completes (dispatches action)
  * @return Animation state containing current, previous, and all entries to keep composed
  */
 @Composable
 fun rememberLayerAnimationState(
-    entries: List<NavigationEntry>
+    entries: List<NavigationEntry>,
+    onAnimationComplete: () -> Unit
 ): LayerAnimationState {
     val navState by composeState<NavigationState>()
     val currentEntry = entries.lastOrNull() ?: error("Layer must have at least one entry")
 
-    // Track previous entry for animation detection
-    val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
-    val currentEntryState = remember { mutableStateOf(currentEntry) }
-
-    // Update entries when current changes
-    if (currentEntryState.value.stableKey != currentEntry.stableKey) {
-        previousEntryState.value = currentEntryState.value
-        currentEntryState.value = currentEntry
+    // Compute animation decision from state
+    val animationDecision = navState.previousEntry?.let { prev ->
+        determineContentAnimationDecision(prev, currentEntry)
     }
 
-    // Determine animation decision
-    val animationDecision = if (previousEntryState.value != null) {
-        determineContentAnimationDecision(previousEntryState.value!!, currentEntry)
-    } else {
-        null
-    }
-
-    // Check if this is back navigation
-    val isBackNavigation = previousEntryState.value?.let { prev ->
+    // Determine navigation direction from stack positions
+    val isBackNavigation = navState.previousEntry?.let { prev ->
         currentEntry.stackPosition < prev.stackPosition
     } ?: false
 
-    // Dispose previous entry after animation completes on back navigation
-    LaunchedEffect(currentEntry.stableKey) {
-        if (isBackNavigation && animationDecision != null && previousEntryState.value != null) {
-            val duration = animationDecision.enterTransition.durationMillis +
-                          animationDecision.exitTransition.durationMillis
-            if (duration > 0) {
-                delay(duration.toLong() + navState.screenRetentionDuration.inWholeMilliseconds)
-            }
-            // Check if previous entry is still not in backstack, then dispose
-            val prevKey = previousEntryState.value?.stableKey
-            val isInBackstack = navState.backStack.any { it.stableKey == prevKey }
-            if (!isInBackstack) {
-                previousEntryState.value = null
-            }
-        }
-    }
-
-    // Keep only current and previous entries composed
-    // This gives us smooth animations while preserving state for back navigation
+    // Build entries to render from state (not remembered)
     val entriesToRender = buildList {
         add(currentEntry)
-        previousEntryState.value?.let { prev ->
-            // Only add if it's different from current
-            if (prev.stableKey != currentEntry.stableKey) {
-                add(prev)
-            }
+        if (navState.animationInProgress && navState.previousEntry != null) {
+            add(navState.previousEntry!!)
         }
     }
 
     return LayerAnimationState(
         currentEntry = currentEntry,
-        previousEntry = previousEntryState.value,
+        previousEntry = navState.previousEntry,
         animationDecision = animationDecision,
-        aliveEntries = entriesToRender
+        aliveEntries = entriesToRender,
+        isBackNavigation = isBackNavigation,
+        onAnimationComplete = onAnimationComplete
     )
 }
 

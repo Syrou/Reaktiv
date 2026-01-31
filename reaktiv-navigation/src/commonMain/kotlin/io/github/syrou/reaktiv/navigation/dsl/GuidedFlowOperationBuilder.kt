@@ -7,6 +7,7 @@ import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.FlowModification
+import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowStep
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -117,8 +118,11 @@ class GuidedFlowOperationBuilder(
                 is GuidedFlowStep.TypedScreen -> step.screenClass == screenClassName
                 is GuidedFlowStep.Route -> {
                     // Check if this route step corresponds to the target screen type
+                    val navModule = storeAccessor.getNavigationModule()
+                    val allNavigatables = navModule.getGraphDefinitions().values
+                        .flatMap { graph -> graph.navigatables }
                     val baseRoute = step.route.split('?')[0]
-                    navigationState.allAvailableNavigatables.values
+                    allNavigatables
                         .filterIsInstance<Screen>()
                         .any { screen -> 
                             screen.route == baseRoute && screen::class.qualifiedName == screenClassName

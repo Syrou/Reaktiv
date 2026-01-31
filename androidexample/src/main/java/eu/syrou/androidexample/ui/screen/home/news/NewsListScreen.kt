@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import eu.syrou.androidexample.domain.data.NewsItem
 import eu.syrou.androidexample.reaktiv.news.NewsModule
 import io.github.syrou.reaktiv.compose.composeState
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen

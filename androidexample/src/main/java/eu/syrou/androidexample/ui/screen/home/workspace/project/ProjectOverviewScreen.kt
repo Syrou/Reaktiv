@@ -14,6 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.rememberStore
+import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
@@ -48,6 +49,14 @@ object ProjectTasksScreen : Screen {
     @Composable
     override fun Content(params: Params) {
         ProjectTasksContent(params)
+    }
+
+    override suspend fun onAddedToBackstack(storeAccessor: StoreAccessor) {
+        println("HERPADERPA - ADDED TO BACKSTACK")
+    }
+
+    override suspend fun onRemovedFromBackstack(storeAccessor: StoreAccessor) {
+        println("HERPADERPA - REMOVED FROM BACKSTACK")
     }
 }
 

@@ -20,12 +20,16 @@ data class NavigationState(
     // Core navigation data
     val currentEntry: NavigationEntry,
     val backStack: List<NavigationEntry>,
-    
+
     // Track last navigation action for content preservation
     val lastNavigationAction: NavigationAction? = null,
-    
+
     // Screen content retention configuration
     val screenRetentionDuration: Duration,
+
+    // Animation tracking (set by reducer, cleared by AnimationCompleted action)
+    val previousEntry: NavigationEntry? = null,
+    val animationInProgress: Boolean = false,
 
     // Computed state properties (set by reducer, fully serializable)
     val orderedBackStack: List<NavigationEntry>,
@@ -52,11 +56,10 @@ data class NavigationState(
     val underlyingScreen: NavigationEntry?,
     val modalsInStack: List<NavigationEntry>,
 
-    // External compatibility - only what's actually accessed externally
-    val graphDefinitions: Map<String, NavigationGraph>,
-    val availableRoutes: Set<String>,
-    val allAvailableNavigatables: Map<String, Navigatable>,
-    val graphHierarchyLookup: Map<String, List<String>>,
+    // For modal isInGraph() checks - graph hierarchy of the underlying screen
+    val underlyingScreenGraphHierarchy: List<String>? = null,
+
+    // Modal contexts
     val activeModalContexts: Map<String, ModalContext>,
 
     // GuidedFlow state - store runtime modifications per flow route
@@ -65,9 +68,6 @@ data class NavigationState(
     // Active guided flow state for the currently executing flow (backward compatibility)
     val activeGuidedFlowState: GuidedFlowState? = null
 ) : ModuleState {
-
-    // External compatibility methods
-    fun hasRoute(route: String): Boolean = availableRoutes.contains(route)
 
     val entriesByLayer: Map<RenderLayer, List<NavigationEntry>>
         get() = mapOf(
@@ -81,9 +81,7 @@ data class NavigationState(
         return if (!isCurrentModal) {
             currentGraphHierarchy.contains(graphId)
         } else {
-            underlyingScreen?.let { underlying ->
-                graphHierarchyLookup[underlying.graphId]?.contains(graphId) ?: false
-            } ?: false
+            underlyingScreenGraphHierarchy?.contains(graphId) ?: false
         }
     }
 

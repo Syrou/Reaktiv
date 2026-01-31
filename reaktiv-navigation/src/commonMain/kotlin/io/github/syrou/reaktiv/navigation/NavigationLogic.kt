@@ -147,10 +147,53 @@ class NavigationLogic(
 
         val action = determineNavigationAction(unifiedOps, finalState, initialState, willAnimate)
 
+        // Capture backstack before dispatch for lifecycle callbacks
+        val previousBackStack = initialState.backStack
+
         storeAccessor.dispatch(action)
+
+        // Call lifecycle callbacks for added/removed entries
+        invokeLifecycleCallbacks(previousBackStack, finalState.backStack)
 
         if (willAnimate) {
             scheduleTransitionStateReset(finalState.currentEntry, initialState.currentEntry)
+        }
+    }
+
+    /**
+     * Invokes lifecycle callbacks for entries that were added or removed from the backstack.
+     */
+    private suspend fun invokeLifecycleCallbacks(
+        previousBackStack: List<NavigationEntry>,
+        newBackStack: List<NavigationEntry>
+    ) {
+        val previousKeys = previousBackStack.map { it.stableKey }.toSet()
+        val newKeys = newBackStack.map { it.stableKey }.toSet()
+
+        // Find added entries (in new but not in previous)
+        val addedEntries = newBackStack.filter { it.stableKey !in previousKeys }
+
+        // Find removed entries (in previous but not in new)
+        val removedEntries = previousBackStack.filter { it.stableKey !in newKeys }
+
+        // Call onAddedToBackstack for new entries
+        addedEntries.forEach { entry ->
+            try {
+                entry.navigatable.onAddedToBackstack(storeAccessor)
+            } catch (e: Exception) {
+                // Log but don't prevent navigation
+                println("Warning: onAddedToBackstack failed for ${entry.navigatable.route}: ${e.message}")
+            }
+        }
+
+        // Call onRemovedFromBackstack for removed entries
+        removedEntries.forEach { entry ->
+            try {
+                entry.navigatable.onRemovedFromBackstack(storeAccessor)
+            } catch (e: Exception) {
+                // Log but don't prevent navigation
+                println("Warning: onRemovedFromBackstack failed for ${entry.navigatable.route}: ${e.message}")
+            }
         }
     }
 

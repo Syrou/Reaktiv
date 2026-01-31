@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerState
@@ -41,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import eu.syrou.androidexample.ui.components.NotificationPermissionHandler
+import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.theme.ReaktivTheme
 import io.github.syrou.reaktiv.compose.StoreProvider
@@ -131,6 +133,7 @@ fun MainRender() {
     val items =
         listOf(
             "Settings" to Icons.Default.Settings,
+            "DevTools" to Icons.Default.Build,
             "Contact" to Icons.Default.Notifications
         )
     val selectedItem = remember { mutableStateOf(items[0]) }
@@ -156,10 +159,19 @@ fun MainRender() {
                                 onClick = {
                                     store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(!settingsState.drawerOpen))
                                     selectedItem.value = item
-                                    if (item.first == "Settings") {
-                                        store.launch {
-                                            store.navigation {
-                                                navigateTo(SettingsScreen.route)
+                                    when (item.first) {
+                                        "Settings" -> {
+                                            store.launch {
+                                                store.navigation {
+                                                    navigateTo(SettingsScreen.route)
+                                                }
+                                            }
+                                        }
+                                        "DevTools" -> {
+                                            store.launch {
+                                                store.navigation {
+                                                    navigateTo(DevToolsScreen.route)
+                                                }
                                             }
                                         }
                                     }

@@ -6,7 +6,9 @@ import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.devtools.client.DevToolsConnection
+import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.devtools.DevToolsAction
+import io.github.syrou.reaktiv.devtools.DevToolsLogic
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import kotlinx.coroutines.CoroutineScope
@@ -22,47 +24,29 @@ import kotlin.time.Clock
 /**
  * Middleware for connecting Reaktiv store to DevTools server.
  *
- * Automatically uses the Store's serializers, which include:
- * - All module states
- * - Navigation-related types (from NavigationModule)
- * - Custom types registered via CustomTypeRegistrar
+ * This class is typically instantiated internally by DevToolsModule.
+ * Use DevToolsModule directly for the simplest setup:
  *
- * Example usage:
  * ```kotlin
  * val store = createStore {
- *     module(CounterModule)
- *     module(navigationModule)
- *
- *     middlewares(
- *         DevToolsMiddleware(
- *             config = DevToolsConfig(
- *                 serverUrl = "ws://192.168.1.100:8080/ws",
- *                 clientName = "My Phone",
- *                 platform = "Samsung Galaxy S23"
- *             ),
- *             scope = lifecycleScope
- *         ).middleware
- *     )
+ *     module(DevToolsModule(
+ *         config = DevToolsConfig(
+ *             serverUrl = "ws://192.168.1.100:8080/ws",
+ *             platform = "Android"
+ *         ),
+ *         scope = lifecycleScope
+ *     ))
+ *     // ... other modules
  * }
  * ```
  *
- * If your module state contains custom types, implement CustomTypeRegistrar:
- * ```kotlin
- * object UserModule : Module<UserState, UserAction>, CustomTypeRegistrar {
- *     override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {
- *         builder.polymorphic(AppSettings::class) {
- *             subclass(BasicSettings::class)
- *             subclass(AdvancedSettings::class)
- *         }
- *     }
- * }
- * ```
- *
- * The serializers will be automatically picked up by both the Store and DevToolsMiddleware.
+ * The middleware intercepts all actions and:
+ * - Handles DevToolsAction (Connect, Disconnect, Reconnect)
+ * - Broadcasts other actions to the DevTools server when connected
  *
  * @param config DevTools configuration
  * @param scope CoroutineScope for async operations
- * @param stateSerializers Optional SerializersModule. If not provided, will automatically use Store's serializers
+ * @param stateSerializers Optional SerializersModule. If not provided, will use Store's serializers
  */
 @OptIn(ExperimentalReaktivApi::class)
 class DevToolsMiddleware(
@@ -72,24 +56,12 @@ class DevToolsMiddleware(
 ) {
     private lateinit var json: Json
 
-    private val connection = DevToolsConnection(config.serverUrl)
-
     private val _currentRole = MutableStateFlow(ClientRole.UNASSIGNED)
     val currentRole: StateFlow<ClientRole> = _currentRole.asStateFlow()
 
     private var storeAccessorRef: StoreAccessor? = null
-
-    init {
-        if (config.enabled) {
-            scope.launch {
-                connection.connect(config.clientId, config.clientName, config.platform)
-
-                connection.observeMessages { message ->
-                    handleServerMessage(message)
-                }
-            }
-        }
-    }
+    private var devToolsLogic: DevToolsLogic? = null
+    private var initialized = false
 
     /**
      * The middleware function to be used with Reaktiv store.
@@ -112,11 +84,28 @@ class DevToolsMiddleware(
             return@middleware
         }
 
+        // Initialize logic and auto-connect if needed (only once)
+        if (!initialized) {
+            initialized = true
+            scope.launch {
+                initializeLogic(storeAccessor)
+            }
+        }
+
+        // Handle DevToolsAction by delegating to logic
+        if (action is DevToolsAction) {
+            updatedState(action)
+            scope.launch {
+                handleDevToolsAction(action)
+            }
+            return@middleware
+        }
+
         val role = _currentRole.value
 
         when (role) {
             ClientRole.PUBLISHER -> {
-                val newState = updatedState(action)
+                updatedState(action)
 
                 if (config.allowActionCapture && config.allowStateCapture) {
                     scope.launch {
@@ -128,6 +117,43 @@ class DevToolsMiddleware(
 
             ClientRole.SUBSCRIBER, ClientRole.ORCHESTRATOR, ClientRole.UNASSIGNED -> {
                 updatedState(action)
+            }
+        }
+    }
+
+    private suspend fun initializeLogic(storeAccessor: StoreAccessor) {
+        try {
+            devToolsLogic = storeAccessor.selectLogic<DevToolsLogic>()
+
+            devToolsLogic?.observeMessages { message ->
+                handleServerMessage(message)
+            }
+
+            // Auto-connect if serverUrl is configured
+            if (config.serverUrl != null) {
+                devToolsLogic?.connect(config.serverUrl)
+            }
+        } catch (e: Exception) {
+            println("DevTools: Failed to initialize logic - ${e.message}")
+            println("DevTools: Make sure DevToolsModule.create(config) is registered in your store")
+        }
+    }
+
+    private suspend fun handleDevToolsAction(action: DevToolsAction) {
+        val logic = devToolsLogic ?: return
+
+        when (action) {
+            is DevToolsAction.Connect -> {
+                logic.connect(action.serverUrl, action.clientName)
+            }
+            is DevToolsAction.Disconnect -> {
+                logic.disconnect()
+            }
+            is DevToolsAction.Reconnect -> {
+                logic.reconnect()
+            }
+            is DevToolsAction.UpdateConnectionState -> {
+                // Already handled by reducer, nothing to do here
             }
         }
     }
@@ -155,7 +181,7 @@ class DevToolsMiddleware(
     private suspend fun handleRoleAssignment(assignment: DevToolsMessage.RoleAssignment) {
         _currentRole.value = assignment.role
 
-        connection.send(
+        devToolsLogic?.send(
             DevToolsMessage.RoleAcknowledgment(
                 clientId = config.clientId,
                 role = assignment.role,
@@ -183,6 +209,9 @@ class DevToolsMiddleware(
     }
 
     private suspend fun sendActionWithState(action: ModuleAction, states: Map<String, ModuleState>) {
+        val logic = devToolsLogic ?: return
+        if (!logic.isConnected()) return
+
         try {
             val stateJson = json.encodeToString(states)
 
@@ -193,7 +222,7 @@ class DevToolsMiddleware(
                 actionData = action.toString(),
                 resultingStateJson = stateJson
             )
-            connection.send(message)
+            logic.send(message)
         } catch (e: Exception) {
             println("DevTools: Failed to send action with state - ${e.message}")
         }
@@ -203,7 +232,7 @@ class DevToolsMiddleware(
      * Disconnects from the DevTools server.
      */
     suspend fun disconnect() {
-        connection.disconnect()
+        devToolsLogic?.disconnect()
     }
 }
 

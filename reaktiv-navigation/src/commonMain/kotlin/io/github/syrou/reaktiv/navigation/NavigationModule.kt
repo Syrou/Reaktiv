@@ -1,8 +1,6 @@
 package io.github.syrou.reaktiv.navigation
 
-import io.github.syrou.reaktiv.core.Module
-import io.github.syrou.reaktiv.core.ModuleLogic
-import io.github.syrou.reaktiv.core.StatefulModuleWithLogic
+import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import io.github.syrou.reaktiv.navigation.definition.Modal
@@ -33,9 +31,38 @@ class NavigationModule internal constructor(
     private val rootGraph: NavigationGraph,
     private val originalGuidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
     private val screenRetentionDuration: Duration
-) : StatefulModuleWithLogic<NavigationState, NavigationAction, NavigationLogic>, CustomTypeRegistrar {
+) : ModuleWithLogic<NavigationState, NavigationAction, NavigationLogic>, CustomTypeRegistrar {
     private val precomputedData: PrecomputedNavigationData by lazy {
         PrecomputedNavigationData.create(rootGraph)
+    }
+
+    /**
+     * Internal accessor for graph definitions.
+     * Used by rendering components to access static graph configuration.
+     */
+    internal fun getGraphDefinitions(): Map<String, NavigationGraph> {
+        return precomputedData.graphDefinitions
+    }
+
+    /**
+     * Get the full path for a Navigatable.
+     *
+     * The full path includes all graph prefixes, e.g., "home/workspace/projects/tools"
+     * for a screen with route "tools" nested in graphs home -> workspace -> projects.
+     *
+     * @param navigatable The screen or modal to get the path for
+     * @return The full path, or null if the navigatable is not registered
+     */
+    fun getFullPath(navigatable: Navigatable): String? {
+        return precomputedData.navigatableToFullPath[navigatable]
+    }
+
+    /**
+     * Get all registered full paths mapped to their navigatables.
+     * Useful for debugging or building navigation UIs.
+     */
+    fun getAllFullPaths(): Map<Navigatable, String> {
+        return precomputedData.navigatableToFullPath
     }
 
     override val initialState: NavigationState by lazy {
@@ -82,6 +109,8 @@ class NavigationModule internal constructor(
             backStack = initialBackStack,
             lastNavigationAction = null,
             screenRetentionDuration = screenRetentionDuration,
+            previousEntry = null,
+            animationInProgress = false,
             orderedBackStack = computedState.orderedBackStack,
             visibleLayers = computedState.visibleLayers,
             currentFullPath = computedState.currentFullPath,
@@ -101,10 +130,7 @@ class NavigationModule internal constructor(
             renderableEntries = computedState.renderableEntries,
             underlyingScreen = computedState.underlyingScreen,
             modalsInStack = computedState.modalsInStack,
-            graphDefinitions = precomputedData.graphDefinitions,
-            availableRoutes = precomputedData.routeToNavigatable.keys,
-            allAvailableNavigatables = precomputedData.allNavigatables,
-            graphHierarchyLookup = precomputedData.graphHierarchies,
+            underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
             activeModalContexts = emptyMap(),
             guidedFlowModifications = emptyMap(),
             activeGuidedFlowState = null
@@ -132,16 +158,17 @@ class NavigationModule internal constructor(
 
         builder.polymorphic(io.github.syrou.reaktiv.navigation.definition.Screen::class) {
             fun registerScreens(graph: NavigationGraph) {
-                graph.navigatables.filterIsInstance<io.github.syrou.reaktiv.navigation.definition.Screen>().forEach { screen ->
-                    try {
-                        @Suppress("UNCHECKED_CAST")
-                        subclass(
-                            screen::class as KClass<io.github.syrou.reaktiv.navigation.definition.Screen>,
-                            screen::class.serializer() as KSerializer<io.github.syrou.reaktiv.navigation.definition.Screen>
-                        )
-                    } catch (e: Exception) {
+                graph.navigatables.filterIsInstance<io.github.syrou.reaktiv.navigation.definition.Screen>()
+                    .forEach { screen ->
+                        try {
+                            @Suppress("UNCHECKED_CAST")
+                            subclass(
+                                screen::class as KClass<io.github.syrou.reaktiv.navigation.definition.Screen>,
+                                screen::class.serializer() as KSerializer<io.github.syrou.reaktiv.navigation.definition.Screen>
+                            )
+                        } catch (e: Exception) {
+                        }
                     }
-                }
                 graph.nestedGraphs.forEach { registerScreens(it) }
             }
             registerScreens(rootGraph)
@@ -189,7 +216,9 @@ class NavigationModule internal constructor(
         updateGuidedFlowState: Boolean = false,
         transitionState: NavigationTransitionState = state.transitionState,
         guidedFlowModifications: Map<String, GuidedFlowDefinition>? = null,
-        navigationAction: NavigationAction? = null
+        navigationAction: NavigationAction? = null,
+        previousEntry: NavigationEntry? = null,
+        animationInProgress: Boolean = false
     ): NavigationState {
         val newCurrentEntry = currentEntry ?: state.currentEntry
         val newBackStack = backStack ?: state.backStack
@@ -226,13 +255,12 @@ class NavigationModule internal constructor(
             renderableEntries = computedState.renderableEntries,
             underlyingScreen = computedState.underlyingScreen,
             modalsInStack = computedState.modalsInStack,
-            graphDefinitions = precomputedData.graphDefinitions,
-            availableRoutes = precomputedData.routeToNavigatable.keys,
-            allAvailableNavigatables = precomputedData.allNavigatables,
-            graphHierarchyLookup = precomputedData.graphHierarchies,
+            underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
             activeModalContexts = newModalContexts,
             guidedFlowModifications = guidedFlowModifications ?: state.guidedFlowModifications,
-            activeGuidedFlowState = if (updateGuidedFlowState) activeGuidedFlowState else state.activeGuidedFlowState
+            activeGuidedFlowState = if (updateGuidedFlowState) activeGuidedFlowState else state.activeGuidedFlowState,
+            previousEntry = previousEntry,
+            animationInProgress = animationInProgress
         )
     }
 
@@ -247,7 +275,9 @@ class NavigationModule internal constructor(
                 updateGuidedFlowState = true,
                 transitionState = action.transitionState,
                 guidedFlowModifications = action.guidedFlowModifications,
-                navigationAction = action
+                navigationAction = action,
+                previousEntry = state.currentEntry,
+                animationInProgress = true
             )
 
             is NavigationAction.Back -> reduceNavigationStateUpdate(
@@ -256,7 +286,9 @@ class NavigationModule internal constructor(
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
                 transitionState = action.transitionState,
-                navigationAction = action
+                navigationAction = action,
+                previousEntry = state.currentEntry,
+                animationInProgress = true
             )
 
             is NavigationAction.ClearBackstack -> this.reduceNavigationStateUpdate(
@@ -265,7 +297,9 @@ class NavigationModule internal constructor(
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
                 transitionState = action.transitionState,
-                navigationAction = action
+                navigationAction = action,
+                previousEntry = state.currentEntry,
+                animationInProgress = true
             )
 
             is NavigationAction.Navigate -> reduceNavigationStateUpdate(
@@ -274,7 +308,9 @@ class NavigationModule internal constructor(
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
                 transitionState = action.transitionState,
-                navigationAction = action
+                navigationAction = action,
+                previousEntry = state.currentEntry,
+                animationInProgress = true
             )
 
             is NavigationAction.PopUpTo -> reduceNavigationStateUpdate(
@@ -283,7 +319,9 @@ class NavigationModule internal constructor(
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
                 transitionState = action.transitionState,
-                navigationAction = action
+                navigationAction = action,
+                previousEntry = state.currentEntry,
+                animationInProgress = true
             )
 
             is NavigationAction.Replace -> reduceNavigationStateUpdate(
@@ -292,13 +330,25 @@ class NavigationModule internal constructor(
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
                 transitionState = action.transitionState,
-                navigationAction = action
+                navigationAction = action,
+                previousEntry = state.currentEntry,
+                animationInProgress = true
             )
 
             is NavigationAction.UpdateTransitionState -> {
                 state.copy(transitionState = action.transitionState)
             }
 
+            is NavigationAction.AnimationCompleted -> {
+                val isBackNavigation = state.previousEntry?.let { prev ->
+                    state.currentEntry.stackPosition < prev.stackPosition
+                } ?: false
+
+                state.copy(
+                    previousEntry = if (isBackNavigation) null else state.previousEntry,
+                    animationInProgress = false
+                )
+            }
         }
     }
 
@@ -307,16 +357,6 @@ class NavigationModule internal constructor(
             storeAccessor = storeAccessor,
             precomputedData = precomputedData,
             guidedFlowDefinitions = originalGuidedFlowDefinitions
-        )
-    }
-
-    override fun mergeExternalState(local: NavigationState, synced: NavigationState): NavigationState {
-        return synced.copy(
-            graphDefinitions = local.graphDefinitions,
-            availableRoutes = local.availableRoutes,
-            allAvailableNavigatables = local.allAvailableNavigatables,
-            graphHierarchyLookup = local.graphHierarchyLookup,
-            screenRetentionDuration = local.screenRetentionDuration
         )
     }
 
@@ -357,27 +397,36 @@ data class PrecomputedNavigationData(
                     parentGraphLookup[nestedGraph.route] = graph.route
                 }
 
-                if (graph.route == "root") {
-                    graph.navigatables.forEach { navigatable ->
-                        availableNavigatables[navigatable.route] = navigatable
-                        routeToNavigatable[navigatable.route] = navigatable
-                        navigatableToFullPath[navigatable] = navigatable.route
-                    }
-                }
-
                 graph.navigatables.forEach { navigatable ->
-                    allNavigatables[navigatable.route] = navigatable
                     navigatableToGraph[navigatable] = graph.route
-                    routeToNavigatable[navigatable.route] = navigatable
 
-                    if (graph.route != "root") {
+                    // Compute full path for all navigatables
+                    val fullPath = if (graph.route == "root") {
+                        navigatable.route
+                    } else {
                         val graphPath = buildGraphPathToRoot(graph.route, parentGraphLookup)
-                        val fullPath = if (graphPath.isEmpty()) {
+                        if (graphPath.isEmpty()) {
                             navigatable.route
                         } else {
                             "$graphPath/${navigatable.route}"
                         }
-                        navigatableToFullPath[navigatable] = fullPath
+                    }
+
+                    // Register by full path to avoid route collisions
+                    if (routeToNavigatable.containsKey(fullPath)) {
+                        val existing = routeToNavigatable[fullPath]
+                        throw IllegalStateException(
+                            "Route collision detected: '$fullPath' is already registered to " +
+                                    "'${existing?.route}'. Each screen must have a unique full path."
+                        )
+                    }
+                    navigatableToFullPath[navigatable] = fullPath
+                    routeToNavigatable[fullPath] = navigatable
+                    allNavigatables[fullPath] = navigatable
+
+                    // Keep availableNavigatables for root-level screens (backward compatibility)
+                    if (graph.route == "root") {
+                        availableNavigatables[navigatable.route] = navigatable
                     }
                 }
 
@@ -448,7 +497,8 @@ private data class ComputedNavigationState(
     val systemLayerEntries: List<NavigationEntry>,
     val renderableEntries: List<NavigationEntry>,
     val underlyingScreen: NavigationEntry?,
-    val modalsInStack: List<NavigationEntry>
+    val modalsInStack: List<NavigationEntry>,
+    val underlyingScreenGraphHierarchy: List<String>?
 )
 
 // Internal computation function
@@ -492,6 +542,10 @@ private fun computeNavigationDerivedState(
     } else null
     val modalsInStack = backStack.filter { it.isModal }
 
+    val underlyingScreenGraphHierarchy = underlyingScreen?.let { screen ->
+        precomputedData.graphHierarchies[screen.graphId] ?: listOf(screen.graphId)
+    }
+
     return ComputedNavigationState(
         orderedBackStack = orderedBackStack,
         visibleLayers = visibleLayers,
@@ -510,7 +564,8 @@ private fun computeNavigationDerivedState(
         systemLayerEntries = systemLayerEntries,
         renderableEntries = renderableEntries,
         underlyingScreen = underlyingScreen,
-        modalsInStack = modalsInStack
+        modalsInStack = modalsInStack,
+        underlyingScreenGraphHierarchy = underlyingScreenGraphHierarchy
     )
 }
 

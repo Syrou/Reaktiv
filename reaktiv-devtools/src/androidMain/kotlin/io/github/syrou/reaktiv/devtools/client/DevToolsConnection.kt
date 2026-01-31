@@ -35,12 +35,8 @@ actual class DevToolsConnection actual constructor(private val serverUrl: String
     actual suspend fun connect(clientId: String, clientName: String, platform: String) {
         try {
             _connectionState.value = ConnectionState.CONNECTING
-            println("HERPADERPA - connecting to: $serverUrl")
-            println("HERPADERPA - session: ${_connectionState.value}")
             session = client.webSocketSession(serverUrl)
-            println("HERPADERPA - session: $session")
             _connectionState.value = ConnectionState.CONNECTED
-            println("HERPADERPA - session: ${_connectionState.value}")
             send(DevToolsMessage.ClientRegistration(clientName, clientId, platform))
 
             scope.launch {

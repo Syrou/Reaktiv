@@ -66,6 +66,7 @@ object NavigationAnimations {
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
                     zIndex = zIndex,
+                    onAnimationComplete = onAnimationComplete,
                     content = content
                 )
             }
@@ -94,6 +95,7 @@ object NavigationAnimations {
         screenWidth: Float,
         screenHeight: Float,
         zIndex: Float,
+        onAnimationComplete: (() -> Unit)? = null,
         content: @Composable () -> Unit
     ) {
         val transition = if (isEntering) {
@@ -101,7 +103,7 @@ object NavigationAnimations {
         } else {
             animationDecision?.exitTransition ?: NavTransition.None
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -112,7 +114,8 @@ object NavigationAnimations {
                     animationDecision = animationDecision,
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
-                    entryKey = entry.stableKey
+                    entryKey = entry.stableKey,
+                    onAnimationComplete = onAnimationComplete
                 )
                 .let { modifier ->
                     // Block interactions for exit animations
@@ -272,49 +275,57 @@ private fun Modifier.animateNavTransition(
     animationDecision: AnimationDecision?,
     screenWidth: Float,
     screenHeight: Float,
-    entryKey: String
+    entryKey: String,
+    onAnimationComplete: (() -> Unit)? = null
 ): Modifier {
-    return if (transition == NavTransition.None || animationDecision == null) {
-        this
+    if (transition == NavTransition.None || animationDecision == null) {
+        LaunchedEffect(entryKey, isEntering) {
+            onAnimationComplete?.invoke()
+        }
+        return this
+    }
+
+    val shouldAnimate = if (isEntering) {
+        animationDecision.shouldAnimateEnter
     } else {
-        val shouldAnimate = if (isEntering) {
-            animationDecision.shouldAnimateEnter
-        } else {
-            animationDecision.shouldAnimateExit
+        animationDecision.shouldAnimateExit
+    }
+
+    if (!shouldAnimate || screenWidth <= 0f || screenHeight <= 0f) {
+        LaunchedEffect(entryKey, isEntering) {
+            onAnimationComplete?.invoke()
         }
-        
-        if (!shouldAnimate || screenWidth <= 0f || screenHeight <= 0f) {
-            this
-        } else {
-            val animationKey = "${entryKey}_${isEntering}"
-            val animatable = remember(animationKey) {
-                Animatable(0f)
-            }
-            
-            LaunchedEffect(animationKey) {
-                animatable.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = transition.durationMillis,
-                        easing = LinearOutSlowInEasing
-                    )
-                )
-            }
-            
-            val progress = animatable.value
-            val resolvedTransition = remember(transition, screenWidth, screenHeight, animationDecision.isForward) {
-                transition.resolve(screenWidth, screenHeight, animationDecision.isForward)
-            }
-            
-            graphicsLayer {
-                alpha = resolvedTransition.alpha(progress)
-                scaleX = resolvedTransition.scaleX(progress)
-                scaleY = resolvedTransition.scaleY(progress)
-                translationX = resolvedTransition.translationX(progress)
-                translationY = resolvedTransition.translationY(progress)
-                rotationZ = resolvedTransition.rotationZ(progress)
-                transformOrigin = TransformOrigin.Center
-            }
-        }
+        return this
+    }
+
+    val animationKey = "${entryKey}_${isEntering}"
+    val animatable = remember(animationKey) {
+        Animatable(0f)
+    }
+
+    LaunchedEffect(animationKey) {
+        animatable.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = transition.durationMillis,
+                easing = LinearOutSlowInEasing
+            )
+        )
+        onAnimationComplete?.invoke()
+    }
+
+    val progress = animatable.value
+    val resolvedTransition = remember(transition, screenWidth, screenHeight, animationDecision.isForward) {
+        transition.resolve(screenWidth, screenHeight, animationDecision.isForward)
+    }
+
+    return graphicsLayer {
+        alpha = resolvedTransition.alpha(progress)
+        scaleX = resolvedTransition.scaleX(progress)
+        scaleY = resolvedTransition.scaleY(progress)
+        translationX = resolvedTransition.translationX(progress)
+        translationY = resolvedTransition.translationY(progress)
+        rotationZ = resolvedTransition.rotationZ(progress)
+        transformOrigin = TransformOrigin.Center
     }
 }

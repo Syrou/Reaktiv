@@ -1,13 +1,12 @@
 package io.github.syrou.reaktiv.navigation.util
 
-import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 
 fun findLayoutGraphsInHierarchy(
     currentGraphId: String,
-    navigationState: NavigationState
+    graphDefinitions: Map<String, NavigationGraph>
 ): List<NavigationGraph> {
-    val hierarchyPath = buildGraphHierarchyPath(currentGraphId, navigationState.graphDefinitions)
+    val hierarchyPath = buildGraphHierarchyPath(currentGraphId, graphDefinitions)
     return hierarchyPath.filter { it.layout != null }
 }
 

@@ -162,26 +162,67 @@ object UserModule : Module<UserState, UserAction>, CustomTypeRegistrar {
 - `NavigationModule` uses this for Screen, Modal, and NavigationGraph types
 - User modules can use it for their own polymorphic types
 
-### NavigationLogic Pattern for Complex Operations
+### NavigationLogic Pattern - Imperative Methods
 
-**Important**: When adding new navigation features that involve complex logic, side effects, or coordinated state updates, follow this pattern:
+**Current Pattern**: NavigationLogic uses the imperative pattern with public suspend methods, NOT the invoke() pattern. When extending NavigationLogic with new features, continue following this pattern:
 
-1. **Keep reducers simple**: Only handle pure state transformations in the reducer
-2. **Use NavigationLogic for complex operations**: Add handling in `NavigationLogic.invoke()` for actions that require:
-   - Multiple state updates
-   - Validation and bounds checking
-   - Coordination between different parts of navigation state
-   - Side effects or async operations
+**How NavigationLogic Currently Works:**
+
+1. **Public suspend methods** for navigation operations:
+   - `suspend fun navigate(block: suspend NavigationBuilder.() -> Unit)`
+   - `suspend fun navigate(route: String, params: Params, ...)`
+   - `suspend fun navigateBack()`
+   - `suspend fun popUpTo(route: String, inclusive: Boolean)`
+   - `suspend fun clearBackStack(...)`
+
+2. **StoreAccessor extensions** call NavigationLogic methods directly:
+   ```kotlin
+   suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit) {
+       val navigationLogic = selectLogic<NavigationLogic>()
+       navigationLogic.navigate(block)
+   }
+   ```
+
+3. **Methods dispatch actions internally** for state updates:
+   ```kotlin
+   private suspend fun executeNavigation(builder: NavigationBuilder, source: String) {
+       val finalState = computeFinalNavigationState(...)
+       val action = determineNavigationAction(...)
+       storeAccessor.dispatch(action)  // Dispatch to reducer
+   }
+   ```
+
+**When Adding New Navigation Features:**
+
+1. **Add a public suspend method** to NavigationLogic (NOT an invoke() handler)
+2. **Optionally add a StoreAccessor extension** for convenience
+3. **Dispatch actions internally** to update state via the reducer
+4. **Keep reducers simple** - only handle pure state transformations
 
 ```kotlin
-// In NavigationLogic.invoke()
-is NavigationAction.YourComplexAction -> handleYourComplexAction(action)
+// ✅ Correct: Add public method to NavigationLogic
+suspend fun newNavigationFeature(param: String) {
+    // Complex logic, validation, state computation
+    val action = NavigationAction.UpdateState(...)
+    storeAccessor.dispatch(action)
+}
 
-// Complex logic handled in dedicated method
-private suspend fun handleYourComplexAction(action: NavigationAction.YourComplexAction) {
-    // Complex validation, state coordination, follow-up actions
+// ✅ Correct: Add StoreAccessor extension
+suspend fun StoreAccessor.newNavigationFeature(param: String) {
+    val navLogic = selectLogic<NavigationLogic>()
+    navLogic.newNavigationFeature(param)
+}
+
+// ❌ Wrong: Don't add invoke() handling
+override suspend fun invoke(action: NavigationAction) {
+    // DON'T DO THIS - NavigationLogic doesn't use invoke()
 }
 ```
+
+**Architecture Notes:**
+- NavigationLogic uses `precomputedData` for static configuration (graphs, routes, etc.)
+- NavigationLogic accesses `NavigationState` only for dynamic runtime state (currentEntry, backStack, etc.)
+- Actions (Navigate, Back, Replace, BatchUpdate) are for state updates, not logic triggers
 
 ### Code Style Guidelines
 

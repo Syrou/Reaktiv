@@ -112,7 +112,7 @@ fun NewsSection() {
             onClick = {
                 store.launch {
                     store.navigation {
-                        navigateTo<NewsListScreen>()
+                        navigateTo(NewsListScreen.fullPath)
                     }
                 }
             },

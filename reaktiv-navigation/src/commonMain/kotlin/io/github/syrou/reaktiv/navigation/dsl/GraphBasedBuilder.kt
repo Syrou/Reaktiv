@@ -21,6 +21,16 @@ class GraphBasedBuilder {
         screenRetentionDuration = duration
     }
 
+    /**
+     * DSL function to create a GuidedFlow definition
+     *
+     * @deprecated Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.
+     * This provides better separation of concerns and more flexibility.
+     */
+    @Deprecated(
+        message = "Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.",
+        level = DeprecationLevel.WARNING
+    )
     fun guidedFlow(route: String, block: GuidedFlowBuilder.() -> Unit) {
         val definition = io.github.syrou.reaktiv.navigation.dsl.guidedFlow(route, block)
         guidedFlowDefinitions[definition.guidedFlow.route] = definition

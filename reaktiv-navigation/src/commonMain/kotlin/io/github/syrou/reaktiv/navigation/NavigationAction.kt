@@ -72,4 +72,12 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
         val transitionState: NavigationTransitionState
     ) : NavigationAction(), HighPriorityAction
 
+    /**
+     * Signals that a screen transition animation has completed.
+     * The reducer will clear previousEntry on back navigation,
+     * or keep it for forward navigation (to support fast back).
+     */
+    @Serializable
+    data object AnimationCompleted : NavigationAction(), HighPriorityAction
+
 }

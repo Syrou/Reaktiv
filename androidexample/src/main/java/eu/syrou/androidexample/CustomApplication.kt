@@ -36,11 +36,12 @@ import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectOverviewS
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectSettingsScreen
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTabLayout
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTasksScreen
+import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.devtools.DevToolsModule
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
-import io.github.syrou.reaktiv.devtools.middleware.DevToolsMiddleware
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.middleware.NavigationSpamMiddleware
 import kotlinx.coroutines.CoroutineScope
@@ -72,6 +73,7 @@ class CustomApplication : Application() {
                 TwitchAuthWebViewScreen,
                 VideosListScreen,
                 StreamsListScreen,
+                DevToolsScreen,
             )
             modals(NotificationModal)
             graph("home") {
@@ -123,9 +125,8 @@ class CustomApplication : Application() {
         screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
     }
 
-    private val devToolsMiddleware = DevToolsMiddleware(
+    private val devToolsModule = DevToolsModule(
         config = DevToolsConfig(
-            serverUrl = "ws://100.125.101.2:8080/ws",
             clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
             platform = "Android ${Build.VERSION.RELEASE}",
             enabled = true
@@ -145,8 +146,8 @@ class CustomApplication : Application() {
         module(TestNavigationModule)
         module(TwitchStreamsModule)
         module(navigationModule)
+        module(devToolsModule)
         middlewares(
-            devToolsMiddleware.middleware,
             loggingMiddleware,
             NavigationSpamMiddleware.create(),
             createTestNavigationMiddleware()

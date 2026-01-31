@@ -2,6 +2,7 @@
 
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
@@ -36,7 +37,7 @@ class GuidedFlowSpamProtectionTest {
 
     @BeforeTest
     fun setup() {
-        io.github.syrou.reaktiv.core.util.ReaktivDebug.enable()
+        ReaktivDebug.enable()
     }
 
     @Serializable

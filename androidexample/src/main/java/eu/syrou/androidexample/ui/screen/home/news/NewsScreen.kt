@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,11 @@ object NewsScreen : Screen {
     ) {
         LaunchedEffect(Unit) {
             println("HERPADERPA - NewsScreen Should trigger once")
+        }
+        DisposableEffect(Unit) {
+            onDispose {
+                println("HERPADERPA - Newsscreen dispose")
+            }
         }
         LazyColumn(
             modifier = Modifier

@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.zIndex
+import io.github.syrou.reaktiv.compose.rememberDispatcher
+import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -30,13 +32,14 @@ sealed class LayerType {
 fun UnifiedLayerRenderer(
     layerType: LayerType,
     entries: List<NavigationEntry>,
-    navigationState: NavigationState
+    navigationState: NavigationState,
+    graphDefinitions: Map<String, NavigationGraph>
 ) {
     if (entries.isNotEmpty()) {
         when (layerType) {
-            LayerType.Content -> ContentLayerRenderer(entries, navigationState)
+            LayerType.Content -> ContentLayerRenderer(entries, navigationState, graphDefinitions)
             LayerType.GlobalOverlay -> OverlayLayerRenderer(entries)
-            LayerType.System -> SystemLayerRenderer(entries, navigationState)
+            LayerType.System -> SystemLayerRenderer(entries, navigationState, graphDefinitions)
         }
     }
 }
@@ -50,15 +53,22 @@ fun UnifiedLayerRenderer(
 @Composable
 private fun ContentLayerRenderer(
     entries: List<NavigationEntry>,
-    navigationState: NavigationState
+    navigationState: NavigationState,
+    graphDefinitions: Map<String, NavigationGraph>
 ) {
     val currentEntry = entries.lastOrNull() ?: navigationState.currentEntry
+    val dispatch = rememberDispatcher()
 
     // Get animation state managing current + previous entries
-    val animationState = rememberLayerAnimationState(listOf(currentEntry))
+    val animationState = rememberLayerAnimationState(
+        entries = listOf(currentEntry),
+        onAnimationComplete = {
+            dispatch(NavigationAction.AnimationCompleted)
+        }
+    )
 
     // Apply layout hierarchy for proper nesting
-    val layoutGraphs = findLayoutGraphsInHierarchy(currentEntry.graphId, navigationState)
+    val layoutGraphs = findLayoutGraphsInHierarchy(currentEntry.graphId, graphDefinitions)
     ApplyLayoutsHierarchy(layoutGraphs) {
         ContentRenderer(animationState)
     }
@@ -117,7 +127,8 @@ private fun OverlayLayerRenderer(
 @Composable
 private fun SystemLayerRenderer(
     entries: List<NavigationEntry>,
-    navigationState: NavigationState
+    navigationState: NavigationState,
+    graphDefinitions: Map<String, NavigationGraph>
 ) {
     entries
         .sortedBy { it.navigatable.elevation }
@@ -173,7 +184,10 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
                     animationDecision = animationState.animationDecision,
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
-                    zIndex = zIndex
+                    zIndex = zIndex,
+                    onAnimationComplete = if (isCurrentScreen) {
+                        animationState.onAnimationComplete
+                    } else null
                 ) {
                     entry.navigatable.Content(entry.params)
                 }

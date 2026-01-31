@@ -62,18 +62,62 @@ typealias DispatchSuspend = (suspend (ModuleAction) -> Unit)
 
 interface Logic {
 
+    /**
+     * @deprecated The invoke() pattern is deprecated. Define specific suspend methods in your Logic class
+     * and call them directly instead. Use ModuleWithLogic for typed access to your logic methods.
+     *
+     * Example migration:
+     * ```kotlin
+     * // Old way (deprecated):
+     * logic.invoke(SomeAction())
+     * logic(SomeAction())
+     *
+     * // New way (recommended):
+     * class MyLogic : ModuleLogic<MyAction>() {
+     *     suspend fun handleSomeAction(data: String) {
+     *         // implementation
+     *     }
+     * }
+     * // Call directly:
+     * myLogic.handleSomeAction("data")
+     * ```
+     */
+    @Deprecated(
+        message = "The invoke() pattern is deprecated. Define specific suspend methods in your Logic class " +
+                "and call them directly instead. Use ModuleWithLogic for typed access.",
+        level = DeprecationLevel.WARNING
+    )
     suspend operator fun invoke(action: ModuleAction)
 }
 
 
 open class ModuleLogic<A : ModuleAction> : Logic {
+    /**
+     * @deprecated The invoke() pattern is deprecated. Define specific suspend methods in your Logic subclass
+     * and call them directly for better type safety and clarity.
+     */
+    @Deprecated(
+        message = "The invoke() pattern is deprecated. Define specific suspend methods and call them directly.",
+        level = DeprecationLevel.WARNING
+    )
     override suspend fun invoke(action: ModuleAction) {
     }
 
     companion object {
 
+        /**
+         * @deprecated The invoke() pattern is deprecated. Create a proper ModuleLogic subclass with named methods instead.
+         */
+        @Deprecated(
+            message = "The invoke() pattern is deprecated. Create a proper ModuleLogic subclass with named methods.",
+            level = DeprecationLevel.WARNING
+        )
         operator fun <A : ModuleAction> invoke(logic: suspend (ModuleAction) -> Unit): ModuleLogic<A> {
             return object : ModuleLogic<A>() {
+                @Deprecated(
+                    message = "The invoke() pattern is deprecated.",
+                    level = DeprecationLevel.WARNING
+                )
                 override suspend fun invoke(action: ModuleAction) {
                     logic(action)
                 }
@@ -92,6 +136,16 @@ interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic<A>>
     }
 }
 
+/**
+ * @deprecated Consider using ModuleWithLogic for better type safety and direct access to logic methods.
+ * Module still works but ModuleWithLogic provides typed logic access without needing invoke().
+ * This is a soft deprecation - Module remains functional but ModuleWithLogic is recommended.
+ */
+@Deprecated(
+    message = "Consider using ModuleWithLogic for better type safety and direct access to logic methods. " +
+            "Module still works but ModuleWithLogic provides typed logic access.",
+    level = DeprecationLevel.WARNING
+)
 interface Module<S : ModuleState, A : ModuleAction> {
 
     val initialState: S
@@ -101,6 +155,31 @@ interface Module<S : ModuleState, A : ModuleAction> {
 
 
     val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<A>
+
+    /**
+     * Optional factory for creating a middleware provided by this module.
+     *
+     * When a module provides a middleware factory, the middleware will be created
+     * and automatically registered with the Store during initialization. Module
+     * middlewares are applied after explicitly registered middlewares (closer to
+     * the reducer in the chain).
+     *
+     * The middleware can use `storeAccessor.selectLogic<T>()` to access Logic,
+     * which will suspend until Logic is initialized.
+     *
+     * Example usage:
+     * ```kotlin
+     * class DevToolsModule(config: DevToolsConfig, scope: CoroutineScope)
+     *     : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsLogic> {
+     *
+     *     override val createMiddleware: (() -> Middleware) = {
+     *         DevToolsMiddleware(config, scope).middleware
+     *     }
+     * }
+     * ```
+     */
+    val createMiddleware: (() -> Middleware)?
+        get() = null
 
     suspend fun selectStateFlow(store: Store): StateFlow<S> {
         @Suppress("UNCHECKED_CAST")
@@ -135,7 +214,15 @@ interface Module<S : ModuleState, A : ModuleAction> {
  *     }
  * }
  * ```
+ *
+ * @deprecated StatefulModule is no longer needed. Static configuration data should not be stored in state.
+ * Use Module or ModuleWithLogic directly instead. This interface will be removed in a future version.
  */
+@Deprecated(
+    message = "StatefulModule is no longer needed. Static configuration data should not be stored in state. " +
+            "Use Module or ModuleWithLogic directly instead.",
+    level = DeprecationLevel.WARNING
+)
 interface StatefulModule<S : ModuleState, A : ModuleAction> : Module<S, A> {
     /**
      * Merges externally synced state with local state.
@@ -159,7 +246,15 @@ interface StatefulModule<S : ModuleState, A : ModuleAction> : Module<S, A> {
  *     }
  * }
  * ```
+ *
+ * @deprecated StatefulModuleWithLogic is no longer needed. Static configuration data should not be stored in state.
+ * Use ModuleWithLogic directly instead. This interface will be removed in a future version.
  */
+@Deprecated(
+    message = "StatefulModuleWithLogic is no longer needed. Static configuration data should not be stored in state. " +
+            "Use ModuleWithLogic directly instead.",
+    level = DeprecationLevel.WARNING
+)
 interface StatefulModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic<A>> :
     StatefulModule<S, A>, ModuleWithLogic<S, A, L>
 
@@ -249,7 +344,8 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
 class Store private constructor(
     private val coroutineScope: CoroutineScope,
     private val middlewares: List<Middleware>,
-    private val modules: List<Module<ModuleState, ModuleAction>>,
+    @PublishedApi
+    internal val modules: List<Module<ModuleState, ModuleAction>>,
     private val persistenceManager: PersistenceManager?,
     val serializersModule: SerializersModule,
 ) : StoreAccessor(coroutineScope), InternalStoreOperations {
@@ -259,12 +355,6 @@ class Store private constructor(
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
-
-    fun debug(){
-        modules.forEach { module ->
-            println("module state: ${module.initialState}")
-        }
-    }
 
     @OptIn(DelicateCoroutinesApi::class)
     override val dispatch: Dispatch = { action ->
@@ -461,6 +551,21 @@ class Store private constructor(
         }
     }
 
+    /**
+     * Get a module instance by its type.
+     *
+     * Example usage:
+     * ```kotlin
+     * val navModule = store.getModule<NavigationModule>()
+     *     ?: error("NavigationModule not registered")
+     * ```
+     *
+     * @return The module instance if found, null otherwise
+     */
+    inline fun <reified T : Module<*, *>> getModule(): T? {
+        return modules.filterIsInstance<T>().firstOrNull()
+    }
+
 
     suspend inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = selectLogic(L::class)
 
@@ -585,7 +690,13 @@ class StoreDSL {
                 persistenceStrategy = it
             )
         }
-        return Store.create(coroutineScope, middlewares, modules, persistenceManager, serializersModule)
+
+        // Combine explicit middlewares with module-provided middlewares
+        // Explicit middlewares run first (outer), module middlewares run after (inner/closer to reducer)
+        val moduleMiddlewares = modules.mapNotNull { it.createMiddleware?.invoke() }
+        val allMiddlewares = middlewares + moduleMiddlewares
+
+        return Store.create(coroutineScope, allMiddlewares, modules, persistenceManager, serializersModule)
     }
 }
 

@@ -22,7 +22,20 @@ class RouteResolver private constructor(
 ) {
 
     companion object {
-        
+
+        private fun findGraphForNavigatable(
+            navigatable: Navigatable?,
+            graphDefinitions: Map<String, NavigationGraph>
+        ): String? {
+            if (navigatable == null) return null
+            for ((graphId, graph) in graphDefinitions) {
+                if (graph.navigatables.contains(navigatable)) {
+                    return graphId
+                }
+            }
+            return null
+        }
+
         fun create(graphDefinitions: Map<String, NavigationGraph>): RouteResolver {
             val routeToNavigatable = mutableMapOf<String, Navigatable>()
             val navigatableToFullPath = mutableMapOf<Navigatable, String>()
@@ -43,28 +56,33 @@ class RouteResolver private constructor(
                 val graphPath = buildGraphPath(graphId, graphHierarchy)
                 for (navigatable in graph.navigatables) {
                     val fullPath = if (graphPath.isEmpty()) navigatable.route else "$graphPath/${navigatable.route}"
-                    routeToNavigatable[navigatable.route] = navigatable
+
+                    // Only register by full path to avoid route collisions between graphs
+                    // For root graph screens, fullPath == navigatable.route (no prefix)
+                    if (routeToNavigatable.containsKey(fullPath)) {
+                        val existing = routeToNavigatable[fullPath]
+                        throw IllegalStateException(
+                            "Route collision detected: '$fullPath' is already registered to " +
+                            "'${existing?.route}' in graph '${findGraphForNavigatable(existing, graphDefinitions)}'. " +
+                            "Each screen must have a unique full path."
+                        )
+                    }
                     routeToNavigatable[fullPath] = navigatable
                     navigatableToFullPath[navigatable] = fullPath
-                    if (navigatable.route.contains("{")) {
-                        val fullPathTemplate = if (graphPath.isEmpty()) {
-                            navigatable.route
-                        } else {
-                            "$graphPath/${navigatable.route}"
-                        }
 
+                    if (navigatable.route.contains("{")) {
                         parameterizedRoutes.add(
                             ParameterizedRouteEntry(
                                 template = navigatable.route,
-                                fullTemplate = fullPathTemplate,
+                                fullTemplate = fullPath,
                                 navigatable = navigatable,
                                 graphId = graphId,
                                 paramNames = extractParameterNames(navigatable.route),
-                                regex = createRouteRegex(fullPathTemplate) // Use full path for regex!
+                                regex = createRouteRegex(fullPath)
                             )
                         )
 
-                        ReaktivDebug.nav("📝 Added parameterized route: $fullPathTemplate -> ${navigatable.route}")
+                        ReaktivDebug.nav("📝 Added parameterized route: $fullPath -> ${navigatable.route}")
                     } else {
                         fullPathToResolution[fullPath] = RouteResolution(
                             targetNavigatable = navigatable,
@@ -72,14 +90,6 @@ class RouteResolver private constructor(
                             extractedParams = Params.empty(),
                             isGraphReference = false
                         )
-                        if (!fullPathToResolution.containsKey(navigatable.route)) {
-                            fullPathToResolution[navigatable.route] = RouteResolution(
-                                targetNavigatable = navigatable,
-                                targetGraphId = graphId,
-                                extractedParams = Params.empty(),
-                                isGraphReference = false
-                            )
-                        }
                     }
                 }
                 val startResolution = resolveGraphStartNavigatable(graph, graphDefinitions)
@@ -224,8 +234,61 @@ class RouteResolver private constructor(
             return parameterizedResult
         }
 
+        // Fallback: Try to find by simple route name (for backward compatibility)
+        val simpleRouteResult = resolveSimpleRoute(cleanRoute)
+        if (simpleRouteResult != null) {
+            return simpleRouteResult
+        }
+
         ReaktivDebug.nav("❌ Route not found: $cleanRoute")
         return null
+    }
+
+    /**
+     * Fallback resolution for simple route names (without full path).
+     * If exactly one navigatable matches the simple route, returns it with a deprecation warning.
+     * If multiple navigatables match, logs an error with disambiguation help.
+     */
+    private fun resolveSimpleRoute(simpleRoute: String): RouteResolution? {
+        val matches = navigatableToFullPath.entries
+            .filter { (navigatable, _) -> navigatable.route == simpleRoute }
+            .map { (navigatable, fullPath) -> navigatable to fullPath }
+
+        return when {
+            matches.isEmpty() -> null
+
+            matches.size == 1 -> {
+                val (navigatable, fullPath) = matches.first()
+                val graphId = findGraphForNavigatable(navigatable) ?: "root"
+
+                // Log deprecation warning
+                println(
+                    "⚠️ Navigation Warning: Using simple route '$simpleRoute' is deprecated. " +
+                    "Please use the full path '$fullPath' or type-safe navigation " +
+                    "(e.g., navigateTo<${navigatable::class.simpleName}>()) instead. " +
+                    "Simple route resolution may be removed in a future version."
+                )
+                ReaktivDebug.nav("⚠️ Simple route fallback used: '$simpleRoute' -> '$fullPath'")
+
+                RouteResolution(
+                    targetNavigatable = navigatable,
+                    targetGraphId = graphId,
+                    extractedParams = Params.empty(),
+                    isGraphReference = false
+                )
+            }
+
+            else -> {
+                val paths = matches.map { it.second }
+                println(
+                    "❌ Navigation Error: Ambiguous route '$simpleRoute' matches multiple screens: " +
+                    "${paths.joinToString(", ")}. " +
+                    "Please use the full path or type-safe navigation to disambiguate."
+                )
+                ReaktivDebug.nav("❌ Ambiguous simple route: '$simpleRoute' matches: $paths")
+                null
+            }
+        }
     }
 
     

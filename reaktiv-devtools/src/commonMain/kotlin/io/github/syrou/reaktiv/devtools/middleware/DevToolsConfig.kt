@@ -6,7 +6,7 @@ import kotlin.uuid.Uuid
 /**
  * Configuration for DevTools middleware.
  *
- * Example usage for Android:
+ * Example usage for Android with auto-connect:
  * ```kotlin
  * import android.os.Build
  *
@@ -17,7 +17,18 @@ import kotlin.uuid.Uuid
  * )
  * ```
  *
- * @param serverUrl WebSocket server URL (default: ws://localhost:8080/ws)
+ * Example usage for ad-hoc connection (connect later via action):
+ * ```kotlin
+ * val config = DevToolsConfig(
+ *     serverUrl = null, // Don't auto-connect
+ *     platform = "${Build.MANUFACTURER} ${Build.MODEL}"
+ * )
+ *
+ * // Later, connect via dispatched action:
+ * dispatch(DevToolsAction.Connect("ws://192.168.1.100:8080/ws"))
+ * ```
+ *
+ * @param serverUrl WebSocket server URL. If null, won't auto-connect (use DevToolsAction.Connect)
  * @param clientName Display name for this client in DevTools UI
  * @param clientId Unique identifier for this client (auto-generated UUID)
  * @param platform Platform/device description (e.g., "Samsung Galaxy S23", "Desktop - macOS")
@@ -27,7 +38,7 @@ import kotlin.uuid.Uuid
  */
 @OptIn(ExperimentalUuidApi::class)
 data class DevToolsConfig(
-    val serverUrl: String = "ws://localhost:8080/ws",
+    val serverUrl: String? = null,
     val clientName: String = "Client-${generateId()}",
     val clientId: String = generateId(),
     val platform: String,

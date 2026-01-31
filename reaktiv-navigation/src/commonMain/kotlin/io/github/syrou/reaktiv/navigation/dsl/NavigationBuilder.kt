@@ -10,6 +10,7 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
+import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.CommonUrlEncoder
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
@@ -118,6 +119,28 @@ class NavigationBuilder(
     @PublishedApi
     internal var shouldClearActiveGuidedFlowState: Boolean = false
 
+    /**
+     * Get the full path for a Navigatable within the navigation builder context.
+     *
+     * This allows convenient access to full paths when building navigation operations.
+     *
+     * Example usage:
+     * ```kotlin
+     * store.navigation {
+     *     navigateTo(ToolsScreen.fullPath)
+     *     // or with params:
+     *     navigateTo(ProfileScreen.fullPath) {
+     *         putString("userId", "123")
+     *     }
+     * }
+     * ```
+     *
+     * @return The full path for the navigatable
+     * @throws IllegalStateException if the navigatable is not registered
+     */
+    val Navigatable.fullPath: String
+        get() = storeAccessor.getNavigationModule().getFullPath(this)
+            ?: error("Navigatable '${this.route}' is not registered in any navigation graph")
 
     fun navigateTo(path: String, replaceCurrent: Boolean = false, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
         val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
@@ -316,7 +339,7 @@ class NavigationBuilder(
     /**
      * Execute guided flow operations atomically with navigation operations.
      * All guided flow modifications and steps will be executed as part of the same BatchUpdate.
-     * 
+     *
      * Example:
      * ```kotlin
      * navigation {
@@ -324,13 +347,19 @@ class NavigationBuilder(
      *         removeSteps(listOf(2, 3))
      *         nextStep()
      *     }
-     *     guidedFlow("onboarding") { 
-     *         updateStepParams(0, mapOf("userId" to "123")) 
+     *     guidedFlow("onboarding") {
+     *         updateStepParams(0, mapOf("userId" to "123"))
      *     }
      *     navigateTo("dashboard")
      * }
      * ```
+     *
+     * @deprecated Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.
      */
+    @Deprecated(
+        message = "Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.",
+        level = DeprecationLevel.WARNING
+    )
     suspend fun guidedFlow(flowRoute: String, block: suspend GuidedFlowOperationBuilder.() -> Unit): NavigationBuilder {
         val builder = guidedFlowOperations.getOrPut(flowRoute) { 
             GuidedFlowOperationBuilder(flowRoute, storeAccessor) 
@@ -342,7 +371,7 @@ class NavigationBuilder(
     /**
      * Execute guided flow operations on the currently active guided flow.
      * Automatically detects the active flow route and operates on it.
-     * 
+     *
      * Example:
      * ```kotlin
      * store.navigation {
@@ -352,9 +381,14 @@ class NavigationBuilder(
      *     }
      * }
      * ```
-     * 
+     *
      * @throws IllegalStateException if no guided flow is currently active
+     * @deprecated Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.
      */
+    @Deprecated(
+        message = "Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.",
+        level = DeprecationLevel.WARNING
+    )
     suspend fun activeGuidedFlow(block: suspend GuidedFlowOperationBuilder.() -> Unit): NavigationBuilder {
         val currentState = storeAccessor.selectState<NavigationState>().first()
         val activeFlowRoute = currentState.activeGuidedFlowState?.flowRoute
@@ -428,13 +462,16 @@ class NavigationBuilder(
 
     @PublishedApi
     internal suspend fun <T : Navigatable> findNavigatableByType(navigatableClass: KClass<T>): Navigatable {
-        val navigationState = storeAccessor.selectState<NavigationState>().first()
-        val matchingNavigatable = navigationState.allAvailableNavigatables.values
+        val navModule = storeAccessor.getNavigationModule()
+        val allNavigatables = navModule.getGraphDefinitions().values
+            .flatMap { graph -> graph.navigatables }
+
+        val matchingNavigatable = allNavigatables
             .firstOrNull { navigatable -> navigatable::class == navigatableClass }
 
         return matchingNavigatable ?: throw RouteNotFoundException(
             "Navigatable ${navigatableClass.simpleName} not found in navigation graph. " +
-                    "Available navigatables: ${navigationState.allAvailableNavigatables.values.map { it::class.simpleName }}"
+                    "Available navigatables: ${allNavigatables.map { it::class.simpleName }}"
         )
     }
     

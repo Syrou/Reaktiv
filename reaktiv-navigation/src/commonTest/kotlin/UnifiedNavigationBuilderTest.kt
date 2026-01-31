@@ -470,9 +470,6 @@ class UnifiedNavigationBuilderTest {
         assertEquals(listOf("home", "workspace", "projects", "project-tasks"), state.currentPathSegments)
         assertEquals(listOf("home", "workspace", "projects"), state.currentGraphHierarchy)
         assertEquals(4, state.navigationDepth)
-
-        // Test helper methods would be tested here
-        assertTrue(state.allAvailableNavigatables.isNotEmpty())
     }
 
     @Test

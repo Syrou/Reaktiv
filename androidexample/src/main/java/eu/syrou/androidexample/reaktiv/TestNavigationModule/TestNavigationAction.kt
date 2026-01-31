@@ -1,7 +1,9 @@
 package eu.syrou.androidexample.reaktiv.TestNavigationModule
 
+import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.core.StoreAccessor
 import kotlinx.serialization.Serializable
 
 sealed class TestNavigationAction : ModuleAction(TestNavigationModule::class) {
@@ -16,9 +18,9 @@ sealed class TestNavigationAction : ModuleAction(TestNavigationModule::class) {
 data class TestNavigationState(val operationCount: Int = 0) : ModuleState
 
 // Test module to hold the action
-object TestNavigationModule : io.github.syrou.reaktiv.core.Module<TestNavigationState, TestNavigationAction> {
+object TestNavigationModule : Module<TestNavigationState, TestNavigationAction> {
     override val initialState = TestNavigationState()
-    
+
     override val reducer: (TestNavigationState, TestNavigationAction) -> TestNavigationState = { state, action ->
         when (action) {
             is TestNavigationAction.TriggerMultipleNavigation,
@@ -29,8 +31,9 @@ object TestNavigationModule : io.github.syrou.reaktiv.core.Module<TestNavigation
             }
         }
     }
-    
-    override val createLogic: (io.github.syrou.reaktiv.core.StoreAccessor) -> io.github.syrou.reaktiv.core.ModuleLogic<TestNavigationAction> = { 
-        io.github.syrou.reaktiv.core.ModuleLogic { }
-    }
+
+    override val createLogic: (StoreAccessor) -> io.github.syrou.reaktiv.core.ModuleLogic<TestNavigationAction> =
+        {
+            io.github.syrou.reaktiv.core.ModuleLogic { }
+        }
 }

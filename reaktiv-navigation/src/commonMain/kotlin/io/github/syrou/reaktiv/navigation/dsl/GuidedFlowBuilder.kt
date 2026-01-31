@@ -281,7 +281,14 @@ class GuidedFlowStepBuilder(
 
 /**
  * DSL function to create a GuidedFlow definition
+ *
+ * @deprecated Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.
+ * This provides better separation of concerns and more flexibility.
  */
+@Deprecated(
+    message = "Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.",
+    level = DeprecationLevel.WARNING
+)
 fun guidedFlow(route: String, block: GuidedFlowBuilder.() -> Unit): GuidedFlowDefinition {
     val builder = GuidedFlowBuilder(GuidedFlow(route))
     builder.block()
@@ -290,7 +297,14 @@ fun guidedFlow(route: String, block: GuidedFlowBuilder.() -> Unit): GuidedFlowDe
 
 /**
  * DSL function to create a GuidedFlow definition with a GuidedFlow object
+ *
+ * @deprecated Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.
+ * This provides better separation of concerns and more flexibility.
  */
+@Deprecated(
+    message = "Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.",
+    level = DeprecationLevel.WARNING
+)
 fun guidedFlow(guidedFlow: GuidedFlow, block: GuidedFlowBuilder.() -> Unit): GuidedFlowDefinition {
     val builder = GuidedFlowBuilder(guidedFlow)
     builder.block()
