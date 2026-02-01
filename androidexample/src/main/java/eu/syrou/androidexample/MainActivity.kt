@@ -70,10 +70,12 @@ class MainActivity : ComponentActivity() {
                 val path = uri.path
                 // This will give you a list: ["navigation", "user", "edit", "456"]
                 val segments = uri.pathSegments
-                println("KASTRULL - DEEP LINK PATH: $path")
+                val route = path?.replace("/navigation/", "") ?: ""
+                println("KASTRULL - DEEP LINK PATH: $path, route: $route")
                 customApp.store.launch {
                     customApp.store.navigation {
-                        navigateTo(path?.replace("/navigation/", "") ?: "")
+                        // Use synthesizeBackstack to build proper backstack for deep links
+                        navigateTo(route, synthesizeBackstack = true)
                     }
                 }
             }

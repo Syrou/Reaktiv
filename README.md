@@ -4,70 +4,250 @@ Reaktiv is a powerful MVLI (Model-View-Logic-Intent) library for Kotlin Multipla
 
 ## Features
 
-- **MVLI Architecture**: Implements a unidirectional data flow pattern with a distinct Logic layer for enhanced separation of concerns.
-- **Kotlin Multiplatform**: Supports development for multiple platforms from a single codebase.
-- **Modular Design**: Consists of three main modules: Core, Navigation, and Compose.
-- **Type-safe Navigation**: Offers a type-safe and flexible navigation system.
-- **Jetpack Compose Integration**: Seamless integration with Jetpack Compose for declarative UI development.
-- **Coroutine Support**: Leverages Kotlin Coroutines for efficient asynchronous programming.
+- **MVLI Architecture**: Implements a unidirectional data flow pattern with a distinct Logic layer for enhanced separation of concerns
+- **Kotlin Multiplatform**: Supports Android, iOS, Desktop, and Web from a single codebase
+- **Type-safe Navigation**: Powerful navigation system with nested graphs, deep linking, modals, and automatic backstack synthesis
+- **Jetpack Compose Integration**: Seamless integration with Compose Multiplatform for declarative UI
+- **DevTools Support**: Real-time debugging with state inspection and time-travel capabilities
+- **State Persistence**: Built-in support for saving and restoring application state
+- **Coroutine-First**: Built entirely on Kotlin Coroutines for efficient asynchronous operations
 
 ## Modules
 
 ### Core
 
-The Core module provides the fundamental building blocks of the Reaktiv MVLI architecture. It includes:
+The foundation of Reaktiv providing the MVLI architecture components:
 
-- State management
-- Action dispatching
-- Module system with Logic layer
-- Middleware support
+- `ModuleWithLogic<S, A, L>` - Type-safe module definition with state, actions, and logic
+- `Store` - Central state manager coordinating all modules
+- `StoreAccessor` - Interface for accessing state, logic, and dispatch
+- Middleware system for cross-cutting concerns (logging, analytics, etc.)
+- State persistence with customizable strategies
+- `CustomTypeRegistrar` for polymorphic serialization
+- `HighPriorityAction` for urgent action processing
+- `ReaktivDebug` utilities for development logging
 
 [Learn more about the Core module](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-core/README.md)
 
 ### Navigation
 
-The Navigation module extends the Core functionality with a powerful navigation system. It features:
+A comprehensive type-safe navigation system:
 
-- Type-safe route definitions
-- Deep linking support
-- Navigation state management
-- Animated transitions
+- **Nested Graph Hierarchies** - Organize screens into logical groups with unlimited nesting
+- **Screen & Modal Support** - Full modal system with dimming, backdrop handling, and layering
+- **Deep Linking** - Automatic backstack synthesis from URL paths
+- **Transitions** - 20+ built-in transitions with custom animation support
+- **Screen Layouts** - Graph-level scaffolds for shared UI (app bars, bottom navigation)
+- **Lifecycle Callbacks** - `onAddedToBackstack()` and `onRemovedFromBackstack()` hooks
+- **Type-safe Parameters** - `Params` class with typed access and serialization
+- **RenderLayer System** - CONTENT, GLOBAL_OVERLAY, and SYSTEM layers with z-ordering
+- **NotFoundScreen** - Configurable fallback for undefined routes
 
 [Learn more about the Navigation module](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-navigation/README.md)
 
 ### Compose
 
-The Compose module offers seamless integration with Jetpack Compose, making it easy to use Reaktiv in declarative UI applications. It includes:
+Jetpack Compose integration for reactive UI:
 
-- Compose-specific extensions
-- State observation utilities
-- Easy-to-use composables for common Reaktiv patterns
+- `StoreProvider` - Provide store to Compose hierarchy
+- `composeState<S>()` - Observe module state as Compose State
+- `rememberDispatcher()` - Access dispatch function
+- `rememberLogic<M, L>()` - Access typed module logic
+- `select<S, R>()` - Derived state with custom selectors
+- `NavigationRender` - Render navigation state with animations
 
 [Learn more about the Compose module](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-compose/README.md)
 
+### DevTools
+
+Real-time debugging and state inspection:
+
+- WebSocket-based connection to DevTools UI
+- Action capture and replay
+- State inspection and modification
+- Time-travel debugging support
+- Platform-aware middleware integration
+
 ## Getting Started
 
-To get started with Reaktiv, add the following dependencies to your project:
+Add the dependencies to your project:
 
 ```kotlin
-implementation("io.github.syrou:reaktiv-core:0.7.11")
-implementation("io.github.syrou:reaktiv-navigation:0.7.11")
-implementation("io.github.syrou:reaktiv-compose:0.7.11")
+// build.gradle.kts
+dependencies {
+    implementation("io.github.syrou:reaktiv-core:<version>")
+    implementation("io.github.syrou:reaktiv-navigation:<version>")
+    implementation("io.github.syrou:reaktiv-compose:<version>")
+
+    // Optional: DevTools support
+    implementation("io.github.syrou:reaktiv-devtools:<version>")
+}
 ```
 
-Then, create your first Reaktiv store:
+## Quick Example
+
+### Define a Module
 
 ```kotlin
+@Serializable
+data class CounterState(val count: Int = 0) : ModuleState
+
+sealed class CounterAction : ModuleAction(CounterModule::class) {
+    data object Increment : CounterAction()
+    data object Decrement : CounterAction()
+    data class SetCount(val value: Int) : CounterAction()
+}
+
+class CounterLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<CounterAction>() {
+
+    suspend fun incrementDelayed() {
+        delay(1000)
+        storeAccessor.dispatch(CounterAction.Increment)
+    }
+
+    suspend fun fetchAndSetCount() {
+        val count = api.fetchCount()
+        storeAccessor.dispatch(CounterAction.SetCount(count))
+    }
+}
+
+object CounterModule : ModuleWithLogic<CounterState, CounterAction, CounterLogic> {
+    override val initialState = CounterState()
+
+    override val reducer: (CounterState, CounterAction) -> CounterState = { state, action ->
+        when (action) {
+            is CounterAction.Increment -> state.copy(count = state.count + 1)
+            is CounterAction.Decrement -> state.copy(count = state.count - 1)
+            is CounterAction.SetCount -> state.copy(count = action.value)
+        }
+    }
+
+    override val createLogic: (StoreAccessor) -> CounterLogic = { CounterLogic(it) }
+}
+```
+
+### Create the Store
+
+```kotlin
+val navigationModule = createNavigationModule {
+    rootGraph {
+        startScreen(HomeScreen)
+        screens(ProfileScreen, SettingsScreen)
+
+        graph("auth") {
+            startScreen(LoginScreen)
+            screens(SignUpScreen)
+        }
+    }
+    notFoundScreen(NotFoundScreen)
+}
+
 val store = createStore {
-    module<AppState, AppAction>(AppModule)
+    module(CounterModule)
+    module(navigationModule)
     middlewares(loggingMiddleware)
     coroutineContext(Dispatchers.Default)
 }
 ```
 
-## Documentation
+### Use in Compose
 
-For detailed documentation and usage examples, please refer to the README files of each module:
+```kotlin
+@Composable
+fun App() {
+    StoreProvider(store) {
+        NavigationRender(modifier = Modifier.fillMaxSize())
+    }
+}
+
+@Composable
+fun CounterScreen() {
+    val state by composeState<CounterState>()
+    val dispatch = rememberDispatcher()
+    val logic = rememberLogic<CounterModule, CounterLogic>()
+    val scope = rememberCoroutineScope()
+
+    Column {
+        Text("Count: ${state.count}")
+
+        Button(onClick = { dispatch(CounterAction.Increment) }) {
+            Text("Increment")
+        }
+
+        Button(onClick = { scope.launch { logic.incrementDelayed() } }) {
+            Text("Increment Delayed")
+        }
+    }
+}
+```
+
+### Navigate
+
+```kotlin
+// Using the navigation DSL
+scope.launch {
+    store.navigation {
+        navigateTo("profile") {
+            putString("userId", "123")
+        }
+    }
+}
+
+// Type-safe navigation
+scope.launch {
+    store.navigation {
+        navigateTo<ProfileScreen> {
+            put("user", userObject)
+        }
+    }
+}
+
+// Deep link with backstack synthesis
+scope.launch {
+    store.navigation {
+        navigateTo("auth/signup/verify", synthesizeBackstack = true)
+    }
+}
+
+// Pop with fallback for deep links
+scope.launch {
+    store.navigation {
+        popUpTo("home", inclusive = false, fallback = "root")
+    }
+}
+```
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         Store                                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │   Module A  │  │   Module B  │  │  NavigationModule   │  │
+│  │  ┌───────┐  │  │  ┌───────┐  │  │  ┌───────────────┐  │  │
+│  │  │ State │  │  │  │ State │  │  │  │ NavigationState│  │  │
+│  │  └───────┘  │  │  └───────┘  │  │  └───────────────┘  │  │
+│  │  ┌───────┐  │  │  ┌───────┐  │  │  ┌───────────────┐  │  │
+│  │  │ Logic │  │  │  │ Logic │  │  │  │NavigationLogic│  │  │
+│  │  └───────┘  │  │  └───────┘  │  │  └───────────────┘  │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│                                                              │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │                    Middleware Chain                     │ │
+│  │  Logging → Analytics → DevTools → ... → Reducer        │ │
+│  └────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Compose UI Layer                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ composeState│  │rememberLogic│  │  NavigationRender   │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Documentation
 
 - [Core Module Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-core/README.md)
 - [Navigation Module Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-navigation/README.md)

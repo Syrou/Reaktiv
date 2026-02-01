@@ -38,9 +38,11 @@ data class NavigationStep(
     val params: Params = Params.empty(),
     val popUpToTarget: NavigationTarget? = null,
     val popUpToInclusive: Boolean = false,
+    val popUpToFallback: NavigationTarget? = null,
     val shouldClearBackStack: Boolean = false,
     val shouldReplaceWith: Boolean = false,
-    val shouldDismissModals: Boolean = false
+    val shouldDismissModals: Boolean = false,
+    val synthesizeBackstack: Boolean = false
 )
 
 class NavigationParameterBuilder {
@@ -142,27 +144,43 @@ class NavigationBuilder(
         get() = storeAccessor.getNavigationModule().getFullPath(this)
             ?: error("Navigatable '${this.route}' is not registered in any navigation graph")
 
-    fun navigateTo(path: String, replaceCurrent: Boolean = false, paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null): NavigationBuilder {
+    /**
+     * Navigate to a path with optional parameters.
+     *
+     * @param path The route path to navigate to
+     * @param replaceCurrent If true, replaces the current entry instead of pushing
+     * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
+     *                            Useful for deep links to ensure proper back navigation.
+     *                            Umbrella graphs (without startScreen) are skipped.
+     * @param paramBuilder Optional builder for navigation parameters
+     */
+    fun navigateTo(
+        path: String,
+        replaceCurrent: Boolean = false,
+        synthesizeBackstack: Boolean = false,
+        paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
+    ): NavigationBuilder {
         val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
         var stepParams = Params.fromMap(queryParams)
-        
+
         // Apply parameter builder if provided
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
             stepParams += Params.fromMap(parameterBuilder.params)
         }
-        
+
         // Add current accumulated params
         stepParams += currentParams
         currentParams = Params.empty()
-        
+
         val step = NavigationStep(
             operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate,
             target = NavigationTarget.Path(cleanPath),
             params = stepParams,
             shouldReplaceWith = replaceCurrent,
-            shouldDismissModals = shouldDismissModalsGlobally
+            shouldDismissModals = shouldDismissModalsGlobally,
+            synthesizeBackstack = synthesizeBackstack
         )
         operations.add(step)
 
@@ -179,13 +197,27 @@ class NavigationBuilder(
         return this
     }
 
-    suspend inline fun <reified T : Screen> navigateTo(replaceCurrent: Boolean = false): NavigationBuilder {
-        return navigateTo<T>(replaceCurrent = replaceCurrent, preferredGraphId = null)
+    suspend inline fun <reified T : Screen> navigateTo(
+        replaceCurrent: Boolean = false,
+        synthesizeBackstack: Boolean = false
+    ): NavigationBuilder {
+        return navigateTo<T>(replaceCurrent = replaceCurrent, preferredGraphId = null, synthesizeBackstack = synthesizeBackstack)
     }
 
+    /**
+     * Navigate to a screen type with optional parameters.
+     *
+     * @param replaceCurrent If true, replaces the current entry instead of pushing
+     * @param preferredGraphId Optional graph ID to prefer when resolving the target
+     * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
+     *                            Useful for deep links to ensure proper back navigation.
+     *                            Umbrella graphs (without startScreen) are skipped.
+     * @param paramBuilder Optional builder for navigation parameters
+     */
     suspend inline fun <reified T : Navigatable> navigateTo(
         replaceCurrent: Boolean = false,
         preferredGraphId: String? = null,
+        synthesizeBackstack: Boolean = false,
         noinline paramBuilder: (NavigationParameterBuilder.() -> Unit)? = null
     ): NavigationBuilder {
         val navigatable = findNavigatableByType<T>()
@@ -194,51 +226,74 @@ class NavigationBuilder(
         } else {
             NavigationTarget.NavigatableObject(navigatable)
         }
-        
+
         var stepParams = Params.empty()
-        
+
         // Apply parameter builder if provided
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
             stepParams += Params.fromMap(parameterBuilder.params)
         }
-        
+
         // Add current accumulated params
         stepParams += currentParams
         currentParams = Params.empty()
-        
+
         val step = NavigationStep(
             operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate,
             target = target,
             params = stepParams,
             shouldReplaceWith = replaceCurrent,
-            shouldDismissModals = shouldDismissModalsGlobally
+            shouldDismissModals = shouldDismissModalsGlobally,
+            synthesizeBackstack = synthesizeBackstack
         )
         operations.add(step)
-        
+
         return this
     }
 
 
 
-    fun popUpTo(path: String, inclusive: Boolean = false): NavigationBuilder {
+    /**
+     * Pop back to a specific route in the navigation stack.
+     *
+     * @param path The route to pop back to
+     * @param inclusive If true, also removes the target route from the backstack
+     * @param fallback Optional fallback route if the target route is not found in the backstack.
+     *                 This is useful for deep link scenarios where the expected backstack may not exist.
+     */
+    fun popUpTo(path: String, inclusive: Boolean = false, fallback: String? = null): NavigationBuilder {
         val (cleanPath, _) = parseUrlWithQueryParams(path)
-        
+        val fallbackTarget = fallback?.let {
+            val (cleanFallback, _) = parseUrlWithQueryParams(it)
+            NavigationTarget.Path(cleanFallback)
+        }
+
         val step = NavigationStep(
             operation = NavigationOperation.PopUpTo,
             popUpToTarget = NavigationTarget.Path(cleanPath),
             popUpToInclusive = inclusive,
+            popUpToFallback = fallbackTarget,
             shouldDismissModals = shouldDismissModalsGlobally
         )
         operations.add(step)
-        
+
         return this
     }
 
+    /**
+     * Pop back to a specific screen type in the navigation stack.
+     *
+     * @param inclusive If true, also removes the target route from the backstack
+     * @param preferredGraphId Optional graph ID to prefer when resolving the target
+     * @param fallback Optional fallback route if the target route is not found in the backstack.
+     *                 This is useful for deep link scenarios where the expected backstack may not exist.
+     */
     suspend inline fun <reified T : Navigatable> popUpTo(
         inclusive: Boolean = false,
-        preferredGraphId: String? = null
+        preferredGraphId: String? = null,
+        fallback: String? = null
     ): NavigationBuilder {
         val navigatable = findNavigatableByType<T>()
         val target = if (preferredGraphId != null) {
@@ -246,15 +301,21 @@ class NavigationBuilder(
         } else {
             NavigationTarget.NavigatableObject(navigatable)
         }
-        
+
+        val fallbackTarget = fallback?.let {
+            val (cleanFallback, _) = parseUrlWithQueryParams(it)
+            NavigationTarget.Path(cleanFallback)
+        }
+
         val step = NavigationStep(
             operation = NavigationOperation.PopUpTo,
             popUpToTarget = target,
             popUpToInclusive = inclusive,
+            popUpToFallback = fallbackTarget,
             shouldDismissModals = shouldDismissModalsGlobally
         )
         operations.add(step)
-        
+
         return this
     }
 

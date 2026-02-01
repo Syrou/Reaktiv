@@ -12,8 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
@@ -222,34 +221,32 @@ private fun DevToolsContent(store: Store) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
 
-                                IconButton(onClick = { dispatch(DevToolsAction.ToggleTimeTravelExpanded) }) {
+                                IconButton(onClick = { dispatch(DevToolsAction.ToggleTimeTravel) }) {
                                     Icon(
-                                        imageVector = if (state.timeTravelExpanded) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
-                                        contentDescription = if (state.timeTravelExpanded) "Collapse" else "Expand",
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close time travel",
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
                             }
 
-                            if (state.timeTravelExpanded) {
-                                Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                                Slider(
-                                    value = state.timeTravelPosition.toFloat(),
-                                    onValueChange = { dispatch(DevToolsAction.SetTimeTravelPosition(it.toInt())) },
-                                    valueRange = 0f..(state.actionStateHistory.size - 1).toFloat(),
-                                    steps = if (state.actionStateHistory.size > 2) state.actionStateHistory.size - 2 else 0
+                            Slider(
+                                value = state.timeTravelPosition.toFloat(),
+                                onValueChange = { dispatch(DevToolsAction.SetTimeTravelPosition(it.toInt())) },
+                                valueRange = 0f..(state.actionStateHistory.size - 1).toFloat(),
+                                steps = if (state.actionStateHistory.size > 2) state.actionStateHistory.size - 2 else 0
+                            )
+
+                            if (state.timeTravelPosition < state.actionStateHistory.size) {
+                                val currentEvent = state.actionStateHistory[state.timeTravelPosition]
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Action: ${currentEvent.actionType}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
-
-                                if (state.timeTravelPosition < state.actionStateHistory.size) {
-                                    val currentEvent = state.actionStateHistory[state.timeTravelPosition]
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Action: ${currentEvent.actionType}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
                             }
                         }
                     }

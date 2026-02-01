@@ -425,7 +425,7 @@ data class PrecomputedNavigationData(
             val allNavigatables = mutableMapOf<String, Navigatable>()
             val navigatableToGraph = mutableMapOf<Navigatable, String>()
             val routeToNavigatable = mutableMapOf<String, Navigatable>()
-            val navigatableToFullPath = mutableMapOf<Navigatable, String>() // CRITICAL: Build the missing lookup table
+            val navigatableToFullPath = mutableMapOf<Navigatable, String>()
 
             // Build parent graph lookup first for hierarchy calculations
             val parentGraphLookup = mutableMapOf<String, String>()

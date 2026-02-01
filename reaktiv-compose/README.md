@@ -1,134 +1,80 @@
 # Reaktiv Compose Module
 
-The Compose module provides seamless integration between Reaktiv and Jetpack Compose, allowing you to easily use Reaktiv's state management and navigation features in your declarative UI applications.
+The Compose module provides seamless integration between Reaktiv and Jetpack Compose (and Compose Multiplatform), allowing you to easily use Reaktiv's state management and navigation features in your declarative UI applications.
 
 ## Features
 
-- **Compose-specific Extensions**: Simplify the use of Reaktiv within Compose functions.
-- **State Observation Utilities**: Easily observe and react to state changes in your Composables.
-- **Navigation Integration**: Render navigation changes smoothly in your Compose UI.
-- **Store Provider**: Easily provide the Reaktiv store to your Compose hierarchy.
+- **Store Provider**: Provide the Reaktiv store to your Compose hierarchy
+- **State Observation**: Reactive state observation with `composeState<S>()`
+- **Dispatcher Access**: Easy action dispatching with `rememberDispatcher()`
+- **Logic Access**: Type-safe logic access with `rememberLogic<M, L>()`
+- **Derived State**: Efficient derived state with `select<S, R>()`
+- **Navigation Rendering**: Render navigation state with animations via `NavigationRender`
 
 ## Key Components
 
 ### StoreProvider
 
-The `StoreProvider` is a Composable that provides the Reaktiv store to the Compose hierarchy.
+`StoreProvider` is a Composable that provides the Reaktiv store to the Compose hierarchy via CompositionLocal.
 
 ```kotlin
 @Composable
 fun App(store: Store) {
     StoreProvider(store) {
-        // Your app content here
-    }
-}
-```
-
-### rememberStore
-
-The `rememberStore` function allows you to access the current store within a Composable.
-
-```kotlin
-@Composable
-fun SomeScreen() {
-    val store = rememberStore()
-    // Use the store
-}
-```
-
-### rememberDispatcher
-
-The `rememberDispatcher` function provides access to the store's dispatch function within a Composable.
-
-```kotlin
-@Composable
-fun ActionButton() {
-    val dispatch = rememberDispatcher()
-    Button(onClick = { dispatch(SomeAction) }) {
-        Text("Perform Action")
-    }
-}
-```
-
-### selectState
-
-The `selectState` function is a Composable that allows you to observe a specific state from the store.
-
-```kotlin
-@Composable
-fun Counter() {
-    val counterState by selectState<CounterState>().collectAsState()
-    
-    Text("Count: ${counterState.count}")
-    Button(onClick = { /* dispatch increment action */ }) {
-        Text("Increment")
-    }
-}
-```
-
-### selectLogic
-
-The `selectLogic` function allows you to access a specific module's logic within a Composable.
-
-```kotlin
-@Composable
-fun LogicAccessExample() {
-    val counterLogic = selectLogic<CounterLogic>()
-    // Use the logic
-}
-```
-
-### NavigationRender
-
-The `NavigationRender` Composable handles the rendering of screens based on the current navigation state.
-
-```kotlin
-@Composable
-fun App(store: Store) {
-    StoreProvider(store) {
-        NavigationRender(
-            modifier = Modifier.fillMaxSize(),
-            isAuthenticated = true, // Implement your auth logic
-            loadingContent = { LoadingScreen() },
-            screenContent = { screen, params ->
-                screen.Content(params)
-            }
-        )
-    }
-}
-```
-
-## Usage
-
-1. Wrap your app content with `StoreProvider`:
-
-```kotlin
-@Composable
-fun App(store: Store) {
-    StoreProvider(store) {
+        // Your app content - all children can access the store
         MainContent()
     }
 }
 ```
 
-2. Use `selectState` to observe state changes:
+### composeState
+
+`composeState<S>()` is the primary API for observing module state in Composables. It returns a Compose `State<S>` that automatically updates when the state changes.
 
 ```kotlin
 @Composable
 fun CounterDisplay() {
-    val counterState by selectState<CounterState>().collectAsState()
-    
-    Text("Current count: ${counterState.count}")
+    val state by composeState<CounterState>()
+
+    Text("Count: ${state.count}")
+}
+
+// With initial value for previews
+@Composable
+fun CounterDisplayPreview() {
+    val state by composeState<CounterState>(initialValue = CounterState(count = 42))
+
+    Text("Count: ${state.count}")
 }
 ```
 
-3. Dispatch actions using `rememberDispatcher`:
+### rememberStore
+
+`rememberStore()` retrieves the Store from the CompositionLocal provided by `StoreProvider`.
+
+```kotlin
+@Composable
+fun MyComponent() {
+    val store = rememberStore()
+
+    // Access store properties directly
+    LaunchedEffect(Unit) {
+        store.selectState<MyState>().collect { state ->
+            // Handle state changes
+        }
+    }
+}
+```
+
+### rememberDispatcher
+
+`rememberDispatcher()` provides access to the store's dispatch function for firing actions.
 
 ```kotlin
 @Composable
 fun CounterButtons() {
     val dispatch = rememberDispatcher()
-    
+
     Row {
         Button(onClick = { dispatch(CounterAction.Increment) }) {
             Text("Increment")
@@ -140,83 +86,120 @@ fun CounterButtons() {
 }
 ```
 
-4. Use `NavigationRender` for screen transitions:
+### rememberLogic
+
+`rememberLogic<M, L>()` provides type-safe access to a module's logic instance for calling suspend methods.
 
 ```kotlin
 @Composable
-fun App(store: Store) {
-    StoreProvider(store) {
-        NavigationRender(
-            modifier = Modifier.fillMaxSize(),
-        ) { screen, params, isLoading ->
-            screen.Content(params = params)
+fun ProfileScreen() {
+    val logic = rememberLogic<UserModule, UserLogic>()
+    val scope = rememberCoroutineScope()
+
+    Button(onClick = {
+        scope.launch {
+            logic.refreshProfile()
         }
+    }) {
+        Text("Refresh")
     }
 }
 ```
 
-## Best Practices
+### select
 
-1. Always use `StoreProvider` at the top level of your Compose hierarchy.
-2. Prefer `selectState` over directly accessing the store for better performance and recomposition behavior.
-3. Use `rememberDispatcher` to dispatch actions instead of accessing the store directly.
-4. Leverage `NavigationRender` for handling navigation in your app.
-5. Keep your Composables focused on UI rendering, and use Reaktiv's Logic layer for complex operations.
-6. Use `remember` and `derivedStateOf` when appropriate to optimize performance.
-
-## Example: Todo List
-
-Here's a more comprehensive example of how to use the Reaktiv Compose module to create a simple Todo list:
+`select<S, R>()` creates derived state from a module state using a selector function. It only triggers recomposition when the selected value changes.
 
 ```kotlin
-// Define the state and actions
-data class TodoState(val items: List<String>) : ModuleState
-sealed class TodoAction : ModuleAction(TodoModule::class) {
-    data class AddItem(val item: String) : TodoAction()
-    data class RemoveItem(val index: Int) : TodoAction()
-}
-
-// Create the module
-object TodoModule : Module<TodoState, TodoAction> {
-    override val initialState = TodoState(emptyList())
-    override val reducer: (TodoState, TodoAction) -> TodoState = { state, action ->
-        when (action) {
-            is TodoAction.AddItem -> state.copy(items = state.items + action.item)
-            is TodoAction.RemoveItem -> state.copy(items = state.items.filterIndexed { index, _ -> index != action.index })
-        }
-    }
-    override val createLogic: (StoreAccessor) -> ModuleLogic<TodoAction> = { TodoLogic(it) }
-}
-
-// Create the Composable
 @Composable
-fun TodoList() {
-    val todoState by selectState<TodoState>().collectAsState()
+fun TodoCount() {
+    // Only recomposes when the count changes, not when other TodoState fields change
+    val count by select<TodoState, Int> { state -> state.items.size }
+
+    Text("$count items")
+}
+
+// With custom equality
+@Composable
+fun UserDisplay() {
+    val userName by select<UserState, String>(
+        selector = { it.user?.name ?: "Guest" },
+        areEqual = { old, new -> old == new }
+    )
+
+    Text("Hello, $userName")
+}
+```
+
+### onActiveValueChange
+
+`onActiveValueChange<S, T>()` watches a selected value and triggers a callback when it changes while the Composable is active.
+
+```kotlin
+@Composable
+fun AnalyticsTracker() {
+    onActiveValueChange<NavigationState, String>(
+        selector = { it.currentEntry.navigatable.route }
+    ) { route ->
+        analytics.trackScreenView(route)
+    }
+}
+```
+
+## Usage Examples
+
+### Complete Screen Example
+
+```kotlin
+@Composable
+fun TodoListScreen() {
+    val state by composeState<TodoState>()
     val dispatch = rememberDispatcher()
-    
-    Column {
-        todoState.items.forEachIndexed { index, item ->
-            Row {
-                Text(item)
-                Button(onClick = { dispatch(TodoAction.RemoveItem(index)) }) {
-                    Text("Remove")
-                }
+    val logic = rememberLogic<TodoModule, TodoLogic>()
+    val scope = rememberCoroutineScope()
+
+    // Load todos on first composition
+    LaunchedEffect(Unit) {
+        logic.loadTodos()
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        // Header with count
+        Text(
+            text = "Todos (${state.items.size})",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Todo list
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            items(state.items) { todo ->
+                TodoItem(
+                    todo = todo,
+                    onToggle = { dispatch(TodoAction.ToggleItem(todo.id)) },
+                    onDelete = { dispatch(TodoAction.RemoveItem(todo.id)) }
+                )
             }
         }
-        
-        var newItem by remember { mutableStateOf("") }
-        Row {
+
+        // Add new todo
+        var newTodoText by remember { mutableStateOf("") }
+        Row(modifier = Modifier.fillMaxWidth()) {
             TextField(
-                value = newItem,
-                onValueChange = { newItem = it },
-                label = { Text("New Todo Item") }
+                value = newTodoText,
+                onValueChange = { newTodoText = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("New todo...") }
             )
             Button(
                 onClick = {
-                    dispatch(TodoAction.AddItem(newItem))
-                    newItem = ""
+                    scope.launch {
+                        logic.saveTodo(newTodoText)
+                        newTodoText = ""
+                    }
                 },
-                enabled = newItem.isNotBlank()
+                enabled = newTodoText.isNotBlank()
             ) {
                 Text("Add")
             }
@@ -225,6 +208,181 @@ fun TodoList() {
 }
 ```
 
-This example demonstrates how to create a simple Todo list using Reaktiv and Jetpack Compose, showcasing state management, action dispatching, and UI updates.
+### Navigation with Compose
 
-For more advanced usage and detailed API documentation, please refer to the Reaktiv Compose module's API reference.
+```kotlin
+@Composable
+fun App(store: Store) {
+    StoreProvider(store) {
+        // NavigationRender handles all screen rendering and transitions
+        NavigationRender(
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+// Define a screen
+object ProfileScreen : Screen {
+    override val route = "profile"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+
+    @Composable
+    override fun Content(params: Params) {
+        val userId = params.getString("userId")
+        ProfileContent(userId)
+    }
+}
+
+@Composable
+fun ProfileContent(userId: String?) {
+    val state by composeState<UserState>()
+    val store = rememberStore()
+    val scope = rememberCoroutineScope()
+
+    Column {
+        Text("User: ${state.user?.name ?: "Loading..."}")
+
+        Button(onClick = {
+            scope.launch {
+                store.navigation {
+                    navigateTo("settings")
+                }
+            }
+        }) {
+            Text("Go to Settings")
+        }
+
+        Button(onClick = {
+            scope.launch {
+                store.navigation {
+                    navigateBack()
+                }
+            }
+        }) {
+            Text("Back")
+        }
+    }
+}
+```
+
+### Using Multiple States
+
+```kotlin
+@Composable
+fun DashboardScreen() {
+    val userState by composeState<UserState>()
+    val statsState by composeState<StatsState>()
+    val settingsState by composeState<SettingsState>()
+
+    Column {
+        Text("Welcome, ${userState.user?.name}")
+        Text("Total items: ${statsState.totalCount}")
+
+        if (settingsState.darkMode) {
+            DarkThemeContent()
+        } else {
+            LightThemeContent()
+        }
+    }
+}
+```
+
+### Conditional Logic Access
+
+```kotlin
+@Composable
+fun AdminPanel() {
+    val userState by composeState<UserState>()
+
+    if (userState.isAdmin) {
+        val adminLogic = rememberLogic<AdminModule, AdminLogic>()
+        val scope = rememberCoroutineScope()
+
+        Button(onClick = {
+            scope.launch {
+                adminLogic.performAdminAction()
+            }
+        }) {
+            Text("Admin Action")
+        }
+    }
+}
+```
+
+## Best Practices
+
+1. **Use `composeState<S>()`** - Prefer `composeState` over `selectState` for cleaner code with destructuring
+2. **Use `rememberDispatcher()`** - For simple action dispatching instead of accessing the store directly
+3. **Use `rememberLogic<M, L>()`** - For calling suspend methods on logic classes
+4. **Use `select<S, R>()`** - When you only need a subset of state to minimize recompositions
+5. **Wrap with `StoreProvider`** - Always wrap your app's root composable with `StoreProvider`
+6. **Use `rememberCoroutineScope()`** - For launching suspend functions from click handlers
+7. **Keep UI logic in Composables** - Business logic belongs in `ModuleLogic`, UI logic in Composables
+
+## API Reference
+
+### State Selection
+
+```kotlin
+// Primary state observation
+@Composable
+inline fun <reified S : ModuleState> composeState(): State<S>
+
+@Composable
+inline fun <reified S : ModuleState> composeState(initialValue: S): State<S>
+
+// StateFlow access (for advanced use cases)
+@Composable
+inline fun <reified S : ModuleState> selectState(): StateFlow<S>
+
+@Composable
+inline fun <reified S : ModuleState> selectState(initialValue: S): StateFlow<S>
+
+// Derived state with selector
+@Composable
+inline fun <reified S : ModuleState, R> select(
+    crossinline selector: (S) -> R,
+    noinline areEqual: (R, R) -> Boolean = { old, new -> old == new }
+): State<R>
+```
+
+### Store Access
+
+```kotlin
+// Get store instance
+@Composable
+fun rememberStore(): Store
+
+// Get dispatch function
+@Composable
+fun rememberDispatcher(): Dispatch
+
+// Get typed logic instance
+@Composable
+inline fun <reified M : ModuleWithLogic<*, *, L>, reified L : ModuleLogic<*>> rememberLogic(): L
+```
+
+### Effects
+
+```kotlin
+// React to state value changes
+@Composable
+inline fun <reified S : ModuleState, T> onActiveValueChange(
+    crossinline selector: (S) -> T,
+    crossinline onChange: suspend (T) -> Unit
+)
+```
+
+### Provider
+
+```kotlin
+// Provide store to Compose hierarchy
+@Composable
+fun StoreProvider(
+    store: Store,
+    content: @Composable () -> Unit
+)
+```
+
+For more detailed examples and advanced usage, please refer to the sample projects and API documentation.

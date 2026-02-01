@@ -446,6 +446,53 @@ class RouteResolver private constructor(
     }
 
     fun findParentGraphId(graphId: String): String? = parentGraphLookup[graphId]
+
+    /**
+     * Check if a path resolves to a valid backstack entry.
+     * Returns the resolution if:
+     * - It's a Screen
+     * - It's a Graph with a startDestination (resolves to a screen)
+     * Returns null if:
+     * - Path doesn't resolve
+     * - It's an umbrella graph (no startDestination)
+     */
+    fun resolveForBackstackSynthesis(path: String): RouteResolution? {
+        val cleanPath = path.trimStart('/').trimEnd('/')
+        if (cleanPath.isEmpty()) return null
+
+        // Check if this is an umbrella graph (graph without startDestination)
+        if (graphDefinitions.containsKey(cleanPath)) {
+            val graph = graphDefinitions[cleanPath]
+            if (graph?.startDestination == null) {
+                // Umbrella graph - skip for backstack synthesis
+                return null
+            }
+        }
+
+        // Try to resolve normally
+        val resolution = resolve(cleanPath)
+
+        // If resolution points to notFoundScreen, skip it for backstack synthesis
+        if (resolution != null && notFoundScreen != null && resolution.targetNavigatable == notFoundScreen) {
+            return null
+        }
+
+        return resolution
+    }
+
+    /**
+     * Build the hierarchy of paths for backstack synthesis.
+     * For a path like "auth/signup/verify", returns ["auth", "auth/signup", "auth/signup/verify"]
+     */
+    fun buildPathHierarchy(fullPath: String): List<String> {
+        val cleanPath = fullPath.trimStart('/').trimEnd('/')
+        if (cleanPath.isEmpty()) return emptyList()
+
+        val segments = cleanPath.split("/")
+        return segments.indices.map { i ->
+            segments.take(i + 1).joinToString("/")
+        }
+    }
 }
 
 

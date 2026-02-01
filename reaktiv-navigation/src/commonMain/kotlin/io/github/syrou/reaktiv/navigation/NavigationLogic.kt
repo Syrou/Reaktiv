@@ -109,10 +109,33 @@ class NavigationLogic(
      * Pop up to a specific route in the backstack
      * @param route Target route to pop back to
      * @param inclusive If true, also removes the target route from backstack
+     * @param fallback Optional fallback route if the target route is not found in the backstack.
+     *                 This is useful for deep link scenarios where the expected backstack may not exist.
+     *                 If the fallback is also not in the backstack, navigates to it as a fresh destination.
      */
-    suspend fun popUpTo(route: String, inclusive: Boolean = false) {
+    suspend fun popUpTo(route: String, inclusive: Boolean = false, fallback: String? = null) {
         navigate {
-            popUpTo(route, inclusive)
+            popUpTo(route, inclusive, fallback)
+        }
+    }
+
+    /**
+     * Navigate to a deep link route with automatic backstack synthesis.
+     * Builds the proper backstack based on path hierarchy for correct back navigation.
+     * Umbrella graphs (without startScreen/startGraph) are skipped.
+     *
+     * Example: navigating to "auth/signup/verify" will create backstack:
+     * - auth's start screen (if auth has a startScreen)
+     * - auth/signup (if it's a screen or has a startScreen)
+     * - auth/signup/verify (the target)
+     *
+     * @param route Target route to navigate to
+     * @param params Parameters to pass to the destination screen
+     */
+    suspend fun navigateDeepLink(route: String, params: Params = Params.empty()) {
+        navigate {
+            params(params)
+            navigateTo(route, replaceCurrent = false, synthesizeBackstack = true)
         }
     }
 
@@ -971,6 +994,18 @@ class NavigationLogic(
         val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
             ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
 
+        // Handle backstack synthesis for deep links
+        if (step.synthesizeBackstack) {
+            return applySynthesizedNavigateStep(
+                step = step,
+                resolvedRoute = resolvedRoute,
+                resolution = resolution,
+                modalContexts = modalContexts,
+                guidedFlowContext = guidedFlowContext,
+                activeGuidedFlowState = activeGuidedFlowState
+            )
+        }
+
 
         val isNavigatingToModal = resolution.targetNavigatable is Modal
 
@@ -1045,6 +1080,54 @@ class NavigationLogic(
         )
     }
 
+    /**
+     * Handle navigation with backstack synthesis for deep links.
+     * Builds the backstack based on path hierarchy, skipping umbrella graphs.
+     */
+    private suspend fun applySynthesizedNavigateStep(
+        step: NavigationStep,
+        resolvedRoute: String,
+        resolution: RouteResolution,
+        modalContexts: Map<String, ModalContext>,
+        guidedFlowContext: GuidedFlowContext?,
+        activeGuidedFlowState: GuidedFlowState?
+    ): NavigationStepResult {
+        val pathHierarchy = precomputedData.routeResolver.buildPathHierarchy(resolvedRoute)
+        val synthesizedBackstack = mutableListOf<NavigationEntry>()
+
+        // Process all paths except the final one (which is the target)
+        for (i in 0 until pathHierarchy.size - 1) {
+            val intermediatePath = pathHierarchy[i]
+            val intermediateResolution = precomputedData.routeResolver.resolveForBackstackSynthesis(intermediatePath)
+
+            if (intermediateResolution != null) {
+                val intermediateEntry = intermediateResolution.targetNavigatable.toNavigationEntry(
+                    params = intermediateResolution.extractedParams,
+                    graphId = intermediateResolution.getEffectiveGraphId(),
+                    stackPosition = synthesizedBackstack.size + 1,
+                    guidedFlowContext = null
+                )
+                synthesizedBackstack.add(intermediateEntry)
+            }
+        }
+
+        // Add the final target entry
+        val targetEntry = createNavigationEntry(
+            step,
+            resolution,
+            stackPosition = synthesizedBackstack.size + 1,
+            guidedFlowContext = guidedFlowContext
+        )
+        synthesizedBackstack.add(targetEntry)
+
+        return NavigationStepResult(
+            currentEntry = targetEntry,
+            backStack = synthesizedBackstack,
+            modalContexts = if (step.shouldDismissModals) emptyMap() else modalContexts,
+            activeGuidedFlowState = activeGuidedFlowState
+        )
+    }
+
     private suspend fun applyReplaceStep(
         step: NavigationStep,
         currentEntry: NavigationEntry,
@@ -1090,10 +1173,39 @@ class NavigationLogic(
     ): NavigationStepResult {
         val popUpToRoute = step.popUpToTarget?.resolve(precomputedData)
             ?: throw IllegalStateException("PopUpTo operation requires a popUpTo target")
-        val popIndex = precomputedData.routeResolver.findRouteInBackStack(
+        var popIndex = precomputedData.routeResolver.findRouteInBackStack(
             targetRoute = popUpToRoute,
             backStack = backStack
         )
+
+        // If route not found and fallback is provided, try the fallback
+        if (popIndex < 0 && step.popUpToFallback != null) {
+            val fallbackRoute = step.popUpToFallback.resolve(precomputedData)
+            popIndex = precomputedData.routeResolver.findRouteInBackStack(
+                targetRoute = fallbackRoute,
+                backStack = backStack
+            )
+
+            // If fallback also not found, navigate to it as a fresh destination
+            if (popIndex < 0) {
+                val resolution = precomputedData.routeResolver.resolve(fallbackRoute, precomputedData.availableNavigatables)
+                    ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
+
+                val newEntry = createNavigationEntry(
+                    step.copy(target = step.popUpToFallback),
+                    resolution,
+                    stackPosition = 1,
+                    guidedFlowContext = guidedFlowContext
+                )
+
+                return NavigationStepResult(
+                    currentEntry = newEntry,
+                    backStack = listOf(newEntry),
+                    modalContexts = emptyMap(),
+                    activeGuidedFlowState = activeGuidedFlowState
+                )
+            }
+        }
 
         if (popIndex < 0) {
             throw RouteNotFoundException("No match found for route $popUpToRoute")

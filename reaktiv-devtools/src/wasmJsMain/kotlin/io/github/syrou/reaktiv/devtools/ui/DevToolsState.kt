@@ -22,8 +22,7 @@ data class DevToolsState(
     val autoSelectLatest: Boolean = true,
     val excludedActionTypes: Set<String> = emptySet(),
     val timeTravelEnabled: Boolean = false,
-    val timeTravelPosition: Int = 0,
-    val timeTravelExpanded: Boolean = false
+    val timeTravelPosition: Int = 0
 ) : ModuleState
 
 /**
@@ -45,7 +44,6 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data class SetActionExclusions(val actionTypes: Set<String>) : DevToolsAction()
     data object ToggleTimeTravel : DevToolsAction()
     data class SetTimeTravelPosition(val position: Int) : DevToolsAction()
-    data object ToggleTimeTravelExpanded : DevToolsAction()
 }
 
 /**

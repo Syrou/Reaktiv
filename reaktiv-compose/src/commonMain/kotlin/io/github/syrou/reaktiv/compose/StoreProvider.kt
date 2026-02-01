@@ -20,16 +20,59 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 internal val LocalStore = staticCompositionLocalOf<Store> {
-    error("You need to wrap your Preview Composable in StoreProvider and assign a  store")
+    error("You need to wrap your Composable in StoreProvider and provide a store")
 }
 
-
+/**
+ * Retrieves the Store from the CompositionLocal provided by StoreProvider.
+ *
+ * Example:
+ * ```kotlin
+ * @Composable
+ * fun MyComponent() {
+ *     val store = rememberStore()
+ *     val scope = rememberCoroutineScope()
+ *
+ *     Button(onClick = {
+ *         scope.launch {
+ *             store.navigation { navigateTo("profile") }
+ *         }
+ *     }) {
+ *         Text("Go to Profile")
+ *     }
+ * }
+ * ```
+ *
+ * @return The Store instance from the current composition
+ * @throws IllegalStateException if called outside of a StoreProvider
+ */
 @Composable
 fun rememberStore(): Store {
     return LocalStore.current
 }
 
-
+/**
+ * Provides access to the store's dispatch function for firing actions.
+ *
+ * Example:
+ * ```kotlin
+ * @Composable
+ * fun CounterButtons() {
+ *     val dispatch = rememberDispatcher()
+ *
+ *     Row {
+ *         Button(onClick = { dispatch(CounterAction.Increment) }) {
+ *             Text("Increment")
+ *         }
+ *         Button(onClick = { dispatch(CounterAction.Decrement) }) {
+ *             Text("Decrement")
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * @return The dispatch function from the store
+ */
 @Composable
 fun rememberDispatcher(): Dispatch {
     val store = rememberStore()
@@ -38,7 +81,9 @@ fun rememberDispatcher(): Dispatch {
 
 /**
  * Remember and access typed Logic from a Compose function using the module type.
- * Provides direct access to logic methods without needing invoke().
+ *
+ * This provides type-safe access to a module's logic instance, allowing you to
+ * call suspend methods on the logic from within Composables.
  *
  * Example usage:
  * ```kotlin
@@ -57,7 +102,7 @@ fun rememberDispatcher(): Dispatch {
  * }
  * ```
  *
- * @param M The module type that provides the logic
+ * @param M The module type that provides the logic (must implement ModuleWithLogic)
  * @param L The logic type to access
  * @return The logic instance of type L
  * @throws IllegalStateException if the module is not found in the store
@@ -74,6 +119,25 @@ inline fun <reified M : ModuleWithLogic<*, *, L>, reified L : io.github.syrou.re
 }
 
 
+/**
+ * Provides the Reaktiv store to the Compose hierarchy via CompositionLocal.
+ *
+ * Wrap your app's root composable with StoreProvider to make the store
+ * accessible to all child composables.
+ *
+ * Example:
+ * ```kotlin
+ * @Composable
+ * fun App(store: Store) {
+ *     StoreProvider(store) {
+ *         NavigationRender(modifier = Modifier.fillMaxSize())
+ *     }
+ * }
+ * ```
+ *
+ * @param store The Reaktiv Store instance
+ * @param content The composable content that will have access to the store
+ */
 @Composable
 fun StoreProvider(
     store: Store,
@@ -84,7 +148,12 @@ fun StoreProvider(
     }
 }
 
-
+/**
+ * Selects a module's state as a StateFlow with an initial value for previews.
+ *
+ * @param initialValue The initial state value to use before the store is ready
+ * @return StateFlow of the requested state type
+ */
 @Composable
 inline fun <reified S : ModuleState> selectState(initialValue: S): StateFlow<S> {
     val store = rememberStore()
@@ -94,22 +163,86 @@ inline fun <reified S : ModuleState> selectState(initialValue: S): StateFlow<S> 
     return stateFlow
 }
 
+/**
+ * Selects a module's state as a StateFlow.
+ *
+ * For most use cases, prefer using composeState() which returns a Compose State
+ * that automatically triggers recomposition.
+ *
+ * @return StateFlow of the requested state type
+ */
 @Composable
 inline fun <reified S : ModuleState> selectState(): StateFlow<S> {
     val store = rememberStore()
     return remember { store.selectStateNonSuspend<S>() }
 }
 
+/**
+ * Observes a module's state as a Compose State with an initial value for previews.
+ *
+ * The returned State automatically updates when the module state changes,
+ * triggering recomposition of any composables that read from it.
+ *
+ * Example:
+ * ```kotlin
+ * @Composable
+ * fun CounterDisplayPreview() {
+ *     val state by composeState<CounterState>(initialValue = CounterState(count = 42))
+ *     Text("Count: ${state.count}")
+ * }
+ * ```
+ *
+ * @param initialValue The initial state value to use before the store is ready
+ * @return Compose State of the requested state type
+ */
 @Composable
 inline fun <reified S : ModuleState> composeState(initialValue: S): State<S> {
     return selectState<S>(initialValue).collectAsState(Dispatchers.Main.immediate)
 }
 
+/**
+ * Observes a module's state as a Compose State.
+ *
+ * This is the primary API for observing module state in Composables. The returned
+ * State automatically updates when the module state changes, triggering recomposition.
+ *
+ * Example:
+ * ```kotlin
+ * @Composable
+ * fun CounterDisplay() {
+ *     val state by composeState<CounterState>()
+ *     Text("Count: ${state.count}")
+ * }
+ * ```
+ *
+ * @return Compose State of the requested state type
+ */
 @Composable
 inline fun <reified S : ModuleState> composeState(): State<S> {
     return selectState<S>().collectAsState(Dispatchers.Main.immediate)
 }
 
+/**
+ * Watches a selected value from state and triggers a callback when it changes.
+ *
+ * Use this for side effects like analytics tracking or navigation that should
+ * happen in response to state changes while the composable is active.
+ *
+ * Example:
+ * ```kotlin
+ * @Composable
+ * fun AnalyticsTracker() {
+ *     onActiveValueChange<NavigationState, String>(
+ *         selector = { it.currentEntry.navigatable.route }
+ *     ) { route ->
+ *         analytics.trackScreenView(route)
+ *     }
+ * }
+ * ```
+ *
+ * @param selector Function to extract the value to watch from the state
+ * @param onChange Callback invoked when the selected value changes
+ */
 @Composable
 inline fun <reified S : ModuleState, T> onActiveValueChange(
     crossinline selector: (S) -> T,

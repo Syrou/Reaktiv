@@ -46,12 +46,60 @@ import kotlin.reflect.KClass
 annotation class ExperimentalReaktivApi
 
 
+/**
+ * Marker interface for module state classes.
+ *
+ * States represent the data of your application at a given point in time.
+ * They must be immutable and should be data classes marked with @Serializable.
+ *
+ * Example:
+ * ```kotlin
+ * @Serializable
+ * data class CounterState(
+ *     val count: Int = 0,
+ *     val isLoading: Boolean = false,
+ *     val error: String? = null
+ * ) : ModuleState
+ * ```
+ */
 interface ModuleState
 
 
+/**
+ * Marker interface for high-priority actions.
+ *
+ * Actions implementing this interface bypass the normal queue and are processed
+ * immediately. Use this for time-sensitive operations like cancellations or
+ * emergency stops.
+ *
+ * Example:
+ * ```kotlin
+ * sealed class UrgentAction : ModuleAction(UrgentModule::class), HighPriorityAction {
+ *     data object CancelOperation : UrgentAction()
+ *     data object EmergencyStop : UrgentAction()
+ * }
+ * ```
+ */
 interface HighPriorityAction
 
 
+/**
+ * Base class for module actions.
+ *
+ * Actions are events that describe changes in your application. They are dispatched
+ * to the store to trigger state updates via reducers.
+ *
+ * Example:
+ * ```kotlin
+ * sealed class CounterAction : ModuleAction(CounterModule::class) {
+ *     data object Increment : CounterAction()
+ *     data object Decrement : CounterAction()
+ *     data class SetCount(val value: Int) : CounterAction()
+ * }
+ * ```
+ *
+ * @param moduleTag The KClass of the module that handles this action
+ */
 @Serializable
 abstract class ModuleAction(@Transient internal val moduleTag: KClass<*> = KClass::class)
 
@@ -91,6 +139,39 @@ interface Logic {
 }
 
 
+/**
+ * Base class for module logic implementations.
+ *
+ * Logic classes handle side effects, async operations, and complex business logic.
+ * Define public suspend methods for operations that can be called from Composables
+ * or other Logic classes.
+ *
+ * Example:
+ * ```kotlin
+ * class UserLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<UserAction>() {
+ *     private val api = UserApi()
+ *
+ *     suspend fun loadUser(userId: String) {
+ *         storeAccessor.dispatch(UserAction.SetLoading(true))
+ *         try {
+ *             val user = api.fetchUser(userId)
+ *             storeAccessor.dispatch(UserAction.SetUser(user))
+ *         } catch (e: Exception) {
+ *             storeAccessor.dispatch(UserAction.SetError(e.message))
+ *         } finally {
+ *             storeAccessor.dispatch(UserAction.SetLoading(false))
+ *         }
+ *     }
+ *
+ *     suspend fun logout() {
+ *         api.logout()
+ *         storeAccessor.dispatch(UserAction.ClearUser)
+ *     }
+ * }
+ * ```
+ *
+ * @param A The action type this logic handles
+ */
 open class ModuleLogic<A : ModuleAction> : Logic {
     /**
      * @deprecated The invoke() pattern is deprecated. Define specific suspend methods in your Logic subclass
@@ -126,10 +207,57 @@ open class ModuleLogic<A : ModuleAction> : Logic {
     }
 }
 
+/**
+ * The recommended interface for defining modules with type-safe logic access.
+ *
+ * ModuleWithLogic extends Module with typed logic, allowing direct access to
+ * logic methods without type casting. This is the preferred pattern for new modules.
+ *
+ * Example:
+ * ```kotlin
+ * @Serializable
+ * data class CounterState(val count: Int = 0) : ModuleState
+ *
+ * sealed class CounterAction : ModuleAction(CounterModule::class) {
+ *     data object Increment : CounterAction()
+ *     data class SetCount(val value: Int) : CounterAction()
+ * }
+ *
+ * class CounterLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<CounterAction>() {
+ *     suspend fun incrementAsync() {
+ *         delay(1000)
+ *         storeAccessor.dispatch(CounterAction.Increment)
+ *     }
+ * }
+ *
+ * object CounterModule : ModuleWithLogic<CounterState, CounterAction, CounterLogic> {
+ *     override val initialState = CounterState()
+ *
+ *     override val reducer: (CounterState, CounterAction) -> CounterState = { state, action ->
+ *         when (action) {
+ *             is CounterAction.Increment -> state.copy(count = state.count + 1)
+ *             is CounterAction.SetCount -> state.copy(count = action.value)
+ *         }
+ *     }
+ *
+ *     override val createLogic: (StoreAccessor) -> CounterLogic = { CounterLogic(it) }
+ * }
+ * ```
+ *
+ * @param S The state type for this module (must implement ModuleState)
+ * @param A The action type for this module (must extend ModuleAction)
+ * @param L The logic type for this module (must extend ModuleLogic)
+ */
 interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic<A>> : Module<S, A> {
 
     override val createLogic: (StoreAccessor) -> L
 
+    /**
+     * Select the typed logic instance from the store.
+     *
+     * @param store The store to select logic from
+     * @return The typed logic instance
+     */
     suspend fun selectLogicTyped(store: Store): L {
         @Suppress("UNCHECKED_CAST")
         return super.selectLogic(store) as L
@@ -265,6 +393,31 @@ internal data class ModuleInfo(
 )
 
 
+/**
+ * Type alias for middleware functions.
+ *
+ * Middleware allows you to intercept actions and perform additional operations
+ * like logging, analytics, or side effects before and after the action is processed.
+ *
+ * Example:
+ * ```kotlin
+ * val loggingMiddleware: Middleware = { action, getAllStates, storeAccessor, updatedState ->
+ *     println("Before: $action")
+ *     val newState = updatedState(action)
+ *     println("After: $newState")
+ * }
+ *
+ * val store = createStore {
+ *     module(MyModule)
+ *     middlewares(loggingMiddleware)
+ * }
+ * ```
+ *
+ * @param action The action being dispatched
+ * @param getAllStates Function to get all current module states
+ * @param storeAccessor Access to dispatch, state selection, and logic selection
+ * @param updatedState Function to continue processing the action and get the resulting state
+ */
 typealias Middleware = suspend (
     action: ModuleAction,
     getAllStates: suspend () -> Map<String, ModuleState>,
@@ -311,16 +464,51 @@ interface InternalStoreOperations {
 }
 
 
+/**
+ * Provides access to dispatch, state selection, and logic selection.
+ *
+ * StoreAccessor is passed to Logic classes during construction, allowing them
+ * to dispatch actions, read state from other modules, and access other Logic instances.
+ *
+ * Example:
+ * ```kotlin
+ * class OrderLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<OrderAction>() {
+ *     suspend fun placeOrder(order: Order) {
+ *         // Dispatch an action
+ *         storeAccessor.dispatch(OrderAction.SetProcessing(true))
+ *
+ *         // Read state from another module
+ *         val userState = storeAccessor.selectState<UserState>().first()
+ *
+ *         // Access another module's logic
+ *         val paymentLogic = storeAccessor.selectLogic<PaymentLogic>()
+ *         paymentLogic.processPayment(order.total)
+ *     }
+ * }
+ * ```
+ */
 abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     override val coroutineContext: CoroutineContext = scope.coroutineContext
 
-
+    /**
+     * Select a module's state flow by its class.
+     *
+     * @param stateClass The KClass of the state to select
+     * @return StateFlow of the requested state type
+     */
     abstract suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
 
-
+    /**
+     * Select a module's logic instance by its class.
+     *
+     * @param logicClass The KClass of the logic to select
+     * @return The logic instance
+     */
     abstract suspend fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L
 
-
+    /**
+     * The dispatch function for sending actions to the store.
+     */
     abstract val dispatch: Dispatch
 
     /**
@@ -701,6 +889,28 @@ class StoreDSL {
 }
 
 
+/**
+ * Creates a new Store instance using the DSL builder.
+ *
+ * The store is the central piece of the Reaktiv architecture. It manages state,
+ * handles actions, and coordinates between different modules.
+ *
+ * Example:
+ * ```kotlin
+ * val store = createStore {
+ *     module(CounterModule)
+ *     module(UserModule)
+ *     module(navigationModule)
+ *
+ *     middlewares(loggingMiddleware, analyticsMiddleware)
+ *     coroutineContext(Dispatchers.Default)
+ *     persistenceManager(PlatformPersistenceStrategy())
+ * }
+ * ```
+ *
+ * @param block DSL block for configuring the store
+ * @return The configured Store instance
+ */
 fun createStore(block: StoreDSL.() -> Unit): Store {
     val dsl = StoreDSL().apply(block)
     return dsl.build()

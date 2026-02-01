@@ -73,9 +73,6 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                     selectedActionIndex = action.position
                 )
             }
-            is DevToolsAction.ToggleTimeTravelExpanded -> {
-                state.copy(timeTravelExpanded = !state.timeTravelExpanded)
-            }
         }
     }
 

@@ -28,7 +28,7 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="poedex"
                       android:host="poedex.com"
-                      android:pathPattern="/navigation/*"
+                      android:pathPrefix="/navigation"
                 />
             </intent-filter>
         </activity>
