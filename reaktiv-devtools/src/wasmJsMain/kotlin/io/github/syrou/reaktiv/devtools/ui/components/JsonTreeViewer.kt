@@ -14,12 +14,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString.Builder
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import io.github.syrou.reaktiv.devtools.ui.LocalDiffColors
+import io.github.syrou.reaktiv.devtools.ui.LocalSyntaxColors
 import kotlinx.serialization.json.*
 
 /**
@@ -196,14 +199,25 @@ private fun JsonTreeNode(
     onToggleExpand: (String) -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
+    val diffColors = LocalDiffColors.current
+    val syntaxColors = LocalSyntaxColors.current
     val indentPadding = (node.depth * 16).dp
 
     val backgroundColor = when (node.diffStatus) {
-        DiffStatus.ADDED -> Color(0xFF2D5016).copy(alpha = 0.4f)
-        DiffStatus.MODIFIED -> Color(0xFF5C3A1E).copy(alpha = 0.4f)
-        DiffStatus.REMOVED -> Color(0xFF5C1E1E).copy(alpha = 0.4f)
+        DiffStatus.ADDED -> diffColors.addedContainer.copy(alpha = 0.6f)
+        DiffStatus.MODIFIED -> diffColors.modifiedContainer.copy(alpha = 0.6f)
+        DiffStatus.REMOVED -> diffColors.removedContainer.copy(alpha = 0.6f)
         DiffStatus.UNCHANGED -> Color.Transparent
     }
+
+    // Dedicated syntax highlighting colors
+    val keyColor = syntaxColors.key
+    val stringColor = syntaxColors.string
+    val booleanColor = syntaxColors.boolean
+    val numberColor = syntaxColors.number
+    val nullColor = syntaxColors.nullValue
+    val bracketColor = syntaxColors.bracket
+    val oldValueColor = syntaxColors.oldValue
 
     val diffIndicator = when (node.diffStatus) {
         DiffStatus.ADDED -> "+ "
@@ -248,13 +262,13 @@ private fun JsonTreeNode(
             Text(
                 text = buildAnnotatedString {
                     if (diffIndicator.isNotEmpty()) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
                             append(diffIndicator)
                         }
                     }
 
                     if (node.key != null) {
-                        withStyle(SpanStyle(color = Color(0xFF9876AA), fontWeight = FontWeight.Bold)) {
+                        withStyle(SpanStyle(color = keyColor, fontWeight = FontWeight.Bold)) {
                             append("\"${node.key}\"")
                         }
                         withStyle(SpanStyle(color = colors.onSurface)) {
@@ -262,8 +276,8 @@ private fun JsonTreeNode(
                         }
                     }
 
-                    withStyle(SpanStyle(color = Color(0xFFFF6B6B))) {
-                        renderPrimitiveValue(node.previousValue)
+                    withStyle(SpanStyle(color = oldValueColor)) {
+                        renderPrimitiveValue(node.previousValue, stringColor, booleanColor, numberColor, nullColor)
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -279,7 +293,7 @@ private fun JsonTreeNode(
 
             Text(
                 text = buildAnnotatedString {
-                    renderPrimitiveValue(node.value)
+                    renderPrimitiveValue(node.value, stringColor, booleanColor, numberColor, nullColor)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace
@@ -288,13 +302,13 @@ private fun JsonTreeNode(
             Text(
                 text = buildAnnotatedString {
                     if (diffIndicator.isNotEmpty()) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
                             append(diffIndicator)
                         }
                     }
 
                     if (node.key != null) {
-                        withStyle(SpanStyle(color = Color(0xFF9876AA), fontWeight = FontWeight.Bold)) {
+                        withStyle(SpanStyle(color = keyColor, fontWeight = FontWeight.Bold)) {
                             append("\"${node.key}\"")
                         }
                         withStyle(SpanStyle(color = colors.onSurface)) {
@@ -304,7 +318,7 @@ private fun JsonTreeNode(
 
                     when (val value = node.value) {
                         is JsonObject -> {
-                            withStyle(SpanStyle(color = Color(0xFFCCCCCC))) {
+                            withStyle(SpanStyle(color = bracketColor)) {
                                 append("{ ")
                                 if (!node.isExpanded) {
                                     append("${value.size} ${if (value.size == 1) "property" else "properties"}")
@@ -313,7 +327,7 @@ private fun JsonTreeNode(
                             }
                         }
                         is JsonArray -> {
-                            withStyle(SpanStyle(color = Color(0xFFCCCCCC))) {
+                            withStyle(SpanStyle(color = bracketColor)) {
                                 append("[ ")
                                 if (!node.isExpanded) {
                                     append("${value.size} ${if (value.size == 1) "item" else "items"}")
@@ -322,10 +336,12 @@ private fun JsonTreeNode(
                             }
                         }
                         is JsonPrimitive -> {
-                            renderPrimitiveValue(value)
+                            renderPrimitiveValue(value, stringColor, booleanColor, numberColor, nullColor)
                         }
                         else -> {
-                            append(value.toString())
+                            withStyle(SpanStyle(color = colors.onSurface)) {
+                                append(value.toString())
+                            }
                         }
                     }
                 },
@@ -336,25 +352,31 @@ private fun JsonTreeNode(
     }
 }
 
-private fun androidx.compose.ui.text.AnnotatedString.Builder.renderPrimitiveValue(value: JsonPrimitive) {
+private fun Builder.renderPrimitiveValue(
+    value: JsonPrimitive,
+    stringColor: Color,
+    booleanColor: Color,
+    numberColor: Color,
+    nullColor: Color
+) {
     when {
         value.isString -> {
-            withStyle(SpanStyle(color = Color(0xFFCE9178))) {
+            withStyle(SpanStyle(color = stringColor)) {
                 append("\"${value.content}\"")
             }
         }
         value.content == "true" || value.content == "false" -> {
-            withStyle(SpanStyle(color = Color(0xFF569CD6))) {
+            withStyle(SpanStyle(color = booleanColor)) {
                 append(value.content)
             }
         }
         value.content == "null" -> {
-            withStyle(SpanStyle(color = Color(0xFF808080))) {
+            withStyle(SpanStyle(color = nullColor)) {
                 append("null")
             }
         }
         else -> {
-            withStyle(SpanStyle(color = Color(0xFFB5CEA8))) {
+            withStyle(SpanStyle(color = numberColor)) {
                 append(value.content)
             }
         }

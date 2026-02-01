@@ -1,12 +1,12 @@
 package io.github.syrou.reaktiv.devtools
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.CanvasBasedWindow
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.devtools.ui.DevToolsApp
 import io.github.syrou.reaktiv.devtools.ui.DevToolsModule
+import io.github.syrou.reaktiv.devtools.ui.DevToolsTheme
 import kotlinx.coroutines.Dispatchers
 
 private val windowProtocol: String = js("window.location.protocol")
@@ -34,7 +34,7 @@ fun main() {
     try {
         CanvasBasedWindow(canvasElementId = "ComposeTarget") {
             println("Main: Inside CanvasBasedWindow")
-            MaterialTheme {
+            DevToolsTheme {
                 StoreProvider(store) {
                     DevToolsApp(store = store, serverUrl = serverUrl)
                 }

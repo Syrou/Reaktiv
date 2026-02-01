@@ -13,9 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.client.ConnectionState
+import io.github.syrou.reaktiv.devtools.ui.DevToolsColors
 
 /**
  * Displays the current connection status to the DevTools server.
@@ -39,10 +39,10 @@ fun ConnectionStatus(
                 .size(12.dp)
                 .background(
                     color = when (connectionState) {
-                        ConnectionState.CONNECTED -> Color.Green
-                        ConnectionState.CONNECTING -> Color.Yellow
-                        ConnectionState.DISCONNECTED -> Color.Gray
-                        ConnectionState.ERROR -> Color.Red
+                        ConnectionState.CONNECTED -> DevToolsColors.success
+                        ConnectionState.CONNECTING -> DevToolsColors.warning
+                        ConnectionState.DISCONNECTED -> DevToolsColors.onSurfaceVariant
+                        ConnectionState.ERROR -> DevToolsColors.error
                     },
                     shape = CircleShape
                 )

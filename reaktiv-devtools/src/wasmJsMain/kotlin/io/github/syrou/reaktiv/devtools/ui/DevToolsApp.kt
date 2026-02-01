@@ -19,9 +19,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -126,8 +127,11 @@ private fun DevToolsContent(store: Store) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        ConnectionStatus(
+    Surface(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            ConnectionStatus(
             connectionState = state.connectionState,
             deviceCount = state.connectedClients.size,
             isDevicePanelExpanded = state.devicePanelExpanded,
@@ -272,6 +276,7 @@ private fun DevToolsContent(store: Store) {
                     onClear = { dispatch(DevToolsAction.ClearHistory) }
                 )
             }
+        }
         }
     }
 }
