@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
@@ -29,11 +30,12 @@ import kotlin.time.Duration
 
 class NavigationModule internal constructor(
     private val rootGraph: NavigationGraph,
+    private val notFoundScreen: Screen? = null,
     private val originalGuidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
     private val screenRetentionDuration: Duration
 ) : ModuleWithLogic<NavigationState, NavigationAction, NavigationLogic>, CustomTypeRegistrar {
     private val precomputedData: PrecomputedNavigationData by lazy {
-        PrecomputedNavigationData.create(rootGraph)
+        PrecomputedNavigationData.create(rootGraph, notFoundScreen)
     }
 
     /**
@@ -70,7 +72,6 @@ class NavigationModule internal constructor(
     }
 
     private fun createInitialState(): NavigationState {
-
         val resolution = when (val dest = rootGraph.startDestination) {
             is StartDestination.DirectScreen -> {
                 RouteResolution(
@@ -84,6 +85,20 @@ class NavigationModule internal constructor(
             is StartDestination.GraphReference -> {
                 precomputedData.routeResolver.resolve(dest.graphId)
                     ?: throw IllegalStateException("Could not resolve root graph reference to '${dest.graphId}'")
+            }
+
+            null -> {
+                val fallbackScreen = notFoundScreen
+                    ?: throw IllegalStateException(
+                        "Root graph has no startScreen/startGraph defined and no notFoundScreen is configured. " +
+                        "Either define a start destination for the root graph or configure a notFoundScreen."
+                    )
+                RouteResolution(
+                    targetNavigatable = fallbackScreen,
+                    targetGraphId = rootGraph.route,
+                    extractedParams = Params.empty(),
+                    navigationGraphId = rootGraph.route
+                )
             }
         }
 
@@ -154,17 +169,28 @@ class NavigationModule internal constructor(
                 graph.nestedGraphs.forEach { registerGraphNavigatables(it) }
             }
             registerGraphNavigatables(rootGraph)
+
+            notFoundScreen?.let { screen ->
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    subclass(
+                        screen::class as KClass<Navigatable>,
+                        screen::class.serializer() as KSerializer<Navigatable>
+                    )
+                } catch (e: Exception) {
+                }
+            }
         }
 
-        builder.polymorphic(io.github.syrou.reaktiv.navigation.definition.Screen::class) {
+        builder.polymorphic(Screen::class) {
             fun registerScreens(graph: NavigationGraph) {
-                graph.navigatables.filterIsInstance<io.github.syrou.reaktiv.navigation.definition.Screen>()
+                graph.navigatables.filterIsInstance<Screen>()
                     .forEach { screen ->
                         try {
                             @Suppress("UNCHECKED_CAST")
                             subclass(
-                                screen::class as KClass<io.github.syrou.reaktiv.navigation.definition.Screen>,
-                                screen::class.serializer() as KSerializer<io.github.syrou.reaktiv.navigation.definition.Screen>
+                                screen::class as KClass<Screen>,
+                                screen::class.serializer() as KSerializer<Screen>
                             )
                         } catch (e: Exception) {
                         }
@@ -172,6 +198,17 @@ class NavigationModule internal constructor(
                 graph.nestedGraphs.forEach { registerScreens(it) }
             }
             registerScreens(rootGraph)
+
+            notFoundScreen?.let { screen ->
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    subclass(
+                        screen::class as KClass<Screen>,
+                        screen::class.serializer() as KSerializer<Screen>
+                    )
+                } catch (e: Exception) {
+                }
+            }
         }
 
         builder.polymorphic(Modal::class) {
@@ -376,9 +413,13 @@ data class PrecomputedNavigationData(
     val navigatableToGraph: Map<Navigatable, String>,
     val routeToNavigatable: Map<String, Navigatable>,
     val navigatableToFullPath: Map<Navigatable, String>,
+    val notFoundScreen: Screen? = null
 ) {
     companion object {
-        fun create(rootGraph: NavigationGraph): PrecomputedNavigationData {
+        fun create(
+            rootGraph: NavigationGraph,
+            notFoundScreen: Screen? = null
+        ): PrecomputedNavigationData {
             val graphDefinitions = mutableMapOf<String, NavigationGraph>()
             val availableNavigatables = mutableMapOf<String, Navigatable>()
             val allNavigatables = mutableMapOf<String, Navigatable>()
@@ -435,7 +476,7 @@ data class PrecomputedNavigationData(
 
             collectGraphs(rootGraph)
 
-            val routeResolver = RouteResolver.create(graphDefinitions)
+            val routeResolver = RouteResolver.create(graphDefinitions, notFoundScreen)
             val graphHierarchies = mutableMapOf<String, List<String>>()
             for (graphId in graphDefinitions.keys) {
                 val hierarchy = mutableListOf<String>()
@@ -458,7 +499,8 @@ data class PrecomputedNavigationData(
                 graphHierarchies = graphHierarchies,
                 navigatableToGraph = navigatableToGraph,
                 routeToNavigatable = routeToNavigatable,
-                navigatableToFullPath = navigatableToFullPath
+                navigatableToFullPath = navigatableToFullPath,
+                notFoundScreen = notFoundScreen
             )
         }
 

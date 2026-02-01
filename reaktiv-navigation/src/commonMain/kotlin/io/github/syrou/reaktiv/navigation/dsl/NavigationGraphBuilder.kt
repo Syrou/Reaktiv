@@ -72,14 +72,9 @@ class NavigationGraphBuilder(
     }
 
     internal fun build(): NavigationGraph {
-        val resolvedDestination = startDestination
-            ?: throw IllegalArgumentException(
-                "Graph '$route' must have either startScreen() or startGraph() defined"
-            )
-
         return MutableNavigationGraph(
             route = this.route,
-            startDestination = resolvedDestination,
+            startDestination = this.startDestination,
             navigatables = this.navigatables.toList(),
             nestedGraphs = this.nestedGraphs.toList(),
             layout = this.graphLayout

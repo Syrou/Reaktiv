@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 
 interface NavigationGraph : NavigationNode {
     override val route: String
-    val startDestination: StartDestination
+    val startDestination: StartDestination?
     val navigatables: List<Navigatable>
     val nestedGraphs: List<NavigationGraph>
     val layout: (@Composable (@Composable () -> Unit) -> Unit)?
@@ -40,6 +40,7 @@ interface NavigationGraph : NavigationNode {
                 val referencedGraph = graphDefinitions[dest.graphId]
                 referencedGraph?.resolveStartScreen(graphDefinitions)
             }
+            null -> null
         }
     }
 }

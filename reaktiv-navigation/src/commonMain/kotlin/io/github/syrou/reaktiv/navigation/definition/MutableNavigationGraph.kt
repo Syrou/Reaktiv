@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class MutableNavigationGraph(
     override val route: String,
-    override val startDestination: StartDestination,
+    override val startDestination: StartDestination? = null,
     override val navigatables: List<Navigatable>,
     override val nestedGraphs: List<NavigationGraph>,
     @kotlinx.serialization.Transient

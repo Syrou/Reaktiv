@@ -37,6 +37,7 @@ import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectSettingsS
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTabLayout
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTasksScreen
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
+import eu.syrou.androidexample.ui.screen.NotFoundScreen
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
@@ -66,7 +67,9 @@ class CustomApplication : Application() {
     }
 
     private val navigationModule = createNavigationModule {
+        notFoundScreen(NotFoundScreen)
         rootGraph {
+
             startScreen(SplashScreen)
             screens(
                 SettingsScreen,

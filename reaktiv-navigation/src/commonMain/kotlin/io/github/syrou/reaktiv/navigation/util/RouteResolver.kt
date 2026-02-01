@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation.util
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
@@ -18,7 +19,8 @@ class RouteResolver private constructor(
     private val parentGraphLookup: Map<String, String>, // child -> parent
     private val fullPathToResolution: Map<String, RouteResolution>,
     private val graphDefinitions: Map<String, NavigationGraph>,
-    private val parameterizedRoutes: List<ParameterizedRouteEntry>
+    private val parameterizedRoutes: List<ParameterizedRouteEntry>,
+    private val notFoundScreen: Screen? = null
 ) {
 
     companion object {
@@ -36,7 +38,10 @@ class RouteResolver private constructor(
             return null
         }
 
-        fun create(graphDefinitions: Map<String, NavigationGraph>): RouteResolver {
+        fun create(
+            graphDefinitions: Map<String, NavigationGraph>,
+            notFoundScreen: Screen? = null
+        ): RouteResolver {
             val routeToNavigatable = mutableMapOf<String, Navigatable>()
             val navigatableToFullPath = mutableMapOf<Navigatable, String>()
             val graphToStartNavigatable = mutableMapOf<String, ScreenResolution>()
@@ -123,7 +128,8 @@ class RouteResolver private constructor(
                 parentGraphLookup = parentGraphLookup,
                 fullPathToResolution = fullPathToResolution,
                 graphDefinitions = graphDefinitions,
-                parameterizedRoutes = parameterizedRoutes
+                parameterizedRoutes = parameterizedRoutes,
+                notFoundScreen = notFoundScreen
             )
         }
 
@@ -158,6 +164,7 @@ class RouteResolver private constructor(
                     val referencedGraph = allGraphs[dest.graphId]
                     referencedGraph?.let { resolveGraphStartNavigatable(it, allGraphs) }
                 }
+                null -> null
             }
         }
 
@@ -219,6 +226,22 @@ class RouteResolver private constructor(
                 isGraphReference = graphDefinitions[cleanRoute]?.startDestination is StartDestination.GraphReference
             )
         }
+
+        // Check if this is a graph without a startDestination - redirect to notFoundScreen
+        if (graphDefinitions.containsKey(cleanRoute) && graphDefinitions[cleanRoute]?.startDestination == null) {
+            ReaktivDebug.nav("⚠️ Graph '$cleanRoute' has no startDestination defined")
+            notFoundScreen?.let { screen ->
+                ReaktivDebug.nav("🔄 Redirecting to notFoundScreen for graph: $cleanRoute")
+                return RouteResolution(
+                    targetNavigatable = screen,
+                    targetGraphId = "root",
+                    extractedParams = Params.empty(),
+                    navigationGraphId = cleanRoute,
+                    isGraphReference = false
+                )
+            }
+        }
+
         availableNavigatables[cleanRoute]?.let { navigatable ->
             ReaktivDebug.nav("✅ Root navigatable found in provided map: $cleanRoute")
             return RouteResolution(
@@ -241,7 +264,17 @@ class RouteResolver private constructor(
         }
 
         ReaktivDebug.nav("❌ Route not found: $cleanRoute")
-        return null
+
+        // Return notFoundScreen resolution if configured
+        return notFoundScreen?.let { screen ->
+            ReaktivDebug.nav("🔄 Redirecting to notFoundScreen for: $cleanRoute")
+            RouteResolution(
+                targetNavigatable = screen,
+                targetGraphId = "root",
+                extractedParams = Params.empty(),
+                isGraphReference = false
+            )
+        }
     }
 
     /**
