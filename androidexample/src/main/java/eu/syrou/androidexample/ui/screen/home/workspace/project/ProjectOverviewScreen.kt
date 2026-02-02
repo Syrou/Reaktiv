@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
@@ -51,12 +52,20 @@ object ProjectTasksScreen : Screen {
         ProjectTasksContent(params)
     }
 
-    override suspend fun onAddedToBackstack(storeAccessor: StoreAccessor) {
-        println("HERPADERPA - ADDED TO BACKSTACK")
-    }
+    override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
+        println("HERPADERPA - ADDED TO BACKSTACK (isVisible: ${lifecycle.visibility.value})")
 
-    override suspend fun onRemovedFromBackstack(storeAccessor: StoreAccessor) {
-        println("HERPADERPA - REMOVED FROM BACKSTACK")
+        // Launch in lifecycle's scope - auto-cancelled when entry is removed from backstack
+        lifecycle.launch {
+            lifecycle.visibility.collect { isVisible ->
+                println("HERPADERPA - Visibility changed: $isVisible")
+            }
+        }
+
+        // Register cleanup callback for when entry is removed
+        lifecycle.invokeOnRemoval {
+            println("HERPADERPA - REMOVED FROM BACKSTACK (invokeOnRemoval)")
+        }
     }
 }
 

@@ -10,7 +10,7 @@ The Navigation module provides a powerful, type-safe navigation system for Kotli
 - **Deep Linking**: Automatic backstack synthesis from URL paths
 - **Animated Transitions**: 15+ built-in transitions with custom animation support
 - **Screen Layouts**: Graph-level scaffolds for shared UI (app bars, bottom navigation)
-- **Lifecycle Callbacks**: `onAddedToBackstack()` and `onRemovedFromBackstack()` hooks
+- **Lifecycle Callbacks**: `onLifecycleCreated()` with `BackstackLifecycle` for visibility tracking and cleanup
 - **Type-safe Parameters**: `Params` class with typed access and serialization
 - **RenderLayer System**: CONTENT, GLOBAL_OVERLAY, and SYSTEM layers with z-ordering
 - **NotFoundScreen**: Configurable fallback for undefined routes
@@ -66,12 +66,14 @@ object ProfileScreen : Screen {
     override val popExitTransition: NavTransition? = NavTransition.SlideOutRight
     override val requiresAuth = true
 
-    override suspend fun onAddedToBackstack(storeAccessor: StoreAccessor) {
-        storeAccessor.dispatch(ProfileAction.LoadProfile)
-    }
+    override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
+        // Load data when added to backstack
+        lifecycle.dispatch(ProfileAction.LoadProfile)
 
-    override suspend fun onRemovedFromBackstack(storeAccessor: StoreAccessor) {
-        storeAccessor.dispatch(ProfileAction.ClearProfile)
+        // Register cleanup when removed from backstack
+        lifecycle.invokeOnRemoval {
+            lifecycle.dispatch(ProfileAction.ClearProfile)
+        }
     }
 
     @Composable
@@ -574,7 +576,7 @@ adb shell am start -a android.intent.action.VIEW -d "myapp://myapp.com/navigatio
 2. **Prefer type-safe navigation** - Use `navigateTo<ScreenType>()` when possible for compile-time safety
 3. **Use synthesizeBackstack for deep links** - Ensures proper back navigation for external entry points
 4. **Use popUpTo with fallback** - Handle cases where expected navigation history may not exist
-5. **Keep navigation logic in screens** - Use `onAddedToBackstack` for data loading, not in Composables
+5. **Keep navigation logic in screens** - Use `onLifecycleCreated` for data loading, not in Composables
 6. **Use graph layouts** - Share common UI (app bars, bottom navigation) across related screens
 7. **Leverage RenderLayer** - Use GLOBAL_OVERLAY for modals, SYSTEM for critical alerts
 8. **Use Params for parameters** - Type-safe parameter passing with proper serialization

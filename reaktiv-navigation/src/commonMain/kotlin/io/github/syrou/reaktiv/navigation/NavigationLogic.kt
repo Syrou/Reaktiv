@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectState
+import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperation
@@ -47,6 +48,13 @@ class NavigationLogic(
 
     private val guidedFlowMutex = Mutex()
     private var transitionResetJob: Job? = null
+
+    /**
+     * Tracks lifecycle scopes for each entry in the backstack.
+     * When an entry is removed, its scope is cancelled, which cancels all coroutines
+     * launched via that entry's BackstackLifecycle.
+     */
+    private val entryLifecycleJobs = mutableMapOf<String, Job>()
     
     /**
      * Coroutine scope for transition state reset timers.
@@ -175,6 +183,11 @@ class NavigationLogic(
 
         storeAccessor.dispatch(action)
 
+        // Wait for state to be updated before calling lifecycle callbacks
+        storeAccessor.selectState<NavigationState>().first {
+            it.currentEntry.stableKey == finalState.currentEntry.stableKey
+        }
+
         // Call lifecycle callbacks for added/removed entries
         invokeLifecycleCallbacks(previousBackStack, finalState.backStack)
 
@@ -199,24 +212,29 @@ class NavigationLogic(
         // Find removed entries (in previous but not in new)
         val removedEntries = previousBackStack.filter { it.stableKey !in newKeys }
 
-        // Call onAddedToBackstack for new entries
+        // Get the navigation state flow once for all contexts
+        val navigationStateFlow = storeAccessor.selectState<NavigationState>()
+
+        // Call onLifecycle for new entries
         addedEntries.forEach { entry ->
             try {
-                entry.navigatable.onAddedToBackstack(storeAccessor)
+                // Create a lifecycle scope for this entry
+                val lifecycleJob = SupervisorJob(storeAccessor.coroutineContext[Job])
+                val lifecycleScope = CoroutineScope(storeAccessor.coroutineContext + lifecycleJob)
+                entryLifecycleJobs[entry.stableKey] = lifecycleJob
+
+                val lifecycle = BackstackLifecycle(entry, navigationStateFlow, storeAccessor, lifecycleScope)
+                entry.navigatable.onLifecycleCreated(lifecycle)
             } catch (e: Exception) {
                 // Log but don't prevent navigation
-                println("Warning: onAddedToBackstack failed for ${entry.navigatable.route}: ${e.message}")
+                println("Warning: onLifecycle failed for ${entry.navigatable.route}: ${e.message}")
             }
         }
 
-        // Call onRemovedFromBackstack for removed entries
+        // Cancel lifecycle scopes for removed entries
+        // This triggers invokeOnRemoval handlers and cancels all launched coroutines
         removedEntries.forEach { entry ->
-            try {
-                entry.navigatable.onRemovedFromBackstack(storeAccessor)
-            } catch (e: Exception) {
-                // Log but don't prevent navigation
-                println("Warning: onRemovedFromBackstack failed for ${entry.navigatable.route}: ${e.message}")
-            }
+            entryLifecycleJobs.remove(entry.stableKey)?.cancel()
         }
     }
 

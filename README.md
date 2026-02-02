@@ -38,7 +38,7 @@ A comprehensive type-safe navigation system:
 - **Deep Linking** - Automatic backstack synthesis from URL paths
 - **Transitions** - 20+ built-in transitions with custom animation support
 - **Screen Layouts** - Graph-level scaffolds for shared UI (app bars, bottom navigation)
-- **Lifecycle Callbacks** - `onAddedToBackstack()` and `onRemovedFromBackstack()` hooks
+- **Lifecycle Callbacks** - `onLifecycleCreated()` with `BackstackLifecycle` for visibility tracking and cleanup
 - **Type-safe Parameters** - `Params` class with typed access and serialization
 - **RenderLayer System** - CONTENT, GLOBAL_OVERLAY, and SYSTEM layers with z-ordering
 - **NotFoundScreen** - Configurable fallback for undefined routes
