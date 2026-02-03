@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation
 
+import io.github.syrou.reaktiv.core.DispatchResult
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectState
@@ -181,18 +182,17 @@ class NavigationLogic(
         // Capture backstack before dispatch for lifecycle callbacks
         val previousBackStack = initialState.backStack
 
-        storeAccessor.dispatch(action)
+        // Use dispatchAndAwait to know if the action was applied or blocked by middleware
+        val result = storeAccessor.dispatchAndAwait(action)
 
-        // Wait for state to be updated before calling lifecycle callbacks
-        storeAccessor.selectState<NavigationState>().first {
-            it.currentEntry.stableKey == finalState.currentEntry.stableKey
-        }
+        if (result == DispatchResult.Processed) {
+            // Action was applied - invoke lifecycle callbacks for actual changes
+            val actualState = getCurrentNavigationState()
+            invokeLifecycleCallbacks(previousBackStack, actualState.backStack)
 
-        // Call lifecycle callbacks for added/removed entries
-        invokeLifecycleCallbacks(previousBackStack, finalState.backStack)
-
-        if (willAnimate) {
-            scheduleTransitionStateReset(finalState.currentEntry, initialState.currentEntry)
+            if (willAnimate) {
+                scheduleTransitionStateReset(actualState.currentEntry, initialState.currentEntry)
+            }
         }
     }
 

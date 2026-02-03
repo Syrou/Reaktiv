@@ -6,7 +6,9 @@ import io.github.syrou.reaktiv.core.persistance.PersistenceManager
 import io.github.syrou.reaktiv.core.persistance.PersistenceStrategy
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -106,6 +108,27 @@ abstract class ModuleAction(@Transient internal val moduleTag: KClass<*> = KClas
 
 typealias Dispatch = (ModuleAction) -> Unit
 typealias DispatchSuspend = (suspend (ModuleAction) -> Unit)
+
+/**
+ * Result of a dispatch operation, indicating whether the action was processed.
+ */
+sealed class DispatchResult {
+    /** Action was processed and applied to state */
+    data object Processed : DispatchResult()
+    /** Action was blocked by middleware (e.g., spam protection) */
+    data object Blocked : DispatchResult()
+    /** Action processing failed with an error */
+    data class Error(val cause: Throwable) : DispatchResult()
+}
+
+/**
+ * Internal envelope wrapping an action with an optional completion signal.
+ * Used to track when async dispatch processing completes.
+ */
+internal data class DispatchEnvelope(
+    val action: ModuleAction,
+    val completion: CompletableDeferred<DispatchResult>?
+)
 
 
 interface Logic {
@@ -508,8 +531,24 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
 
     /**
      * The dispatch function for sending actions to the store.
+     * This is fire-and-forget - it returns immediately without waiting for processing.
      */
     abstract val dispatch: Dispatch
+
+    /**
+     * Dispatch an action and wait for it to be processed.
+     * Returns a [DispatchResult] indicating whether the action was applied or blocked.
+     *
+     * Use this when you need to know the outcome of the dispatch, for example:
+     * - When middleware might block the action (spam protection)
+     * - When you need to perform follow-up work only if the action was applied
+     *
+     * @param action The action to dispatch
+     * @return [DispatchResult.Processed] if action was applied,
+     *         [DispatchResult.Blocked] if middleware blocked the action,
+     *         [DispatchResult.Error] if processing failed
+     */
+    abstract suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult
 
     /**
      * Provides access to internal store operations for specialized use cases.
@@ -538,8 +577,8 @@ class Store private constructor(
     val serializersModule: SerializersModule,
 ) : StoreAccessor(coroutineScope), InternalStoreOperations {
     private val stateUpdateMutex = Mutex()
-    private val highPriorityChannel: Channel<ModuleAction> = Channel(Channel.UNLIMITED)
-    private val lowPriorityChannel: Channel<ModuleAction> = Channel<ModuleAction>(Channel.UNLIMITED)
+    private val highPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
+    private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
@@ -550,12 +589,30 @@ class Store private constructor(
             throw IllegalStateException("Store is closed")
         }
 
+        val envelope = DispatchEnvelope(action, completion = null)
         launch {
             when (action) {
-                is HighPriorityAction -> highPriorityChannel.send(action)
-                else -> lowPriorityChannel.send(action)
+                is HighPriorityAction -> highPriorityChannel.send(envelope)
+                else -> lowPriorityChannel.send(envelope)
             }
         }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult {
+        if (lowPriorityChannel.isClosedForSend || highPriorityChannel.isClosedForSend) {
+            throw IllegalStateException("Store is closed")
+        }
+
+        val completion = CompletableDeferred<DispatchResult>()
+        val envelope = DispatchEnvelope(action, completion)
+
+        when (action) {
+            is HighPriorityAction -> highPriorityChannel.send(envelope)
+            else -> lowPriorityChannel.send(envelope)
+        }
+
+        return completion.await()
     }
 
     private suspend fun initializeModules() = stateUpdateMutex.withLock {
@@ -599,26 +656,45 @@ class Store private constructor(
 
     private suspend fun processActionChannel() = withContext(coroutineContext) {
         launch {
-            for (action in highPriorityChannel) {
-                processAction(action)
+            for (envelope in highPriorityChannel) {
+                processEnvelope(envelope)
             }
         }
 
         launch {
-            for (action in lowPriorityChannel) {
-                processAction(action)
+            for (envelope in lowPriorityChannel) {
+                processEnvelope(envelope)
 
                 yield()
             }
         }
     }
 
-    private suspend fun processAction(action: ModuleAction) {
-        val chain = createMiddlewareChain()
-        chain(action)
+    private suspend fun processEnvelope(envelope: DispatchEnvelope) {
+        try {
+            val wasApplied = processAction(envelope.action)
+            envelope.completion?.complete(
+                if (wasApplied) DispatchResult.Processed else DispatchResult.Blocked
+            )
+        } catch (e: Throwable) {
+            envelope.completion?.complete(DispatchResult.Error(e))
+        }
     }
 
-    private suspend fun createMiddlewareChain(): suspend (ModuleAction) -> Unit {
+    /**
+     * Process an action through the middleware chain.
+     * @return true if the action was applied to state, false if blocked by middleware
+     */
+    private suspend fun processAction(action: ModuleAction): Boolean {
+        var wasApplied = false
+        val chain = createMiddlewareChain { wasApplied = true }
+        chain(action)
+        return wasApplied
+    }
+
+    private suspend fun createMiddlewareChain(
+        onActionApplied: () -> Unit
+    ): suspend (ModuleAction) -> Unit {
         val baseHandler: suspend (ModuleAction) -> Unit = { action ->
             val info = moduleInfo[action.moduleTag.qualifiedName] ?: throw IllegalArgumentException(
                 "No module found for action: ${action::class}"
@@ -627,6 +703,9 @@ class Store private constructor(
             val currentState = info.state.value
             val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
             updateState(newState::class.qualifiedName!!, newState)
+
+            // Signal that the action was applied
+            onActionApplied()
 
             launch {
                 info.logic?.invoke(action)

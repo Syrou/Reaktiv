@@ -112,7 +112,7 @@ fun NewsSection() {
             onClick = {
                 store.launch {
                     store.navigation {
-                        navigateTo("shoud-not-work")
+                        navigateTo<NewsListScreen>()
                     }
                 }
             },
