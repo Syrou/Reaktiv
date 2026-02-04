@@ -8,11 +8,17 @@ plugins {
     kotlin("plugin.serialization")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
+    id("io.github.syrou.reaktiv.tracing")
 }
 
 repositories {
     mavenCentral()
     mavenLocal()
+}
+
+reaktivTracing {
+    enabled.set(true)
+    tracePrivateMethods.set(true)
 }
 
 android {
@@ -126,4 +132,5 @@ dependencies {
     implementation(project(":reaktiv-compose"))
     implementation(project(":reaktiv-navigation"))
     implementation(project(":reaktiv-devtools"))
+    implementation(project(":reaktiv-tracing-annotations"))
 }

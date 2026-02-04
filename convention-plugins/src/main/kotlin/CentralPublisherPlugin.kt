@@ -1061,7 +1061,22 @@ object CentralPublisherCredentials {
     }
 
     private fun getLocalProperties(project: Project): Properties {
-        val propertiesFile = project.rootProject.file("local.properties")
+        // First try the current project's root
+        var propertiesFile = project.rootProject.file("local.properties")
+
+        // If not found, search parent directories (for included builds)
+        if (!propertiesFile.exists()) {
+            var dir = project.rootProject.projectDir.parentFile
+            while (dir != null) {
+                val parentProps = java.io.File(dir, "local.properties")
+                if (parentProps.exists()) {
+                    propertiesFile = parentProps
+                    break
+                }
+                dir = dir.parentFile
+            }
+        }
+
         return Properties().apply {
             if (propertiesFile.exists()) {
                 try {

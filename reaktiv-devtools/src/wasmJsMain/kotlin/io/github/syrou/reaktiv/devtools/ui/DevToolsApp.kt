@@ -181,16 +181,23 @@ private fun DevToolsContent(store: Store) {
             ) {
                 ActionStream(
                     actions = state.actionStateHistory,
+                    logicMethodEvents = state.logicMethodEvents,
                     selectedIndex = state.selectedActionIndex,
+                    selectedLogicMethodCallId = state.selectedLogicMethodCallId,
                     autoSelectLatest = state.autoSelectLatest,
                     excludedActionTypes = state.excludedActionTypes,
                     timeTravelEnabled = state.timeTravelEnabled,
+                    showActions = state.showActions,
+                    showLogicMethods = state.showLogicMethods,
                     onSelectAction = { dispatch(DevToolsAction.SelectAction(it)) },
+                    onSelectLogicMethod = { dispatch(DevToolsAction.SelectLogicMethodEvent(it)) },
                     onToggleAutoSelect = { dispatch(DevToolsAction.ToggleAutoSelectLatest) },
                     onAddExclusion = { dispatch(DevToolsAction.AddActionExclusion(it)) },
                     onRemoveExclusion = { dispatch(DevToolsAction.RemoveActionExclusion(it)) },
                     onSetExclusions = { dispatch(DevToolsAction.SetActionExclusions(it)) },
                     onToggleTimeTravel = { dispatch(DevToolsAction.ToggleTimeTravel) },
+                    onToggleShowActions = { dispatch(DevToolsAction.ToggleShowActions) },
+                    onToggleShowLogicMethods = { dispatch(DevToolsAction.ToggleShowLogicMethods) },
                     onClear = { dispatch(DevToolsAction.ClearHistory) }
                 )
 
@@ -267,6 +274,8 @@ private fun DevToolsContent(store: Store) {
                 StateViewer(
                     actionStateHistory = state.actionStateHistory,
                     selectedActionIndex = state.selectedActionIndex,
+                    logicMethodEvents = state.logicMethodEvents,
+                    selectedLogicMethodCallId = state.selectedLogicMethodCallId,
                     showAsDiff = state.showStateAsDiff,
                     excludedActionTypes = state.excludedActionTypes,
                     onToggleDiffMode = { dispatch(DevToolsAction.ToggleStateViewMode) },

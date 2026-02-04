@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        mavenLocal()
         gradlePluginPortal()
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
         google()
@@ -20,6 +21,9 @@ pluginManagement {
         id("com.android.library").version(agpVersion)
         id("org.jetbrains.compose").version(composeVersion)
     }
+
+    includeBuild("convention-plugins")
+    includeBuild("reaktiv-tracing-gradle")
 }
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.5.0"
@@ -32,4 +36,5 @@ include(":androidexample")
 include("reaktiv-compose")
 include("reaktiv-navigation")
 include("reaktiv-devtools")
-includeBuild("convention-plugins")
+include("reaktiv-tracing-annotations")
+include("reaktiv-tracing-compiler")

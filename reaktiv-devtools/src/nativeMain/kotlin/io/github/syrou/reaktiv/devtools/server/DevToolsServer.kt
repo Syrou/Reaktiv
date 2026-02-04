@@ -160,6 +160,21 @@ object DevToolsServer {
                 println("DevTools Server: Role acknowledged by ${message.clientId} - ${message.role}")
             }
 
+            is DevToolsMessage.LogicMethodStarted -> {
+                println("DevTools Server: LogicMethodStarted from ${message.clientId} - ${message.logicClass}.${message.methodName}")
+                clientManager.broadcastToListeners(message.clientId, message)
+            }
+
+            is DevToolsMessage.LogicMethodCompleted -> {
+                println("DevTools Server: LogicMethodCompleted from ${message.clientId} - ${message.callId}")
+                clientManager.broadcastToListeners(message.clientId, message)
+            }
+
+            is DevToolsMessage.LogicMethodFailed -> {
+                println("DevTools Server: LogicMethodFailed from ${message.clientId} - ${message.callId}")
+                clientManager.broadcastToListeners(message.clientId, message)
+            }
+
             else -> {
                 println("DevTools Server: Unhandled message type: ${message::class.simpleName}")
             }

@@ -6,11 +6,13 @@ import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.devtools.DevToolsAction
 import io.github.syrou.reaktiv.devtools.DevToolsLogic
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
+import io.github.syrou.reaktiv.devtools.tracing.DevToolsLogicObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,6 +63,7 @@ class DevToolsMiddleware(
 
     private var storeAccessorRef: StoreAccessor? = null
     private var devToolsLogic: DevToolsLogic? = null
+    private var logicObserver: DevToolsLogicObserver? = null
     private var initialized = false
 
     /**
@@ -127,6 +130,13 @@ class DevToolsMiddleware(
 
             devToolsLogic?.observeMessages { message ->
                 handleServerMessage(message)
+            }
+
+            // Register logic tracing observer
+            devToolsLogic?.let { logic ->
+                logicObserver = DevToolsLogicObserver(config, logic, scope)
+                LogicTracer.addObserver(logicObserver!!)
+                println("DevTools: Logic tracing observer registered")
             }
 
             // Auto-connect if serverUrl is configured
@@ -233,6 +243,17 @@ class DevToolsMiddleware(
      */
     suspend fun disconnect() {
         devToolsLogic?.disconnect()
+    }
+
+    /**
+     * Cleans up resources including the logic tracing observer.
+     */
+    fun cleanup() {
+        logicObserver?.let { observer ->
+            LogicTracer.removeObserver(observer)
+            println("DevTools: Logic tracing observer removed")
+        }
+        logicObserver = null
     }
 }
 

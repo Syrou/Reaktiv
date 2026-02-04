@@ -15,7 +15,6 @@ import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
-import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
@@ -125,7 +124,6 @@ class NavigationModule internal constructor(
             lastNavigationAction = null,
             screenRetentionDuration = screenRetentionDuration,
             previousEntry = null,
-            animationInProgress = false,
             orderedBackStack = computedState.orderedBackStack,
             visibleLayers = computedState.visibleLayers,
             currentFullPath = computedState.currentFullPath,
@@ -136,7 +134,6 @@ class NavigationModule internal constructor(
             isCurrentModal = computedState.isCurrentModal,
             isCurrentScreen = computedState.isCurrentScreen,
             hasModalsInStack = computedState.hasModalsInStack,
-            transitionState = NavigationTransitionState.IDLE,
             effectiveDepth = computedState.effectiveDepth,
             navigationDepth = computedState.navigationDepth,
             contentLayerEntries = computedState.contentLayerEntries,
@@ -251,11 +248,9 @@ class NavigationModule internal constructor(
         modalContexts: Map<String, ModalContext>?,
         activeGuidedFlowState: GuidedFlowState? = state.activeGuidedFlowState,
         updateGuidedFlowState: Boolean = false,
-        transitionState: NavigationTransitionState = state.transitionState,
         guidedFlowModifications: Map<String, GuidedFlowDefinition>? = null,
         navigationAction: NavigationAction? = null,
-        previousEntry: NavigationEntry? = null,
-        animationInProgress: Boolean = false
+        previousEntry: NavigationEntry? = null
     ): NavigationState {
         val newCurrentEntry = currentEntry ?: state.currentEntry
         val newBackStack = backStack ?: state.backStack
@@ -283,7 +278,6 @@ class NavigationModule internal constructor(
             isCurrentModal = computedState.isCurrentModal,
             isCurrentScreen = computedState.isCurrentScreen,
             hasModalsInStack = computedState.hasModalsInStack,
-            transitionState = transitionState,
             effectiveDepth = computedState.effectiveDepth,
             navigationDepth = computedState.navigationDepth,
             contentLayerEntries = computedState.contentLayerEntries,
@@ -296,8 +290,7 @@ class NavigationModule internal constructor(
             activeModalContexts = newModalContexts,
             guidedFlowModifications = guidedFlowModifications ?: state.guidedFlowModifications,
             activeGuidedFlowState = if (updateGuidedFlowState) activeGuidedFlowState else state.activeGuidedFlowState,
-            previousEntry = previousEntry,
-            animationInProgress = animationInProgress
+            previousEntry = previousEntry
         )
     }
 
@@ -310,11 +303,9 @@ class NavigationModule internal constructor(
                 modalContexts = action.modalContexts,
                 activeGuidedFlowState = action.activeGuidedFlowState,
                 updateGuidedFlowState = true,
-                transitionState = action.transitionState,
                 guidedFlowModifications = action.guidedFlowModifications,
                 navigationAction = action,
-                previousEntry = state.currentEntry,
-                animationInProgress = true
+                previousEntry = state.currentEntry
             )
 
             is NavigationAction.Back -> reduceNavigationStateUpdate(
@@ -322,10 +313,8 @@ class NavigationModule internal constructor(
                 currentEntry = action.currentEntry,
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
-                transitionState = action.transitionState,
                 navigationAction = action,
-                previousEntry = state.currentEntry,
-                animationInProgress = true
+                previousEntry = state.currentEntry
             )
 
             is NavigationAction.ClearBackstack -> this.reduceNavigationStateUpdate(
@@ -333,10 +322,8 @@ class NavigationModule internal constructor(
                 currentEntry = action.currentEntry,
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
-                transitionState = action.transitionState,
                 navigationAction = action,
-                previousEntry = state.currentEntry,
-                animationInProgress = true
+                previousEntry = state.currentEntry
             )
 
             is NavigationAction.Navigate -> reduceNavigationStateUpdate(
@@ -344,10 +331,8 @@ class NavigationModule internal constructor(
                 currentEntry = action.currentEntry,
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
-                transitionState = action.transitionState,
                 navigationAction = action,
-                previousEntry = state.currentEntry,
-                animationInProgress = true
+                previousEntry = state.currentEntry
             )
 
             is NavigationAction.PopUpTo -> reduceNavigationStateUpdate(
@@ -355,10 +340,8 @@ class NavigationModule internal constructor(
                 currentEntry = action.currentEntry,
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
-                transitionState = action.transitionState,
                 navigationAction = action,
-                previousEntry = state.currentEntry,
-                animationInProgress = true
+                previousEntry = state.currentEntry
             )
 
             is NavigationAction.Replace -> reduceNavigationStateUpdate(
@@ -366,25 +349,12 @@ class NavigationModule internal constructor(
                 currentEntry = action.currentEntry,
                 backStack = action.backStack,
                 modalContexts = action.modalContexts,
-                transitionState = action.transitionState,
                 navigationAction = action,
-                previousEntry = state.currentEntry,
-                animationInProgress = true
+                previousEntry = state.currentEntry
             )
 
-            is NavigationAction.UpdateTransitionState -> {
-                state.copy(transitionState = action.transitionState)
-            }
-
-            is NavigationAction.AnimationCompleted -> {
-                val isBackNavigation = state.previousEntry?.let { prev ->
-                    state.currentEntry.stackPosition < prev.stackPosition
-                } ?: false
-
-                state.copy(
-                    previousEntry = if (isBackNavigation) null else state.previousEntry,
-                    animationInProgress = false
-                )
+            is NavigationAction.ClearPreviousEntry -> {
+                state.copy(previousEntry = null)
             }
         }
     }

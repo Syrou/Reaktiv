@@ -47,10 +47,14 @@ jobs:
       - name: Build and test
         run: ./gradlew build
 
+      - name: Build tracing-gradle plugin
+        run: ./gradlew -p reaktiv-tracing-gradle build
+
       - name: Deploy to Maven Central
         run: |
           echo "🚀 Deploying to Maven Central..."
           ./gradlew uploadToCentral
+          ./gradlew -p reaktiv-tracing-gradle uploadToCentral
 
       - name: Deployment Summary
         if: success()

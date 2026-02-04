@@ -44,7 +44,6 @@ import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.devtools.DevToolsModule
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.navigation.createNavigationModule
-import io.github.syrou.reaktiv.navigation.middleware.NavigationSpamMiddleware
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -152,7 +151,6 @@ class CustomApplication : Application() {
         module(devToolsModule)
         middlewares(
             loggingMiddleware,
-            NavigationSpamMiddleware.create(),
             createTestNavigationMiddleware()
         )
         coroutineContext(Dispatchers.Default)

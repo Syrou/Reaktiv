@@ -2,8 +2,10 @@ package io.github.syrou.reaktiv.navigation.definition
 
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.ModuleAction
+import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
@@ -73,6 +75,8 @@ class BackstackLifecycle(
     fun dispatch(action: ModuleAction) = storeAccessor.dispatch(action)
 
     suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = storeAccessor.selectState()
+
+    suspend inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = storeAccessor.selectLogic<L>()
 
     /**
      * Register a callback to be invoked when this entry is removed from the backstack.

@@ -14,6 +14,7 @@ data class DevToolsState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val connectedClients: List<ClientInfo> = emptyList(),
     val actionStateHistory: List<ActionStateEvent> = emptyList(),
+    val logicMethodEvents: List<LogicMethodEvent> = emptyList(),
     val selectedPublisher: String? = null,
     val selectedListener: String? = null,
     val showStateAsDiff: Boolean = false,
@@ -22,7 +23,10 @@ data class DevToolsState(
     val autoSelectLatest: Boolean = true,
     val excludedActionTypes: Set<String> = emptySet(),
     val timeTravelEnabled: Boolean = false,
-    val timeTravelPosition: Int = 0
+    val timeTravelPosition: Int = 0,
+    val showActions: Boolean = true,
+    val showLogicMethods: Boolean = true,
+    val selectedLogicMethodCallId: String? = null
 ) : ModuleState
 
 /**
@@ -32,6 +36,7 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data class UpdateConnectionState(val state: ConnectionState) : DevToolsAction()
     data class UpdateClientList(val clients: List<ClientInfo>) : DevToolsAction()
     data class AddActionStateEvent(val event: ActionStateEvent) : DevToolsAction()
+    data class AddLogicMethodEvent(val event: LogicMethodEvent) : DevToolsAction()
     data class SelectPublisher(val clientId: String?) : DevToolsAction()
     data class SelectListener(val clientId: String?) : DevToolsAction()
     data object ToggleStateViewMode : DevToolsAction()
@@ -44,6 +49,9 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data class SetActionExclusions(val actionTypes: Set<String>) : DevToolsAction()
     data object ToggleTimeTravel : DevToolsAction()
     data class SetTimeTravelPosition(val position: Int) : DevToolsAction()
+    data object ToggleShowActions : DevToolsAction()
+    data object ToggleShowLogicMethods : DevToolsAction()
+    data class SelectLogicMethodEvent(val callId: String?) : DevToolsAction()
 }
 
 /**
@@ -57,3 +65,46 @@ data class ActionStateEvent(
     val actionData: String,
     val resultingStateJson: String
 )
+
+/**
+ * Represents a logic method tracing event from a client.
+ */
+@Serializable
+sealed class LogicMethodEvent {
+    abstract val clientId: String
+    abstract val timestamp: Long
+    abstract val callId: String
+
+    @Serializable
+    data class Started(
+        override val clientId: String,
+        override val timestamp: Long,
+        override val callId: String,
+        val logicClass: String,
+        val methodName: String,
+        val params: Map<String, String>,
+        val sourceFile: String? = null,
+        val lineNumber: Int? = null,
+        val githubSourceUrl: String? = null
+    ) : LogicMethodEvent()
+
+    @Serializable
+    data class Completed(
+        override val clientId: String,
+        override val timestamp: Long,
+        override val callId: String,
+        val result: String?,
+        val resultType: String,
+        val durationMs: Long
+    ) : LogicMethodEvent()
+
+    @Serializable
+    data class Failed(
+        override val clientId: String,
+        override val timestamp: Long,
+        override val callId: String,
+        val exceptionType: String,
+        val exceptionMessage: String?,
+        val durationMs: Long
+    ) : LogicMethodEvent()
+}

@@ -10,7 +10,6 @@ import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
-import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
@@ -27,9 +26,8 @@ data class NavigationState(
     // Screen content retention configuration
     val screenRetentionDuration: Duration,
 
-    // Animation tracking (set by reducer, cleared by AnimationCompleted action)
+    // Animation tracking (previousEntry set by navigation reducers, cleared after animation duration)
     val previousEntry: NavigationEntry? = null,
-    val animationInProgress: Boolean = false,
 
     // Computed state properties (set by reducer, fully serializable)
     val orderedBackStack: List<NavigationEntry>,
@@ -44,7 +42,6 @@ data class NavigationState(
     val isCurrentModal: Boolean,
     val isCurrentScreen: Boolean,
     val hasModalsInStack: Boolean,
-    val transitionState: NavigationTransitionState,
     val effectiveDepth: Int,
     val navigationDepth: Int,
 
@@ -76,6 +73,12 @@ data class NavigationState(
             RenderLayer.SYSTEM to systemLayerEntries
         )
 
+    /**
+     * True when a navigation animation is in progress.
+     * During this time, both currentEntry and previousEntry should be rendered.
+     */
+    val isAnimating: Boolean
+        get() = previousEntry != null
 
     fun isInGraph(graphId: String): Boolean {
         return if (!isCurrentModal) {

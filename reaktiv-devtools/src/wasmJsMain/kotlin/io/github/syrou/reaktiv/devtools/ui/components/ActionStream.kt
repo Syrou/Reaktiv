@@ -43,36 +43,74 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
+import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 
 /**
- * Displays a stream of actions dispatched by publisher clients.
+ * Unified event type for the event stream, combining actions and logic method events.
+ */
+sealed class StreamEvent {
+    abstract val timestamp: Long
+    abstract val clientId: String
+
+    data class Action(val event: ActionStateEvent, val originalIndex: Int) : StreamEvent() {
+        override val timestamp: Long = event.timestamp
+        override val clientId: String = event.clientId
+    }
+
+    data class LogicMethod(val event: LogicMethodEvent) : StreamEvent() {
+        override val timestamp: Long = event.timestamp
+        override val clientId: String = event.clientId
+    }
+}
+
+/**
+ * Displays a stream of actions and logic method events from publisher clients.
  */
 @Composable
 fun ActionStream(
     actions: List<ActionStateEvent>,
+    logicMethodEvents: List<LogicMethodEvent> = emptyList(),
     selectedIndex: Int? = null,
+    selectedLogicMethodCallId: String? = null,
     autoSelectLatest: Boolean = true,
     excludedActionTypes: Set<String>,
     timeTravelEnabled: Boolean = false,
+    showActions: Boolean = true,
+    showLogicMethods: Boolean = true,
     onSelectAction: (Int?) -> Unit = {},
+    onSelectLogicMethod: (String?) -> Unit = {},
     onToggleAutoSelect: () -> Unit = {},
     onAddExclusion: (String) -> Unit = {},
     onRemoveExclusion: (String) -> Unit = {},
     onSetExclusions: (Set<String>) -> Unit = {},
     onToggleTimeTravel: () -> Unit = {},
+    onToggleShowActions: () -> Unit = {},
+    onToggleShowLogicMethods: () -> Unit = {},
     onClear: () -> Unit
 ) {
     val listState = rememberLazyListState()
     var exclusionInput by remember { mutableStateOf("") }
 
-    // Filter out excluded actions
-    val filteredActions = actions.filterIndexed { index, action ->
-        !excludedActionTypes.contains(action.actionType)
+    // Build combined event stream
+    val streamEvents = remember(actions, logicMethodEvents, excludedActionTypes, showActions, showLogicMethods) {
+        buildList {
+            if (showActions) {
+                actions.forEachIndexed { index, action ->
+                    if (!excludedActionTypes.contains(action.actionType)) {
+                        add(StreamEvent.Action(action, index))
+                    }
+                }
+            }
+            if (showLogicMethods) {
+                logicMethodEvents.forEach { event ->
+                    add(StreamEvent.LogicMethod(event))
+                }
+            }
+        }.sortedByDescending { it.timestamp }
     }
-    val reversedActions = filteredActions.reversed()
 
     Column(
         modifier = Modifier
@@ -85,7 +123,7 @@ fun ActionStream(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Action History (${actions.size})",
+                text = "Event Stream (${streamEvents.size})",
                 style = MaterialTheme.typography.titleMedium
             )
 
@@ -106,12 +144,31 @@ fun ActionStream(
                     Text(if (autoSelectLatest) "Auto: ON" else "Auto: OFF")
                 }
 
-                if (actions.isNotEmpty()) {
+                if (actions.isNotEmpty() || logicMethodEvents.isNotEmpty()) {
                     TextButton(onClick = onClear) {
                         Text("Clear")
                     }
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Event type filter toggles
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = showActions,
+                onClick = onToggleShowActions,
+                label = { Text("Actions (${actions.size})") }
+            )
+            FilterChip(
+                selected = showLogicMethods,
+                onClick = onToggleShowLogicMethods,
+                label = { Text("Logic Methods (${logicMethodEvents.size})") }
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -199,14 +256,14 @@ fun ActionStream(
 
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-        if (filteredActions.isEmpty()) {
+        if (streamEvents.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(32.dp)
             ) {
                 Text(
-                    text = "No actions dispatched yet",
+                    text = "No events yet",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -222,14 +279,28 @@ fun ActionStream(
                     PaddingValues(0.dp)
                 }
             ) {
-                itemsIndexed(reversedActions) { reversedIndex, action ->
-                    val originalIndex = actions.indexOf(action)
-                    ActionEventCard(
-                        action = action,
-                        isSelected = originalIndex == selectedIndex,
-                        onClick = { onSelectAction(originalIndex) },
-                        onExclude = { onAddExclusion(action.actionType) }
-                    )
+                items(streamEvents.size) { index ->
+                    when (val event = streamEvents[index]) {
+                        is StreamEvent.Action -> {
+                            ActionEventCard(
+                                action = event.event,
+                                isSelected = event.originalIndex == selectedIndex,
+                                onClick = { onSelectAction(event.originalIndex) },
+                                onExclude = { onAddExclusion(event.event.actionType) }
+                            )
+                        }
+                        is StreamEvent.LogicMethod -> {
+                            val startedEvent = logicMethodEvents
+                                .filterIsInstance<LogicMethodEvent.Started>()
+                                .find { it.callId == event.event.callId }
+                            LogicMethodEventCard(
+                                event = event.event,
+                                startedEvent = startedEvent,
+                                isSelected = event.event.callId == selectedLogicMethodCallId,
+                                onClick = { onSelectLogicMethod(event.event.callId) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -331,11 +402,113 @@ private fun ActionEventCard(
     }
 }
 
+@Composable
+private fun LogicMethodEventCard(
+    event: LogicMethodEvent,
+    startedEvent: LogicMethodEvent.Started? = null,
+    isSelected: Boolean = false,
+    onClick: () -> Unit = {}
+) {
+    val (eventType, eventColor) = when (event) {
+        is LogicMethodEvent.Started -> Pair("STARTED", MaterialTheme.colorScheme.tertiary)
+        is LogicMethodEvent.Completed -> Pair("COMPLETED", MaterialTheme.colorScheme.primary)
+        is LogicMethodEvent.Failed -> Pair("FAILED", MaterialTheme.colorScheme.error)
+    }
+
+    val logicClassName = when (event) {
+        is LogicMethodEvent.Started -> event.logicClass
+        else -> startedEvent?.logicClass
+    }
+
+    val methodName = when (event) {
+        is LogicMethodEvent.Started -> event.methodName
+        else -> startedEvent?.methodName
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .then(
+                if (isSelected) {
+                    Modifier.border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = MaterialTheme.shapes.medium
+                    )
+                } else Modifier
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Surface(
+                        color = eventColor.copy(alpha = 0.2f),
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(
+                            text = eventType,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = eventColor
+                        )
+                    }
+                    Text(
+                        text = buildString {
+                            if (logicClassName != null) {
+                                append(logicClassName.substringAfterLast('.'))
+                                append(".")
+                            }
+                            append(methodName ?: "Unknown")
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Text(
+                    text = formatTimestamp(event.timestamp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Client: ${event.clientId}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 private fun formatTimestamp(timestamp: Long): String {
     val instant = Instant.fromEpochMilliseconds(timestamp)
     val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+    val millis = (timestamp % 1000).toString().padStart(3, '0')
 
     return "${dateTime.hour.toString().padStart(2, '0')}:${
         dateTime.minute.toString().padStart(2, '0')
-    }:${dateTime.second.toString().padStart(2, '0')}"
+    }:${dateTime.second.toString().padStart(2, '0')}:${millis}"
 }

@@ -1,6 +1,5 @@
 package io.github.syrou.reaktiv.devtools.ui
 
-import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
@@ -20,45 +19,62 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
             is DevToolsAction.UpdateConnectionState -> {
                 state.copy(connectionState = action.state)
             }
+
             is DevToolsAction.UpdateClientList -> {
                 state.copy(connectedClients = action.clients)
             }
+
             is DevToolsAction.AddActionStateEvent -> {
                 state.copy(actionStateHistory = state.actionStateHistory + action.event)
             }
+
             is DevToolsAction.SelectPublisher -> {
                 state.copy(selectedPublisher = action.clientId)
             }
+
             is DevToolsAction.SelectListener -> {
                 state.copy(selectedListener = action.clientId)
             }
+
             is DevToolsAction.ToggleStateViewMode -> {
                 state.copy(showStateAsDiff = !state.showStateAsDiff)
             }
+
             is DevToolsAction.SelectAction -> {
-                state.copy(selectedActionIndex = action.index)
+                state.copy(
+                    selectedActionIndex = action.index,
+                    selectedLogicMethodCallId = if (action.index != null) null else state.selectedLogicMethodCallId
+                )
             }
+
             is DevToolsAction.ToggleDevicePanel -> {
                 state.copy(devicePanelExpanded = !state.devicePanelExpanded)
             }
+
             is DevToolsAction.ToggleAutoSelectLatest -> {
                 state.copy(autoSelectLatest = !state.autoSelectLatest)
             }
+
             is DevToolsAction.ClearHistory -> {
                 state.copy(
                     actionStateHistory = emptyList(),
+                    logicMethodEvents = emptyList(),
                     selectedActionIndex = null
                 )
             }
+
             is DevToolsAction.AddActionExclusion -> {
                 state.copy(excludedActionTypes = state.excludedActionTypes + action.actionType)
             }
+
             is DevToolsAction.RemoveActionExclusion -> {
                 state.copy(excludedActionTypes = state.excludedActionTypes - action.actionType)
             }
+
             is DevToolsAction.SetActionExclusions -> {
                 state.copy(excludedActionTypes = action.actionTypes)
             }
+
             is DevToolsAction.ToggleTimeTravel -> {
                 val newEnabled = !state.timeTravelEnabled
                 state.copy(
@@ -67,10 +83,30 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                     selectedActionIndex = if (newEnabled) state.actionStateHistory.size - 1 else state.selectedActionIndex
                 )
             }
+
             is DevToolsAction.SetTimeTravelPosition -> {
                 state.copy(
                     timeTravelPosition = action.position,
                     selectedActionIndex = action.position
+                )
+            }
+
+            is DevToolsAction.AddLogicMethodEvent -> {
+                state.copy(logicMethodEvents = state.logicMethodEvents + action.event)
+            }
+
+            is DevToolsAction.ToggleShowActions -> {
+                state.copy(showActions = !state.showActions)
+            }
+
+            is DevToolsAction.ToggleShowLogicMethods -> {
+                state.copy(showLogicMethods = !state.showLogicMethods)
+            }
+
+            is DevToolsAction.SelectLogicMethodEvent -> {
+                state.copy(
+                    selectedLogicMethodCallId = action.callId,
+                    selectedActionIndex = if (action.callId != null) null else state.selectedActionIndex
                 )
             }
         }
@@ -134,6 +170,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
             is DevToolsMessage.ClientListUpdate -> {
                 storeAccessor.dispatch(DevToolsAction.UpdateClientList(message.clients))
             }
+
             is DevToolsMessage.ActionDispatched -> {
                 val event = ActionStateEvent(
                     clientId = message.clientId,
@@ -144,6 +181,46 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                 )
                 storeAccessor.dispatch(DevToolsAction.AddActionStateEvent(event))
             }
+
+            is DevToolsMessage.LogicMethodStarted -> {
+                val event = LogicMethodEvent.Started(
+                    clientId = message.clientId,
+                    timestamp = message.timestamp,
+                    callId = message.callId,
+                    logicClass = message.logicClass,
+                    methodName = message.methodName,
+                    params = message.params,
+                    sourceFile = message.sourceFile,
+                    lineNumber = message.lineNumber,
+                    githubSourceUrl = message.githubSourceUrl
+                )
+                storeAccessor.dispatch(DevToolsAction.AddLogicMethodEvent(event))
+            }
+
+            is DevToolsMessage.LogicMethodCompleted -> {
+                val event = LogicMethodEvent.Completed(
+                    clientId = message.clientId,
+                    timestamp = message.timestamp,
+                    callId = message.callId,
+                    result = message.result,
+                    resultType = message.resultType,
+                    durationMs = message.durationMs
+                )
+                storeAccessor.dispatch(DevToolsAction.AddLogicMethodEvent(event))
+            }
+
+            is DevToolsMessage.LogicMethodFailed -> {
+                val event = LogicMethodEvent.Failed(
+                    clientId = message.clientId,
+                    timestamp = message.timestamp,
+                    callId = message.callId,
+                    exceptionType = message.exceptionType,
+                    exceptionMessage = message.exceptionMessage,
+                    durationMs = message.durationMs
+                )
+                storeAccessor.dispatch(DevToolsAction.AddLogicMethodEvent(event))
+            }
+
             else -> {
                 // Ignore other message types
             }

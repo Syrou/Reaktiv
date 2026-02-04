@@ -68,12 +68,43 @@ Real-time debugging and state inspection:
 - Time-travel debugging support
 - Platform-aware middleware integration
 
+[Learn more about the DevTools module](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-devtools/README.md)
+
+### Tracing
+
+Automatic logic method tracing with DevTools integration:
+
+- **Zero-config setup** - Just apply the Gradle plugin
+- **Automatic instrumentation** - All `ModuleLogic` methods are traced at compile time
+- **Parameter capture** - See method arguments with sensitive data obfuscation
+- **Performance metrics** - Execution time for each method call
+- **GitHub source linking** - Click-through links to source code (auto-detected from git)
+- **Build type filtering** - Enable tracing only for specific builds (e.g., staging)
+
+```kotlin
+plugins {
+    id("io.github.syrou.reaktiv.tracing") version "<version>"
+}
+
+reaktivTracing {
+    enabled.set(true)
+    buildTypes.set(setOf("staging"))  // Optional: limit to specific build types
+}
+```
+
+[Learn more about the Tracing plugin](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-tracing-gradle/README.md)
+
 ## Getting Started
 
 Add the dependencies to your project:
 
 ```kotlin
 // build.gradle.kts
+plugins {
+    // Optional: Automatic logic tracing
+    id("io.github.syrou.reaktiv.tracing") version "<version>"
+}
+
 dependencies {
     implementation("io.github.syrou:reaktiv-core:<version>")
     implementation("io.github.syrou:reaktiv-navigation:<version>")
@@ -252,6 +283,8 @@ scope.launch {
 - [Core Module Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-core/README.md)
 - [Navigation Module Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-navigation/README.md)
 - [Compose Module Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-compose/README.md)
+- [DevTools Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-devtools/README.md)
+- [Tracing Plugin Documentation](https://github.com/Syrou/Reaktiv/blob/main/reaktiv-tracing-gradle/README.md)
 
 ## License
 

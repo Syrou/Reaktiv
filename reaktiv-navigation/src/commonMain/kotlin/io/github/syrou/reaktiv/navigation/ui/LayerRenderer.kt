@@ -9,8 +9,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.zIndex
-import io.github.syrou.reaktiv.compose.rememberDispatcher
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -48,7 +46,7 @@ fun UnifiedLayerRenderer(
  * Content layer renderer with animation support
  *
  * Manages screen transitions by keeping current and previous screens composed simultaneously.
- * State is preserved through composition lifecycle rather than movableContentOf.
+ * Animation timing is managed by NavigationLogic which clears previousEntry after the animation duration.
  */
 @Composable
 private fun ContentLayerRenderer(
@@ -57,14 +55,10 @@ private fun ContentLayerRenderer(
     graphDefinitions: Map<String, NavigationGraph>
 ) {
     val currentEntry = entries.lastOrNull() ?: navigationState.currentEntry
-    val dispatch = rememberDispatcher()
 
     // Get animation state managing current + previous entries
     val animationState = rememberLayerAnimationState(
-        entries = listOf(currentEntry),
-        onAnimationComplete = {
-            dispatch(NavigationAction.AnimationCompleted)
-        }
+        entries = listOf(currentEntry)
     )
 
     // Apply layout hierarchy for proper nesting
@@ -148,6 +142,7 @@ private fun SystemLayerRenderer(
  *
  * Keeps both current and previous screens composed simultaneously.
  * Only these two screens participate in animations, controlled via zIndex.
+ * Animation timing is managed by NavigationLogic, not by animation completion callbacks.
  */
 @Composable
 private fun ContentRenderer(animationState: LayerAnimationState) {
@@ -185,9 +180,7 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
                     zIndex = zIndex,
-                    onAnimationComplete = if (isCurrentScreen) {
-                        animationState.onAnimationComplete
-                    } else null
+                    onAnimationComplete = null  // Timing managed by NavigationLogic
                 ) {
                     entry.navigatable.Content(entry.params)
                 }

@@ -48,6 +48,48 @@ sealed class DevToolsMessage {
         val success: Boolean,
         val message: String? = null
     ) : DevToolsMessage()
+
+    /**
+     * Sent when a traced logic method starts execution.
+     */
+    @Serializable
+    data class LogicMethodStarted(
+        val clientId: String,
+        val timestamp: Long,
+        val callId: String,
+        val logicClass: String,
+        val methodName: String,
+        val params: Map<String, String>,
+        val sourceFile: String? = null,
+        val lineNumber: Int? = null,
+        val githubSourceUrl: String? = null
+    ) : DevToolsMessage()
+
+    /**
+     * Sent when a traced logic method completes successfully.
+     */
+    @Serializable
+    data class LogicMethodCompleted(
+        val clientId: String,
+        val timestamp: Long,
+        val callId: String,
+        val result: String?,
+        val resultType: String,
+        val durationMs: Long
+    ) : DevToolsMessage()
+
+    /**
+     * Sent when a traced logic method fails with an exception.
+     */
+    @Serializable
+    data class LogicMethodFailed(
+        val clientId: String,
+        val timestamp: Long,
+        val callId: String,
+        val exceptionType: String,
+        val exceptionMessage: String?,
+        val durationMs: Long
+    ) : DevToolsMessage()
 }
 
 @Serializable

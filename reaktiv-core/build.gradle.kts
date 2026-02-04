@@ -4,7 +4,6 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
 plugins {
     kotlin("multiplatform")
     id("com.android.library")
-    id("org.jetbrains.kotlinx.atomicfu")
     kotlin("plugin.serialization")
     id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")

@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation
 import io.github.syrou.reaktiv.core.DispatchResult
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
 import io.github.syrou.reaktiv.navigation.definition.Modal
@@ -20,7 +21,6 @@ import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
 import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.model.NavigationTransitionState
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.model.applyModification
 import io.github.syrou.reaktiv.navigation.model.getParams
@@ -48,7 +48,7 @@ class NavigationLogic(
 
 
     private val guidedFlowMutex = Mutex()
-    private var transitionResetJob: Job? = null
+    private var animationClearJob: Job? = null
 
     /**
      * Tracks lifecycle scopes for each entry in the backstack.
@@ -56,13 +56,10 @@ class NavigationLogic(
      * launched via that entry's BackstackLifecycle.
      */
     private val entryLifecycleJobs = mutableMapOf<String, Job>()
-    
+
     /**
-     * Coroutine scope for transition state reset timers.
-     * Uses SupervisorJob + store context minus job to:
-     * - Survive store resets (won't be cancelled by store.reset())
-     * - Work with test time control (inherits store's dispatcher)
-     * - Prevent stuck ANIMATING states after animation completion
+     * Coroutine scope for animation timers.
+     * Uses SupervisorJob to survive individual job failures.
      */
     private val timerScope = CoroutineScope(
         SupervisorJob() + storeAccessor.coroutineContext.minusKey(Job)
@@ -70,8 +67,10 @@ class NavigationLogic(
 
 
     /**
-     * Execute a single navigation operation synchronously
-     * This ensures that when the method returns, the navigation state has been updated
+     * Execute a single navigation operation synchronously.
+     * This ensures that when the method returns, the navigation state has been updated.
+     *
+     * Navigation is blocked while an animation is in progress (previousEntry != null).
      */
     suspend fun navigate(block: suspend NavigationBuilder.() -> Unit) {
         val builder = NavigationBuilder(storeAccessor, parameterEncoder)
@@ -169,6 +168,13 @@ class NavigationLogic(
     }
 
     private suspend fun executeNavigation(builder: NavigationBuilder, source: String) {
+        // Block navigation while animation is in progress
+        val currentState = getCurrentNavigationState()
+        if (currentState.isAnimating) {
+            ReaktivDebug.warn("Navigation blocked, we are currently in an animation")
+            return
+        }
+
         val initialState = getCurrentNavigationState()
         val unifiedOps = collectUnifiedOperations(builder, initialState)
 
@@ -186,13 +192,31 @@ class NavigationLogic(
         val result = storeAccessor.dispatchAndAwait(action)
 
         if (result == DispatchResult.Processed) {
-            // Action was applied - invoke lifecycle callbacks for actual changes
-            val actualState = getCurrentNavigationState()
-            invokeLifecycleCallbacks(previousBackStack, actualState.backStack)
-
-            if (willAnimate) {
-                scheduleTransitionStateReset(actualState.currentEntry, initialState.currentEntry)
+            scheduleAnimationComplete(initialState.currentEntry, finalState.currentEntry)
+            timerScope.launch {
+                invokeLifecycleCallbacks(previousBackStack, finalState.backStack)
             }
+        }
+    }
+
+    /**
+     * Calculate animation duration from transition definitions and schedule clearing previousEntry.
+     */
+    private suspend fun scheduleAnimationComplete(fromEntry: NavigationEntry, toEntry: NavigationEntry) {
+        // Cancel any existing animation clear job
+        animationClearJob?.cancel()
+
+        val exitDuration = fromEntry.navigatable.exitTransition.durationMillis
+        val enterDuration = toEntry.navigatable.enterTransition.durationMillis
+        val animationDuration = maxOf(exitDuration, enterDuration).toLong()
+
+        if (animationDuration > 0) {
+            animationClearJob = timerScope.launch {
+                delay(animationDuration)
+                storeAccessor.dispatch(NavigationAction.ClearPreviousEntry)
+            }
+        } else {
+            storeAccessor.dispatchAndAwait(NavigationAction.ClearPreviousEntry)
         }
     }
 
@@ -227,7 +251,7 @@ class NavigationLogic(
                 entry.navigatable.onLifecycleCreated(lifecycle)
             } catch (e: Exception) {
                 // Log but don't prevent navigation
-                println("Warning: onLifecycle failed for ${entry.navigatable.route}: ${e.message}")
+                ReaktivDebug.warn("Warning: onLifecycle failed for ${entry.navigatable.route}: ${e.message}")
             }
         }
 
@@ -239,7 +263,7 @@ class NavigationLogic(
     }
 
     /**
-     * Determines the appropriate NavigationAction based on the operation type and complexity
+     * Determines the appropriate NavigationAction based on the operation type and complexity.
      */
     private fun determineNavigationAction(
         operations: UnifiedOperations,
@@ -247,15 +271,12 @@ class NavigationLogic(
         initialState: NavigationState,
         willAnimate: Boolean
     ): NavigationAction {
-        val transitionState = if (willAnimate) NavigationTransitionState.ANIMATING else NavigationTransitionState.IDLE
-
         return when {
             isSimpleBackOperation(operations, finalState, initialState) -> {
                 NavigationAction.Back(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = finalState.modalContexts,
-                    transitionState = transitionState
+                    modalContexts = finalState.modalContexts
                 )
             }
 
@@ -263,8 +284,7 @@ class NavigationLogic(
                 NavigationAction.Navigate(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = finalState.modalContexts,
-                    transitionState = transitionState
+                    modalContexts = finalState.modalContexts
                 )
             }
 
@@ -272,8 +292,7 @@ class NavigationLogic(
                 NavigationAction.Replace(
                     currentEntry = finalState.currentEntry,
                     backStack = finalState.backStack,
-                    modalContexts = finalState.modalContexts,
-                    transitionState = transitionState
+                    modalContexts = finalState.modalContexts
                 )
             }
 
@@ -285,8 +304,7 @@ class NavigationLogic(
                     modalContexts = finalState.modalContexts,
                     operations = operations.navigationSteps.map { it.operation },
                     activeGuidedFlowState = finalState.activeGuidedFlowState,
-                    guidedFlowModifications = finalState.guidedFlowModifications,
-                    transitionState = transitionState
+                    guidedFlowModifications = finalState.guidedFlowModifications
                 )
             }
         }
@@ -301,8 +319,8 @@ class NavigationLogic(
         initialState: NavigationState
     ): Boolean {
         return operations.navigationSteps.size == 1 &&
-               operations.navigationSteps.first().operation == NavigationOperation.Back &&
-               !hasComplexStateChanges(operations, finalState, initialState)
+                operations.navigationSteps.first().operation == NavigationOperation.Back &&
+                !hasComplexStateChanges(operations, finalState, initialState)
     }
 
     /**
@@ -314,8 +332,8 @@ class NavigationLogic(
         initialState: NavigationState
     ): Boolean {
         return operations.navigationSteps.size == 1 &&
-               operations.navigationSteps.first().operation == NavigationOperation.Navigate &&
-               !hasComplexStateChanges(operations, finalState, initialState)
+                operations.navigationSteps.first().operation == NavigationOperation.Navigate &&
+                !hasComplexStateChanges(operations, finalState, initialState)
     }
 
     /**
@@ -327,8 +345,8 @@ class NavigationLogic(
         initialState: NavigationState
     ): Boolean {
         return operations.navigationSteps.size == 1 &&
-               operations.navigationSteps.first().operation == NavigationOperation.Replace &&
-               !hasComplexStateChanges(operations, finalState, initialState)
+                operations.navigationSteps.first().operation == NavigationOperation.Replace &&
+                !hasComplexStateChanges(operations, finalState, initialState)
     }
 
     /**
@@ -340,8 +358,8 @@ class NavigationLogic(
         initialState: NavigationState
     ): Boolean {
         return operations.guidedFlowModifications.isNotEmpty() ||
-               finalState.activeGuidedFlowState != initialState.activeGuidedFlowState ||
-               operations.hasGuidedFlowNavigation
+                finalState.activeGuidedFlowState != initialState.activeGuidedFlowState ||
+                operations.hasGuidedFlowNavigation
     }
 
     /**
@@ -656,33 +674,6 @@ class NavigationLogic(
 
         // Only animate if at least one transition has duration > 0
         return maxOf(enterDuration, exitDuration) > 0
-    }
-
-
-    /**
-     * Schedule transition state reset after animation completes.
-     * Cancels any previous pending reset to prevent race conditions.
-     */
-    private suspend fun scheduleTransitionStateReset(targetEntry: NavigationEntry, previousEntry: NavigationEntry) {
-        // Cancel any existing transition reset job to prevent conflicts
-        transitionResetJob?.cancel()
-
-        // Calculate animation duration considering both enter and exit transitions
-        val enterDuration = targetEntry.navigatable.enterTransition.durationMillis
-        val exitDuration = previousEntry.navigatable.exitTransition.durationMillis
-
-        // Use the longer of the two durations to ensure both animations complete
-        val totalAnimationDuration = maxOf(enterDuration, exitDuration)
-
-        transitionResetJob = timerScope.launch {
-            delay(totalAnimationDuration.toLong())
-
-            // Verify we're still in ANIMATING state before resetting
-            val currentState = storeAccessor.selectState<NavigationState>().first()
-            if (currentState.transitionState == NavigationTransitionState.ANIMATING) {
-                storeAccessor.dispatch(NavigationAction.UpdateTransitionState(NavigationTransitionState.IDLE))
-            }
-        }
     }
 
 
@@ -1206,8 +1197,9 @@ class NavigationLogic(
 
             // If fallback also not found, navigate to it as a fresh destination
             if (popIndex < 0) {
-                val resolution = precomputedData.routeResolver.resolve(fallbackRoute, precomputedData.availableNavigatables)
-                    ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
+                val resolution =
+                    precomputedData.routeResolver.resolve(fallbackRoute, precomputedData.availableNavigatables)
+                        ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
 
                 val newEntry = createNavigationEntry(
                     step.copy(target = step.popUpToFallback),
