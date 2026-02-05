@@ -53,44 +53,36 @@ class AndroidCrashHandler private constructor(
         }
     }
 
-    private fun saveToDownloads(fileName: String, content: String): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            saveToDownloadsMediaStore(fileName, content)
-        } else {
-            saveToDownloadsLegacy(fileName, content)
-        }
-    }
-
-    private fun saveToDownloadsMediaStore(fileName: String, content: String): String {
-        val contentValues = ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-            put(MediaStore.Downloads.MIME_TYPE, "application/json")
-            put(MediaStore.Downloads.IS_PENDING, 1)
-        }
-
-        val resolver = context.contentResolver
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-            ?: throw Exception("Failed to create MediaStore entry")
-
-        resolver.openOutputStream(uri)?.use { outputStream ->
-            outputStream.write(content.toByteArray())
-        } ?: throw Exception("Failed to open output stream")
-
-        contentValues.clear()
-        contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
-        resolver.update(uri, contentValues, null, null)
-
-        return "Downloads/$fileName"
-    }
-
     @Suppress("DEPRECATION")
-    private fun saveToDownloadsLegacy(fileName: String, content: String): String {
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val file = File(downloadsDir, fileName)
-        FileOutputStream(file).use { outputStream ->
-            outputStream.write(content.toByteArray())
+    private fun saveToDownloads(fileName: String, content: String): String {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                ?: throw Exception("Failed to create MediaStore entry")
+
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                outputStream.write(content.toByteArray())
+            } ?: throw Exception("Failed to open output stream")
+
+            contentValues.clear()
+            contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, contentValues, null, null)
+
+            return "Downloads/$fileName"
+        } else {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, fileName)
+            FileOutputStream(file).use { outputStream ->
+                outputStream.write(content.toByteArray())
+            }
+            return file.absolutePath
         }
-        return file.absolutePath
     }
 
     companion object {
