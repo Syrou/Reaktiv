@@ -207,6 +207,43 @@ open class ModuleLogic<A : ModuleAction> : Logic {
     override suspend fun invoke(action: ModuleAction) {
     }
 
+    /**
+     * Called when the Store is reset.
+     *
+     * Override this method to handle store reset events, such as restarting
+     * long-running observation coroutines that were cancelled during reset.
+     *
+     * This is called after the store's action processing channels have been
+     * restarted, so it's safe to launch new coroutines from this method.
+     *
+     * Example:
+     * ```kotlin
+     * class MyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<MyAction>() {
+     *     private var observationJob: Job? = null
+     *
+     *     init {
+     *         startObservation()
+     *     }
+     *
+     *     override fun onStoreReset() {
+     *         // Restart observation after store reset
+     *         startObservation()
+     *     }
+     *
+     *     private fun startObservation() {
+     *         observationJob = storeAccessor.launch {
+     *             storeAccessor.selectState<SomeState>().collect { state ->
+     *                 // Handle state changes
+     *             }
+     *         }
+     *     }
+     * }
+     * ```
+     */
+    open fun onStoreReset() {
+        // Default implementation does nothing
+    }
+
     companion object {
 
         /**
@@ -651,6 +688,10 @@ class Store private constructor(
         coroutineContext.cancelChildren(CancellationException("Store Reset"))
         launch {
             processActionChannel()
+            // Notify all Logic instances that the store has been reset
+            moduleInfo.values.mapNotNull { it.logic }.forEach { logic ->
+                logic.onStoreReset()
+            }
         }
     }
 

@@ -366,10 +366,56 @@ Test files are located in `src/commonTest/kotlin/` for multiplatform tests and `
    - Parameter and return value documentation using `@param` and `@return`
    - `@see` references to related classes when appropriate
 
+## Publishing
+
+### CentralPublisherPlugin
+
+The project uses a custom `CentralPublisherPlugin` (in `convention-plugins/`) for publishing to Maven Central via Sonatype.
+
+**Key behaviors:**
+- Detects project type (KMP vs JVM vs Gradle plugin) and configures publications accordingly
+- Automatically adds javadoc and sources JARs required by Maven Central
+- Handles GPG signing with in-memory keys
+- Creates bundle ZIP for Sonatype Central Portal upload
+
+**Gradle Plugin Publishing:**
+When publishing Gradle plugins (`java-gradle-plugin`), the plugin creates:
+1. Main plugin artifact at `io/github/syrou/reaktiv-tracing-gradle/`
+2. Plugin marker artifact at `io/github/syrou/reaktiv/tracing/` (based on plugin ID)
+
+Both artifacts must be published for the plugin to be resolvable. The `CreateBundleTask` automatically discovers and includes plugin marker paths.
+
+**Publishing commands:**
+```bash
+# Publish all main modules
+./gradlew uploadToCentral
+
+# Publish included builds separately
+./gradlew -p reaktiv-tracing-compiler uploadToCentral
+./gradlew -p reaktiv-tracing-gradle uploadToCentral
+```
+
+**Using the tracing plugin in external projects:**
+```toml
+# libs.versions.toml
+[plugins]
+reaktiv-tracing = { id = "io.github.syrou.reaktiv.tracing", version.ref = "reaktiv" }
+```
+
+```kotlin
+// settings.gradle.kts - must include mavenCentral()
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+```
+
 ## Configuration
 
 - **Kotlin**: 2.1.21
-- **Compose**: 1.8.1  
+- **Compose**: 1.8.1
 - **Android Gradle Plugin**: 8.7.0
 - **AtomicFU**: 0.27.0
 - Target platforms: JVM, Android, potentially iOS/Desktop

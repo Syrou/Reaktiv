@@ -11,12 +11,26 @@ import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
 /**
+ * Represents a ghost device imported from a recorded session.
+ */
+data class GhostDevice(
+    val ghostClientId: String,
+    val originalClientInfo: ClientInfo,
+    val sessionStartTime: Long,
+    val sessionEndTime: Long,
+    val eventCount: Int = 0,
+    val logicEventCount: Int = 0
+)
+
+/**
  * Manages connected clients and their WebSocket sessions.
  */
 class ClientManager {
     private val mutex = Mutex()
     private val clients = mutableMapOf<String, ConnectedClient>()
     private val subscriptions = mutableMapOf<String, MutableSet<String>>()
+    private val ghostDevices = mutableMapOf<String, GhostDevice>()
+    private var currentPublisherId: String? = null
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -117,9 +131,22 @@ class ClientManager {
 
     /**
      * Broadcasts the current client list to all connected clients.
+     * Includes both real clients and ghost devices.
      */
     suspend fun broadcastClientList() {
-        val clientList = clients.values.map { it.info }
+        val realClients = clients.values.map { it.info }
+        val ghostClients = ghostDevices.values.map { ghost ->
+            ClientInfo(
+                clientId = ghost.ghostClientId,
+                clientName = "[Ghost] ${ghost.originalClientInfo.clientName}",
+                platform = "${ghost.originalClientInfo.platform} (Recorded)",
+                role = if (currentPublisherId == ghost.ghostClientId) ClientRole.PUBLISHER else ClientRole.UNASSIGNED,
+                publisherClientId = null,
+                connectedAt = ghost.sessionStartTime,
+                isGhost = true
+            )
+        }
+        val clientList = realClients + ghostClients
         val message = DevToolsMessage.ClientListUpdate(clientList)
 
         clients.keys.forEach { clientId ->
@@ -149,10 +176,143 @@ class ClientManager {
     }
 
     /**
-     * Gets all connected clients.
+     * Gets all connected clients including ghost devices.
      */
     suspend fun getAllClients(): List<ClientInfo> = mutex.withLock {
-        clients.values.map { it.info }
+        val realClients = clients.values.map { it.info }
+        val ghostClients = ghostDevices.values.map { ghost ->
+            ClientInfo(
+                clientId = ghost.ghostClientId,
+                clientName = "[Ghost] ${ghost.originalClientInfo.clientName}",
+                platform = "${ghost.originalClientInfo.platform} (Recorded)",
+                role = if (currentPublisherId == ghost.ghostClientId) ClientRole.PUBLISHER else ClientRole.UNASSIGNED,
+                publisherClientId = null,
+                connectedAt = ghost.sessionStartTime,
+                isGhost = true
+            )
+        }
+        realClients + ghostClients
+    }
+
+    /**
+     * Registers a ghost device from an imported session.
+     * Ghost devices can be played back and will broadcast events to listeners.
+     */
+    suspend fun registerGhostDevice(registration: DevToolsMessage.GhostDeviceRegistration): String = mutex.withLock {
+        val ghostId = "ghost-${registration.sessionId}"
+
+        ghostDevices[ghostId] = GhostDevice(
+            ghostClientId = ghostId,
+            originalClientInfo = registration.originalClientInfo,
+            sessionStartTime = registration.sessionStartTime,
+            sessionEndTime = registration.sessionEndTime,
+            eventCount = registration.eventCount,
+            logicEventCount = registration.logicEventCount
+        )
+
+        println("DevTools Server: Ghost device registered - $ghostId (${registration.eventCount} events)")
+
+        val previousPublisher = currentPublisherId
+        currentPublisherId = ghostId
+
+        broadcastPublisherChanged(ghostId, previousPublisher, "Ghost device imported")
+        broadcastClientList()
+
+        return@withLock ghostId
+    }
+
+    /**
+     * Removes a ghost device.
+     */
+    suspend fun removeGhostDevice(ghostId: String) = mutex.withLock {
+        val removed = ghostDevices.remove(ghostId)
+        if (removed != null) {
+            println("DevTools Server: Ghost device removed - $ghostId")
+
+            subscriptions.remove(ghostId)
+
+            if (currentPublisherId == ghostId) {
+                val previousPublisher = currentPublisherId
+                currentPublisherId = null
+                broadcastPublisherChanged(null, previousPublisher, "Ghost device removed")
+            }
+
+            broadcastClientList()
+        }
+    }
+
+    /**
+     * Gets a ghost device by ID.
+     */
+    suspend fun getGhostDevice(ghostId: String): GhostDevice? = mutex.withLock {
+        ghostDevices[ghostId]
+    }
+
+    /**
+     * Checks if a client ID belongs to a ghost device.
+     */
+    suspend fun isGhostDevice(clientId: String): Boolean = mutex.withLock {
+        ghostDevices.containsKey(clientId)
+    }
+
+    /**
+     * Sets the current publisher. Only one publisher is allowed at a time.
+     * If the new publisher is a real device and there's a ghost publisher, the ghost is removed.
+     */
+    suspend fun setPublisher(clientId: String, reason: String) = mutex.withLock {
+        val previousPublisher = currentPublisherId
+
+        if (previousPublisher != null && previousPublisher != clientId) {
+            if (ghostDevices.containsKey(previousPublisher) && !ghostDevices.containsKey(clientId)) {
+                ghostDevices.remove(previousPublisher)
+                subscriptions.remove(previousPublisher)
+                println("DevTools Server: Ghost device auto-removed due to real publisher - $previousPublisher")
+            } else if (!ghostDevices.containsKey(previousPublisher)) {
+                clients[previousPublisher]?.let {
+                    it.info = it.info.copy(role = ClientRole.UNASSIGNED, publisherClientId = null)
+                }
+            }
+        }
+
+        currentPublisherId = clientId
+        broadcastPublisherChanged(clientId, previousPublisher, reason)
+        broadcastClientList()
+    }
+
+    /**
+     * Gets the current publisher ID.
+     */
+    suspend fun getCurrentPublisher(): String? = mutex.withLock {
+        currentPublisherId
+    }
+
+    /**
+     * Broadcasts a ghost device's events to all listeners.
+     */
+    suspend fun broadcastGhostEvent(ghostId: String, message: DevToolsMessage) = mutex.withLock {
+        val listeners = subscriptions[ghostId] ?: emptySet()
+        listeners.forEach { listenerId ->
+            sendToClient(listenerId, message)
+        }
+    }
+
+    /**
+     * Broadcasts a publisher changed notification to all clients.
+     */
+    private suspend fun broadcastPublisherChanged(
+        newPublisherId: String?,
+        previousPublisherId: String?,
+        reason: String
+    ) {
+        val message = DevToolsMessage.PublisherChanged(
+            newPublisherId = newPublisherId,
+            previousPublisherId = previousPublisherId,
+            reason = reason
+        )
+
+        clients.keys.forEach { clientId ->
+            sendToClient(clientId, message)
+        }
     }
 }
 

@@ -43,13 +43,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
+import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 
 /**
- * Unified event type for the event stream, combining actions and logic method events.
+ * Unified event type for the event stream, combining actions, logic method events, and crashes.
  */
 sealed class StreamEvent {
     abstract val timestamp: Long
@@ -64,6 +65,11 @@ sealed class StreamEvent {
         override val timestamp: Long = event.timestamp
         override val clientId: String = event.clientId
     }
+
+    data class Crash(val event: CrashEventInfo) : StreamEvent() {
+        override val timestamp: Long = event.timestamp
+        override val clientId: String = event.clientId
+    }
 }
 
 /**
@@ -73,6 +79,7 @@ sealed class StreamEvent {
 fun ActionStream(
     actions: List<ActionStateEvent>,
     logicMethodEvents: List<LogicMethodEvent> = emptyList(),
+    crashEvent: CrashEventInfo? = null,
     selectedIndex: Int? = null,
     selectedLogicMethodCallId: String? = null,
     autoSelectLatest: Boolean = true,
@@ -95,7 +102,7 @@ fun ActionStream(
     var exclusionInput by remember { mutableStateOf("") }
 
     // Build combined event stream
-    val streamEvents = remember(actions, logicMethodEvents, excludedActionTypes, showActions, showLogicMethods) {
+    val streamEvents = remember(actions, logicMethodEvents, crashEvent, excludedActionTypes, showActions, showLogicMethods) {
         buildList {
             if (showActions) {
                 actions.forEachIndexed { index, action ->
@@ -108,6 +115,9 @@ fun ActionStream(
                 logicMethodEvents.forEach { event ->
                     add(StreamEvent.LogicMethod(event))
                 }
+            }
+            if (crashEvent != null) {
+                add(StreamEvent.Crash(crashEvent))
             }
         }.sortedByDescending { it.timestamp }
     }
@@ -298,6 +308,13 @@ fun ActionStream(
                                 startedEvent = startedEvent,
                                 isSelected = event.event.callId == selectedLogicMethodCallId,
                                 onClick = { onSelectLogicMethod(event.event.callId) }
+                            )
+                        }
+                        is StreamEvent.Crash -> {
+                            CrashEventCard(
+                                crashEvent = event.event,
+                                isSelected = false,
+                                onClick = { }
                             )
                         }
                     }

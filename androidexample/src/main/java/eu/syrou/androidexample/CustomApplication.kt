@@ -10,7 +10,7 @@ import eu.syrou.androidexample.domain.logic.NotificationHelper
 import eu.syrou.androidexample.domain.network.news.PeriodicNewsFetches
 import eu.syrou.androidexample.domain.network.news.PeriodicNewsFetchesFactory
 import eu.syrou.androidexample.reaktiv.TestNavigationModule.TestNavigationModule
-import eu.syrou.androidexample.reaktiv.TestNavigationModule.TestNavigationState
+import eu.syrou.androidexample.reaktiv.crashtest.CrashTestModule
 import eu.syrou.androidexample.reaktiv.middleware.createTestNavigationMiddleware
 import eu.syrou.androidexample.reaktiv.news.NewsModule
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
@@ -41,7 +41,11 @@ import eu.syrou.androidexample.ui.screen.NotFoundScreen
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.introspection.AndroidCrashModule
+import io.github.syrou.reaktiv.introspection.IntrospectionConfig
+import io.github.syrou.reaktiv.introspection.IntrospectionModule
 import io.github.syrou.reaktiv.devtools.DevToolsModule
+import io.github.syrou.reaktiv.devtools.middleware.DefaultDeviceRole
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import kotlinx.coroutines.CoroutineScope
@@ -127,11 +131,20 @@ class CustomApplication : Application() {
         screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
     }
 
+    private val introspectionModule = IntrospectionModule(
+        config = IntrospectionConfig(
+            clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
+            platform = "Android ${Build.VERSION.RELEASE}"
+        )
+    )
+
     private val devToolsModule = DevToolsModule(
         config = DevToolsConfig(
+            serverUrl = "ws://100.125.101.2:8080/ws",
             clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
             platform = "Android ${Build.VERSION.RELEASE}",
-            enabled = true
+            enabled = true,
+            defaultRole = DefaultDeviceRole.LISTENER
         ),
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     )
@@ -147,8 +160,11 @@ class CustomApplication : Application() {
         module(VideosModule)
         module(TestNavigationModule)
         module(TwitchStreamsModule)
+        module(CrashTestModule)
+        module(introspectionModule)
         module(navigationModule)
         module(devToolsModule)
+        module(AndroidCrashModule(this@CustomApplication))
         middlewares(
             loggingMiddleware,
             createTestNavigationMiddleware()

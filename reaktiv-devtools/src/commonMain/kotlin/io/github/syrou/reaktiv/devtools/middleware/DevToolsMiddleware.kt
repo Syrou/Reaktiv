@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.DevToolsAction
 import io.github.syrou.reaktiv.devtools.DevToolsLogic
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
@@ -65,6 +66,9 @@ class DevToolsMiddleware(
     private var devToolsLogic: DevToolsLogic? = null
     private var logicObserver: DevToolsLogicObserver? = null
     private var initialized = false
+
+    private val sessionCapture: SessionCapture?
+        get() = devToolsLogic?.getSessionCapture()
 
     /**
      * The middleware function to be used with Reaktiv store.
@@ -132,9 +136,10 @@ class DevToolsMiddleware(
                 handleServerMessage(message)
             }
 
-            // Register logic tracing observer
+            // Register logic tracing observer (sessionCapture is now owned by Logic)
             devToolsLogic?.let { logic ->
-                logicObserver = DevToolsLogicObserver(config, logic, scope)
+                val capture = logic.getSessionCapture()
+                logicObserver = DevToolsLogicObserver(config, logic, scope, capture)
                 LogicTracer.addObserver(logicObserver!!)
                 println("DevTools: Logic tracing observer registered")
             }
@@ -142,10 +147,41 @@ class DevToolsMiddleware(
             // Auto-connect if serverUrl is configured
             if (config.serverUrl != null) {
                 devToolsLogic?.connect(config.serverUrl)
+
+                // Request default role after connection
+                if (config.defaultRole != DefaultDeviceRole.NONE) {
+                    requestDefaultRole()
+                }
             }
         } catch (e: Exception) {
             println("DevTools: Failed to initialize logic - ${e.message}")
             println("DevTools: Make sure DevToolsModule.create(config) is registered in your store")
+        }
+    }
+
+    private suspend fun requestDefaultRole() {
+        val logic = devToolsLogic ?: return
+        if (!logic.isConnected()) {
+            println("DevTools: Cannot request role - not connected")
+            return
+        }
+
+        val role = when (config.defaultRole) {
+            DefaultDeviceRole.PUBLISHER -> ClientRole.PUBLISHER
+            DefaultDeviceRole.LISTENER -> ClientRole.SUBSCRIBER
+            DefaultDeviceRole.NONE -> return
+        }
+
+        try {
+            val message = DevToolsMessage.RoleAssignment(
+                targetClientId = config.clientId,
+                role = role,
+                publisherClientId = null
+            )
+            logic.send(message)
+            println("DevTools: Requested default role: $role")
+        } catch (e: Exception) {
+            println("DevTools: Failed to request default role - ${e.message}")
         }
     }
 
@@ -189,6 +225,7 @@ class DevToolsMiddleware(
     }
 
     private suspend fun handleRoleAssignment(assignment: DevToolsMessage.RoleAssignment) {
+        val previousRole = _currentRole.value
         _currentRole.value = assignment.role
 
         devToolsLogic?.send(
@@ -201,6 +238,33 @@ class DevToolsMiddleware(
         )
 
         println("DevTools: Role changed to ${assignment.role}")
+
+        if (assignment.role == ClientRole.PUBLISHER && previousRole != ClientRole.PUBLISHER) {
+            sendSessionHistorySync()
+        }
+    }
+
+    private suspend fun sendSessionHistorySync() {
+        val capture = sessionCapture ?: return
+        val logic = devToolsLogic ?: return
+        if (!logic.isConnected()) return
+
+        val history = capture.getSessionHistory()
+
+        try {
+            val message = DevToolsMessage.SessionHistorySync(
+                clientId = config.clientId,
+                sessionStartTime = history.startTime,
+                actionEvents = history.actions.map { DevToolsMessage.ActionDispatched.fromCaptured(it) },
+                logicStartedEvents = history.logicStarted.map { DevToolsMessage.LogicMethodStarted.fromCaptured(it) },
+                logicCompletedEvents = history.logicCompleted.map { DevToolsMessage.LogicMethodCompleted.fromCaptured(it) },
+                logicFailedEvents = history.logicFailed.map { DevToolsMessage.LogicMethodFailed.fromCaptured(it) }
+            )
+            logic.send(message)
+            println("DevTools: Sent session history sync (${history.actions.size} actions)")
+        } catch (e: Exception) {
+            println("DevTools: Failed to send session history sync - ${e.message}")
+        }
     }
 
     private suspend fun applyStateSync(sync: DevToolsMessage.StateSync) {
@@ -232,6 +296,9 @@ class DevToolsMiddleware(
                 actionData = action.toString(),
                 resultingStateJson = stateJson
             )
+
+            sessionCapture?.captureAction(message.toCaptured())
+
             logic.send(message)
         } catch (e: Exception) {
             println("DevTools: Failed to send action with state - ${e.message}")
@@ -247,6 +314,7 @@ class DevToolsMiddleware(
 
     /**
      * Cleans up resources including the logic tracing observer.
+     * Note: SessionCapture cleanup should be done via DevToolsLogic.cleanup()
      */
     fun cleanup() {
         logicObserver?.let { observer ->

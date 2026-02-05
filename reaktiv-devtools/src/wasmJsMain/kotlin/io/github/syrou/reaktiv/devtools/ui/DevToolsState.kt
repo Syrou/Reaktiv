@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.devtools.client.ConnectionState
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
+import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import kotlinx.serialization.Serializable
 
 /**
@@ -26,8 +27,23 @@ data class DevToolsState(
     val timeTravelPosition: Int = 0,
     val showActions: Boolean = true,
     val showLogicMethods: Boolean = true,
-    val selectedLogicMethodCallId: String? = null
+    val selectedLogicMethodCallId: String? = null,
+    val showImportGhostDialog: Boolean = false,
+    val crashEvent: CrashEventInfo? = null,
+    val publisherSessionStart: Long? = null,
+    val canExportSession: Boolean = false,
+    val activeGhostId: String? = null
 ) : ModuleState
+
+/**
+ * Represents crash information displayed in the timeline.
+ */
+@Serializable
+data class CrashEventInfo(
+    val timestamp: Long,
+    val clientId: String,
+    val exception: CrashException
+)
 
 /**
  * Actions for the DevTools UI.
@@ -52,6 +68,16 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data object ToggleShowActions : DevToolsAction()
     data object ToggleShowLogicMethods : DevToolsAction()
     data class SelectLogicMethodEvent(val callId: String?) : DevToolsAction()
+
+    data object ShowImportGhostDialog : DevToolsAction()
+    data object HideImportGhostDialog : DevToolsAction()
+    data class SetCrashEvent(val crashEvent: CrashEventInfo?) : DevToolsAction()
+    data class SetPublisherSessionStart(val startTime: Long?) : DevToolsAction()
+    data class SetCanExportSession(val canExport: Boolean) : DevToolsAction()
+    data class BulkAddActionStateEvents(val events: List<ActionStateEvent>) : DevToolsAction()
+    data class BulkAddLogicMethodEvents(val events: List<LogicMethodEvent>) : DevToolsAction()
+    data class SetActiveGhostId(val ghostId: String?) : DevToolsAction()
+    data class EnableTimeTravelWithGhost(val ghostId: String) : DevToolsAction()
 }
 
 /**

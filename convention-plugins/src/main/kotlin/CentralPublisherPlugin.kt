@@ -272,13 +272,31 @@ abstract class CreateBundleTask : DefaultTask() {
         val targets = mutableSetOf<String>()
         val groupPath = group.replace('.', '/')
 
+        // Gradle plugin markers are published under plugin ID path (e.g., io/github/syrou/reaktiv/tracing/)
+        val pluginMarkerPaths = mutableSetOf<String>()
+        val gradlePluginExtension = project.extensions.findByName("gradlePlugin")
+        if (gradlePluginExtension != null) {
+            try {
+                val pluginsContainer = gradlePluginExtension.javaClass.getMethod("getPlugins").invoke(gradlePluginExtension)
+                val iterator = pluginsContainer.javaClass.getMethod("iterator").invoke(pluginsContainer) as Iterator<*>
+                iterator.forEach { plugin ->
+                    val pluginId = plugin!!.javaClass.getMethod("getId").invoke(plugin) as String
+                    pluginMarkerPaths.add(pluginId.replace('.', '/'))
+                }
+            } catch (e: Exception) {
+                logger.warn("⚠️  Could not extract plugin IDs: ${e.message}")
+            }
+        }
+
         logger.lifecycle("🔍 Debugging artifact discovery:")
         logger.lifecycle("   📁 Maven local: ${mavenLocalDir.absolutePath}")
         logger.lifecycle("   🏷️ Group path: $groupPath")
         logger.lifecycle("   📦 Project name: $projectName")
         logger.lifecycle("   🔢 Version: $version")
+        if (pluginMarkerPaths.isNotEmpty()) {
+            logger.lifecycle("   🔌 Plugin markers: ${pluginMarkerPaths.size}")
+        }
 
-        // Check if group directory exists
         val groupDir = File(mavenLocalDir, groupPath)
         if (!groupDir.exists()) {
             logger.warn("⚠️  Group directory doesn't exist: ${groupDir.absolutePath}")
@@ -290,25 +308,22 @@ abstract class CreateBundleTask : DefaultTask() {
         var totalFilesInGroup = 0
         var matchingProjectFiles = 0
 
-        // Walk through the entire Maven local repository but only copy our specific project's artifacts
         mavenLocalDir.walkTopDown().forEach { file ->
             if (file.isFile) {
                 val relativePath = file.relativeTo(mavenLocalDir).path.replace('\\', '/')
 
-                // More precise filtering: only include files that are specifically for THIS project
                 val belongsToThisProject = relativePath.startsWith("$groupPath/$projectName/") ||
                         relativePath.startsWith("$groupPath/$projectName-")
 
-                // Count files in our group for debugging
+                val belongsToPluginMarker = pluginMarkerPaths.any { markerPath ->
+                    relativePath.startsWith("$markerPath/")
+                }
+
                 if (relativePath.startsWith(groupPath)) {
                     totalFilesInGroup++
                 }
 
-                // Only process files that:
-                // 1. Belong specifically to this project (exact match)
-                // 2. Have our version
-                // 3. Are actual artifacts
-                if (belongsToThisProject &&
+                if ((belongsToThisProject || belongsToPluginMarker) &&
                     file.name.contains(version) &&
                     (file.name.endsWith(".jar") || file.name.endsWith(".klib") ||
                             file.name.endsWith(".aar") || file.name.endsWith(".pom") ||
@@ -316,16 +331,13 @@ abstract class CreateBundleTask : DefaultTask() {
                             file.name.endsWith(".md5") || file.name.endsWith(".sha1") ||
                             file.name.endsWith(".sha256") || file.name.endsWith(".sha512") ||
                             file.name.endsWith(".json") || file.name.endsWith(".zip"))
-                ) { // Include kotlin_resources.zip files
-
+                ) {
                     matchingProjectFiles++
 
-                    // Copy maintaining the full Maven repository structure
                     val targetFile = File(stagingDir, relativePath)
                     targetFile.parentFile.mkdirs()
                     file.copyTo(targetFile, overwrite = true)
 
-                    // Generate checksums for main artifacts (not for existing checksum files)
                     if (!file.name.endsWith(".md5") && !file.name.endsWith(".sha1") &&
                         !file.name.endsWith(".sha256") && !file.name.endsWith(".sha512") &&
                         !file.name.endsWith(".asc")
@@ -333,7 +345,6 @@ abstract class CreateBundleTask : DefaultTask() {
                         generateChecksums(targetFile)
                     }
 
-                    // Extract target from filename for logging (be more specific)
                     if (file.name.startsWith(projectName)) {
                         val artifactPattern = "$projectName-(.+?)-$version\\.(klib|jar|aar|module|pom).*".toRegex()
                         val match = artifactPattern.find(file.name)
@@ -356,14 +367,12 @@ abstract class CreateBundleTask : DefaultTask() {
         logger.lifecycle("   📦 Files for THIS project: $matchingProjectFiles")
         logger.lifecycle("   ✅ Files copied: $artifactCount")
 
-        // If no artifacts found, suggest next steps
         if (artifactCount == 0) {
             logger.lifecycle("❌ No artifacts found! Possible issues:")
             logger.lifecycle("   1. Run 'publishToMavenLocal' first")
             logger.lifecycle("   2. Check if group/version/project name are correct")
             logger.lifecycle("   3. Verify artifacts exist in: ${groupDir.absolutePath}")
 
-            // List a few actual files in the group directory for comparison
             File(groupDir, projectName).walkTopDown().take(5).forEach { file ->
                 if (file.isFile) {
                     logger.lifecycle("   📄 Example file found: ${file.name}")
@@ -371,7 +380,6 @@ abstract class CreateBundleTask : DefaultTask() {
             }
         }
 
-        // Validate bundle structure before creating ZIP
         validateBundleStructure(stagingDir)
 
         logger.lifecycle("📦 Auto-discovered ${targets.size} Kotlin Multiplatform targets:")
@@ -761,12 +769,12 @@ class CentralPublisherPlugin : Plugin<Project> {
         // Configure publishing after project evaluation to ensure KMP plugin is applied
         val publishingExtension = project.extensions.getByType<PublishingExtension>()
 
-        // Check if Kotlin Multiplatform plugin is applied
-        val kotlinExtension = project.extensions.findByName("kotlin")
-        if (kotlinExtension != null) {
+        // Check if Kotlin Multiplatform plugin is applied (not just kotlin-jvm)
+        val isMultiplatform = project.plugins.hasPlugin("org.jetbrains.kotlin.multiplatform")
+        if (isMultiplatform) {
             configureKotlinMultiplatformPublishing(project, publishingExtension, extension)
         } else {
-            // Fallback for regular Kotlin projects
+            // Regular Kotlin JVM or Java projects
             configureRegularKotlinPublishing(project, publishingExtension, extension)
         }
     }
@@ -871,26 +879,47 @@ class CentralPublisherPlugin : Plugin<Project> {
             }
         }
 
-        publishing.publications.create<MavenPublication>("maven") {
-            from(project.components["java"])
+        // Create sources jar task
+        val sourcesJar = project.tasks.register<Jar>("sourcesJar") {
+            archiveClassifier.set("sources")
+            from(project.extensions.getByType<SourceSetContainer>()["main"].allSource)
+        }
 
-            // Add sources jar
-            val sourcesJar = project.tasks.register<Jar>("sourcesJar") {
-                archiveClassifier.set("sources")
-                from(project.extensions.getByType<SourceSetContainer>()["main"].allSource)
+        // Check if java-gradle-plugin is applied (creates its own publications)
+        val hasGradlePlugin = project.plugins.hasPlugin("java-gradle-plugin")
+
+        if (hasGradlePlugin) {
+            // Configure existing publications created by java-gradle-plugin
+            project.afterEvaluate {
+                publishing.publications.withType<MavenPublication> {
+                    // Skip plugin marker publications (they don't need javadoc)
+                    if (!name.endsWith("PluginMarkerMaven")) {
+                        artifact(javadocJar.get())
+                        artifact(sourcesJar.get())
+                        configurePom(this, extension)
+                        project.logger.lifecycle("   📚 Added javadoc/sources to gradle plugin publication: $name")
+                    } else {
+                        // Plugin markers still need POM metadata
+                        configurePom(this, extension)
+                    }
+                }
             }
-            artifact(sourcesJar)
+            project.logger.lifecycle("🚀 Configured Gradle plugin publishing with javadoc")
+        } else {
+            // Create standard maven publication for regular JVM projects
+            publishing.publications.create<MavenPublication>("maven") {
+                from(project.components["java"])
 
-            // Add javadoc.jar artifact
-            artifact(javadocJar.get())
+                artifact(sourcesJar)
+                artifact(javadocJar.get())
 
-            configurePom(this, extension)
+                configurePom(this, extension)
+            }
+            project.logger.lifecycle("🚀 Configured regular Kotlin publishing")
         }
 
         // Configure signing dependencies for regular projects too
         configureSigningDependencies(project)
-
-        project.logger.lifecycle("🚀 Configured regular Kotlin publishing")
     }
 
     private fun configurePom(publication: MavenPublication, extension: CentralPublisherExtension) {

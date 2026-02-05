@@ -149,10 +149,24 @@ object DevToolsServer {
 
             is DevToolsMessage.RoleAssignment -> {
                 println("DevTools Server: Role assignment request - ${message.role} for ${message.targetClientId}")
+                if (message.role == io.github.syrou.reaktiv.devtools.protocol.ClientRole.PUBLISHER) {
+                    clientManager.setPublisher(message.targetClientId, "Role assignment request")
+                }
+
+                // For SUBSCRIBER role without a specified publisher, auto-subscribe to current publisher
+                val effectivePublisherId = if (
+                    message.role == io.github.syrou.reaktiv.devtools.protocol.ClientRole.SUBSCRIBER &&
+                    message.publisherClientId == null
+                ) {
+                    clientManager.getCurrentPublisher()
+                } else {
+                    message.publisherClientId
+                }
+
                 clientManager.assignRole(
                     clientId = message.targetClientId,
                     role = message.role,
-                    publisherClientId = message.publisherClientId
+                    publisherClientId = effectivePublisherId
                 )
             }
 
@@ -175,8 +189,28 @@ object DevToolsServer {
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 
-            else -> {
-                println("DevTools Server: Unhandled message type: ${message::class.simpleName}")
+            is DevToolsMessage.GhostDeviceRegistration -> {
+                println("DevTools Server: Ghost device registration for session ${message.sessionId}")
+                val ghostId = clientManager.registerGhostDevice(message)
+                println("DevTools Server: Ghost device registered with ID: $ghostId")
+            }
+
+            is DevToolsMessage.GhostDeviceRemoval -> {
+                println("DevTools Server: Ghost device removal request for ${message.ghostClientId}")
+                clientManager.removeGhostDevice(message.ghostClientId)
+            }
+
+            is DevToolsMessage.SessionHistorySync -> {
+                println("DevTools Server: SessionHistorySync from ${message.clientId} (${message.actionEvents.size} actions)")
+                clientManager.broadcastToListeners(message.clientId, message)
+            }
+
+            is DevToolsMessage.PublisherChanged -> {
+                println("DevTools Server: PublisherChanged - ${message.previousPublisherId} -> ${message.newPublisherId}")
+            }
+
+            is DevToolsMessage.ClientListUpdate -> {
+                println("DevTools Server: ClientListUpdate received (${message.clients.size} clients)")
             }
         }
     }

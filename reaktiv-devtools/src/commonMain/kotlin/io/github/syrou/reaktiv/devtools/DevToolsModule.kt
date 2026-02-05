@@ -6,7 +6,11 @@ import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.introspection.IntrospectionLogic
+import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.client.ConnectionState
+import kotlinx.coroutines.launch
 import io.github.syrou.reaktiv.devtools.client.DevToolsConnection
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsMiddleware
@@ -107,6 +111,31 @@ class DevToolsLogic(
     private var currentClientName: String = config.clientName
     private var messageHandler: (suspend (DevToolsMessage) -> Unit)? = null
 
+    private var sessionCapture: SessionCapture? = null
+
+    init {
+        // Get SessionCapture from IntrospectionModule
+        storeAccessor.launch {
+            try {
+                val introspectionLogic = storeAccessor.selectLogic<IntrospectionLogic>()
+                sessionCapture = introspectionLogic.getSessionCapture()
+                println("DevTools: Using SessionCapture from IntrospectionModule")
+            } catch (e: Exception) {
+                println("DevTools: IntrospectionModule not found - session capture disabled. Register IntrospectionModule before DevToolsModule for crash capture support.")
+            }
+        }
+    }
+
+    /**
+     * Gets the session capture instance for crash handling and session export.
+     *
+     * Note: This returns the SessionCapture from IntrospectionModule.
+     * Make sure IntrospectionModule is registered before DevToolsModule.
+     *
+     * @return SessionCapture instance, or null if IntrospectionModule is not registered
+     */
+    fun getSessionCapture(): SessionCapture? = sessionCapture
+
     /**
      * Connect to a DevTools server.
      *
@@ -196,6 +225,36 @@ class DevToolsLogic(
      * Get the current connection for direct access if needed.
      */
     fun getConnection(): DevToolsConnection? = connection
+
+    /**
+     * Exports the current session as a JSON string for manual sharing.
+     * This can be imported later as a ghost device in the DevTools UI.
+     *
+     * @return JSON string representing the session, or null if session capture is disabled
+     */
+    fun exportSessionJson(): String? {
+        return sessionCapture?.exportSession()
+    }
+
+    /**
+     * Exports the current session with crash information.
+     * Typically called by crash handlers.
+     *
+     * @param throwable The exception that caused the crash
+     * @return JSON string representing the session with crash info, or null if session capture is disabled
+     */
+    fun exportCrashSessionJson(throwable: Throwable): String? {
+        return sessionCapture?.exportCrashSession(throwable)
+    }
+
+    /**
+     * Cleans up resources and stops session capture.
+     * Call this when the DevTools connection is no longer needed.
+     */
+    fun cleanup() {
+        sessionCapture?.stop()
+        println("DevTools: Logic cleanup complete")
+    }
 }
 
 /**

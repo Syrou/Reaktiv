@@ -9,15 +9,6 @@ plugins {
 group = "io.github.syrou"
 version = project.findProperty("version") ?: "0.0.1-SNAPSHOT"
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            artifactId = "reaktiv-tracing-compiler"
-        }
-    }
-}
-
 centralPublisher {
     username = CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_TOKEN")
     password = CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_PASSWORD")

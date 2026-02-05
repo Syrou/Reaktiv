@@ -33,7 +33,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -57,14 +60,36 @@ class NavigationLogic(
      */
     private val entryLifecycleJobs = mutableMapOf<String, Job>()
 
-    /**
-     * Coroutine scope for animation timers.
-     * Uses SupervisorJob to survive individual job failures.
-     */
-    private val timerScope = CoroutineScope(
-        SupervisorJob() + storeAccessor.coroutineContext.minusKey(Job)
-    )
+    init {
+        startLifecycleObservation()
+    }
 
+    /**
+     * Called when the Store is reset.
+     * Clears lifecycle jobs and restarts observation.
+     */
+    override fun onStoreReset() {
+        entryLifecycleJobs.clear()
+        startLifecycleObservation()
+    }
+
+    /**
+     * Starts the backstack observation for lifecycle callbacks.
+     * This is called on init and again after store reset.
+     */
+    private fun startLifecycleObservation() {
+        storeAccessor.launch {
+            storeAccessor.selectState<NavigationState>()
+                .map { it.backStack }
+                .distinctUntilChanged { old, new -> old.map { it.stableKey } == new.map { it.stableKey } }
+                .scan(emptyList<NavigationEntry>() to emptyList<NavigationEntry>()) { (_, prev), current ->
+                    prev to current
+                }
+                .collect { (previousBackStack, newBackStack) ->
+                    invokeLifecycleCallbacks(previousBackStack, newBackStack)
+                }
+        }
+    }
 
     /**
      * Execute a single navigation operation synchronously.
@@ -178,15 +203,13 @@ class NavigationLogic(
             val initialState = getCurrentNavigationState()
             val unifiedOps = collectUnifiedOperations(builder, initialState)
 
-        validateUnifiedOperations(unifiedOps)
+            validateUnifiedOperations(unifiedOps)
 
-        val finalState = computeFinalNavigationState(unifiedOps, initialState)
-        val willAnimate = willNavigationAnimate(initialState, finalState)
+            val finalState = computeFinalNavigationState(unifiedOps, initialState)
+            val willAnimate = willNavigationAnimate(initialState, finalState)
 
-        val action = determineNavigationAction(unifiedOps, finalState, initialState, willAnimate)
-
-        // Capture backstack before dispatch for lifecycle callbacks
-        val previousBackStack = initialState.backStack
+            val action = determineNavigationAction(unifiedOps, finalState, initialState, willAnimate)
+            
 
             // Use dispatchAndAwait to know if the action was applied or blocked by middleware
             val result = storeAccessor.dispatchAndAwait(action)
@@ -197,13 +220,11 @@ class NavigationLogic(
                 val enterDuration = finalState.currentEntry.navigatable.enterTransition.durationMillis
                 val animationDuration = maxOf(exitDuration, enterDuration).toLong()
 
-                timerScope.launch {
-                    invokeLifecycleCallbacks(previousBackStack, finalState.backStack)
-                }
+                // Lifecycle callbacks are handled reactively via state observer in init block
 
                 // Release lock after animation duration
                 if (animationDuration > 0) {
-                    timerScope.launch {
+                    storeAccessor.launch {
                         delay(animationDuration)
                         navigationLock.unlock()
                     }

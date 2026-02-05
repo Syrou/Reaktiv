@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,8 +42,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.syrou.androidexample.reaktiv.crashtest.CrashTestLogic
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import eu.syrou.androidexample.ui.components.NotificationPermissionHandler
+import io.github.syrou.reaktiv.core.util.selectLogic
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.theme.ReaktivTheme
@@ -137,6 +140,7 @@ fun MainRender() {
         listOf(
             "Settings" to Icons.Default.Settings,
             "DevTools" to Icons.Default.Build,
+            "Crash Test" to Icons.Default.Warning,
             "Contact" to Icons.Default.Notifications
         )
     val selectedItem = remember { mutableStateOf(items[0]) }
@@ -175,6 +179,12 @@ fun MainRender() {
                                                 store.navigation {
                                                     navigateTo(DevToolsScreen.route)
                                                 }
+                                            }
+                                        }
+                                        "Crash Test" -> {
+                                            store.launch {
+                                                val crashLogic = store.selectLogic<CrashTestLogic>()
+                                                crashLogic.triggerCrashWithTracedOperations()
                                             }
                                         }
                                     }

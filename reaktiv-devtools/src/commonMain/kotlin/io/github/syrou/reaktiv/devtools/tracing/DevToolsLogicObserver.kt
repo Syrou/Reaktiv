@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.tracing.LogicObserver
+import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.DevToolsLogic
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
@@ -22,12 +23,14 @@ import kotlin.time.ExperimentalTime
  * @param config DevTools configuration for client identification
  * @param devToolsLogic DevToolsLogic instance for sending messages
  * @param scope CoroutineScope for async message sending
+ * @param sessionCapture Optional session capture for crash reports
  */
 @OptIn(ExperimentalTime::class)
 class DevToolsLogicObserver(
     private val config: DevToolsConfig,
     private val devToolsLogic: DevToolsLogic,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val sessionCapture: SessionCapture? = null
 ) : LogicObserver {
 
     // Track method names by callId for better logging
@@ -37,6 +40,21 @@ class DevToolsLogicObserver(
         val fullMethodName = "${event.logicClass}.${event.methodName}"
         callIdToMethod[event.callId] = fullMethodName
         println("DevToolsLogicObserver: onMethodStart called for $fullMethodName [callId=${event.callId}], connected=${devToolsLogic.isConnected()}")
+
+        val message = DevToolsMessage.LogicMethodStarted(
+            clientId = config.clientId,
+            timestamp = Clock.System.now().toEpochMilliseconds(),
+            callId = event.callId,
+            logicClass = event.logicClass,
+            methodName = event.methodName,
+            params = event.params,
+            sourceFile = event.sourceFile,
+            lineNumber = event.lineNumber,
+            githubSourceUrl = event.githubSourceUrl
+        )
+
+        sessionCapture?.captureLogicStarted(message.toCaptured())
+
         if (!devToolsLogic.isConnected()) {
             println("DevToolsLogicObserver: Not connected, dropping event")
             return
@@ -44,17 +62,6 @@ class DevToolsLogicObserver(
 
         scope.launch {
             try {
-                val message = DevToolsMessage.LogicMethodStarted(
-                    clientId = config.clientId,
-                    timestamp = Clock.System.now().toEpochMilliseconds(),
-                    callId = event.callId,
-                    logicClass = event.logicClass,
-                    methodName = event.methodName,
-                    params = event.params,
-                    sourceFile = event.sourceFile,
-                    lineNumber = event.lineNumber,
-                    githubSourceUrl = event.githubSourceUrl
-                )
                 println("DevToolsLogicObserver: Sending LogicMethodStarted message")
                 devToolsLogic.send(message)
                 println("DevToolsLogicObserver: Sent LogicMethodStarted message successfully")
@@ -67,18 +74,22 @@ class DevToolsLogicObserver(
     override fun onMethodCompleted(event: LogicMethodCompleted) {
         val methodName = callIdToMethod.remove(event.callId) ?: "unknown"
         println("DevToolsLogicObserver: onMethodCompleted called for $methodName [callId=${event.callId}], connected=${devToolsLogic.isConnected()}")
+
+        val message = DevToolsMessage.LogicMethodCompleted(
+            clientId = config.clientId,
+            timestamp = Clock.System.now().toEpochMilliseconds(),
+            callId = event.callId,
+            result = event.result,
+            resultType = event.resultType,
+            durationMs = event.durationMs
+        )
+
+        sessionCapture?.captureLogicCompleted(message.toCaptured())
+
         if (!devToolsLogic.isConnected()) return
 
         scope.launch {
             try {
-                val message = DevToolsMessage.LogicMethodCompleted(
-                    clientId = config.clientId,
-                    timestamp = Clock.System.now().toEpochMilliseconds(),
-                    callId = event.callId,
-                    result = event.result,
-                    resultType = event.resultType,
-                    durationMs = event.durationMs
-                )
                 devToolsLogic.send(message)
                 println("DevToolsLogicObserver: Sent LogicMethodCompleted message")
             } catch (e: Exception) {
@@ -90,18 +101,22 @@ class DevToolsLogicObserver(
     override fun onMethodFailed(event: LogicMethodFailed) {
         val methodName = callIdToMethod.remove(event.callId) ?: "unknown"
         println("DevToolsLogicObserver: onMethodFailed called for $methodName [callId=${event.callId}], connected=${devToolsLogic.isConnected()}")
+
+        val message = DevToolsMessage.LogicMethodFailed(
+            clientId = config.clientId,
+            timestamp = Clock.System.now().toEpochMilliseconds(),
+            callId = event.callId,
+            exceptionType = event.exceptionType,
+            exceptionMessage = event.exceptionMessage,
+            durationMs = event.durationMs
+        )
+
+        sessionCapture?.captureLogicFailed(message.toCaptured())
+
         if (!devToolsLogic.isConnected()) return
 
         scope.launch {
             try {
-                val message = DevToolsMessage.LogicMethodFailed(
-                    clientId = config.clientId,
-                    timestamp = Clock.System.now().toEpochMilliseconds(),
-                    callId = event.callId,
-                    exceptionType = event.exceptionType,
-                    exceptionMessage = event.exceptionMessage,
-                    durationMs = event.durationMs
-                )
                 devToolsLogic.send(message)
             } catch (e: Exception) {
                 println("DevToolsLogicObserver: Failed to send method failed - ${e.message}")
