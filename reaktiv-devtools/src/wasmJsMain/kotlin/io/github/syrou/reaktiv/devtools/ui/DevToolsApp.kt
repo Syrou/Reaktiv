@@ -167,6 +167,7 @@ private fun DevToolsContent(store: Store) {
                             crashEvent = state.crashEvent,
                             selectedIndex = state.selectedActionIndex,
                             selectedLogicMethodCallId = state.selectedLogicMethodCallId,
+                            crashSelected = state.crashSelected,
                             autoSelectLatest = state.autoSelectLatest,
                             excludedActionTypes = state.excludedActionTypes,
                             timeTravelEnabled = state.timeTravelEnabled,
@@ -174,6 +175,7 @@ private fun DevToolsContent(store: Store) {
                             showLogicMethods = state.showLogicMethods,
                             onSelectAction = { dispatch(DevToolsAction.SelectAction(it)) },
                             onSelectLogicMethod = { dispatch(DevToolsAction.SelectLogicMethodEvent(it)) },
+                            onSelectCrash = { dispatch(DevToolsAction.SelectCrash(it)) },
                             onToggleAutoSelect = { dispatch(DevToolsAction.ToggleAutoSelectLatest) },
                             onAddExclusion = { dispatch(DevToolsAction.AddActionExclusion(it)) },
                             onRemoveExclusion = { dispatch(DevToolsAction.RemoveActionExclusion(it)) },
@@ -217,6 +219,8 @@ private fun DevToolsContent(store: Store) {
                             selectedActionIndex = state.selectedActionIndex,
                             logicMethodEvents = state.logicMethodEvents,
                             selectedLogicMethodCallId = state.selectedLogicMethodCallId,
+                            crashEvent = state.crashEvent,
+                            crashSelected = state.crashSelected,
                             showAsDiff = state.showStateAsDiff,
                             excludedActionTypes = state.excludedActionTypes,
                             onToggleDiffMode = { dispatch(DevToolsAction.ToggleStateViewMode) },
@@ -256,7 +260,7 @@ private fun DevToolsContent(store: Store) {
                             scope.launch {
                                 val logic = DevToolsModule.selectLogicTyped(store)
                                 logic.assignRole(publisher, ClientRole.PUBLISHER)
-                                logic.assignRole(listener, ClientRole.SUBSCRIBER, publisher)
+                                logic.assignRole(listener, ClientRole.LISTENER, publisher)
                             }
                         },
                         onRemoveGhost = { ghostId ->

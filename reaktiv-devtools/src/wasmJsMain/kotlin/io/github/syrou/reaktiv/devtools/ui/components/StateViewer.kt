@@ -14,7 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
+import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
+import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -28,6 +30,8 @@ fun StateViewer(
     selectedActionIndex: Int?,
     logicMethodEvents: List<LogicMethodEvent> = emptyList(),
     selectedLogicMethodCallId: String? = null,
+    crashEvent: CrashEventInfo? = null,
+    crashSelected: Boolean = false,
     showAsDiff: Boolean,
     excludedActionTypes: Set<String>,
     onToggleDiffMode: () -> Unit,
@@ -50,6 +54,7 @@ fun StateViewer(
     } ?: emptyList()
 
     val isLogicMethodSelected = selectedLogicMethodCallId != null && selectedLogicEvents.isNotEmpty()
+    val isCrashSelected = crashSelected && crashEvent != null
 
     Column(
         modifier = Modifier
@@ -62,11 +67,15 @@ fun StateViewer(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = if (isLogicMethodSelected) "Logic Method Data" else "State Snapshot",
+                text = when {
+                    isCrashSelected -> "Crash Details"
+                    isLogicMethodSelected -> "Logic Method Data"
+                    else -> "State Snapshot"
+                },
                 style = MaterialTheme.typography.titleMedium
             )
 
-            if (!isLogicMethodSelected) {
+            if (!isLogicMethodSelected && !isCrashSelected) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -80,6 +89,9 @@ fun StateViewer(
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
         when {
+            isCrashSelected && crashEvent != null -> {
+                CrashDataView(crashEvent = crashEvent)
+            }
             isLogicMethodSelected -> {
                 LogicMethodDataView(
                     events = selectedLogicEvents
@@ -92,7 +104,7 @@ fun StateViewer(
                         .padding(32.dp)
                 ) {
                     Text(
-                        text = "Select an action or logic method to view details",
+                        text = "Select an action, logic method, or crash to view details",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -514,4 +526,137 @@ private fun formatTimestamp(timestamp: Long): String {
 
 private fun openInBrowser(url: String) {
     js("window.open(url, '_blank')")
+}
+
+@Composable
+private fun CrashDataView(crashEvent: CrashEventInfo) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = crashEvent.exception.exceptionType,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Timestamp: ${formatTimestamp(crashEvent.timestamp)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+
+                Text(
+                    text = "Client: ${crashEvent.clientId}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+
+                val message = crashEvent.exception.message
+                if (message != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "Stack Trace",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val scrollState = rememberScrollState()
+                    SelectionContainer {
+                        Column(
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .verticalScroll(scrollState)
+                        ) {
+                            Text(
+                                text = crashEvent.exception.stackTrace,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+
+                            val causedBy = crashEvent.exception.causedBy
+                            if (causedBy != null) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                CausedByView(causedBy)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CausedByView(exception: CrashException) {
+    Column {
+        Text(
+            text = "Caused by: ${exception.exceptionType}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.error
+        )
+
+        val message = exception.message
+        if (message != null) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = exception.stackTrace,
+            style = MaterialTheme.typography.bodySmall
+        )
+
+        val nestedCausedBy = exception.causedBy
+        if (nestedCausedBy != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            CausedByView(nestedCausedBy)
+        }
+    }
 }

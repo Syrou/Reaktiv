@@ -340,7 +340,7 @@ private fun RoleBadge(role: ClientRole, publisherClientId: String?, isGhost: Boo
     val roleText = when {
         isGhost -> "GHOST"
         role == ClientRole.PUBLISHER -> "PUBLISHER"
-        role == ClientRole.SUBSCRIBER -> "LISTENER${publisherClientId?.let { " ($it)" } ?: ""}"
+        role == ClientRole.LISTENER -> "LISTENER${publisherClientId?.let { " ($it)" } ?: ""}"
         role == ClientRole.ORCHESTRATOR -> "ORCHESTRATOR${publisherClientId?.let { " ($it)" } ?: ""}"
         else -> "UNASSIGNED"
     }
@@ -348,7 +348,7 @@ private fun RoleBadge(role: ClientRole, publisherClientId: String?, isGhost: Boo
     val roleColor = when {
         isGhost -> MaterialTheme.colorScheme.tertiary
         role == ClientRole.PUBLISHER -> MaterialTheme.colorScheme.primary
-        role == ClientRole.SUBSCRIBER -> MaterialTheme.colorScheme.secondary
+        role == ClientRole.LISTENER -> MaterialTheme.colorScheme.secondary
         role == ClientRole.ORCHESTRATOR -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.outline
     }

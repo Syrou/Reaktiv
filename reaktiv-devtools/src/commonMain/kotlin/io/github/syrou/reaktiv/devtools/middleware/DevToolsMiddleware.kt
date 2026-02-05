@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.introspection.IntrospectionAction
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.DevToolsAction
 import io.github.syrou.reaktiv.devtools.DevToolsLogic
@@ -99,11 +100,12 @@ class DevToolsMiddleware(
             }
         }
 
-        // Handle DevToolsAction by delegating to logic
-        if (action is DevToolsAction) {
+        if (action is DevToolsAction || action is IntrospectionAction) {
             updatedState(action)
-            scope.launch {
-                handleDevToolsAction(action)
+            if (action is DevToolsAction) {
+                scope.launch {
+                    handleDevToolsAction(action)
+                }
             }
             return@middleware
         }
@@ -122,7 +124,11 @@ class DevToolsMiddleware(
                 }
             }
 
-            ClientRole.SUBSCRIBER, ClientRole.ORCHESTRATOR, ClientRole.UNASSIGNED -> {
+            ClientRole.LISTENER -> {
+                return@middleware
+            }
+
+            ClientRole.ORCHESTRATOR, ClientRole.UNASSIGNED -> {
                 updatedState(action)
             }
         }
@@ -168,7 +174,7 @@ class DevToolsMiddleware(
 
         val role = when (config.defaultRole) {
             DefaultDeviceRole.PUBLISHER -> ClientRole.PUBLISHER
-            DefaultDeviceRole.LISTENER -> ClientRole.SUBSCRIBER
+            DefaultDeviceRole.LISTENER -> ClientRole.LISTENER
             DefaultDeviceRole.NONE -> return
         }
 
@@ -213,7 +219,7 @@ class DevToolsMiddleware(
             }
 
             is DevToolsMessage.StateSync -> {
-                if (_currentRole.value == ClientRole.SUBSCRIBER) {
+                if (_currentRole.value == ClientRole.LISTENER) {
                     applyStateSync(message)
                 }
             }

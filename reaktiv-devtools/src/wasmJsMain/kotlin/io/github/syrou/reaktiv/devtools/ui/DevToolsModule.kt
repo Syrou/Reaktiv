@@ -52,7 +52,8 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
             is DevToolsAction.SelectAction -> {
                 state.copy(
                     selectedActionIndex = action.index,
-                    selectedLogicMethodCallId = if (action.index != null) null else state.selectedLogicMethodCallId
+                    selectedLogicMethodCallId = if (action.index != null) null else state.selectedLogicMethodCallId,
+                    crashSelected = if (action.index != null) false else state.crashSelected
                 )
             }
 
@@ -115,7 +116,8 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
             is DevToolsAction.SelectLogicMethodEvent -> {
                 state.copy(
                     selectedLogicMethodCallId = action.callId,
-                    selectedActionIndex = if (action.callId != null) null else state.selectedActionIndex
+                    selectedActionIndex = if (action.callId != null) null else state.selectedActionIndex,
+                    crashSelected = if (action.callId != null) false else state.crashSelected
                 )
             }
 
@@ -129,6 +131,14 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
 
             is DevToolsAction.SetCrashEvent -> {
                 state.copy(crashEvent = action.crashEvent)
+            }
+
+            is DevToolsAction.SelectCrash -> {
+                state.copy(
+                    crashSelected = action.selected,
+                    selectedActionIndex = if (action.selected) null else state.selectedActionIndex,
+                    selectedLogicMethodCallId = if (action.selected) null else state.selectedLogicMethodCallId
+                )
             }
 
             is DevToolsAction.SetActiveGhostId -> {

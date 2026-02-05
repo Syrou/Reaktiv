@@ -30,6 +30,7 @@ data class DevToolsState(
     val selectedLogicMethodCallId: String? = null,
     val showImportGhostDialog: Boolean = false,
     val crashEvent: CrashEventInfo? = null,
+    val crashSelected: Boolean = false,
     val publisherSessionStart: Long? = null,
     val canExportSession: Boolean = false,
     val activeGhostId: String? = null
@@ -72,6 +73,7 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data object ShowImportGhostDialog : DevToolsAction()
     data object HideImportGhostDialog : DevToolsAction()
     data class SetCrashEvent(val crashEvent: CrashEventInfo?) : DevToolsAction()
+    data class SelectCrash(val selected: Boolean) : DevToolsAction()
     data class SetPublisherSessionStart(val startTime: Long?) : DevToolsAction()
     data class SetCanExportSession(val canExport: Boolean) : DevToolsAction()
     data class BulkAddActionStateEvents(val events: List<ActionStateEvent>) : DevToolsAction()

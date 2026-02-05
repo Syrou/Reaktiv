@@ -29,3 +29,4 @@ shared/shared.podspec
 *.ipr
 *.hprof
 .kotlin
+*.txt

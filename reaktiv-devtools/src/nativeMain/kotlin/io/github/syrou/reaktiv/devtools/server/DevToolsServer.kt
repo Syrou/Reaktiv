@@ -153,9 +153,9 @@ object DevToolsServer {
                     clientManager.setPublisher(message.targetClientId, "Role assignment request")
                 }
 
-                // For SUBSCRIBER role without a specified publisher, auto-subscribe to current publisher
+                // For LISTENER role without a specified publisher, auto-subscribe to current publisher
                 val effectivePublisherId = if (
-                    message.role == io.github.syrou.reaktiv.devtools.protocol.ClientRole.SUBSCRIBER &&
+                    message.role == io.github.syrou.reaktiv.devtools.protocol.ClientRole.LISTENER &&
                     message.publisherClientId == null
                 ) {
                     clientManager.getCurrentPublisher()

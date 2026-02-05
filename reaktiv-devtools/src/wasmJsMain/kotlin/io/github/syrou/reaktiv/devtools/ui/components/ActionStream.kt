@@ -82,6 +82,7 @@ fun ActionStream(
     crashEvent: CrashEventInfo? = null,
     selectedIndex: Int? = null,
     selectedLogicMethodCallId: String? = null,
+    crashSelected: Boolean = false,
     autoSelectLatest: Boolean = true,
     excludedActionTypes: Set<String>,
     timeTravelEnabled: Boolean = false,
@@ -89,6 +90,7 @@ fun ActionStream(
     showLogicMethods: Boolean = true,
     onSelectAction: (Int?) -> Unit = {},
     onSelectLogicMethod: (String?) -> Unit = {},
+    onSelectCrash: (Boolean) -> Unit = {},
     onToggleAutoSelect: () -> Unit = {},
     onAddExclusion: (String) -> Unit = {},
     onRemoveExclusion: (String) -> Unit = {},
@@ -313,8 +315,8 @@ fun ActionStream(
                         is StreamEvent.Crash -> {
                             CrashEventCard(
                                 crashEvent = event.event,
-                                isSelected = false,
-                                onClick = { }
+                                isSelected = crashSelected,
+                                onClick = { onSelectCrash(true) }
                             )
                         }
                     }

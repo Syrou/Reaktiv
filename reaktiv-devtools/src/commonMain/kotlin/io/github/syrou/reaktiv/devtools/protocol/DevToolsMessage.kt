@@ -207,7 +207,7 @@ sealed class DevToolsMessage {
 enum class ClientRole {
     UNASSIGNED,
     PUBLISHER,
-    SUBSCRIBER,
+    LISTENER,
     ORCHESTRATOR
 }
 
