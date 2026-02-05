@@ -26,9 +26,6 @@ data class NavigationState(
     // Screen content retention configuration
     val screenRetentionDuration: Duration,
 
-    // Animation tracking (previousEntry set by navigation reducers, cleared after animation duration)
-    val previousEntry: NavigationEntry? = null,
-
     // Computed state properties (set by reducer, fully serializable)
     val orderedBackStack: List<NavigationEntry>,
     val visibleLayers: List<NavigationLayer>,
@@ -72,13 +69,6 @@ data class NavigationState(
             RenderLayer.GLOBAL_OVERLAY to globalOverlayEntries,
             RenderLayer.SYSTEM to systemLayerEntries
         )
-
-    /**
-     * True when a navigation animation is in progress.
-     * During this time, both currentEntry and previousEntry should be rendered.
-     */
-    val isAnimating: Boolean
-        get() = previousEntry != null
 
     fun isInGraph(graphId: String): Boolean {
         return if (!isCurrentModal) {

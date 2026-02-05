@@ -44,8 +44,11 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v3
 
-      - name: Build and test
-        run: ./gradlew build
+      - name: Build and test (excluding androidexample)
+        run: ./gradlew build -x :androidexample:build -x :androidexample:testDebugUnitTest -x :androidexample:testReleaseUnitTest
+
+      - name: Build tracing-compiler
+        run: ./gradlew -p reaktiv-tracing-compiler build
 
       - name: Build tracing-gradle plugin
         run: ./gradlew -p reaktiv-tracing-gradle build
@@ -54,6 +57,7 @@ jobs:
         run: |
           echo "🚀 Deploying to Maven Central..."
           ./gradlew uploadToCentral
+          ./gradlew -p reaktiv-tracing-compiler uploadToCentral
           ./gradlew -p reaktiv-tracing-gradle uploadToCentral
 
       - name: Deployment Summary

@@ -48,7 +48,7 @@ class NavigationLogic(
 
 
     private val guidedFlowMutex = Mutex()
-    private var animationClearJob: Job? = null
+    private val navigationLock = Mutex()
 
     /**
      * Tracks lifecycle scopes for each entry in the backstack.
@@ -70,7 +70,7 @@ class NavigationLogic(
      * Execute a single navigation operation synchronously.
      * This ensures that when the method returns, the navigation state has been updated.
      *
-     * Navigation is blocked while an animation is in progress (previousEntry != null).
+     * Navigation is blocked while an animation is in progress (lock held).
      */
     suspend fun navigate(block: suspend NavigationBuilder.() -> Unit) {
         val builder = NavigationBuilder(storeAccessor, parameterEncoder)
@@ -168,15 +168,15 @@ class NavigationLogic(
     }
 
     private suspend fun executeNavigation(builder: NavigationBuilder, source: String) {
-        // Block navigation while animation is in progress
-        val currentState = getCurrentNavigationState()
-        if (currentState.isAnimating) {
-            ReaktivDebug.warn("Navigation blocked, we are currently in an animation")
+        // Try to acquire lock - if already locked, navigation is in progress, return immediately
+        if (!navigationLock.tryLock()) {
+            ReaktivDebug.warn("Navigation blocked, animation in progress")
             return
         }
 
-        val initialState = getCurrentNavigationState()
-        val unifiedOps = collectUnifiedOperations(builder, initialState)
+        try {
+            val initialState = getCurrentNavigationState()
+            val unifiedOps = collectUnifiedOperations(builder, initialState)
 
         validateUnifiedOperations(unifiedOps)
 
@@ -188,35 +188,36 @@ class NavigationLogic(
         // Capture backstack before dispatch for lifecycle callbacks
         val previousBackStack = initialState.backStack
 
-        // Use dispatchAndAwait to know if the action was applied or blocked by middleware
-        val result = storeAccessor.dispatchAndAwait(action)
+            // Use dispatchAndAwait to know if the action was applied or blocked by middleware
+            val result = storeAccessor.dispatchAndAwait(action)
 
-        if (result == DispatchResult.Processed) {
-            scheduleAnimationComplete(initialState.currentEntry, finalState.currentEntry)
-            timerScope.launch {
-                invokeLifecycleCallbacks(previousBackStack, finalState.backStack)
+            if (result == DispatchResult.Processed) {
+                // Calculate animation duration and schedule lock release
+                val exitDuration = initialState.currentEntry.navigatable.exitTransition.durationMillis
+                val enterDuration = finalState.currentEntry.navigatable.enterTransition.durationMillis
+                val animationDuration = maxOf(exitDuration, enterDuration).toLong()
+
+                timerScope.launch {
+                    invokeLifecycleCallbacks(previousBackStack, finalState.backStack)
+                }
+
+                // Release lock after animation duration
+                if (animationDuration > 0) {
+                    timerScope.launch {
+                        delay(animationDuration)
+                        navigationLock.unlock()
+                    }
+                } else {
+                    navigationLock.unlock()
+                }
+            } else {
+                // Action was blocked, release lock immediately
+                navigationLock.unlock()
             }
-        }
-    }
-
-    /**
-     * Calculate animation duration from transition definitions and schedule clearing previousEntry.
-     */
-    private suspend fun scheduleAnimationComplete(fromEntry: NavigationEntry, toEntry: NavigationEntry) {
-        // Cancel any existing animation clear job
-        animationClearJob?.cancel()
-
-        val exitDuration = fromEntry.navigatable.exitTransition.durationMillis
-        val enterDuration = toEntry.navigatable.enterTransition.durationMillis
-        val animationDuration = maxOf(exitDuration, enterDuration).toLong()
-
-        if (animationDuration > 0) {
-            animationClearJob = timerScope.launch {
-                delay(animationDuration)
-                storeAccessor.dispatch(NavigationAction.ClearPreviousEntry)
-            }
-        } else {
-            storeAccessor.dispatchAndAwait(NavigationAction.ClearPreviousEntry)
+        } catch (e: Exception) {
+            // Ensure lock is released on error
+            navigationLock.unlock()
+            throw e
         }
     }
 

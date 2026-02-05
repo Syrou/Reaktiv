@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -9,6 +10,7 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
+import kotlinx.coroutines.delay
 
 /**
  * Animation state for content layer rendering
@@ -38,8 +40,8 @@ data class LayerAnimationState(
  * - Forward navigation (A → B): Keep both A and B composed; A preserved for back navigation
  * - Back navigation (B → A): Keep both during animation, dispose B after completion
  *
- * The animation state is read from NavigationState (single source of truth).
- * Animation timing is managed by NavigationLogic which clears previousEntry after the animation duration.
+ * Previous entry is tracked locally in Compose and cleared after animation duration.
+ * This avoids storing animation state in NavigationState.
  *
  * @param entries The content layer entries (typically just the current entry)
  * @return Animation state containing current, previous, and all entries to keep composed
@@ -48,31 +50,56 @@ data class LayerAnimationState(
 fun rememberLayerAnimationState(
     entries: List<NavigationEntry>
 ): LayerAnimationState {
-    val navState by composeState<NavigationState>()
     val currentEntry = entries.lastOrNull() ?: error("Layer must have at least one entry")
 
-    // Compute animation decision from state
-    val animationDecision = navState.previousEntry?.let { prev ->
+    // Track previous entry and current entry locally in Compose
+    val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
+    val currentEntryState = remember { mutableStateOf(currentEntry) }
+
+    // Detect entry change and update previous
+    if (currentEntryState.value.stableKey != currentEntry.stableKey) {
+        // Store the current entry as previous before updating
+        previousEntryState.value = currentEntryState.value
+        currentEntryState.value = currentEntry
+    }
+
+    val previousEntry = previousEntryState.value
+
+    // Compute animation decision
+    val animationDecision = previousEntry?.let { prev ->
         determineContentAnimationDecision(prev, currentEntry)
     }
 
     // Determine navigation direction from stack positions
-    val isBackNavigation = navState.previousEntry?.let { prev ->
+    val isBackNavigation = previousEntry?.let { prev ->
         currentEntry.stackPosition < prev.stackPosition
     } ?: false
 
-    // Build entries to render from state
-    // Render both screens when previousEntry is set (animation in progress)
+    // Clear previous entry after animation duration
+    LaunchedEffect(currentEntry.stableKey) {
+        if (previousEntry != null && animationDecision != null) {
+            val exitDuration = previousEntry.navigatable.exitTransition.durationMillis
+            val enterDuration = currentEntry.navigatable.enterTransition.durationMillis
+            val animationDuration = maxOf(exitDuration, enterDuration).toLong()
+
+            if (animationDuration > 0) {
+                delay(animationDuration)
+            }
+            previousEntryState.value = null
+        }
+    }
+
+    // Build entries to render
     val entriesToRender = buildList {
         add(currentEntry)
-        if (navState.previousEntry != null) {
-            add(navState.previousEntry!!)
+        if (previousEntry != null) {
+            add(previousEntry)
         }
     }
 
     return LayerAnimationState(
         currentEntry = currentEntry,
-        previousEntry = navState.previousEntry,
+        previousEntry = previousEntry,
         animationDecision = animationDecision,
         aliveEntries = entriesToRender,
         isBackNavigation = isBackNavigation

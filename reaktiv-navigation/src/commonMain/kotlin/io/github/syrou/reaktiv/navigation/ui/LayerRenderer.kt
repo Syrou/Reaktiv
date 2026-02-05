@@ -46,7 +46,7 @@ fun UnifiedLayerRenderer(
  * Content layer renderer with animation support
  *
  * Manages screen transitions by keeping current and previous screens composed simultaneously.
- * Animation timing is managed by NavigationLogic which clears previousEntry after the animation duration.
+ * Previous entry is tracked locally in Compose and cleared after animation duration.
  */
 @Composable
 private fun ContentLayerRenderer(

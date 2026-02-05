@@ -57,11 +57,4 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
         val modalContexts: Map<String, ModalContext>? = null
     ) : NavigationAction(), HighPriorityAction
 
-    /**
-     * Clears the previousEntry after animation completes.
-     * Dispatched by NavigationLogic after the calculated animation duration.
-     */
-    @Serializable
-    data object ClearPreviousEntry : NavigationAction(), HighPriorityAction
-
 }
