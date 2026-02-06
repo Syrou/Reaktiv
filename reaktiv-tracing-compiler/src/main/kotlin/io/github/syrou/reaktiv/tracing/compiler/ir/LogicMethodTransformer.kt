@@ -498,18 +498,32 @@ class LogicMethodTransformer(
     }
 
     private fun IrBuilderWithScope.irToStringSafe(value: IrExpression): IrExpression {
-        // Find toString() on Any (no regular value parameters)
         val toStringFun = irBuiltIns.anyClass.owner.functions.find { fn ->
             fn.name.asString() == "toString" &&
             fn.parameters.none { it.kind == org.jetbrains.kotlin.ir.declarations.IrParameterKind.Regular }
         }?.symbol
 
-        return if (toStringFun != null) {
-            irCall(toStringFun).apply {
-                dispatchReceiver = value
+        if (toStringFun == null) {
+            return irString("<unknown>")
+        }
+
+        // If the type is nullable, generate: if (value != null) value.toString() else "null"
+        if ((value.type as? IrSimpleType)?.isMarkedNullable() == true) {
+            return irBlock(resultType = irBuiltIns.stringType) {
+                val tmp = irTemporary(value, nameHint = "tracing_nullCheck")
+                +irIfThenElse(
+                    type = irBuiltIns.stringType,
+                    condition = irNotEquals(irGet(tmp), irNull()),
+                    thenPart = irCall(toStringFun).apply {
+                        dispatchReceiver = irGet(tmp)
+                    },
+                    elsePart = irString("null")
+                )
             }
-        } else {
-            irString("<unknown>")
+        }
+
+        return irCall(toStringFun).apply {
+            dispatchReceiver = value
         }
     }
 
@@ -720,12 +734,26 @@ class LogicMethodTransformer(
                 fn.parameters.none { it.kind == org.jetbrains.kotlin.ir.declarations.IrParameterKind.Regular }
             }?.symbol
 
-            return if (toStringFun != null) {
-                irCall(toStringFun).apply {
-                    dispatchReceiver = value
+            if (toStringFun == null) {
+                return irString("<unknown>")
+            }
+
+            if ((value.type as? IrSimpleType)?.isMarkedNullable() == true) {
+                return irBlock(resultType = irBuiltIns.stringType) {
+                    val tmp = irTemporary(value, nameHint = "tracing_nullCheck")
+                    +irIfThenElse(
+                        type = irBuiltIns.stringType,
+                        condition = irNotEquals(irGet(tmp), irNull()),
+                        thenPart = irCall(toStringFun).apply {
+                            dispatchReceiver = irGet(tmp)
+                        },
+                        elsePart = irString("null")
+                    )
                 }
-            } else {
-                irString("<unknown>")
+            }
+
+            return irCall(toStringFun).apply {
+                dispatchReceiver = value
             }
         }
 

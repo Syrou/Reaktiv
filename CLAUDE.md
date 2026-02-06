@@ -36,12 +36,32 @@ This project uses Gradle with Kotlin Multiplatform setup.
 ./gradlew publishToMavenLocal
 ```
 
+### Included Build Commands (reaktiv-tracing-compiler & reaktiv-tracing-gradle)
+These are separate Gradle builds and must be built/tested/published with `-p`:
+```bash
+# Build tracing compiler plugin
+./gradlew -p reaktiv-tracing-compiler build
+
+# Build tracing Gradle plugin
+./gradlew -p reaktiv-tracing-gradle build
+
+# Test tracing compiler plugin
+./gradlew -p reaktiv-tracing-compiler test
+
+# Test tracing Gradle plugin
+./gradlew -p reaktiv-tracing-gradle test
+
+# Publish included builds separately
+./gradlew -p reaktiv-tracing-compiler uploadToCentral
+./gradlew -p reaktiv-tracing-gradle uploadToCentral
+```
+
 ### Test Commands
 ```bash
 # Run core module tests
 ./gradlew :reaktiv-core:test
 
-# Run navigation module tests  
+# Run navigation module tests
 ./gradlew :reaktiv-navigation:test
 
 # Run JVM tests for specific module

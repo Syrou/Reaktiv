@@ -250,8 +250,10 @@ private fun DevToolsContent(store: Store) {
                             clientId?.let {
                                 scope.launch {
                                     val logic = DevToolsModule.selectLogicTyped(store)
-                                    logic.assignRole(it, ClientRole.PUBLISHER)
+                                    // Subscribe as orchestrator first, so we receive the
+                                    // SessionHistorySync that the publisher sends on role change
                                     logic.assignRole("devtools-ui", ClientRole.ORCHESTRATOR, it)
+                                    logic.assignRole(it, ClientRole.PUBLISHER)
                                 }
                             }
                         },
