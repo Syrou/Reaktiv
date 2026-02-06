@@ -551,6 +551,11 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                 if (message.newPublisherId != null) {
                     // Auto-select the new publisher
                     storeAccessor.dispatch(DevToolsAction.SelectPublisher(message.newPublisherId))
+                    // Enable export capability immediately rather than waiting for SessionHistorySync
+                    // which can be lost due to race conditions between publisher role assignment and
+                    // orchestrator subscription
+                    storeAccessor.dispatch(DevToolsAction.SetPublisherSessionStart(Clock.System.now().toEpochMilliseconds()))
+                    storeAccessor.dispatch(DevToolsAction.SetCanExportSession(true))
                     // Auto-assign WASM UI as orchestrator for the new publisher
                     assignRole("devtools-ui", ClientRole.ORCHESTRATOR, message.newPublisherId)
                     println("DevTools UI: Auto-assigned as orchestrator for ${message.newPublisherId}")

@@ -248,13 +248,18 @@ private fun DevToolsContent(store: Store) {
                         onPublisherSelected = { clientId ->
                             dispatch(DevToolsAction.SelectPublisher(clientId))
                             clientId?.let {
+                                dispatch(DevToolsAction.SetPublisherSessionStart(
+                                    kotlin.time.Clock.System.now().toEpochMilliseconds()
+                                ))
+                                dispatch(DevToolsAction.SetCanExportSession(true))
                                 scope.launch {
                                     val logic = DevToolsModule.selectLogicTyped(store)
-                                    // Subscribe as orchestrator first, so we receive the
-                                    // SessionHistorySync that the publisher sends on role change
                                     logic.assignRole("devtools-ui", ClientRole.ORCHESTRATOR, it)
                                     logic.assignRole(it, ClientRole.PUBLISHER)
                                 }
+                            } ?: run {
+                                dispatch(DevToolsAction.SetPublisherSessionStart(null))
+                                dispatch(DevToolsAction.SetCanExportSession(false))
                             }
                         },
                         onListenerSelected = { dispatch(DevToolsAction.SelectListener(it)) },
