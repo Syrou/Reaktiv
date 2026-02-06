@@ -9,7 +9,6 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.introspection.IntrospectionAction
-import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.DevToolsAction
 import io.github.syrou.reaktiv.devtools.DevToolsLogic
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
@@ -32,13 +31,18 @@ import kotlin.time.Clock
  * Use DevToolsModule directly for the simplest setup:
  *
  * ```kotlin
+ * val introspectionConfig = IntrospectionConfig(platform = "Android")
+ * val sessionCapture = SessionCapture()
+ *
  * val store = createStore {
+ *     module(IntrospectionModule(introspectionConfig, sessionCapture))
  *     module(DevToolsModule(
  *         config = DevToolsConfig(
- *             serverUrl = "ws://192.168.1.100:8080/ws",
- *             platform = "Android"
+ *             introspectionConfig = introspectionConfig,
+ *             serverUrl = "ws://192.168.1.100:8080/ws"
  *         ),
- *         scope = lifecycleScope
+ *         scope = lifecycleScope,
+ *         sessionCapture = sessionCapture
  *     ))
  *     // ... other modules
  * }
@@ -67,9 +71,6 @@ class DevToolsMiddleware(
     private var devToolsLogic: DevToolsLogic? = null
     private var logicObserver: DevToolsLogicObserver? = null
     private var initialized = false
-
-    private val sessionCapture: SessionCapture?
-        get() = devToolsLogic?.getSessionCapture()
 
     /**
      * The middleware function to be used with Reaktiv store.
@@ -142,10 +143,9 @@ class DevToolsMiddleware(
                 handleServerMessage(message)
             }
 
-            // Register logic tracing observer (sessionCapture is now owned by Logic)
+            // Register logic tracing observer (send-only, capture handled by IntrospectionModule)
             devToolsLogic?.let { logic ->
-                val capture = logic.getSessionCapture()
-                logicObserver = DevToolsLogicObserver(config, logic, scope, capture)
+                logicObserver = DevToolsLogicObserver(config, logic, scope)
                 LogicTracer.addObserver(logicObserver!!)
                 println("DevTools: Logic tracing observer registered")
             }
@@ -155,7 +155,7 @@ class DevToolsMiddleware(
                 devToolsLogic?.connect(config.serverUrl)
 
                 // Request default role after connection
-                if (config.defaultRole != DefaultDeviceRole.NONE) {
+                if (config.defaultRole != null) {
                     requestDefaultRole()
                 }
             }
@@ -172,11 +172,7 @@ class DevToolsMiddleware(
             return
         }
 
-        val role = when (config.defaultRole) {
-            DefaultDeviceRole.PUBLISHER -> ClientRole.PUBLISHER
-            DefaultDeviceRole.LISTENER -> ClientRole.LISTENER
-            DefaultDeviceRole.NONE -> return
-        }
+        val role = config.defaultRole ?: return
 
         try {
             val message = DevToolsMessage.RoleAssignment(
@@ -251,8 +247,8 @@ class DevToolsMiddleware(
     }
 
     private suspend fun sendSessionHistorySync() {
-        val capture = sessionCapture ?: return
         val logic = devToolsLogic ?: return
+        val capture = logic.getSessionCapture() ?: return
         if (!logic.isConnected()) return
 
         val history = capture.getSessionHistory()
@@ -302,8 +298,6 @@ class DevToolsMiddleware(
                 actionData = action.toString(),
                 resultingStateJson = stateJson
             )
-
-            sessionCapture?.captureAction(message.toCaptured())
 
             logic.send(message)
         } catch (e: Exception) {

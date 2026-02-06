@@ -6,11 +6,8 @@ import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.util.selectLogic
-import io.github.syrou.reaktiv.introspection.IntrospectionLogic
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.client.ConnectionState
-import kotlinx.coroutines.launch
 import io.github.syrou.reaktiv.devtools.client.DevToolsConnection
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsMiddleware
@@ -103,7 +100,8 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
  */
 class DevToolsLogic(
     private val storeAccessor: StoreAccessor,
-    private val config: DevToolsConfig
+    private val config: DevToolsConfig,
+    private val sessionCapture: SessionCapture? = null
 ) : ModuleLogic<DevToolsAction>() {
 
     private var connection: DevToolsConnection? = null
@@ -111,28 +109,10 @@ class DevToolsLogic(
     private var currentClientName: String = config.clientName
     private var messageHandler: (suspend (DevToolsMessage) -> Unit)? = null
 
-    private var sessionCapture: SessionCapture? = null
-
-    init {
-        // Get SessionCapture from IntrospectionModule
-        storeAccessor.launch {
-            try {
-                val introspectionLogic = storeAccessor.selectLogic<IntrospectionLogic>()
-                sessionCapture = introspectionLogic.getSessionCapture()
-                println("DevTools: Using SessionCapture from IntrospectionModule")
-            } catch (e: Exception) {
-                println("DevTools: IntrospectionModule not found - session capture disabled. Register IntrospectionModule before DevToolsModule for crash capture support.")
-            }
-        }
-    }
-
     /**
-     * Gets the session capture instance for crash handling and session export.
+     * Gets the session capture instance for session history sync.
      *
-     * Note: This returns the SessionCapture from IntrospectionModule.
-     * Make sure IntrospectionModule is registered before DevToolsModule.
-     *
-     * @return SessionCapture instance, or null if IntrospectionModule is not registered
+     * @return SessionCapture instance, or null if not provided
      */
     fun getSessionCapture(): SessionCapture? = sessionCapture
 
@@ -266,35 +246,30 @@ class DevToolsLogic(
  *
  * Example usage:
  * ```kotlin
+ * val introspectionConfig = IntrospectionConfig(platform = "Android")
+ * val sessionCapture = SessionCapture()
+ *
  * val store = createStore {
+ *     module(IntrospectionModule(introspectionConfig, sessionCapture))
  *     module(DevToolsModule(
  *         config = DevToolsConfig(
- *             serverUrl = "ws://192.168.1.100:8080/ws", // Auto-connect
- *             platform = "Android"
+ *             introspectionConfig = introspectionConfig,
+ *             serverUrl = "ws://192.168.1.100:8080/ws"
  *         ),
- *         scope = lifecycleScope
+ *         scope = lifecycleScope,
+ *         sessionCapture = sessionCapture
  *     ))
  *     // ... other modules
  * }
  *
- * // Or with ad-hoc connection:
- * val store = createStore {
- *     module(DevToolsModule(
- *         config = DevToolsConfig(
- *             serverUrl = null, // Don't auto-connect
- *             platform = "Android"
- *         ),
- *         scope = lifecycleScope
- *     ))
- * }
- *
- * // Later, connect via action:
+ * // Later, connect via action (if serverUrl was null):
  * store.dispatch(DevToolsAction.Connect("ws://192.168.1.100:8080/ws"))
  * ```
  */
 class DevToolsModule(
     private val config: DevToolsConfig,
-    scope: CoroutineScope
+    scope: CoroutineScope,
+    private val sessionCapture: SessionCapture? = null
 ) : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsLogic> {
 
     override val initialState = DevToolsState()
@@ -323,7 +298,7 @@ class DevToolsModule(
     }
 
     override val createLogic: (StoreAccessor) -> DevToolsLogic = { storeAccessor ->
-        DevToolsLogic(storeAccessor, config)
+        DevToolsLogic(storeAccessor, config, sessionCapture)
     }
 
     override val createMiddleware: (() -> Middleware) = {

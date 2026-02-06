@@ -40,10 +40,12 @@ sealed class IntrospectionAction : ModuleAction(IntrospectionModule::class) {
 /**
  * Logic class for introspection and session capture operations.
  *
- * Access the session capture via this logic:
+ * The SessionCapture is created externally and passed to both IntrospectionModule
+ * and DevToolsModule, ensuring a single point of capture:
  * ```kotlin
- * val introspectionLogic = store.selectLogic<IntrospectionLogic>()
- * val sessionCapture = introspectionLogic.getSessionCapture()
+ * val sessionCapture = SessionCapture()
+ * val introspectionModule = IntrospectionModule(config, sessionCapture)
+ * val devToolsModule = DevToolsModule(devToolsConfig, scope, sessionCapture)
  *
  * // Install crash handler (Android)
  * AndroidCrashHandler.install(context, sessionCapture)
@@ -109,34 +111,32 @@ class IntrospectionLogic internal constructor(
  * Use this module standalone in production apps to capture session data
  * for crash reports without including DevTools networking code.
  *
- * Example usage:
+ * The SessionCapture instance is created externally and shared across modules:
  * ```kotlin
+ * val sessionCapture = SessionCapture()
+ * val introspectionConfig = IntrospectionConfig(
+ *     clientName = "MyApp",
+ *     platform = "Android ${Build.VERSION.RELEASE}"
+ * )
+ *
  * val store = createStore {
- *     module(IntrospectionModule(
- *         config = IntrospectionConfig(
- *             clientName = "MyApp",
- *             platform = "Android ${Build.VERSION.RELEASE}"
- *         )
- *     ))
+ *     module(IntrospectionModule(introspectionConfig, sessionCapture))
  *     // ... other modules
  * }
  *
  * // Install crash handler
- * val introspectionLogic = store.selectLogic<IntrospectionLogic>()
- * AndroidCrashHandler.install(context, introspectionLogic.getSessionCapture())
+ * AndroidCrashHandler.install(context, sessionCapture)
  * ```
  *
  * The captured session JSON is compatible with DevTools ghost device import.
+ *
+ * @param config Introspection configuration for identity and behavior
+ * @param sessionCapture Shared SessionCapture instance for recording events
  */
 class IntrospectionModule(
-    private val config: IntrospectionConfig
+    private val config: IntrospectionConfig,
+    private val sessionCapture: SessionCapture
 ) : ModuleWithLogic<IntrospectionState, IntrospectionAction, IntrospectionLogic> {
-
-    // Shared SessionCapture instance between Logic and Middleware
-    private val sessionCapture = SessionCapture(
-        maxActions = config.maxCapturedActions,
-        maxLogicEvents = config.maxCapturedLogicEvents
-    )
 
     override val initialState = IntrospectionState(isCapturing = config.enabled)
 

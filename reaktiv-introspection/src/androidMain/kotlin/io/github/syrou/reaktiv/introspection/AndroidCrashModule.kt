@@ -6,7 +6,7 @@ import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -30,12 +30,13 @@ sealed class AndroidCrashAction : ModuleAction(AndroidCrashModule::class) {
 /**
  * Logic for installing the Android crash handler.
  *
- * The crash handler is installed during Logic initialization,
- * getting the SessionCapture from IntrospectionLogic.
+ * The crash handler is installed during Logic initialization
+ * using the explicitly provided SessionCapture.
  */
 class AndroidCrashLogic(
     private val storeAccessor: StoreAccessor,
-    private val context: Context
+    private val context: Context,
+    private val sessionCapture: SessionCapture
 ) : ModuleLogic<AndroidCrashAction>() {
 
     init {
@@ -46,9 +47,6 @@ class AndroidCrashLogic(
 
     private suspend fun installCrashHandler() {
         try {
-            val introspectionLogic = storeAccessor.selectLogic<IntrospectionLogic>()
-            val sessionCapture = introspectionLogic.getSessionCapture()
-
             AndroidCrashHandler.install(context, sessionCapture)
             storeAccessor.dispatch(AndroidCrashAction.MarkInstalled)
             println("AndroidCrashModule: Crash handler installed successfully")
@@ -65,31 +63,23 @@ class AndroidCrashLogic(
  * This module automatically installs the AndroidCrashHandler during
  * Logic initialization, capturing session data when crashes occur.
  *
- * **Important:** This module must be registered AFTER IntrospectionModule.
- *
- * Usage (standalone - without DevTools):
+ * Usage:
  * ```kotlin
- * val store = createStore {
- *     module(IntrospectionModule(config))
- *     module(AndroidCrashModule(applicationContext))
- *     // ... other modules
- * }
- * ```
+ * val sessionCapture = SessionCapture()
  *
- * Usage (with DevTools):
- * ```kotlin
  * val store = createStore {
- *     module(IntrospectionModule(config))  // Must be before DevToolsModule
- *     module(DevToolsModule(...))
- *     module(AndroidCrashModule(applicationContext))
+ *     module(IntrospectionModule(config, sessionCapture))
+ *     module(AndroidCrashModule(applicationContext, sessionCapture))
  *     // ... other modules
  * }
  * ```
  *
  * @param context Android application context for crash file storage
+ * @param sessionCapture Shared SessionCapture instance for crash data
  */
 class AndroidCrashModule(
-    private val context: Context
+    private val context: Context,
+    private val sessionCapture: SessionCapture
 ) : Module<AndroidCrashState, AndroidCrashAction> {
 
     override val initialState = AndroidCrashState()
@@ -101,6 +91,6 @@ class AndroidCrashModule(
     }
 
     override val createLogic: (StoreAccessor) -> AndroidCrashLogic = { storeAccessor ->
-        AndroidCrashLogic(storeAccessor, context.applicationContext)
+        AndroidCrashLogic(storeAccessor, context.applicationContext, sessionCapture)
     }
 }

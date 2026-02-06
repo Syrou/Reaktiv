@@ -4,7 +4,6 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.tracing.LogicObserver
-import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.DevToolsLogic
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
@@ -23,14 +22,12 @@ import kotlin.time.ExperimentalTime
  * @param config DevTools configuration for client identification
  * @param devToolsLogic DevToolsLogic instance for sending messages
  * @param scope CoroutineScope for async message sending
- * @param sessionCapture Optional session capture for crash reports
  */
 @OptIn(ExperimentalTime::class)
 class DevToolsLogicObserver(
     private val config: DevToolsConfig,
     private val devToolsLogic: DevToolsLogic,
-    private val scope: CoroutineScope,
-    private val sessionCapture: SessionCapture? = null
+    private val scope: CoroutineScope
 ) : LogicObserver {
 
     // Track method names by callId for better logging
@@ -52,8 +49,6 @@ class DevToolsLogicObserver(
             lineNumber = event.lineNumber,
             githubSourceUrl = event.githubSourceUrl
         )
-
-        sessionCapture?.captureLogicStarted(message.toCaptured())
 
         if (!devToolsLogic.isConnected()) {
             println("DevToolsLogicObserver: Not connected, dropping event")
@@ -84,8 +79,6 @@ class DevToolsLogicObserver(
             durationMs = event.durationMs
         )
 
-        sessionCapture?.captureLogicCompleted(message.toCaptured())
-
         if (!devToolsLogic.isConnected()) return
 
         scope.launch {
@@ -110,8 +103,6 @@ class DevToolsLogicObserver(
             exceptionMessage = event.exceptionMessage,
             durationMs = event.durationMs
         )
-
-        sessionCapture?.captureLogicFailed(message.toCaptured())
 
         if (!devToolsLogic.isConnected()) return
 

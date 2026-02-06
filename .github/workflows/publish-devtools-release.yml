@@ -164,20 +164,24 @@ jobs:
             Add the DevTools middleware to your app:
 
             ```kotlin
+            val introspectionConfig = IntrospectionConfig(
+                clientName = "My App",
+                platform = "Android"
+            )
+            val sessionCapture = SessionCapture()
+
             val store = createStore {
                 module(UserModule)
                 module(navigationModule)
-
-                middlewares(
-                    DevToolsMiddleware(
-                        config = DevToolsConfig(
-                            serverUrl = "ws://localhost:8080/ws",
-                            clientName = "My App",
-                            platform = "Android"
-                        ),
-                        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-                    ).middleware
-                )
+                module(IntrospectionModule(introspectionConfig, sessionCapture))
+                module(DevToolsModule(
+                    config = DevToolsConfig(
+                        introspectionConfig = introspectionConfig,
+                        serverUrl = "ws://localhost:8080/ws"
+                    ),
+                    scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+                    sessionCapture = sessionCapture
+                ))
             }
             ```
           files: |

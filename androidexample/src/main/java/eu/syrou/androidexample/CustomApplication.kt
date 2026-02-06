@@ -44,9 +44,10 @@ import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.introspection.AndroidCrashModule
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.IntrospectionModule
+import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.DevToolsModule
-import io.github.syrou.reaktiv.devtools.middleware.DefaultDeviceRole
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
+import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -131,22 +132,27 @@ class CustomApplication : Application() {
         screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
     }
 
+    private val introspectionConfig = IntrospectionConfig(
+        clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
+        platform = "Android ${Build.VERSION.RELEASE}"
+    )
+
+    private val sessionCapture = SessionCapture()
+
     private val introspectionModule = IntrospectionModule(
-        config = IntrospectionConfig(
-            clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
-            platform = "Android ${Build.VERSION.RELEASE}"
-        )
+        config = introspectionConfig,
+        sessionCapture = sessionCapture
     )
 
     private val devToolsModule = DevToolsModule(
         config = DevToolsConfig(
+            introspectionConfig = introspectionConfig,
             serverUrl = "ws://100.125.101.2:8080/ws",
-            clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
-            platform = "Android ${Build.VERSION.RELEASE}",
             enabled = true,
-            defaultRole = DefaultDeviceRole.LISTENER
+            defaultRole = ClientRole.LISTENER
         ),
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        sessionCapture = sessionCapture
     )
 
     val store = createStore {
@@ -164,7 +170,7 @@ class CustomApplication : Application() {
         module(introspectionModule)
         module(navigationModule)
         module(devToolsModule)
-        module(AndroidCrashModule(this@CustomApplication))
+        module(AndroidCrashModule(this@CustomApplication, sessionCapture))
         middlewares(
             loggingMiddleware,
             createTestNavigationMiddleware()

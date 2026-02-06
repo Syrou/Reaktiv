@@ -58,6 +58,7 @@ class SessionCapture(
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
+        encodeDefaults = true
     }
 
     /**

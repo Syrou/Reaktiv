@@ -43,20 +43,30 @@ dependencies {
 ### 2. Configure DevTools Module
 
 ```kotlin
+// Create shared resources
+val introspectionConfig = IntrospectionConfig(
+    clientName = "My App",
+    platform = "${Build.MANUFACTURER} ${Build.MODEL}"
+)
+val sessionCapture = SessionCapture()
+
 val store = createStore {
     // Your modules
     module(CounterModule)
     module(navigationModule)
 
-    // Add DevTools module
+    // Add IntrospectionModule for session capture
+    module(IntrospectionModule(introspectionConfig, sessionCapture))
+
+    // Add DevTools module with shared session capture
     module(DevToolsModule(
         config = DevToolsConfig(
+            introspectionConfig = introspectionConfig,
             serverUrl = "ws://192.168.1.100:8080/ws",  // Your server IP
-            clientName = "My App",
-            platform = "${Build.MANUFACTURER} ${Build.MODEL}",
-            defaultRole = DefaultDeviceRole.PUBLISHER  // Auto-assign as publisher
+            defaultRole = ClientRole.PUBLISHER  // Auto-assign as publisher
         ),
-        scope = lifecycleScope
+        scope = lifecycleScope,
+        sessionCapture = sessionCapture
     ))
 }
 ```
@@ -93,25 +103,16 @@ The built files are in `reaktiv-devtools/build/dist/wasmJs/developmentExecutable
 
 ```kotlin
 data class DevToolsConfig(
-    val serverUrl: String? = null,           // WebSocket URL (null = don't auto-connect)
-    val clientName: String = "Client-<uuid>", // Display name in DevTools UI
-    val clientId: String = "<uuid>",          // Unique client identifier
-    val platform: String,                     // Platform description
-    val enabled: Boolean = true,              // Enable/disable DevTools
-    val allowActionCapture: Boolean = true,   // Capture dispatched actions
-    val allowStateCapture: Boolean = true,    // Capture state changes
-    val defaultRole: DefaultDeviceRole = DefaultDeviceRole.NONE,  // Auto-assign role
-    val enableSessionCapture: Boolean = true, // Enable session recording
-    val maxCapturedActions: Int = 1000,       // Max actions to retain
-    val maxCapturedLogicEvents: Int = 2000    // Max logic events to retain
+    val introspectionConfig: IntrospectionConfig, // Shared identity (clientId, clientName, platform)
+    val serverUrl: String? = null,                // WebSocket URL (null = don't auto-connect)
+    val enabled: Boolean = true,                  // Enable/disable DevTools
+    val allowActionCapture: Boolean = true,       // Send dispatched actions to server
+    val allowStateCapture: Boolean = true,        // Send state changes to server
+    val defaultRole: ClientRole? = null           // Auto-assign role (null = no auto-assignment)
 )
-
-enum class DefaultDeviceRole {
-    PUBLISHER,  // Source of state (your app)
-    LISTENER,   // Receives state sync (other devices)
-    NONE        // No auto-assignment
-}
 ```
+
+Identity properties (`clientId`, `clientName`, `platform`) and session capture configuration (`maxCapturedActions`, `maxCapturedLogicEvents`) are managed by `IntrospectionConfig` which owns the `SessionCapture` instance.
 
 ## Server URL Examples
 
@@ -145,12 +146,13 @@ In the DevTools UI, click the download icon when a publisher is selected to expo
 ### Crash Capture (Android)
 
 ```kotlin
-// Set up crash handler to capture session on crash
-val crashHandler = AndroidCrashHandler(
-    context = applicationContext,
-    sessionCapture = devToolsMiddleware.getSessionCapture()
-)
-crashHandler.install()
+val sessionCapture = SessionCapture()
+
+// Use AndroidCrashModule for automatic crash handler installation
+val store = createStore {
+    module(IntrospectionModule(config, sessionCapture))
+    module(AndroidCrashModule(applicationContext, sessionCapture))
+}
 
 // Crash sessions are saved to app's filesDir as JSON
 // Import them as ghost sessions for post-mortem debugging
