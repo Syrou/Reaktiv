@@ -13,8 +13,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.syrou.androidexample.reaktiv.news.NewsLogic
 import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
@@ -63,7 +64,12 @@ object ProjectTasksScreen : Screen {
         }
 
         // Register cleanup callback for when entry is removed
+        // `this` is StoreAccessor — runs before lifecycle scope is cancelled
         lifecycle.invokeOnRemoval {
+            launch {
+                selectLogic<NewsLogic>().countDown()
+                println("HERPADERPA - Count down done!")
+            }
             println("HERPADERPA - REMOVED FROM BACKSTACK (invokeOnRemoval)")
         }
     }
@@ -114,7 +120,7 @@ private fun ProjectOverviewContent(params: Params) {
         Button(onClick = {
             scope.launch {
                 store.navigation {
-                    navigateTo("home/workspace/projects/tasks"){
+                    navigateTo("home/workspace/projects/tasks") {
                         putString("projectId", projectId)
                     }
                 }

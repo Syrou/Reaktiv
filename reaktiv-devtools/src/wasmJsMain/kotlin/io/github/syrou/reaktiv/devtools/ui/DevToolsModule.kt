@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.devtools.client.DevToolsConnection
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
+import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
@@ -102,7 +103,16 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
             }
 
             is DevToolsAction.AddLogicMethodEvent -> {
-                state.copy(logicMethodEvents = state.logicMethodEvents + action.event)
+                val newCallIdMap = if (action.event is LogicMethodEvent.Started) {
+                    val started = action.event as LogicMethodEvent.Started
+                    state.callIdToMethodIdentifier + (started.callId to "${started.logicClass}.${started.methodName}")
+                } else {
+                    state.callIdToMethodIdentifier
+                }
+                state.copy(
+                    logicMethodEvents = state.logicMethodEvents + action.event,
+                    callIdToMethodIdentifier = newCallIdMap
+                )
             }
 
             is DevToolsAction.ToggleShowActions -> {
@@ -119,6 +129,18 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                     selectedActionIndex = if (action.callId != null) null else state.selectedActionIndex,
                     crashSelected = if (action.callId != null) false else state.crashSelected
                 )
+            }
+
+            is DevToolsAction.AddLogicMethodExclusion -> {
+                state.copy(excludedLogicMethods = state.excludedLogicMethods + action.methodIdentifier)
+            }
+
+            is DevToolsAction.RemoveLogicMethodExclusion -> {
+                state.copy(excludedLogicMethods = state.excludedLogicMethods - action.methodIdentifier)
+            }
+
+            is DevToolsAction.SetLogicMethodExclusions -> {
+                state.copy(excludedLogicMethods = action.methodIdentifiers)
             }
 
             is DevToolsAction.ShowImportGhostDialog -> {
@@ -167,7 +189,13 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
             }
 
             is DevToolsAction.BulkAddLogicMethodEvents -> {
-                state.copy(logicMethodEvents = state.logicMethodEvents + action.events)
+                val newCallIdEntries = action.events
+                    .filterIsInstance<LogicMethodEvent.Started>()
+                    .associate { it.callId to "${it.logicClass}.${it.methodName}" }
+                state.copy(
+                    logicMethodEvents = state.logicMethodEvents + action.events,
+                    callIdToMethodIdentifier = state.callIdToMethodIdentifier + newCallIdEntries
+                )
             }
         }
     }
@@ -315,6 +343,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                         callId = msg.callId,
                         exceptionType = msg.exceptionType,
                         exceptionMessage = msg.exceptionMessage,
+                        stackTrace = msg.stackTrace,
                         durationMs = msg.durationMs
                     ))
                 }
@@ -403,6 +432,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                         callId = event.callId,
                         exceptionType = event.exceptionType,
                         exceptionMessage = event.exceptionMessage,
+                        stackTrace = event.stackTrace,
                         durationMs = event.durationMs
                     )
                 )
@@ -483,6 +513,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                     callId = message.callId,
                     exceptionType = message.exceptionType,
                     exceptionMessage = message.exceptionMessage,
+                    stackTrace = message.stackTrace,
                     durationMs = message.durationMs
                 )
                 storeAccessor.dispatch(DevToolsAction.AddLogicMethodEvent(event))
@@ -537,6 +568,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                             callId = msg.callId,
                             exceptionType = msg.exceptionType,
                             exceptionMessage = msg.exceptionMessage,
+                            stackTrace = msg.stackTrace,
                             durationMs = msg.durationMs
                         ))
                     }
@@ -544,6 +576,20 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                 if (logicEvents.isNotEmpty()) {
                     storeAccessor.dispatch(DevToolsAction.BulkAddLogicMethodEvents(logicEvents))
                 }
+            }
+
+            is DevToolsMessage.CrashReport -> {
+                println("DevTools UI: Received CrashReport from ${message.clientId}")
+                val crashEvent = CrashEventInfo(
+                    timestamp = message.timestamp,
+                    clientId = message.clientId,
+                    exception = CrashException(
+                        exceptionType = message.exceptionType,
+                        message = message.exceptionMessage,
+                        stackTrace = message.stackTrace ?: ""
+                    )
+                )
+                storeAccessor.dispatch(DevToolsAction.SetCrashEvent(crashEvent))
             }
 
             is DevToolsMessage.PublisherChanged -> {

@@ -1,15 +1,18 @@
 package io.github.syrou.reaktiv.devtools.ui.components
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -306,7 +309,7 @@ private fun LogicMethodDataView(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 200.dp),
+                    .heightIn(max = 300.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
@@ -316,11 +319,31 @@ private fun LogicMethodDataView(
                         .fillMaxWidth()
                         .padding(12.dp)
                 ) {
-                    Text(
-                        text = "Parameters",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Parameters",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        IconButton(
+                            onClick = {
+                                val text = startedEvent.params.entries.joinToString("\n") { "${it.key} = ${it.value}" }
+                                copyToClipboard(text)
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = "Copy parameters",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -329,25 +352,21 @@ private fun LogicMethodDataView(
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        LazyColumn(
+                        Column(
                             modifier = Modifier.padding(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(startedEvent.params.entries.toList().size) { index ->
-                                val (key, value) = startedEvent.params.entries.toList()[index]
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
+                            startedEvent.params.forEach { (key, value) ->
+                                Column {
                                     Text(
                                         text = "$key:",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )
-                                    Text(
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    KotlinObjectTreeViewer(
                                         text = value,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        modifier = Modifier.padding(start = 8.dp)
                                     )
                                 }
                             }
@@ -402,11 +421,28 @@ private fun LogicMethodDataView(
                     completedEvent.result?.let { result ->
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Text(
-                            text = "Result",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Result",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            IconButton(
+                                onClick = { copyToClipboard(result) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.ContentCopy,
+                                    contentDescription = "Copy result",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(4.dp))
 
@@ -415,16 +451,10 @@ private fun LogicMethodDataView(
                             shape = MaterialTheme.shapes.small,
                             modifier = Modifier.heightIn(max = 200.dp)
                         ) {
-                            val scrollState = rememberScrollState()
-                            SelectionContainer {
-                                Text(
-                                    text = result,
-                                    modifier = Modifier
-                                        .padding(8.dp)
-                                        .verticalScroll(scrollState),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
+                            KotlinObjectTreeViewer(
+                                text = result,
+                                modifier = Modifier.padding(8.dp)
+                            )
                         }
                     }
                 }
@@ -496,6 +526,49 @@ private fun LogicMethodDataView(
                             )
                         }
                     }
+
+                    failedEvent.stackTrace?.let { trace ->
+                        if (trace.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Stack Trace",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                IconButton(
+                                    onClick = { copyToClipboard(trace) },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        contentDescription = "Copy stack trace",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.heightIn(max = 300.dp)
+                            ) {
+                                StackTraceView(
+                                    stackTrace = trace,
+                                    githubBaseUrl = startedEvent?.githubSourceUrl,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -526,6 +599,10 @@ private fun formatTimestamp(timestamp: Long): String {
 
 private fun openInBrowser(url: String) {
     js("window.open(url, '_blank')")
+}
+
+private fun copyToClipboard(text: String) {
+    js("navigator.clipboard.writeText(text)")
 }
 
 @Composable
@@ -604,23 +681,29 @@ private fun CrashDataView(crashEvent: CrashEventInfo) {
                     modifier = Modifier.fillMaxSize()
                 ) {
                     val scrollState = rememberScrollState()
-                    SelectionContainer {
-                        Column(
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .verticalScroll(scrollState)
-                        ) {
-                            Text(
-                                text = crashEvent.exception.stackTrace,
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                    Box {
+                        SelectionContainer {
+                            Column(
+                                modifier = Modifier
+                                    .padding(start = 8.dp, top = 8.dp, bottom = 8.dp, end = 20.dp)
+                                    .verticalScroll(scrollState)
+                            ) {
+                                Text(
+                                    text = crashEvent.exception.stackTrace,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
 
-                            val causedBy = crashEvent.exception.causedBy
-                            if (causedBy != null) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                CausedByView(causedBy)
+                                val causedBy = crashEvent.exception.causedBy
+                                if (causedBy != null) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    CausedByView(causedBy)
+                                }
                             }
                         }
+                        VerticalScrollbar(
+                            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                            adapter = rememberScrollbarAdapter(scrollState)
+                        )
                     }
                 }
             }
@@ -659,4 +742,159 @@ private fun CausedByView(exception: CrashException) {
             CausedByView(nestedCausedBy)
         }
     }
+}
+
+/**
+ * Displays a stack trace with clickable GitHub source links.
+ *
+ * Only links stack trace lines that belong to the project's package scope,
+ * determined from the githubBaseUrl path structure. External library frames
+ * (kotlinx, android, java, etc.) are not linked.
+ */
+@Composable
+private fun StackTraceView(
+    stackTrace: String,
+    githubBaseUrl: String?,
+    modifier: Modifier = Modifier
+) {
+    val githubInfo = remember(githubBaseUrl) {
+        extractGitHubInfo(githubBaseUrl)
+    }
+
+    val lines = remember(stackTrace) { stackTrace.lines() }
+    val scrollState = rememberScrollState()
+
+    Box(modifier = modifier) {
+        SelectionContainer {
+            Column(
+                modifier = Modifier
+                    .padding(end = 12.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                lines.forEach { line ->
+                    val sourceMatch = remember(line, githubInfo) {
+                        if (githubInfo != null) parseStackTraceLine(line, githubInfo.packagePrefix) else null
+                    }
+
+                    if (sourceMatch != null && githubInfo != null) {
+                        Text(
+                            text = line,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                textDecoration = TextDecoration.Underline
+                            ),
+                            color = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.clickable {
+                                openInBrowser("${githubInfo.baseUrl}${sourceMatch.first}#L${sourceMatch.second}")
+                            }
+                        )
+                    } else {
+                        Text(
+                            text = line,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (line.trimStart().startsWith("at "))
+                                MaterialTheme.colorScheme.onSurface
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+        VerticalScrollbar(
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            adapter = rememberScrollbarAdapter(scrollState)
+        )
+    }
+}
+
+private data class GitHubInfo(
+    val baseUrl: String,
+    val packagePrefix: String
+)
+
+/**
+ * Extracts GitHub repo base URL and package prefix from a githubSourceUrl.
+ *
+ * Given a URL like `https://github.com/user/repo/blob/main/app/src/main/kotlin/com/example/MyLogic.kt#L42`,
+ * extracts:
+ * - baseUrl: `https://github.com/user/repo/blob/main/`
+ * - packagePrefix: `com.example` (derived from the path after src/main/kotlin/)
+ */
+private fun extractGitHubInfo(githubSourceUrl: String?): GitHubInfo? {
+    if (githubSourceUrl == null) return null
+
+    val blobIndex = githubSourceUrl.indexOf("/blob/")
+    if (blobIndex < 0) return null
+
+    val afterBlob = githubSourceUrl.indexOf("/", blobIndex + 6)
+    if (afterBlob < 0) return null
+
+    val nextSlash = githubSourceUrl.indexOf("/", afterBlob + 1)
+    if (nextSlash < 0) return null
+
+    val baseUrl = githubSourceUrl.substring(0, nextSlash + 1)
+
+    // Extract the package prefix from the file path
+    // Look for common source root patterns: src/main/kotlin/, src/commonMain/kotlin/, etc.
+    val pathAfterBranch = githubSourceUrl.substring(nextSlash + 1)
+    val kotlinSrcIndex = pathAfterBranch.indexOf("/kotlin/")
+    val packagePrefix = if (kotlinSrcIndex >= 0) {
+        val packagePath = pathAfterBranch.substring(kotlinSrcIndex + 8)
+        val lastSlash = packagePath.lastIndexOf('/')
+        if (lastSlash > 0) {
+            // Remove filename, keep only package directories
+            // Then remove the class name directory (last segment might be a class, keep at least 2 levels)
+            val dirs = packagePath.substring(0, lastSlash).split('/')
+            if (dirs.size >= 2) {
+                dirs.take(dirs.size).joinToString(".")
+            } else {
+                dirs.joinToString(".")
+            }
+        } else ""
+    } else ""
+
+    if (packagePrefix.isEmpty()) return null
+
+    return GitHubInfo(baseUrl, packagePrefix)
+}
+
+/**
+ * Parses a stack trace line for source file information.
+ * Only matches lines whose package starts with the given packagePrefix.
+ * Returns a pair of (relative file path guess, line number) if found.
+ */
+private fun parseStackTraceLine(line: String, packagePrefix: String): Pair<String, Int>? {
+    val trimmed = line.trim()
+    if (!trimmed.startsWith("at ")) return null
+
+    val afterAt = trimmed.removePrefix("at ")
+
+    // Only link frames within our project's package scope
+    if (!afterAt.startsWith(packagePrefix)) return null
+
+    val parenStart = trimmed.lastIndexOf('(')
+    val parenEnd = trimmed.lastIndexOf(')')
+    if (parenStart < 0 || parenEnd < 0 || parenEnd <= parenStart) return null
+
+    val fileRef = trimmed.substring(parenStart + 1, parenEnd)
+    val colonIndex = fileRef.lastIndexOf(':')
+    if (colonIndex < 0) return null
+
+    val fileName = fileRef.substring(0, colonIndex)
+    val lineNumber = fileRef.substring(colonIndex + 1).toIntOrNull() ?: return null
+
+    if (!fileName.endsWith(".kt")) return null
+
+    // Derive relative path from the fully qualified class name
+    val lastDot = afterAt.lastIndexOf('.')
+    if (lastDot < 0) return null
+    val beforeMethod = afterAt.substring(0, lastDot)
+    val secondLastDot = beforeMethod.lastIndexOf('.')
+    val packagePath = if (secondLastDot >= 0) {
+        beforeMethod.substring(0, secondLastDot).replace('.', '/')
+    } else {
+        beforeMethod.replace('.', '/')
+    }
+
+    return "$packagePath/$fileName" to lineNumber
 }

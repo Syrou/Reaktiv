@@ -1,6 +1,10 @@
 package io.github.syrou.reaktiv.navigation
 
+import io.github.syrou.reaktiv.core.CrashListener
+import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.core.DispatchResult
+import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
+import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
@@ -8,6 +12,7 @@ import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
+import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.dsl.GuidedFlowOperation
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
@@ -42,11 +47,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 
+@OptIn(ExperimentalReaktivApi::class)
 class NavigationLogic(
     val storeAccessor: StoreAccessor,
     private val precomputedData: PrecomputedNavigationData,
     private val guidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
-    private val parameterEncoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
+    private val parameterEncoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder(),
+    private val onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null
 ) : ModuleLogic<NavigationAction>() {
 
 
@@ -60,8 +67,58 @@ class NavigationLogic(
      */
     private val entryLifecycleJobs = mutableMapOf<String, Job>()
 
+    /**
+     * Tracks BackstackLifecycle instances for each entry.
+     * Used to run removal handlers before cancelling the lifecycle job.
+     */
+    private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
+
     init {
         startLifecycleObservation()
+        registerCrashListenerIfNeeded()
+    }
+
+    private fun registerCrashListenerIfNeeded() {
+        val crashScreenDef = precomputedData.crashScreen ?: return
+        storeAccessor.addCrashListener(object : CrashListener {
+            override suspend fun onLogicCrash(exception: Throwable, action: ModuleAction?): CrashRecovery {
+                val recovery = onCrash?.invoke(exception, action)
+                    ?: CrashRecovery.NAVIGATE_TO_CRASH_SCREEN
+                if (recovery == CrashRecovery.NAVIGATE_TO_CRASH_SCREEN) {
+                    navigateToCrashScreen(exception, action, crashScreenDef)
+                }
+                return recovery
+            }
+        })
+    }
+
+    private suspend fun navigateToCrashScreen(
+        exception: Throwable,
+        action: ModuleAction?,
+        crashScreenDef: Screen
+    ) {
+        try {
+            val crashParams = Params.of(
+                "exceptionType" to (exception::class.simpleName ?: "Unknown"),
+                "exceptionMessage" to (exception.message ?: ""),
+                "actionType" to (action?.let { it::class.simpleName } ?: "Logic Method")
+            )
+            val currentState = storeAccessor.selectState<NavigationState>().value
+            val crashEntry = NavigationEntry(
+                navigatable = crashScreenDef,
+                params = crashParams,
+                graphId = currentState.currentEntry.graphId
+            )
+            storeAccessor.dispatch(
+                NavigationAction.Navigate(
+                    currentEntry = crashEntry,
+                    backStack = currentState.backStack + crashEntry,
+                    modalContexts = currentState.activeModalContexts
+                )
+            )
+        } catch (e: Exception) {
+            println("NavigationLogic: Failed to navigate to crash screen - ${e.message}")
+        }
     }
 
     /**
@@ -70,6 +127,7 @@ class NavigationLogic(
      */
     override fun onStoreReset() {
         entryLifecycleJobs.clear()
+        entryLifecycles.clear()
         startLifecycleObservation()
     }
 
@@ -270,6 +328,7 @@ class NavigationLogic(
                 entryLifecycleJobs[entry.stableKey] = lifecycleJob
 
                 val lifecycle = BackstackLifecycle(entry, navigationStateFlow, storeAccessor, lifecycleScope)
+                entryLifecycles[entry.stableKey] = lifecycle
                 entry.navigatable.onLifecycleCreated(lifecycle)
             } catch (e: Exception) {
                 // Log but don't prevent navigation
@@ -277,9 +336,9 @@ class NavigationLogic(
             }
         }
 
-        // Cancel lifecycle scopes for removed entries
-        // This triggers invokeOnRemoval handlers and cancels all launched coroutines
+        // Run removal handlers before cancelling lifecycle scopes
         removedEntries.forEach { entry ->
+            entryLifecycles.remove(entry.stableKey)?.runRemovalHandlers()
             entryLifecycleJobs.remove(entry.stableKey)?.cancel()
         }
     }

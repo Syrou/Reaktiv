@@ -44,23 +44,25 @@ sealed class IntrospectionAction : ModuleAction(IntrospectionModule::class) {
  * and DevToolsModule, ensuring a single point of capture:
  * ```kotlin
  * val sessionCapture = SessionCapture()
- * val introspectionModule = IntrospectionModule(config, sessionCapture)
+ * val introspectionModule = IntrospectionModule(config, sessionCapture, platformContext)
  * val devToolsModule = DevToolsModule(devToolsConfig, scope, sessionCapture)
  *
- * // Install crash handler (Android)
- * AndroidCrashHandler.install(context, sessionCapture)
+ * // Install crash handler (any platform)
+ * CrashHandler(platformContext, sessionCapture).install()
  *
- * // Manual export
- * val json = introspectionLogic.exportSessionJson()
+ * // Export session to Downloads
+ * val path = introspectionLogic.exportSessionToDownloads()
  * ```
  */
 class IntrospectionLogic internal constructor(
     private val storeAccessor: StoreAccessor,
     private val config: IntrospectionConfig,
-    private val sessionCapture: SessionCapture
+    private val sessionCapture: SessionCapture,
+    platformContext: PlatformContext
 ) : ModuleLogic<IntrospectionAction>() {
 
     private var logicObserver: IntrospectionLogicObserver? = null
+    private val sessionFileExport = SessionFileExport(platformContext)
 
     init {
         if (config.enabled) {
@@ -94,6 +96,33 @@ class IntrospectionLogic internal constructor(
         sessionCapture.exportCrashSession(throwable)
 
     /**
+     * Exports the current session to the device's Downloads folder.
+     *
+     * @param fileName Optional custom file name (defaults to timestamped name)
+     * @return Path where the file was saved
+     */
+    fun exportSessionToDownloads(fileName: String? = null): String {
+        val json = sessionCapture.exportSession()
+        val actualFileName = fileName
+            ?: "reaktiv_session_${Clock.System.now().toEpochMilliseconds()}.json"
+        return sessionFileExport.saveToDownloads(json, actualFileName)
+    }
+
+    /**
+     * Exports the current session with crash information to the device's Downloads folder.
+     *
+     * @param throwable The exception that caused the crash
+     * @param fileName Optional custom file name (defaults to timestamped name)
+     * @return Path where the file was saved
+     */
+    fun exportCrashSessionToDownloads(throwable: Throwable, fileName: String? = null): String {
+        val json = sessionCapture.exportCrashSession(throwable)
+        val actualFileName = fileName
+            ?: "reaktiv_crash_${Clock.System.now().toEpochMilliseconds()}.json"
+        return sessionFileExport.saveToDownloads(json, actualFileName)
+    }
+
+    /**
      * Cleans up resources.
      */
     fun cleanup() {
@@ -120,22 +149,24 @@ class IntrospectionLogic internal constructor(
  * )
  *
  * val store = createStore {
- *     module(IntrospectionModule(introspectionConfig, sessionCapture))
+ *     module(IntrospectionModule(introspectionConfig, sessionCapture, platformContext))
  *     // ... other modules
  * }
  *
- * // Install crash handler
- * AndroidCrashHandler.install(context, sessionCapture)
+ * // Install crash handler (any platform)
+ * CrashHandler(platformContext, sessionCapture).install()
  * ```
  *
  * The captured session JSON is compatible with DevTools ghost device import.
  *
  * @param config Introspection configuration for identity and behavior
  * @param sessionCapture Shared SessionCapture instance for recording events
+ * @param platformContext Platform-specific context for file operations
  */
 class IntrospectionModule(
     private val config: IntrospectionConfig,
-    private val sessionCapture: SessionCapture
+    private val sessionCapture: SessionCapture,
+    private val platformContext: PlatformContext
 ) : ModuleWithLogic<IntrospectionState, IntrospectionAction, IntrospectionLogic> {
 
     override val initialState = IntrospectionState(isCapturing = config.enabled)
@@ -148,7 +179,7 @@ class IntrospectionModule(
     }
 
     override val createLogic: (StoreAccessor) -> IntrospectionLogic = { storeAccessor ->
-        IntrospectionLogic(storeAccessor, config, sessionCapture)
+        IntrospectionLogic(storeAccessor, config, sessionCapture, platformContext)
     }
 
     override val createMiddleware: (() -> Middleware) = {

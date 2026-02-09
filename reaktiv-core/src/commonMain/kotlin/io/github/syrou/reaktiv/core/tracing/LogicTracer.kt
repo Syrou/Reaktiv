@@ -168,6 +168,7 @@ object LogicTracer {
             callId = callId,
             exceptionType = exception::class.simpleName ?: "Unknown",
             exceptionMessage = exception.message,
+            stackTrace = exception.stackTraceToString(),
             durationMs = durationMs
         )
 

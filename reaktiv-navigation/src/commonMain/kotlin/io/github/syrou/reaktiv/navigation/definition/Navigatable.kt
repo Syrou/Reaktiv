@@ -15,7 +15,6 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -46,7 +45,13 @@ import kotlinx.coroutines.flow.stateIn
  *
  *     // Register cleanup when removed from backstack
  *     lifecycle.invokeOnRemoval {
- *         // Non-suspend cleanup
+ *         // `this` is StoreAccessor — non-suspend context
+ *         // Must use launch for suspend work (fire-and-forget)
+ *         launch {
+ *             val logic = selectLogic<SomeLogic>()
+ *             logic.cleanup()
+ *             dispatch(SomeAction.Removed)
+ *         }
  *     }
  * }
  * ```
@@ -78,22 +83,46 @@ class BackstackLifecycle(
 
     suspend inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = storeAccessor.selectLogic<L>()
 
+    private val removalHandlers = mutableListOf<StoreAccessor.() -> Unit>()
+
     /**
      * Register a callback to be invoked when this entry is removed from the backstack.
-     * The callback runs synchronously when the lifecycle scope is cancelled.
-     * For suspend cleanup operations, use `withContext(NonCancellable)` inside the handler.
+     * The handler receives [StoreAccessor] as its receiver, providing access to
+     * [StoreAccessor.dispatch], [StoreAccessor.launch], and other store operations.
+     *
+     * Handlers run **before** the lifecycle scope is cancelled, so the store is still
+     * fully operational. Since the handler is non-suspend, use [StoreAccessor.launch]
+     * for any async/suspend work (fire-and-forget).
      *
      * Example:
      * ```kotlin
      * lifecycle.invokeOnRemoval {
-     *     // Synchronous cleanup
+     *     // `this` is StoreAccessor
+     *     launch {
+     *         val logic = selectLogic<SomeLogic>()
+     *         logic.cleanup()
+     *     }
      * }
      * ```
      *
-     * @param handler Callback invoked when the entry is removed. Receives the cancellation cause.
+     * @param handler Callback invoked with [StoreAccessor] as receiver when the entry is removed.
      */
-    fun invokeOnRemoval(handler: (cause: Throwable?) -> Unit) {
-        coroutineContext[Job]?.invokeOnCompletion(handler)
+    fun invokeOnRemoval(handler: StoreAccessor.() -> Unit) {
+        removalHandlers.add(handler)
+    }
+
+    /**
+     * Executes all registered removal handlers with the [storeAccessor] as receiver.
+     * Called internally by [NavigationLogic] before cancelling the lifecycle scope.
+     */
+    internal fun runRemovalHandlers() {
+        removalHandlers.forEach { handler ->
+            try {
+                handler(storeAccessor)
+            } catch (e: Exception) {
+                // Swallow exceptions from individual handlers to ensure all handlers run
+            }
+        }
     }
 }
 
@@ -144,7 +173,11 @@ interface Navigatable : NavigationNode {
      *         }
      *
      *         lifecycle.invokeOnRemoval {
-     *             // Cleanup when removed from backstack
+     *             // `this` is StoreAccessor — runs before lifecycle scope is cancelled
+     *             launch {
+     *                 val logic = selectLogic<ProfileLogic>()
+     *                 logic.cleanup()
+     *             }
      *         }
      *     }
      * }

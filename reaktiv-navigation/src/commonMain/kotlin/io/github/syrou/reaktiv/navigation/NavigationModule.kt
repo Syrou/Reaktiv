@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.navigation
 
+import io.github.syrou.reaktiv.core.CrashRecovery
+import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
@@ -30,11 +32,13 @@ import kotlin.time.Duration
 class NavigationModule internal constructor(
     private val rootGraph: NavigationGraph,
     private val notFoundScreen: Screen? = null,
+    internal val crashScreen: Screen? = null,
+    internal val onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null,
     private val originalGuidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
     private val screenRetentionDuration: Duration
 ) : ModuleWithLogic<NavigationState, NavigationAction, NavigationLogic>, CustomTypeRegistrar {
     private val precomputedData: PrecomputedNavigationData by lazy {
-        PrecomputedNavigationData.create(rootGraph, notFoundScreen)
+        PrecomputedNavigationData.create(rootGraph, notFoundScreen, crashScreen)
     }
 
     /**
@@ -176,6 +180,17 @@ class NavigationModule internal constructor(
                 } catch (e: Exception) {
                 }
             }
+
+            crashScreen?.let { screen ->
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    subclass(
+                        screen::class as KClass<Navigatable>,
+                        screen::class.serializer() as KSerializer<Navigatable>
+                    )
+                } catch (e: Exception) {
+                }
+            }
         }
 
         builder.polymorphic(Screen::class) {
@@ -196,6 +211,17 @@ class NavigationModule internal constructor(
             registerScreens(rootGraph)
 
             notFoundScreen?.let { screen ->
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    subclass(
+                        screen::class as KClass<Screen>,
+                        screen::class.serializer() as KSerializer<Screen>
+                    )
+                } catch (e: Exception) {
+                }
+            }
+
+            crashScreen?.let { screen ->
                 try {
                     @Suppress("UNCHECKED_CAST")
                     subclass(
@@ -350,7 +376,8 @@ class NavigationModule internal constructor(
         NavigationLogic(
             storeAccessor = storeAccessor,
             precomputedData = precomputedData,
-            guidedFlowDefinitions = originalGuidedFlowDefinitions
+            guidedFlowDefinitions = originalGuidedFlowDefinitions,
+            onCrash = onCrash
         )
     }
 
@@ -370,12 +397,14 @@ data class PrecomputedNavigationData(
     val navigatableToGraph: Map<Navigatable, String>,
     val routeToNavigatable: Map<String, Navigatable>,
     val navigatableToFullPath: Map<Navigatable, String>,
-    val notFoundScreen: Screen? = null
+    val notFoundScreen: Screen? = null,
+    val crashScreen: Screen? = null
 ) {
     companion object {
         fun create(
             rootGraph: NavigationGraph,
-            notFoundScreen: Screen? = null
+            notFoundScreen: Screen? = null,
+            crashScreen: Screen? = null
         ): PrecomputedNavigationData {
             val graphDefinitions = mutableMapOf<String, NavigationGraph>()
             val availableNavigatables = mutableMapOf<String, Navigatable>()
@@ -457,7 +486,8 @@ data class PrecomputedNavigationData(
                 navigatableToGraph = navigatableToGraph,
                 routeToNavigatable = routeToNavigatable,
                 navigatableToFullPath = navigatableToFullPath,
-                notFoundScreen = notFoundScreen
+                notFoundScreen = notFoundScreen,
+                crashScreen = crashScreen
             )
         }
 

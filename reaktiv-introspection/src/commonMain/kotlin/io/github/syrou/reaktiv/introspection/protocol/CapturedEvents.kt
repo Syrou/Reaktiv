@@ -53,5 +53,6 @@ data class CapturedLogicFailed(
     val callId: String,
     val exceptionType: String,
     val exceptionMessage: String?,
+    val stackTrace: String? = null,
     val durationMs: Long
 )

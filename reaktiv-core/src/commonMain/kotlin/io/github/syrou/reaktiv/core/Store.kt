@@ -7,10 +7,12 @@ import io.github.syrou.reaktiv.core.persistance.PersistenceStrategy
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -46,6 +48,37 @@ import kotlin.reflect.KClass
 )
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
 annotation class ExperimentalReaktivApi
+
+/**
+ * Determines how the Store should handle a crash after listeners are notified.
+ */
+enum class CrashRecovery {
+    /**
+     * Navigate to crash screen and do NOT re-throw.
+     * The developer is responsible for reporting to Crashlytics via recordException().
+     */
+    NAVIGATE_TO_CRASH_SCREEN,
+
+    /**
+     * Let the crash propagate normally. Default behavior.
+     */
+    RETHROW
+}
+
+/**
+ * Listener for crashes that occur during logic execution in the Store.
+ *
+ * Implementations can handle crash recovery (e.g., navigating to a crash screen)
+ * and return a [CrashRecovery] to control whether the exception is re-thrown.
+ *
+ * The [action] parameter is non-null when the crash occurred during action processing
+ * (invoke() path) and null when the crash occurred in a coroutine launched via
+ * `storeAccessor.launch` from a logic method.
+ */
+@ExperimentalReaktivApi
+interface CrashListener {
+    suspend fun onLogicCrash(exception: Throwable, action: ModuleAction?): CrashRecovery
+}
 
 
 /**
@@ -601,6 +634,18 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      */
     @ExperimentalReaktivApi
     fun asInternalOperations(): InternalStoreOperations? = this as? InternalStoreOperations
+
+    /**
+     * Registers a [CrashListener] to be notified when logic invocation throws.
+     */
+    @ExperimentalReaktivApi
+    abstract fun addCrashListener(listener: CrashListener)
+
+    /**
+     * Removes a previously registered [CrashListener].
+     */
+    @ExperimentalReaktivApi
+    abstract fun removeCrashListener(listener: CrashListener)
 }
 
 
@@ -619,6 +664,30 @@ class Store private constructor(
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
+    private val crashListeners = mutableListOf<CrashListener>()
+
+    override val coroutineContext: CoroutineContext =
+        coroutineScope.coroutineContext + CoroutineExceptionHandler { _, throwable ->
+            if (crashListeners.isEmpty()) {
+                throw throwable
+            }
+            CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+                val recovery = handleLogicException(throwable, null)
+                if (recovery == CrashRecovery.RETHROW) {
+                    throw throwable
+                }
+            }
+        }
+
+    @ExperimentalReaktivApi
+    override fun addCrashListener(listener: CrashListener) {
+        crashListeners.add(listener)
+    }
+
+    @ExperimentalReaktivApi
+    override fun removeCrashListener(listener: CrashListener) {
+        crashListeners.remove(listener)
+    }
 
     @OptIn(DelicateCoroutinesApi::class)
     override val dispatch: Dispatch = { action ->
@@ -749,7 +818,16 @@ class Store private constructor(
             onActionApplied()
 
             launch {
-                info.logic?.invoke(action)
+                try {
+                    info.logic?.invoke(action)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    val recovery = handleLogicException(e, action)
+                    if (recovery == CrashRecovery.RETHROW) {
+                        throw e
+                    }
+                }
             }
         }
 
@@ -766,6 +844,23 @@ class Store private constructor(
                 }
             }
         }
+    }
+
+    private suspend fun handleLogicException(
+        exception: Throwable,
+        action: ModuleAction?
+    ): CrashRecovery {
+        var recovery = CrashRecovery.RETHROW
+        for (listener in crashListeners) {
+            try {
+                val result = listener.onLogicCrash(exception, action)
+                if (result == CrashRecovery.NAVIGATE_TO_CRASH_SCREEN) {
+                    recovery = CrashRecovery.NAVIGATE_TO_CRASH_SCREEN
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return recovery
     }
 
     private suspend fun updateState(stateClass: String, newState: ModuleState) = stateUpdateMutex.withLock {
@@ -971,7 +1066,7 @@ class StoreDSL {
 
 
     fun coroutineContext(context: CoroutineContext) {
-        coroutineScope = CoroutineScope(context)
+        coroutineScope = CoroutineScope(SupervisorJob() + context.minusKey(Job))
     }
 
 

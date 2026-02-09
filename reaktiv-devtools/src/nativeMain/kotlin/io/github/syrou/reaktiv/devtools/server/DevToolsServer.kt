@@ -209,6 +209,11 @@ object DevToolsServer {
                 println("DevTools Server: PublisherChanged - ${message.previousPublisherId} -> ${message.newPublisherId}")
             }
 
+            is DevToolsMessage.CrashReport -> {
+                println("DevTools Server: CrashReport from ${message.clientId} - ${message.exceptionType}")
+                clientManager.broadcastToListeners(message.clientId, message)
+            }
+
             is DevToolsMessage.ClientListUpdate -> {
                 println("DevTools Server: ClientListUpdate received (${message.clients.size} clients)")
             }

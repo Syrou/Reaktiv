@@ -1,12 +1,16 @@
 package io.github.syrou.reaktiv.devtools.ui.components
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
@@ -55,27 +59,36 @@ fun JsonTreeViewer(
     }
 
     val expandedPaths = remember { mutableStateMapOf<String, Boolean>() }
+    val listState = rememberLazyListState()
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(8.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        items(buildTreeNodes(
-            element = jsonElement,
-            path = "",
-            expandedPaths = expandedPaths,
-            searchQuery = searchQuery,
-            previousElement = if (showDiff) previousJsonElement else null,
-            showDiffOnly = showDiff
-        )) { node ->
-            JsonTreeNode(
-                node = node,
-                onToggleExpand = { path ->
-                    expandedPaths[path] = !(expandedPaths[path] ?: false)
-                }
-            )
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().padding(end = 12.dp),
+            contentPadding = PaddingValues(8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            items(buildTreeNodes(
+                element = jsonElement,
+                path = "",
+                expandedPaths = expandedPaths,
+                searchQuery = searchQuery,
+                previousElement = if (showDiff) previousJsonElement else null,
+                showDiffOnly = showDiff
+            )) { node ->
+                JsonTreeNode(
+                    node = node,
+                    onToggleExpand = { path ->
+                        expandedPaths[path] = !(expandedPaths[path] ?: false)
+                    }
+                )
+            }
         }
+
+        VerticalScrollbar(
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            adapter = rememberScrollbarAdapter(listState)
+        )
     }
 }
 
@@ -202,6 +215,7 @@ private fun JsonTreeNode(
     val diffColors = LocalDiffColors.current
     val syntaxColors = LocalSyntaxColors.current
     val indentPadding = (node.depth * 16).dp
+    var showCopyMenu by remember { mutableStateOf(false) }
 
     val backgroundColor = when (node.diffStatus) {
         DiffStatus.ADDED -> diffColors.addedContainer.copy(alpha = 0.6f)
@@ -226,128 +240,187 @@ private fun JsonTreeNode(
         DiffStatus.UNCHANGED -> ""
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(backgroundColor)
-            .clickable(enabled = node.value is JsonObject || node.value is JsonArray) {
-                onToggleExpand(node.path)
+    val isPrimitive = node.value is JsonPrimitive
+    val hasCopyableContent = node.key != null || isPrimitive
+
+    val valueString = when (val v = node.value) {
+        is JsonPrimitive -> if (v.isString) v.content else v.content
+        else -> null
+    }
+
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(backgroundColor)
+                .clickable(enabled = node.value is JsonObject || node.value is JsonArray) {
+                    onToggleExpand(node.path)
+                }
+                .padding(start = indentPadding, top = 2.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            when (node.value) {
+                is JsonObject -> {
+                    Icon(
+                        imageVector = if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                        contentDescription = if (node.isExpanded) "Collapse" else "Expand",
+                        modifier = Modifier.size(16.dp),
+                        tint = colors.onSurface
+                    )
+                }
+                is JsonArray -> {
+                    Icon(
+                        imageVector = if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                        contentDescription = if (node.isExpanded) "Collapse" else "Expand",
+                        modifier = Modifier.size(16.dp),
+                        tint = colors.onSurface
+                    )
+                }
+                else -> {
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
             }
-            .padding(start = indentPadding, top = 2.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        when (node.value) {
-            is JsonObject -> {
+
+            if (node.diffStatus == DiffStatus.MODIFIED && node.value is JsonPrimitive && node.previousValue is JsonPrimitive) {
+                Text(
+                    text = buildAnnotatedString {
+                        if (diffIndicator.isNotEmpty()) {
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
+                                append(diffIndicator)
+                            }
+                        }
+
+                        if (node.key != null) {
+                            withStyle(SpanStyle(color = keyColor, fontWeight = FontWeight.Bold)) {
+                                append("\"${node.key}\"")
+                            }
+                            withStyle(SpanStyle(color = colors.onSurface)) {
+                                append(": ")
+                            }
+                        }
+
+                        withStyle(SpanStyle(color = oldValueColor)) {
+                            renderPrimitiveValue(node.previousValue, stringColor, booleanColor, numberColor, nullColor)
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace
+                )
+
                 Icon(
-                    imageVector = if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
-                    contentDescription = if (node.isExpanded) "Collapse" else "Expand",
-                    modifier = Modifier.size(16.dp),
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = "changed to",
+                    modifier = Modifier.size(12.dp).padding(horizontal = 4.dp),
                     tint = colors.onSurface
                 )
-            }
-            is JsonArray -> {
-                Icon(
-                    imageVector = if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
-                    contentDescription = if (node.isExpanded) "Collapse" else "Expand",
-                    modifier = Modifier.size(16.dp),
-                    tint = colors.onSurface
+
+                Text(
+                    text = buildAnnotatedString {
+                        renderPrimitiveValue(node.value, stringColor, booleanColor, numberColor, nullColor)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace
+                )
+            } else {
+                Text(
+                    text = buildAnnotatedString {
+                        if (diffIndicator.isNotEmpty()) {
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
+                                append(diffIndicator)
+                            }
+                        }
+
+                        if (node.key != null) {
+                            withStyle(SpanStyle(color = keyColor, fontWeight = FontWeight.Bold)) {
+                                append("\"${node.key}\"")
+                            }
+                            withStyle(SpanStyle(color = colors.onSurface)) {
+                                append(": ")
+                            }
+                        }
+
+                        when (val value = node.value) {
+                            is JsonObject -> {
+                                withStyle(SpanStyle(color = bracketColor)) {
+                                    append("{ ")
+                                    if (!node.isExpanded) {
+                                        append("${value.size} ${if (value.size == 1) "property" else "properties"}")
+                                    }
+                                    append(" }")
+                                }
+                            }
+                            is JsonArray -> {
+                                withStyle(SpanStyle(color = bracketColor)) {
+                                    append("[ ")
+                                    if (!node.isExpanded) {
+                                        append("${value.size} ${if (value.size == 1) "item" else "items"}")
+                                    }
+                                    append(" ]")
+                                }
+                            }
+                            is JsonPrimitive -> {
+                                renderPrimitiveValue(value, stringColor, booleanColor, numberColor, nullColor)
+                            }
+                            else -> {
+                                withStyle(SpanStyle(color = colors.onSurface)) {
+                                    append(value.toString())
+                                }
+                            }
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace
                 )
             }
-            else -> {
-                Spacer(modifier = Modifier.width(16.dp))
+
+            if (hasCopyableContent) {
+                IconButton(
+                    onClick = { showCopyMenu = true },
+                    modifier = Modifier.size(16.dp).padding(start = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = "Copy",
+                        modifier = Modifier.size(12.dp),
+                        tint = colors.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
             }
         }
 
-        if (node.diffStatus == DiffStatus.MODIFIED && node.value is JsonPrimitive && node.previousValue is JsonPrimitive) {
-            Text(
-                text = buildAnnotatedString {
-                    if (diffIndicator.isNotEmpty()) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
-                            append(diffIndicator)
+        if (showCopyMenu) {
+            DropdownMenu(
+                expanded = true,
+                onDismissRequest = { showCopyMenu = false }
+            ) {
+                if (node.key != null) {
+                    DropdownMenuItem(
+                        text = { Text("Copy key") },
+                        onClick = {
+                            copyToClipboard(node.key)
+                            showCopyMenu = false
                         }
-                    }
-
-                    if (node.key != null) {
-                        withStyle(SpanStyle(color = keyColor, fontWeight = FontWeight.Bold)) {
-                            append("\"${node.key}\"")
+                    )
+                }
+                if (valueString != null) {
+                    DropdownMenuItem(
+                        text = { Text("Copy value") },
+                        onClick = {
+                            copyToClipboard(valueString)
+                            showCopyMenu = false
                         }
-                        withStyle(SpanStyle(color = colors.onSurface)) {
-                            append(": ")
+                    )
+                }
+                if (node.key != null && valueString != null) {
+                    DropdownMenuItem(
+                        text = { Text("Copy both") },
+                        onClick = {
+                            copyToClipboard("${node.key}: $valueString")
+                            showCopyMenu = false
                         }
-                    }
-
-                    withStyle(SpanStyle(color = oldValueColor)) {
-                        renderPrimitiveValue(node.previousValue, stringColor, booleanColor, numberColor, nullColor)
-                    }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace
-            )
-
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = "changed to",
-                modifier = Modifier.size(12.dp).padding(horizontal = 4.dp),
-                tint = colors.onSurface
-            )
-
-            Text(
-                text = buildAnnotatedString {
-                    renderPrimitiveValue(node.value, stringColor, booleanColor, numberColor, nullColor)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace
-            )
-        } else {
-            Text(
-                text = buildAnnotatedString {
-                    if (diffIndicator.isNotEmpty()) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
-                            append(diffIndicator)
-                        }
-                    }
-
-                    if (node.key != null) {
-                        withStyle(SpanStyle(color = keyColor, fontWeight = FontWeight.Bold)) {
-                            append("\"${node.key}\"")
-                        }
-                        withStyle(SpanStyle(color = colors.onSurface)) {
-                            append(": ")
-                        }
-                    }
-
-                    when (val value = node.value) {
-                        is JsonObject -> {
-                            withStyle(SpanStyle(color = bracketColor)) {
-                                append("{ ")
-                                if (!node.isExpanded) {
-                                    append("${value.size} ${if (value.size == 1) "property" else "properties"}")
-                                }
-                                append(" }")
-                            }
-                        }
-                        is JsonArray -> {
-                            withStyle(SpanStyle(color = bracketColor)) {
-                                append("[ ")
-                                if (!node.isExpanded) {
-                                    append("${value.size} ${if (value.size == 1) "item" else "items"}")
-                                }
-                                append(" ]")
-                            }
-                        }
-                        is JsonPrimitive -> {
-                            renderPrimitiveValue(value, stringColor, booleanColor, numberColor, nullColor)
-                        }
-                        else -> {
-                            withStyle(SpanStyle(color = colors.onSurface)) {
-                                append(value.toString())
-                            }
-                        }
-                    }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace
-            )
+                    )
+                }
+            }
         }
     }
 }
@@ -381,4 +454,8 @@ private fun Builder.renderPrimitiveValue(
             }
         }
     }
+}
+
+private fun copyToClipboard(text: String) {
+    js("navigator.clipboard.writeText(text)")
 }

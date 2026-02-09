@@ -37,17 +37,21 @@ import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectSettingsS
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTabLayout
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTasksScreen
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
+import eu.syrou.androidexample.reaktiv.crashtest.MockCrashlytics
+import eu.syrou.androidexample.ui.screen.CrashScreen
 import eu.syrou.androidexample.ui.screen.NotFoundScreen
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
-import io.github.syrou.reaktiv.introspection.AndroidCrashModule
+import io.github.syrou.reaktiv.introspection.CrashModule
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.IntrospectionModule
+import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.devtools.DevToolsModule
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
+import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +76,13 @@ class CustomApplication : Application() {
 
     private val navigationModule = createNavigationModule {
         notFoundScreen(NotFoundScreen)
+        crashScreen(
+            screen = CrashScreen,
+            onCrash = { exception, _ ->
+                MockCrashlytics.recordException(exception)
+                CrashRecovery.NAVIGATE_TO_CRASH_SCREEN
+            }
+        )
         rootGraph {
 
             startScreen(SplashScreen)
@@ -137,11 +148,12 @@ class CustomApplication : Application() {
         platform = "Android ${Build.VERSION.RELEASE}"
     )
 
-    private val sessionCapture = SessionCapture()
+    val sessionCapture = SessionCapture()
 
     private val introspectionModule = IntrospectionModule(
         config = introspectionConfig,
-        sessionCapture = sessionCapture
+        sessionCapture = sessionCapture,
+        platformContext = PlatformContext(this)
     )
 
     private val devToolsModule = DevToolsModule(
@@ -149,7 +161,7 @@ class CustomApplication : Application() {
             introspectionConfig = introspectionConfig,
             serverUrl = "ws://100.125.101.2:8080/ws",
             enabled = true,
-            defaultRole = ClientRole.LISTENER
+            defaultRole = ClientRole.PUBLISHER
         ),
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
         sessionCapture = sessionCapture
@@ -170,7 +182,7 @@ class CustomApplication : Application() {
         module(introspectionModule)
         module(navigationModule)
         module(devToolsModule)
-        module(AndroidCrashModule(this@CustomApplication, sessionCapture))
+        module(CrashModule(PlatformContext(this@CustomApplication), sessionCapture))
         middlewares(
             loggingMiddleware,
             createTestNavigationMiddleware()

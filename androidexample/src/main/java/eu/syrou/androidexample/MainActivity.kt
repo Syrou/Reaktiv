@@ -43,9 +43,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.syrou.androidexample.reaktiv.crashtest.CrashTestLogic
+import io.github.syrou.reaktiv.core.util.selectLogic
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import eu.syrou.androidexample.ui.components.NotificationPermissionHandler
-import io.github.syrou.reaktiv.core.util.selectLogic
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.theme.ReaktivTheme

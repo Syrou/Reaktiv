@@ -101,6 +101,7 @@ class DevToolsLogicObserver(
             callId = event.callId,
             exceptionType = event.exceptionType,
             exceptionMessage = event.exceptionMessage,
+            stackTrace = event.stackTrace,
             durationMs = event.durationMs
         )
 
@@ -109,6 +110,19 @@ class DevToolsLogicObserver(
         scope.launch {
             try {
                 devToolsLogic.send(message)
+
+                val sessionJson = devToolsLogic.getSessionCapture()?.exportSession()
+                devToolsLogic.send(
+                    DevToolsMessage.CrashReport(
+                        clientId = config.clientId,
+                        timestamp = Clock.System.now().toEpochMilliseconds(),
+                        exceptionType = event.exceptionType,
+                        exceptionMessage = event.exceptionMessage,
+                        stackTrace = event.stackTrace,
+                        failedCallId = event.callId,
+                        sessionJson = sessionJson
+                    )
+                )
             } catch (e: Exception) {
                 println("DevToolsLogicObserver: Failed to send method failed - ${e.message}")
             }

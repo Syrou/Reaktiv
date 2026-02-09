@@ -139,14 +139,15 @@ sealed class DevToolsMessage {
         val callId: String,
         val exceptionType: String,
         val exceptionMessage: String?,
+        val stackTrace: String? = null,
         val durationMs: Long
     ) : DevToolsMessage() {
-        fun toCaptured() = CapturedLogicFailed(clientId, timestamp, callId, exceptionType, exceptionMessage, durationMs)
+        fun toCaptured() = CapturedLogicFailed(clientId, timestamp, callId, exceptionType, exceptionMessage, stackTrace, durationMs)
 
         companion object {
             fun fromCaptured(captured: CapturedLogicFailed) = LogicMethodFailed(
                 captured.clientId, captured.timestamp, captured.callId,
-                captured.exceptionType, captured.exceptionMessage, captured.durationMs
+                captured.exceptionType, captured.exceptionMessage, captured.stackTrace, captured.durationMs
             )
         }
     }
@@ -186,6 +187,21 @@ sealed class DevToolsMessage {
         val newPublisherId: String?,
         val previousPublisherId: String?,
         val reason: String
+    ) : DevToolsMessage()
+
+    /**
+     * Sent when a crash occurs in a logic method.
+     * Carries crash info and optional session snapshot for real-time crash reporting.
+     */
+    @Serializable
+    data class CrashReport(
+        val clientId: String,
+        val timestamp: Long,
+        val exceptionType: String,
+        val exceptionMessage: String?,
+        val stackTrace: String?,
+        val failedCallId: String?,
+        val sessionJson: String?
     ) : DevToolsMessage()
 
     /**

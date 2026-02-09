@@ -13,8 +13,11 @@ import io.github.syrou.reaktiv.core.util.selectState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.time.delay
+import kotlinx.coroutines.withContext
 
 class NewsLogic(storeAccessor: StoreAccessor) : ModuleLogic<NewsModule.NewsAction>() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -35,7 +38,10 @@ class NewsLogic(storeAccessor: StoreAccessor) : ModuleLogic<NewsModule.NewsActio
         }
     }
 
-    override suspend fun invoke(action: ModuleAction) {
-
+    suspend fun countDown() = withContext(Dispatchers.Default){
+        (10 downTo 0).forEach {
+            println("HERPADERPA - Count down: $it")
+            delay(1000)
+        }
     }
 }

@@ -71,8 +71,10 @@ object ProfileScreen : Screen {
         lifecycle.dispatch(ProfileAction.LoadProfile)
 
         // Register cleanup when removed from backstack
+        // `this` is StoreAccessor — runs before lifecycle scope is cancelled
         lifecycle.invokeOnRemoval {
-            lifecycle.dispatch(ProfileAction.ClearProfile)
+            // Non-suspend context; use launch for suspend work
+            dispatch(ProfileAction.ClearProfile)
         }
     }
 

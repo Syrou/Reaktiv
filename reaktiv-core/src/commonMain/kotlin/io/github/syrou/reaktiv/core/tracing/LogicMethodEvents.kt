@@ -44,11 +44,13 @@ data class LogicMethodCompleted(
  * @param callId Unique identifier matching the corresponding [LogicMethodStart]
  * @param exceptionType Simple name of the exception class
  * @param exceptionMessage The exception message (may be null)
+ * @param stackTrace Full stack trace string (may be null on some platforms)
  * @param durationMs Time in milliseconds from method start to failure
  */
 data class LogicMethodFailed(
     val callId: String,
     val exceptionType: String,
     val exceptionMessage: String?,
+    val stackTrace: String?,
     val durationMs: Long
 )

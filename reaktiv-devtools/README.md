@@ -11,7 +11,7 @@ Real-time debugging and state inspection tools for Reaktiv applications. DevTool
 - **Ghost Sessions** - Import/export recorded sessions for offline debugging
 - **Session Capture** - Automatic session recording for crash reports
 - **Multi-device Support** - Connect multiple devices with publisher/listener roles
-- **Crash Capture** - Capture session state when crashes occur (Android)
+- **Crash Capture** - Capture session state when crashes occur (multiplatform)
 
 ## Architecture
 
@@ -56,7 +56,7 @@ val store = createStore {
     module(navigationModule)
 
     // Add IntrospectionModule for session capture
-    module(IntrospectionModule(introspectionConfig, sessionCapture))
+    module(IntrospectionModule(introspectionConfig, sessionCapture, platformContext))
 
     // Add DevTools module with shared session capture
     module(DevToolsModule(
@@ -143,18 +143,19 @@ In the DevTools UI, click the download icon when a publisher is selected to expo
 4. Use time travel to scrub through the recorded events
 5. Connected listeners will receive state sync during playback
 
-### Crash Capture (Android)
+### Crash Capture
 
 ```kotlin
 val sessionCapture = SessionCapture()
+val platformContext = PlatformContext(applicationContext) // Android; empty constructor on other platforms
 
-// Use AndroidCrashModule for automatic crash handler installation
+// Use CrashModule for automatic crash handler installation
 val store = createStore {
-    module(IntrospectionModule(config, sessionCapture))
-    module(AndroidCrashModule(applicationContext, sessionCapture))
+    module(IntrospectionModule(config, sessionCapture, platformContext))
+    module(CrashModule(platformContext, sessionCapture))
 }
 
-// Crash sessions are saved to app's filesDir as JSON
+// Crash sessions are saved to Downloads (Android) or Documents (iOS) as JSON
 // Import them as ghost sessions for post-mortem debugging
 ```
 

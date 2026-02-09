@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.devtools.ui.components
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -85,6 +88,8 @@ fun ActionStream(
     crashSelected: Boolean = false,
     autoSelectLatest: Boolean = true,
     excludedActionTypes: Set<String>,
+    excludedLogicMethods: Set<String> = emptySet(),
+    callIdToMethodIdentifier: Map<String, String> = emptyMap(),
     timeTravelEnabled: Boolean = false,
     showActions: Boolean = true,
     showLogicMethods: Boolean = true,
@@ -95,6 +100,8 @@ fun ActionStream(
     onAddExclusion: (String) -> Unit = {},
     onRemoveExclusion: (String) -> Unit = {},
     onSetExclusions: (Set<String>) -> Unit = {},
+    onAddLogicMethodExclusion: (String) -> Unit = {},
+    onRemoveLogicMethodExclusion: (String) -> Unit = {},
     onToggleTimeTravel: () -> Unit = {},
     onToggleShowActions: () -> Unit = {},
     onToggleShowLogicMethods: () -> Unit = {},
@@ -104,7 +111,7 @@ fun ActionStream(
     var exclusionInput by remember { mutableStateOf("") }
 
     // Build combined event stream
-    val streamEvents = remember(actions, logicMethodEvents, crashEvent, excludedActionTypes, showActions, showLogicMethods) {
+    val streamEvents = remember(actions, logicMethodEvents, crashEvent, excludedActionTypes, excludedLogicMethods, callIdToMethodIdentifier, showActions, showLogicMethods) {
         buildList {
             if (showActions) {
                 actions.forEachIndexed { index, action ->
@@ -115,7 +122,13 @@ fun ActionStream(
             }
             if (showLogicMethods) {
                 logicMethodEvents.forEach { event ->
-                    add(StreamEvent.LogicMethod(event))
+                    val methodId = when (event) {
+                        is LogicMethodEvent.Started -> "${event.logicClass}.${event.methodName}"
+                        else -> callIdToMethodIdentifier[event.callId]
+                    }
+                    if (methodId == null || !excludedLogicMethods.contains(methodId)) {
+                        add(StreamEvent.LogicMethod(event))
+                    }
                 }
             }
             if (crashEvent != null) {
@@ -266,6 +279,56 @@ fun ActionStream(
             }
         }
 
+        // Logic method exclusion chips
+        if (excludedLogicMethods.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Excluded Logic Methods",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
+                    ) {
+                        excludedLogicMethods.forEach { methodId ->
+                            FilterChip(
+                                selected = true,
+                                onClick = { onRemoveLogicMethodExclusion(methodId) },
+                                label = {
+                                    Text(
+                                        methodId.substringAfterLast('.', methodId),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove exclusion",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
         if (streamEvents.isEmpty()) {
@@ -281,46 +344,62 @@ fun ActionStream(
                 )
             }
         } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = if (timeTravelEnabled) {
-                    PaddingValues(bottom = 80.dp)
-                } else {
-                    PaddingValues(0.dp)
-                }
-            ) {
-                items(streamEvents.size) { index ->
-                    when (val event = streamEvents[index]) {
-                        is StreamEvent.Action -> {
-                            ActionEventCard(
-                                action = event.event,
-                                isSelected = event.originalIndex == selectedIndex,
-                                onClick = { onSelectAction(event.originalIndex) },
-                                onExclude = { onAddExclusion(event.event.actionType) }
-                            )
-                        }
-                        is StreamEvent.LogicMethod -> {
-                            val startedEvent = logicMethodEvents
-                                .filterIsInstance<LogicMethodEvent.Started>()
-                                .find { it.callId == event.event.callId }
-                            LogicMethodEventCard(
-                                event = event.event,
-                                startedEvent = startedEvent,
-                                isSelected = event.event.callId == selectedLogicMethodCallId,
-                                onClick = { onSelectLogicMethod(event.event.callId) }
-                            )
-                        }
-                        is StreamEvent.Crash -> {
-                            CrashEventCard(
-                                crashEvent = event.event,
-                                isSelected = crashSelected,
-                                onClick = { onSelectCrash(true) }
-                            )
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxWidth().padding(end = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = if (timeTravelEnabled) {
+                        PaddingValues(bottom = 80.dp)
+                    } else {
+                        PaddingValues(0.dp)
+                    }
+                ) {
+                    items(streamEvents.size) { index ->
+                        when (val event = streamEvents[index]) {
+                            is StreamEvent.Action -> {
+                                ActionEventCard(
+                                    action = event.event,
+                                    isSelected = event.originalIndex == selectedIndex,
+                                    onClick = { onSelectAction(event.originalIndex) },
+                                    onExclude = { onAddExclusion(event.event.actionType) }
+                                )
+                            }
+                            is StreamEvent.LogicMethod -> {
+                                val startedEvent = logicMethodEvents
+                                    .filterIsInstance<LogicMethodEvent.Started>()
+                                    .find { it.callId == event.event.callId }
+                                LogicMethodEventCard(
+                                    event = event.event,
+                                    startedEvent = startedEvent,
+                                    isSelected = event.event.callId == selectedLogicMethodCallId,
+                                    onClick = { onSelectLogicMethod(event.event.callId) },
+                                    onExclude = {
+                                        val methodId = when (event.event) {
+                                            is LogicMethodEvent.Started -> "${event.event.logicClass}.${event.event.methodName}"
+                                            else -> callIdToMethodIdentifier[event.event.callId]
+                                        }
+                                        if (methodId != null) {
+                                            onAddLogicMethodExclusion(methodId)
+                                        }
+                                    }
+                                )
+                            }
+                            is StreamEvent.Crash -> {
+                                CrashEventCard(
+                                    crashEvent = event.event,
+                                    isSelected = crashSelected,
+                                    onClick = { onSelectCrash(true) }
+                                )
+                            }
                         }
                     }
                 }
+
+                VerticalScrollbar(
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                    adapter = rememberScrollbarAdapter(listState)
+                )
             }
         }
     }
@@ -426,7 +505,8 @@ private fun LogicMethodEventCard(
     event: LogicMethodEvent,
     startedEvent: LogicMethodEvent.Started? = null,
     isSelected: Boolean = false,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onExclude: () -> Unit = {}
 ) {
     val (eventType, eventColor) = when (event) {
         is LogicMethodEvent.Started -> Pair("STARTED", MaterialTheme.colorScheme.tertiary)
@@ -504,14 +584,66 @@ private fun LogicMethodEventCard(
                     )
                 }
 
-                Text(
-                    text = formatTimestamp(event.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onExclude,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = "Exclude this logic method",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    Text(
+                        text = formatTimestamp(event.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
+
+            // Source file and GitHub link
+            val sourceFile = when (event) {
+                is LogicMethodEvent.Started -> event.sourceFile
+                else -> startedEvent?.sourceFile
+            }
+            val lineNumber = when (event) {
+                is LogicMethodEvent.Started -> event.lineNumber
+                else -> startedEvent?.lineNumber
+            }
+            val githubUrl = when (event) {
+                is LogicMethodEvent.Started -> event.githubSourceUrl
+                else -> startedEvent?.githubSourceUrl
+            }
+
+            if (sourceFile != null) {
+                val sourceLabel = buildString {
+                    append(sourceFile)
+                    if (lineNumber != null) append(":$lineNumber")
+                }
+                Text(
+                    text = sourceLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (githubUrl != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = if (githubUrl != null) {
+                        Modifier.clickable { openUrl(githubUrl) }
+                    } else {
+                        Modifier
+                    }
+                )
+            }
 
             Text(
                 text = "Client: ${event.clientId}",
@@ -520,6 +652,10 @@ private fun LogicMethodEventCard(
             )
         }
     }
+}
+
+private fun openUrl(url: String) {
+    js("window.open(url, '_blank')")
 }
 
 private fun formatTimestamp(timestamp: Long): String {

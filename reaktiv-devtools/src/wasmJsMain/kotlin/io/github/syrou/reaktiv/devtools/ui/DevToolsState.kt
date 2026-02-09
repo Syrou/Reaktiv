@@ -28,6 +28,8 @@ data class DevToolsState(
     val showActions: Boolean = true,
     val showLogicMethods: Boolean = true,
     val selectedLogicMethodCallId: String? = null,
+    val excludedLogicMethods: Set<String> = emptySet(),
+    val callIdToMethodIdentifier: Map<String, String> = emptyMap(),
     val showImportGhostDialog: Boolean = false,
     val crashEvent: CrashEventInfo? = null,
     val crashSelected: Boolean = false,
@@ -70,6 +72,9 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data object ToggleShowLogicMethods : DevToolsAction()
     data class SelectLogicMethodEvent(val callId: String?) : DevToolsAction()
 
+    data class AddLogicMethodExclusion(val methodIdentifier: String) : DevToolsAction()
+    data class RemoveLogicMethodExclusion(val methodIdentifier: String) : DevToolsAction()
+    data class SetLogicMethodExclusions(val methodIdentifiers: Set<String>) : DevToolsAction()
     data object ShowImportGhostDialog : DevToolsAction()
     data object HideImportGhostDialog : DevToolsAction()
     data class SetCrashEvent(val crashEvent: CrashEventInfo?) : DevToolsAction()
@@ -133,6 +138,7 @@ sealed class LogicMethodEvent {
         override val callId: String,
         val exceptionType: String,
         val exceptionMessage: String?,
+        val stackTrace: String? = null,
         val durationMs: Long
     ) : LogicMethodEvent()
 }
