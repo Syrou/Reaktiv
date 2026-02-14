@@ -37,6 +37,9 @@ repositories {
 
 kotlin {
     jvm()
+    wasmJs {
+        browser()
+    }
     macosArm64()
     macosX64()
     iosArm64()

@@ -119,9 +119,13 @@ private fun DevToolsContent(store: Store) {
     LaunchedEffect(state.timeTravelEnabled, state.timeTravelPosition, state.selectedPublisher) {
         val publisher = state.selectedPublisher
         if (state.timeTravelEnabled && state.timeTravelPosition < state.actionStateHistory.size && publisher != null) {
-            val event = state.actionStateHistory[state.timeTravelPosition]
             val logic = DevToolsModule.selectLogicTyped(store)
-            logic.sendTimeTravelSync(event, publisher)
+            logic.sendTimeTravelSync(
+                actionHistory = state.actionStateHistory,
+                initialStateJson = state.initialStateJson,
+                position = state.timeTravelPosition,
+                publisherClientId = publisher
+            )
         }
     }
 
@@ -227,6 +231,7 @@ private fun DevToolsContent(store: Store) {
                             crashSelected = state.crashSelected,
                             showAsDiff = state.showStateAsDiff,
                             excludedActionTypes = state.excludedActionTypes,
+                            initialStateJson = state.initialStateJson,
                             onToggleDiffMode = { dispatch(DevToolsAction.ToggleStateViewMode) },
                             onClear = { dispatch(DevToolsAction.ClearHistory) }
                         )
@@ -251,6 +256,9 @@ private fun DevToolsContent(store: Store) {
                         canExportSession = state.canExportSession,
                         onPublisherSelected = { clientId ->
                             dispatch(DevToolsAction.SelectPublisher(clientId))
+                            if (clientId != null && clientId == state.selectedListener) {
+                                dispatch(DevToolsAction.SelectListener(null))
+                            }
                             clientId?.let {
                                 dispatch(DevToolsAction.SetPublisherSessionStart(
                                     kotlin.time.Clock.System.now().toEpochMilliseconds()
@@ -266,8 +274,16 @@ private fun DevToolsContent(store: Store) {
                                 dispatch(DevToolsAction.SetCanExportSession(false))
                             }
                         },
-                        onListenerSelected = { dispatch(DevToolsAction.SelectListener(it)) },
+                        onListenerSelected = { clientId ->
+                            dispatch(DevToolsAction.SelectListener(clientId))
+                            if (clientId != null && clientId == state.selectedPublisher) {
+                                dispatch(DevToolsAction.SelectPublisher(null))
+                                dispatch(DevToolsAction.SetPublisherSessionStart(null))
+                                dispatch(DevToolsAction.SetCanExportSession(false))
+                            }
+                        },
                         onAssignRole = { listener, publisher ->
+                            if (listener == publisher) return@ClientList
                             scope.launch {
                                 val logic = DevToolsModule.selectLogicTyped(store)
                                 logic.assignRole(publisher, ClientRole.PUBLISHER)
@@ -291,7 +307,9 @@ private fun DevToolsContent(store: Store) {
                                         clientInfo = publisher,
                                         actionHistory = state.actionStateHistory,
                                         logicEvents = state.logicMethodEvents,
-                                        sessionStartTime = sessionStart
+                                        sessionStartTime = sessionStart,
+                                        initialStateJson = state.initialStateJson,
+                                        crashEvent = state.crashEvent
                                     )
                                     downloadJson(json, "session_${publisher.clientId}.json")
                                 }

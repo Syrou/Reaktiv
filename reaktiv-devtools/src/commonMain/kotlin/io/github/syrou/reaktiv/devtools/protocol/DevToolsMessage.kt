@@ -45,14 +45,15 @@ sealed class DevToolsMessage {
         val timestamp: Long,
         val actionType: String,
         val actionData: String,
-        val resultingStateJson: String
+        val stateDeltaJson: String,
+        val moduleName: String = ""
     ) : DevToolsMessage() {
-        fun toCaptured() = CapturedAction(clientId, timestamp, actionType, actionData, resultingStateJson)
+        fun toCaptured() = CapturedAction(clientId, timestamp, actionType, actionData, stateDeltaJson, moduleName)
 
         companion object {
             fun fromCaptured(captured: CapturedAction) = ActionDispatched(
                 captured.clientId, captured.timestamp, captured.actionType,
-                captured.actionData, captured.resultingStateJson
+                captured.actionData, captured.stateDeltaJson, captured.moduleName
             )
         }
     }
@@ -62,6 +63,7 @@ sealed class DevToolsMessage {
         val fromClientId: String,
         val timestamp: Long,
         val stateJson: String,
+        val moduleName: String = "",
         val orchestrated: Boolean = false
     ) : DevToolsMessage()
 
@@ -168,7 +170,8 @@ sealed class DevToolsMessage {
         val eventCount: Int = 0,
         val logicEventCount: Int = 0,
         val sessionStartTime: Long,
-        val sessionEndTime: Long
+        val sessionEndTime: Long,
+        val sessionExportJson: String? = null
     ) : DevToolsMessage()
 
     /**
@@ -177,6 +180,25 @@ sealed class DevToolsMessage {
     @Serializable
     data class GhostDeviceRemoval(
         val ghostClientId: String
+    ) : DevToolsMessage()
+
+    /**
+     * Sent by the server to restore ghost session data on client reconnect.
+     * Contains the full session export JSON so the WASM UI can rebuild its state.
+     */
+    @Serializable
+    data class GhostSessionRestore(
+        val ghostClientId: String,
+        val sessionExportJson: String
+    ) : DevToolsMessage()
+
+    /**
+     * Sent by the server to a publisher when a new listener attaches.
+     * The publisher should respond by sending a full StateSync.
+     */
+    @Serializable
+    data class ListenerAttached(
+        val listenerId: String
     ) : DevToolsMessage()
 
     /**
@@ -212,6 +234,7 @@ sealed class DevToolsMessage {
     data class SessionHistorySync(
         val clientId: String,
         val sessionStartTime: Long,
+        val initialStateJson: String = "{}",
         val actionEvents: List<ActionDispatched>,
         val logicStartedEvents: List<LogicMethodStarted>,
         val logicCompletedEvents: List<LogicMethodCompleted>,

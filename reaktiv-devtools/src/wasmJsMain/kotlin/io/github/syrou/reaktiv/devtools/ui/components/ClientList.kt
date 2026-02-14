@@ -177,7 +177,6 @@ private fun ClientCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = when {
-                isSelectedAsPublisher && isSelectedAsListener -> MaterialTheme.colorScheme.tertiaryContainer
                 isSelectedAsPublisher -> MaterialTheme.colorScheme.primaryContainer
                 isSelectedAsListener -> MaterialTheme.colorScheme.secondaryContainer
                 else -> MaterialTheme.colorScheme.surfaceVariant

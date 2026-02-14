@@ -126,6 +126,12 @@ class NavigationLogic(
      * Clears lifecycle jobs and restarts observation.
      */
     override fun onStoreReset() {
+        // Run removal handlers before clearing (lifecycle scopes are already cancelled
+        // by Store.cancelChildren(), but handlers should still execute for cleanup)
+        entryLifecycles.values.forEach { lifecycle ->
+            try { lifecycle.runRemovalHandlers() } catch (_: Exception) {}
+        }
+        entryLifecycleJobs.values.forEach { it.cancel() }
         entryLifecycleJobs.clear()
         entryLifecycles.clear()
         startLifecycleObservation()

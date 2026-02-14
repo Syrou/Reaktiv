@@ -7,6 +7,9 @@ import io.github.syrou.reaktiv.core.tracing.LogicObserver
 import io.github.syrou.reaktiv.devtools.DevToolsLogic
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
+import io.github.syrou.reaktiv.introspection.protocol.CrashException
+import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
+import io.github.syrou.reaktiv.introspection.protocol.toCaptured
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -38,22 +41,12 @@ class DevToolsLogicObserver(
         callIdToMethod[event.callId] = fullMethodName
         println("DevToolsLogicObserver: onMethodStart called for $fullMethodName [callId=${event.callId}], connected=${devToolsLogic.isConnected()}")
 
-        val message = DevToolsMessage.LogicMethodStarted(
-            clientId = config.clientId,
-            timestamp = Clock.System.now().toEpochMilliseconds(),
-            callId = event.callId,
-            logicClass = event.logicClass,
-            methodName = event.methodName,
-            params = event.params,
-            sourceFile = event.sourceFile,
-            lineNumber = event.lineNumber,
-            githubSourceUrl = event.githubSourceUrl
-        )
-
         if (!devToolsLogic.isConnected()) {
             println("DevToolsLogicObserver: Not connected, dropping event")
             return
         }
+
+        val message = DevToolsMessage.LogicMethodStarted.fromCaptured(event.toCaptured(config.clientId))
 
         scope.launch {
             try {
@@ -70,16 +63,9 @@ class DevToolsLogicObserver(
         val methodName = callIdToMethod.remove(event.callId) ?: "unknown"
         println("DevToolsLogicObserver: onMethodCompleted called for $methodName [callId=${event.callId}], connected=${devToolsLogic.isConnected()}")
 
-        val message = DevToolsMessage.LogicMethodCompleted(
-            clientId = config.clientId,
-            timestamp = Clock.System.now().toEpochMilliseconds(),
-            callId = event.callId,
-            result = event.result,
-            resultType = event.resultType,
-            durationMs = event.durationMs
-        )
-
         if (!devToolsLogic.isConnected()) return
+
+        val message = DevToolsMessage.LogicMethodCompleted.fromCaptured(event.toCaptured(config.clientId))
 
         scope.launch {
             try {
@@ -95,23 +81,28 @@ class DevToolsLogicObserver(
         val methodName = callIdToMethod.remove(event.callId) ?: "unknown"
         println("DevToolsLogicObserver: onMethodFailed called for $methodName [callId=${event.callId}], connected=${devToolsLogic.isConnected()}")
 
-        val message = DevToolsMessage.LogicMethodFailed(
-            clientId = config.clientId,
-            timestamp = Clock.System.now().toEpochMilliseconds(),
-            callId = event.callId,
-            exceptionType = event.exceptionType,
-            exceptionMessage = event.exceptionMessage,
-            stackTrace = event.stackTrace,
-            durationMs = event.durationMs
-        )
-
         if (!devToolsLogic.isConnected()) return
+
+        val message = DevToolsMessage.LogicMethodFailed.fromCaptured(event.toCaptured(config.clientId))
 
         scope.launch {
             try {
                 devToolsLogic.send(message)
 
-                val sessionJson = devToolsLogic.getSessionCapture()?.exportSession()
+                val sessionCapture = devToolsLogic.getSessionCapture()
+                val sessionJson = if (sessionCapture != null) {
+                    val crashInfo = CrashInfo(
+                        timestamp = Clock.System.now().toEpochMilliseconds(),
+                        exception = CrashException(
+                            exceptionType = event.exceptionType,
+                            message = event.exceptionMessage,
+                            stackTrace = event.stackTrace ?: ""
+                        )
+                    )
+                    sessionCapture.exportSessionWithCrash(crashInfo)
+                } else {
+                    null
+                }
                 devToolsLogic.send(
                     DevToolsMessage.CrashReport(
                         clientId = config.clientId,

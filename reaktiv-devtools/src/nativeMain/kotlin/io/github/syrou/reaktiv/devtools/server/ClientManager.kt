@@ -19,7 +19,8 @@ data class GhostDevice(
     val sessionStartTime: Long,
     val sessionEndTime: Long,
     val eventCount: Int = 0,
-    val logicEventCount: Int = 0
+    val logicEventCount: Int = 0,
+    val sessionExportJson: String? = null
 )
 
 /**
@@ -60,6 +61,18 @@ class ClientManager {
         println("DevTools Server: Client registered - ${registration.clientName} (${registration.platform})")
 
         broadcastClientList()
+
+        // Send stored ghost session data to the newly connected client
+        ghostDevices.values.forEach { ghost ->
+            if (ghost.sessionExportJson != null) {
+                val restoreMessage = DevToolsMessage.GhostSessionRestore(
+                    ghostClientId = ghost.ghostClientId,
+                    sessionExportJson = ghost.sessionExportJson
+                )
+                sendToClient(registration.clientId, restoreMessage)
+                println("DevTools Server: Sent ghost session restore to ${registration.clientName} for ${ghost.ghostClientId}")
+            }
+        }
     }
 
     /**
@@ -74,6 +87,14 @@ class ClientManager {
 
         subscriptions.values.forEach { listeners ->
             listeners.remove(clientId)
+        }
+
+        // Clear publisher tracking if the disconnecting client was the publisher
+        if (currentPublisherId == clientId) {
+            val previousPublisher = currentPublisherId
+            currentPublisherId = null
+            println("DevTools Server: Publisher disconnected - $clientId")
+            broadcastPublisherChanged(null, previousPublisher, "Publisher disconnected")
         }
 
         if (client != null) {
@@ -155,6 +176,13 @@ class ClientManager {
     }
 
     /**
+     * Sends a message to the publisher client.
+     */
+    suspend fun sendToPublisher(publisherId: String, message: DevToolsMessage) = mutex.withLock {
+        sendToClient(publisherId, message)
+    }
+
+    /**
      * Sends a message to a specific client.
      */
     private suspend fun sendToClient(clientId: String, message: DevToolsMessage) {
@@ -207,7 +235,8 @@ class ClientManager {
             sessionStartTime = registration.sessionStartTime,
             sessionEndTime = registration.sessionEndTime,
             eventCount = registration.eventCount,
-            logicEventCount = registration.logicEventCount
+            logicEventCount = registration.logicEventCount,
+            sessionExportJson = registration.sessionExportJson
         )
 
         println("DevTools Server: Ghost device registered - $ghostId (${registration.eventCount} events)")
@@ -275,6 +304,24 @@ class ClientManager {
         }
 
         currentPublisherId = clientId
+
+        // Auto-assign unattached listeners/orchestrators to the new publisher
+        clients.values.forEach { connectedClient ->
+            val info = connectedClient.info
+            if ((info.role == ClientRole.LISTENER || info.role == ClientRole.ORCHESTRATOR) && info.publisherClientId == null) {
+                connectedClient.info = info.copy(publisherClientId = clientId)
+                subscriptions.getOrPut(clientId) { mutableSetOf() }.add(info.clientId)
+
+                val roleMsg = DevToolsMessage.RoleAssignment(
+                    targetClientId = info.clientId,
+                    role = info.role,
+                    publisherClientId = clientId
+                )
+                sendToClient(info.clientId, roleMsg)
+                println("DevTools Server: Auto-attached ${info.clientName} (${info.role}) to new publisher $clientId")
+            }
+        }
+
         broadcastPublisherChanged(clientId, previousPublisher, reason)
         broadcastClientList()
     }

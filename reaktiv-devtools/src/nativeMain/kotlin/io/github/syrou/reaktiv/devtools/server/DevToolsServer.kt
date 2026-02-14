@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.devtools.server
 
+import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -27,7 +28,6 @@ object DevToolsServer {
 
     private val json = Json {
         ignoreUnknownKeys = true
-        prettyPrint = true
     }
 
     /**
@@ -137,7 +137,8 @@ object DevToolsServer {
                 val stateSync = DevToolsMessage.StateSync(
                     fromClientId = message.clientId,
                     timestamp = message.timestamp,
-                    stateJson = message.resultingStateJson
+                    stateJson = message.stateDeltaJson,
+                    moduleName = message.moduleName
                 )
                 clientManager.broadcastToListeners(message.clientId, stateSync)
             }
@@ -149,25 +150,65 @@ object DevToolsServer {
 
             is DevToolsMessage.RoleAssignment -> {
                 println("DevTools Server: Role assignment request - ${message.role} for ${message.targetClientId}")
-                if (message.role == io.github.syrou.reaktiv.devtools.protocol.ClientRole.PUBLISHER) {
-                    clientManager.setPublisher(message.targetClientId, "Role assignment request")
-                }
 
-                // For LISTENER role without a specified publisher, auto-subscribe to current publisher
-                val effectivePublisherId = if (
-                    message.role == io.github.syrou.reaktiv.devtools.protocol.ClientRole.LISTENER &&
-                    message.publisherClientId == null
-                ) {
-                    clientManager.getCurrentPublisher()
-                } else {
-                    message.publisherClientId
+                // currentPublisher covers both real devices and ghost devices
+                val currentPublisher = clientManager.getCurrentPublisher()
+                val senderRole = if (currentClientId != null) clientManager.getClient(currentClientId)?.role else null
+                val isFromOrchestrator = senderRole == ClientRole.ORCHESTRATOR
+                val effectiveRole: ClientRole
+                val effectivePublisherId: String?
+
+                when (message.role) {
+                    ClientRole.PUBLISHER -> {
+                        if (currentPublisher == null || isFromOrchestrator) {
+                            // First publisher wins, or orchestrator can reassign
+                            effectiveRole = ClientRole.PUBLISHER
+                            effectivePublisherId = null
+                            clientManager.setPublisher(message.targetClientId, "Role assignment request")
+                        } else {
+                            // A publisher already exists and sender is not orchestrator — demote to UNASSIGNED
+                            effectiveRole = ClientRole.UNASSIGNED
+                            effectivePublisherId = null
+                            println("DevTools Server: Publisher already exists ($currentPublisher), ${message.targetClientId} remains UNASSIGNED")
+                        }
+                    }
+
+                    ClientRole.LISTENER -> {
+                        effectiveRole = ClientRole.LISTENER
+                        effectivePublisherId = message.publisherClientId ?: currentPublisher
+                    }
+
+                    ClientRole.ORCHESTRATOR -> {
+                        effectiveRole = ClientRole.ORCHESTRATOR
+                        effectivePublisherId = message.publisherClientId ?: currentPublisher
+                    }
+
+                    ClientRole.UNASSIGNED -> {
+                        effectiveRole = ClientRole.UNASSIGNED
+                        effectivePublisherId = null
+                    }
                 }
 
                 clientManager.assignRole(
                     clientId = message.targetClientId,
-                    role = message.role,
+                    role = effectiveRole,
                     publisherClientId = effectivePublisherId
                 )
+
+                // Notify about new listener so full state can be sent
+                if (effectiveRole == ClientRole.LISTENER && effectivePublisherId != null) {
+                    val notification = DevToolsMessage.ListenerAttached(
+                        listenerId = message.targetClientId
+                    )
+                    if (clientManager.isGhostDevice(effectivePublisherId)) {
+                        // Ghost can't respond — notify orchestrator/subscribers so they can send state
+                        clientManager.broadcastToListeners(effectivePublisherId, notification)
+                        println("DevTools Server: Notified ghost subscribers of new listener ${message.targetClientId}")
+                    } else {
+                        clientManager.sendToPublisher(effectivePublisherId, notification)
+                        println("DevTools Server: Notified publisher $effectivePublisherId of new listener ${message.targetClientId}")
+                    }
+                }
             }
 
             is DevToolsMessage.RoleAcknowledgment -> {
@@ -214,8 +255,16 @@ object DevToolsServer {
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 
+            is DevToolsMessage.ListenerAttached -> {
+                // Server-generated, should not be received from clients
+            }
+
             is DevToolsMessage.ClientListUpdate -> {
                 println("DevTools Server: ClientListUpdate received (${message.clients.size} clients)")
+            }
+
+            is DevToolsMessage.GhostSessionRestore -> {
+                // Server-generated, should not be received from clients
             }
         }
     }

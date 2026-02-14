@@ -5,10 +5,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.tracing.LogicObserver
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicComplete
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicFailed
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicStart
-import kotlin.time.Clock
+import io.github.syrou.reaktiv.introspection.protocol.toCaptured
 
 /**
  * Observer that captures logic tracing events for session capture.
@@ -28,46 +25,18 @@ class IntrospectionLogicObserver(
 
     override fun onMethodStart(event: LogicMethodStart) {
         if (!sessionCapture.isStarted()) return
-
-        val captured = CapturedLogicStart(
-            clientId = clientId,
-            timestamp = Clock.System.now().toEpochMilliseconds(),
-            callId = event.callId,
-            logicClass = event.logicClass,
-            methodName = event.methodName,
-            params = event.params,
-            sourceFile = event.sourceFile,
-            lineNumber = event.lineNumber,
-            githubSourceUrl = event.githubSourceUrl
-        )
-        sessionCapture.captureLogicStarted(captured)
+        sessionCapture.captureLogicStarted(event.toCaptured(clientId))
     }
 
     override fun onMethodCompleted(event: LogicMethodCompleted) {
         if (!sessionCapture.isStarted()) return
-
-        val captured = CapturedLogicComplete(
-            clientId = clientId,
-            timestamp = Clock.System.now().toEpochMilliseconds(),
-            callId = event.callId,
-            result = event.result,
-            resultType = event.resultType,
-            durationMs = event.durationMs
-        )
-        sessionCapture.captureLogicCompleted(captured)
+        sessionCapture.captureLogicCompleted(event.toCaptured(clientId))
     }
 
     override fun onMethodFailed(event: LogicMethodFailed) {
         if (!sessionCapture.isStarted()) return
-
-        val captured = CapturedLogicFailed(
-            clientId = clientId,
-            timestamp = Clock.System.now().toEpochMilliseconds(),
-            callId = event.callId,
-            exceptionType = event.exceptionType,
-            exceptionMessage = event.exceptionMessage,
-            durationMs = event.durationMs
-        )
+        val captured = event.toCaptured(clientId)
         sessionCapture.captureLogicFailed(captured)
+        sessionCapture.captureCrashFromLogicFailure(captured)
     }
 }

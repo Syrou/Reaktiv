@@ -76,6 +76,14 @@ object LogicTracer {
     fun observerCount(): Int = observers.size
 
     /**
+     * Returns the number of pending (in-flight) traced method calls.
+     *
+     * A non-zero value after all coroutines have completed indicates leaked entries
+     * in the callIdToMethod map. Useful for testing memory safety after store reset.
+     */
+    fun pendingCallCount(): Int = callIdToMethod.size
+
+    /**
      * Notifies observers that a traced method has started.
      *
      * Called by compiler-injected code at the start of traced methods.

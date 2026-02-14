@@ -19,6 +19,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.PolymorphicSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
@@ -68,6 +71,7 @@ class DevToolsMiddleware(
     val currentRole: StateFlow<ClientRole> = _currentRole.asStateFlow()
 
     private var storeAccessorRef: StoreAccessor? = null
+    private var getAllStatesRef: (suspend () -> Map<String, ModuleState>)? = null
     private var devToolsLogic: DevToolsLogic? = null
     private var logicObserver: DevToolsLogicObserver? = null
     private var initialized = false
@@ -78,6 +82,7 @@ class DevToolsMiddleware(
     val middleware: Middleware = middleware@{ action, getAllStates, storeAccessor, updatedState ->
         if (storeAccessorRef == null) {
             storeAccessorRef = storeAccessor
+            getAllStatesRef = getAllStates
             if (!::json.isInitialized) {
                 val serializers = stateSerializers ?: (storeAccessor as? Store)?.serializersModule
                     ?: throw IllegalStateException("DevToolsMiddleware requires either stateSerializers parameter or Store with serializersModule")
@@ -115,12 +120,11 @@ class DevToolsMiddleware(
 
         when (role) {
             ClientRole.PUBLISHER -> {
-                updatedState(action)
+                val result = updatedState(action)
 
                 if (config.allowActionCapture && config.allowStateCapture) {
                     scope.launch {
-                        val allStates = getAllStates()
-                        sendActionWithState(action, allStates)
+                        sendActionWithDelta(action, result)
                     }
                 }
             }
@@ -220,6 +224,12 @@ class DevToolsMiddleware(
                 }
             }
 
+            is DevToolsMessage.ListenerAttached -> {
+                if (_currentRole.value == ClientRole.PUBLISHER) {
+                    sendFullStateSync()
+                }
+            }
+
             else -> {
                 // Ignore other message types (handled by UI)
             }
@@ -257,6 +267,7 @@ class DevToolsMiddleware(
             val message = DevToolsMessage.SessionHistorySync(
                 clientId = config.clientId,
                 sessionStartTime = history.startTime,
+                initialStateJson = history.initialStateJson,
                 actionEvents = history.actions.map { DevToolsMessage.ActionDispatched.fromCaptured(it) },
                 logicStartedEvents = history.logicStarted.map { DevToolsMessage.LogicMethodStarted.fromCaptured(it) },
                 logicCompletedEvents = history.logicCompleted.map { DevToolsMessage.LogicMethodCompleted.fromCaptured(it) },
@@ -269,39 +280,82 @@ class DevToolsMiddleware(
         }
     }
 
+    private suspend fun sendFullStateSync() {
+        val logic = devToolsLogic ?: return
+        if (!logic.isConnected()) return
+        val getAllStates = getAllStatesRef ?: return
+
+        try {
+            val allStates = getAllStates()
+            val mapSerializer = MapSerializer(
+                String.serializer(),
+                PolymorphicSerializer(ModuleState::class)
+            )
+            val stateJson = json.encodeToString(mapSerializer, allStates)
+
+            val message = DevToolsMessage.StateSync(
+                fromClientId = config.clientId,
+                timestamp = getCurrentTimestamp(),
+                stateJson = stateJson
+            )
+            logic.send(message)
+            println("DevTools: Sent full state sync to listeners")
+        } catch (e: Exception) {
+            println("DevTools: Failed to send full state sync - ${e.message}")
+        }
+    }
+
     private suspend fun applyStateSync(sync: DevToolsMessage.StateSync) {
         val storeAccessor = storeAccessorRef ?: return
 
         try {
-            val states: Map<String, ModuleState> = json.decodeFromString(sync.stateJson)
+            val states: Map<String, ModuleState> = if (sync.moduleName.isNotBlank()) {
+                val moduleState: ModuleState = json.decodeFromString(
+                    PolymorphicSerializer(ModuleState::class),
+                    sync.stateJson
+                )
+                mapOf(sync.moduleName to moduleState)
+            } else {
+                val mapSerializer = MapSerializer(
+                    String.serializer(),
+                    PolymorphicSerializer(ModuleState::class)
+                )
+                json.decodeFromString(mapSerializer, sync.stateJson)
+            }
 
             val internalOps = storeAccessor.asInternalOperations()
             internalOps?.applyExternalStates(states)
 
-            println("DevTools: Applied state from ${sync.fromClientId}")
+            println("DevTools: Applied state from ${sync.fromClientId}" +
+                if (sync.moduleName.isNotBlank()) " (module: ${sync.moduleName})" else "")
         } catch (e: Exception) {
             println("DevTools: Failed to apply state sync - ${e.message}")
         }
     }
 
-    private suspend fun sendActionWithState(action: ModuleAction, states: Map<String, ModuleState>) {
+    private suspend fun sendActionWithDelta(action: ModuleAction, result: ModuleState) {
         val logic = devToolsLogic ?: return
         if (!logic.isConnected()) return
 
         try {
-            val stateJson = json.encodeToString(states)
+            val moduleName = result::class.qualifiedName ?: result::class.simpleName ?: "Unknown"
+            val deltaJson = json.encodeToString(
+                PolymorphicSerializer(ModuleState::class),
+                result
+            )
 
             val message = DevToolsMessage.ActionDispatched(
                 clientId = config.clientId,
                 timestamp = getCurrentTimestamp(),
                 actionType = action::class.simpleName ?: "Unknown",
                 actionData = action.toString(),
-                resultingStateJson = stateJson
+                stateDeltaJson = deltaJson,
+                moduleName = moduleName
             )
 
             logic.send(message)
         } catch (e: Exception) {
-            println("DevTools: Failed to send action with state - ${e.message}")
+            println("DevTools: Failed to send action with delta - ${e.message}")
         }
     }
 

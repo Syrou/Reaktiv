@@ -11,7 +11,8 @@ data class CapturedAction(
     val timestamp: Long,
     val actionType: String,
     val actionData: String,
-    val resultingStateJson: String
+    val stateDeltaJson: String,
+    val moduleName: String = ""
 )
 
 /**

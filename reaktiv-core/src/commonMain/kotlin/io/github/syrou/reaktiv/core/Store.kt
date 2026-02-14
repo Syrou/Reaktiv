@@ -757,6 +757,10 @@ class Store private constructor(
         coroutineContext.cancelChildren(CancellationException("Store Reset"))
         launch {
             processActionChannel()
+        }
+        launch {
+            // Yield to let processActionChannel set up its channel readers
+            yield()
             // Notify all Logic instances that the store has been reset
             moduleInfo.values.mapNotNull { it.logic }.forEach { logic ->
                 logic.onStoreReset()
@@ -975,6 +979,7 @@ class Store private constructor(
 
     fun cleanup() {
         coroutineScope.cancel()
+        highPriorityChannel.close()
         lowPriorityChannel.close()
     }
 

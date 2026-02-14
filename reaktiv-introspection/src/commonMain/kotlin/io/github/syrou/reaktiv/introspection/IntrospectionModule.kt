@@ -11,7 +11,10 @@ import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.tracing.IntrospectionLogicObserver
+import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -77,6 +80,10 @@ class IntrospectionLogic internal constructor(
      *
      * @return SessionCapture instance
      */
+    override fun onStoreReset() {
+        sessionCapture.clear()
+    }
+
     fun getSessionCapture(): SessionCapture = sessionCapture
 
     /**
@@ -196,6 +203,7 @@ internal class IntrospectionMiddleware(
 ) {
     private lateinit var json: Json
     private var initialized = false
+    private var initialStateCaptured = false
 
     val middleware: Middleware = middleware@{ action, getAllStates, storeAccessor, updatedState ->
         if (!config.enabled) {
@@ -214,19 +222,38 @@ internal class IntrospectionMiddleware(
             }
         }
 
-        updatedState(action)
+        if (!initialStateCaptured && sessionCapture.isStarted() && action !is IntrospectionAction) {
+            initialStateCaptured = true
+            try {
+                val allStates = getAllStates()
+                val mapSerializer = MapSerializer(
+                    String.serializer(),
+                    PolymorphicSerializer(ModuleState::class)
+                )
+                val initialStateJson = json.encodeToString(mapSerializer, allStates)
+                sessionCapture.captureInitialState(initialStateJson)
+            } catch (e: Exception) {
+                println("IntrospectionMiddleware: Failed to capture initial state - ${e.message}")
+            }
+        }
+
+        val result = updatedState(action)
 
         if (sessionCapture.isStarted() && action !is IntrospectionAction) {
             try {
-                val states = getAllStates()
-                val stateJson = json.encodeToString(states)
+                val moduleName = result::class.qualifiedName ?: result::class.simpleName ?: "Unknown"
+                val stateJson = json.encodeToString(
+                    PolymorphicSerializer(ModuleState::class),
+                    result
+                )
 
                 val capturedAction = CapturedAction(
                     clientId = config.clientId,
                     timestamp = Clock.System.now().toEpochMilliseconds(),
                     actionType = action::class.simpleName ?: "Unknown",
                     actionData = action.toString(),
-                    resultingStateJson = stateJson
+                    stateDeltaJson = stateJson,
+                    moduleName = moduleName
                 )
                 sessionCapture.captureAction(capturedAction)
             } catch (e: Exception) {

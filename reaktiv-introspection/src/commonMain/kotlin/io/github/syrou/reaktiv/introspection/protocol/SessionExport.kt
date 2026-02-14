@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
  * JSON export format version for captured sessions.
  */
 object SessionExportFormat {
-    const val VERSION = "1.0"
+    const val VERSION = "2.0"
 }
 
 /**
@@ -74,6 +74,7 @@ data class CrashException(
 data class SessionData(
     val startTime: Long,
     val endTime: Long,
+    val initialStateJson: String = "{}",
     val actions: List<CapturedAction>,
     val logicStartedEvents: List<CapturedLogicStart>,
     val logicCompletedEvents: List<CapturedLogicComplete>,

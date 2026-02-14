@@ -3,9 +3,11 @@ package io.github.syrou.reaktiv.devtools.ui
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.devtools.client.DevToolsConnection
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
+import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
@@ -13,6 +15,7 @@ import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.GhostSessionExport
 import io.github.syrou.reaktiv.devtools.protocol.GhostSessionFormat
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
+import io.github.syrou.reaktiv.introspection.protocol.StateReconstructor
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -197,6 +200,10 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                     callIdToMethodIdentifier = state.callIdToMethodIdentifier + newCallIdEntries
                 )
             }
+
+            is DevToolsAction.SetInitialState -> {
+                state.copy(initialStateJson = action.json)
+            }
         }
     }
 
@@ -212,7 +219,6 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
     private lateinit var connection: DevToolsConnection
 
     private val json = Json {
-        prettyPrint = true
         ignoreUnknownKeys = true
     }
 
@@ -244,12 +250,32 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
         }
     }
 
-    suspend fun sendTimeTravelSync(event: ActionStateEvent, publisherClientId: String) {
+    suspend fun sendTimeTravelSync(
+        actionHistory: List<ActionStateEvent>,
+        initialStateJson: String,
+        position: Int,
+        publisherClientId: String
+    ) {
         try {
+            val capturedActions = actionHistory.map { event ->
+                CapturedAction(
+                    clientId = event.clientId,
+                    timestamp = event.timestamp,
+                    actionType = event.actionType,
+                    actionData = event.actionData,
+                    stateDeltaJson = event.stateDeltaJson,
+                    moduleName = event.moduleName
+                )
+            }
+            val fullStateJson = StateReconstructor.reconstructAtIndex(
+                initialStateJson, capturedActions, position
+            )
+
+            val event = actionHistory.getOrNull(position) ?: return
             val message = DevToolsMessage.StateSync(
                 fromClientId = publisherClientId,
                 timestamp = event.timestamp,
-                stateJson = event.resultingStateJson
+                stateJson = fullStateJson
             )
             connection.send(message)
             println("DevTools UI: Sent time travel sync for action ${event.actionType} from publisher $publisherClientId")
@@ -286,73 +312,14 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                 eventCount = export.session.actions.size,
                 logicEventCount = totalLogicEvents,
                 sessionStartTime = export.session.startTime,
-                sessionEndTime = export.session.endTime
+                sessionEndTime = export.session.endTime,
+                sessionExportJson = jsonString
             )
 
             connection.send(message)
 
-            val crashInfo = export.crash
-            if (crashInfo != null) {
-                val crashEvent = CrashEventInfo(
-                    timestamp = crashInfo.timestamp,
-                    clientId = export.clientInfo.clientId,
-                    exception = crashInfo.exception
-                )
-                storeAccessor.dispatch(DevToolsAction.SetCrashEvent(crashEvent))
-            }
+            applyGhostSessionToState(export)
 
-            val actionEvents = export.session.actions.map { action ->
-                ActionStateEvent(
-                    clientId = action.clientId,
-                    timestamp = action.timestamp,
-                    actionType = action.actionType,
-                    actionData = action.actionData,
-                    resultingStateJson = action.resultingStateJson
-                )
-            }
-            storeAccessor.dispatch(DevToolsAction.BulkAddActionStateEvents(actionEvents))
-
-            val logicEvents = buildList<LogicMethodEvent> {
-                export.session.logicStartedEvents.forEach { msg ->
-                    add(LogicMethodEvent.Started(
-                        clientId = msg.clientId,
-                        timestamp = msg.timestamp,
-                        callId = msg.callId,
-                        logicClass = msg.logicClass,
-                        methodName = msg.methodName,
-                        params = msg.params,
-                        sourceFile = msg.sourceFile,
-                        lineNumber = msg.lineNumber,
-                        githubSourceUrl = msg.githubSourceUrl
-                    ))
-                }
-                export.session.logicCompletedEvents.forEach { msg ->
-                    add(LogicMethodEvent.Completed(
-                        clientId = msg.clientId,
-                        timestamp = msg.timestamp,
-                        callId = msg.callId,
-                        result = msg.result,
-                        resultType = msg.resultType,
-                        durationMs = msg.durationMs
-                    ))
-                }
-                export.session.logicFailedEvents.forEach { msg ->
-                    add(LogicMethodEvent.Failed(
-                        clientId = msg.clientId,
-                        timestamp = msg.timestamp,
-                        callId = msg.callId,
-                        exceptionType = msg.exceptionType,
-                        exceptionMessage = msg.exceptionMessage,
-                        stackTrace = msg.stackTrace,
-                        durationMs = msg.durationMs
-                    ))
-                }
-            }
-            storeAccessor.dispatch(DevToolsAction.BulkAddLogicMethodEvents(logicEvents))
-
-            val ghostId = "ghost-${export.sessionId}"
-            storeAccessor.dispatch(DevToolsAction.SelectPublisher(ghostId))
-            storeAccessor.dispatch(DevToolsAction.EnableTimeTravelWithGhost(ghostId))
             storeAccessor.dispatch(DevToolsAction.HideImportGhostDialog)
 
             println("DevTools UI: Ghost session imported - ${export.sessionId}")
@@ -360,6 +327,93 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
             println("DevTools UI: Failed to import ghost session - ${e.message}")
             throw e
         }
+    }
+
+    /**
+     * Restores a ghost session from server-stored data without re-registering on the server.
+     */
+    private suspend fun importGhostSessionFromRestore(sessionExportJson: String, ghostClientId: String) {
+        try {
+            val export = json.decodeFromString<GhostSessionExport>(sessionExportJson)
+
+            applyGhostSessionToState(export)
+
+            println("DevTools UI: Ghost session restored from server - $ghostClientId")
+        } catch (e: Exception) {
+            println("DevTools UI: Failed to restore ghost session - ${e.message}")
+        }
+    }
+
+    /**
+     * Applies a parsed ghost session export to the UI state.
+     * Shared by both initial import and server-side restore paths.
+     */
+    private suspend fun applyGhostSessionToState(export: GhostSessionExport) {
+        storeAccessor.dispatch(DevToolsAction.SetInitialState(export.session.initialStateJson))
+
+        val crashInfo = export.crash
+        if (crashInfo != null) {
+            val crashEvent = CrashEventInfo(
+                timestamp = crashInfo.timestamp,
+                clientId = export.clientInfo.clientId,
+                exception = crashInfo.exception
+            )
+            storeAccessor.dispatch(DevToolsAction.SetCrashEvent(crashEvent))
+        }
+
+        val actionEvents = export.session.actions.map { action ->
+            ActionStateEvent(
+                clientId = action.clientId,
+                timestamp = action.timestamp,
+                actionType = action.actionType,
+                actionData = action.actionData,
+                stateDeltaJson = action.stateDeltaJson,
+                moduleName = action.moduleName
+            )
+        }
+        storeAccessor.dispatch(DevToolsAction.BulkAddActionStateEvents(actionEvents))
+
+        val logicEvents = buildList<LogicMethodEvent> {
+            export.session.logicStartedEvents.forEach { msg ->
+                add(LogicMethodEvent.Started(
+                    clientId = msg.clientId,
+                    timestamp = msg.timestamp,
+                    callId = msg.callId,
+                    logicClass = msg.logicClass,
+                    methodName = msg.methodName,
+                    params = msg.params,
+                    sourceFile = msg.sourceFile,
+                    lineNumber = msg.lineNumber,
+                    githubSourceUrl = msg.githubSourceUrl
+                ))
+            }
+            export.session.logicCompletedEvents.forEach { msg ->
+                add(LogicMethodEvent.Completed(
+                    clientId = msg.clientId,
+                    timestamp = msg.timestamp,
+                    callId = msg.callId,
+                    result = msg.result,
+                    resultType = msg.resultType,
+                    durationMs = msg.durationMs
+                ))
+            }
+            export.session.logicFailedEvents.forEach { msg ->
+                add(LogicMethodEvent.Failed(
+                    clientId = msg.clientId,
+                    timestamp = msg.timestamp,
+                    callId = msg.callId,
+                    exceptionType = msg.exceptionType,
+                    exceptionMessage = msg.exceptionMessage,
+                    stackTrace = msg.stackTrace,
+                    durationMs = msg.durationMs
+                ))
+            }
+        }
+        storeAccessor.dispatch(DevToolsAction.BulkAddLogicMethodEvents(logicEvents))
+
+        val ghostId = "ghost-${export.sessionId}"
+        storeAccessor.dispatch(DevToolsAction.SelectPublisher(ghostId))
+        storeAccessor.dispatch(DevToolsAction.EnableTimeTravelWithGhost(ghostId))
     }
 
     /**
@@ -382,61 +436,21 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
         clientInfo: ClientInfo,
         actionHistory: List<ActionStateEvent>,
         logicEvents: List<LogicMethodEvent>,
-        sessionStartTime: Long
+        sessionStartTime: Long,
+        initialStateJson: String = "{}",
+        crashEvent: CrashEventInfo? = null
     ): String {
         val now = Clock.System.now().toEpochMilliseconds()
 
-        val actionMessages = actionHistory.map { event ->
-            DevToolsMessage.ActionDispatched(
-                clientId = event.clientId,
-                timestamp = event.timestamp,
-                actionType = event.actionType,
-                actionData = event.actionData,
-                resultingStateJson = event.resultingStateJson
+        val logicStarted = logicEvents.filterIsInstance<LogicMethodEvent.Started>()
+        val logicCompleted = logicEvents.filterIsInstance<LogicMethodEvent.Completed>()
+        val logicFailed = logicEvents.filterIsInstance<LogicMethodEvent.Failed>()
+
+        val crashInfo = crashEvent?.let {
+            CrashInfo(
+                timestamp = it.timestamp,
+                exception = it.exception
             )
-        }
-
-        val logicStarted = mutableListOf<DevToolsMessage.LogicMethodStarted>()
-        val logicCompleted = mutableListOf<DevToolsMessage.LogicMethodCompleted>()
-        val logicFailed = mutableListOf<DevToolsMessage.LogicMethodFailed>()
-
-        logicEvents.forEach { event ->
-            when (event) {
-                is LogicMethodEvent.Started -> logicStarted.add(
-                    DevToolsMessage.LogicMethodStarted(
-                        clientId = event.clientId,
-                        timestamp = event.timestamp,
-                        callId = event.callId,
-                        logicClass = event.logicClass,
-                        methodName = event.methodName,
-                        params = event.params,
-                        sourceFile = event.sourceFile,
-                        lineNumber = event.lineNumber,
-                        githubSourceUrl = event.githubSourceUrl
-                    )
-                )
-                is LogicMethodEvent.Completed -> logicCompleted.add(
-                    DevToolsMessage.LogicMethodCompleted(
-                        clientId = event.clientId,
-                        timestamp = event.timestamp,
-                        callId = event.callId,
-                        result = event.result,
-                        resultType = event.resultType,
-                        durationMs = event.durationMs
-                    )
-                )
-                is LogicMethodEvent.Failed -> logicFailed.add(
-                    DevToolsMessage.LogicMethodFailed(
-                        clientId = event.clientId,
-                        timestamp = event.timestamp,
-                        callId = event.callId,
-                        exceptionType = event.exceptionType,
-                        exceptionMessage = event.exceptionMessage,
-                        stackTrace = event.stackTrace,
-                        durationMs = event.durationMs
-                    )
-                )
-            }
         }
 
         val export = GhostSessionExport(
@@ -448,11 +462,12 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                 clientName = clientInfo.clientName,
                 platform = clientInfo.platform
             ),
-            crash = null,
+            crash = crashInfo,
             session = SessionData(
                 startTime = sessionStartTime,
                 endTime = now,
-                actions = actionMessages.map { it.toCaptured() },
+                initialStateJson = initialStateJson,
+                actions = actionHistory.map { it.toCaptured() },
                 logicStartedEvents = logicStarted.map { it.toCaptured() },
                 logicCompletedEvents = logicCompleted.map { it.toCaptured() },
                 logicFailedEvents = logicFailed.map { it.toCaptured() }
@@ -466,6 +481,20 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
         when (message) {
             is DevToolsMessage.ClientListUpdate -> {
                 storeAccessor.dispatch(DevToolsAction.UpdateClientList(message.clients))
+
+                // Auto-select devices based on their server-assigned roles
+                val state = storeAccessor.selectState<DevToolsState>().value
+                val publisher = message.clients.find { it.role == ClientRole.PUBLISHER && !it.isGhost }
+                val listener = message.clients.find {
+                    it.role == ClientRole.LISTENER && it.clientId != "devtools-ui"
+                }
+
+                if (publisher != null && state.selectedPublisher != publisher.clientId) {
+                    storeAccessor.dispatch(DevToolsAction.SelectPublisher(publisher.clientId))
+                }
+                if (listener != null && state.selectedListener != listener.clientId) {
+                    storeAccessor.dispatch(DevToolsAction.SelectListener(listener.clientId))
+                }
             }
 
             is DevToolsMessage.ActionDispatched -> {
@@ -474,7 +503,8 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                     timestamp = message.timestamp,
                     actionType = message.actionType,
                     actionData = message.actionData,
-                    resultingStateJson = message.resultingStateJson
+                    stateDeltaJson = message.stateDeltaJson,
+                    moduleName = message.moduleName
                 )
                 storeAccessor.dispatch(DevToolsAction.AddActionStateEvent(event))
             }
@@ -523,6 +553,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                 println("DevTools UI: Received session history sync from ${message.clientId}")
                 storeAccessor.dispatch(DevToolsAction.SetPublisherSessionStart(message.sessionStartTime))
                 storeAccessor.dispatch(DevToolsAction.SetCanExportSession(true))
+                storeAccessor.dispatch(DevToolsAction.SetInitialState(message.initialStateJson))
 
                 val actionEvents = message.actionEvents.map { action ->
                     ActionStateEvent(
@@ -530,7 +561,8 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                         timestamp = action.timestamp,
                         actionType = action.actionType,
                         actionData = action.actionData,
-                        resultingStateJson = action.resultingStateJson
+                        stateDeltaJson = action.stateDeltaJson,
+                        moduleName = action.moduleName
                     )
                 }
                 if (actionEvents.isNotEmpty()) {
@@ -610,6 +642,42 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevT
                     storeAccessor.dispatch(DevToolsAction.SetPublisherSessionStart(null))
                     storeAccessor.dispatch(DevToolsAction.SetCanExportSession(false))
                 }
+            }
+
+            is DevToolsMessage.ListenerAttached -> {
+                // For ghost publishers: orchestrator sends reconstructed state to the new listener
+                val state = storeAccessor.selectState<DevToolsState>().value
+                val publisherId = state.selectedPublisher
+                if (publisherId != null && state.initialStateJson != "{}") {
+                    val actions = state.actionStateHistory
+                    if (actions.isNotEmpty()) {
+                        sendTimeTravelSync(actions, state.initialStateJson, actions.size - 1, publisherId)
+                    } else {
+                        val syncMessage = DevToolsMessage.StateSync(
+                            fromClientId = publisherId,
+                            timestamp = Clock.System.now().toEpochMilliseconds(),
+                            stateJson = state.initialStateJson
+                        )
+                        connection.send(syncMessage)
+                    }
+                    println("DevTools UI: Sent ghost state to new listener ${message.listenerId}")
+                }
+            }
+
+            is DevToolsMessage.GhostSessionRestore -> {
+                importGhostSessionFromRestore(message.sessionExportJson, message.ghostClientId)
+            }
+
+            is DevToolsMessage.StateSync -> {
+                // For listener middleware, not the WASM UI
+            }
+
+            is DevToolsMessage.RoleAssignment -> {
+                // WASM UI handles role changes via PublisherChanged
+            }
+
+            is DevToolsMessage.RoleAcknowledgment -> {
+                // Informational only
             }
 
             else -> {

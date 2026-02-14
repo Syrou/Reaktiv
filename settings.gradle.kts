@@ -39,3 +39,12 @@ include("reaktiv-introspection")
 include("reaktiv-devtools")
 include("reaktiv-tracing-annotations")
 includeBuild("reaktiv-tracing-compiler")
+
+gradle.allprojects {
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            substitute(module("io.github.syrou:reaktiv-tracing-annotations"))
+                .using(project(":reaktiv-tracing-annotations"))
+        }
+    }
+}

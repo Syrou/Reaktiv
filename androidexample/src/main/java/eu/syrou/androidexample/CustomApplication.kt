@@ -161,7 +161,7 @@ class CustomApplication : Application() {
             introspectionConfig = introspectionConfig,
             serverUrl = "ws://100.125.101.2:8080/ws",
             enabled = true,
-            defaultRole = ClientRole.PUBLISHER
+            defaultRole = ClientRole.LISTENER
         ),
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
         sessionCapture = sessionCapture

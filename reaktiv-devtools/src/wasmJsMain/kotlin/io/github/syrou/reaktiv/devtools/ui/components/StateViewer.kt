@@ -19,7 +19,9 @@ import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
 import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
+import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
+import io.github.syrou.reaktiv.introspection.protocol.StateReconstructor
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -27,6 +29,11 @@ import kotlinx.datetime.toLocalDateTime
 /**
  * Displays state snapshot for the selected action or logic method data.
  */
+/**
+ * State viewer tab selection.
+ */
+private enum class StateViewerTab { DELTA, STATE }
+
 @Composable
 fun StateViewer(
     actionStateHistory: List<ActionStateEvent>,
@@ -37,10 +44,12 @@ fun StateViewer(
     crashSelected: Boolean = false,
     showAsDiff: Boolean,
     excludedActionTypes: Set<String>,
+    initialStateJson: String = "{}",
     onToggleDiffMode: () -> Unit,
     onClear: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var activeTab by remember { mutableStateOf(StateViewerTab.DELTA) }
 
     val selectedEvent = selectedActionIndex?.let { actionStateHistory.getOrNull(it) }
     val previousEvent = if (showAsDiff && selectedEvent != null && selectedActionIndex != null) {
@@ -58,6 +67,65 @@ fun StateViewer(
 
     val isLogicMethodSelected = selectedLogicMethodCallId != null && selectedLogicEvents.isNotEmpty()
     val isCrashSelected = crashSelected && crashEvent != null
+    val isActionSelected = selectedEvent != null && !isLogicMethodSelected && !isCrashSelected
+
+    // Reconstruct state at crash time
+    val crashReconstructedState = remember(isCrashSelected, crashEvent?.timestamp, initialStateJson, actionStateHistory.size) {
+        if (!isCrashSelected || crashEvent == null) return@remember null
+        if (actionStateHistory.isEmpty()) return@remember initialStateJson
+        val lastActionIndex = actionStateHistory.indexOfLast { it.timestamp <= crashEvent.timestamp }
+        if (lastActionIndex < 0) return@remember initialStateJson
+        val capturedActions = actionStateHistory.map { event ->
+            CapturedAction(
+                clientId = event.clientId,
+                timestamp = event.timestamp,
+                actionType = event.actionType,
+                actionData = event.actionData,
+                stateDeltaJson = event.stateDeltaJson,
+                moduleName = event.moduleName
+            )
+        }
+        StateReconstructor.reconstructAtIndex(initialStateJson, capturedActions, lastActionIndex)
+    }
+
+    // Cache reconstructed states for the State tab
+    val reconstructedState = remember(selectedActionIndex, initialStateJson, actionStateHistory.size) {
+        if (selectedActionIndex == null || !isActionSelected) return@remember null
+        val capturedActions = actionStateHistory.map { event ->
+            CapturedAction(
+                clientId = event.clientId,
+                timestamp = event.timestamp,
+                actionType = event.actionType,
+                actionData = event.actionData,
+                stateDeltaJson = event.stateDeltaJson,
+                moduleName = event.moduleName
+            )
+        }
+        StateReconstructor.reconstructAtIndex(initialStateJson, capturedActions, selectedActionIndex)
+    }
+
+    val previousReconstructedState = remember(selectedActionIndex, initialStateJson, actionStateHistory.size, showAsDiff) {
+        if (!showAsDiff || selectedActionIndex == null || !isActionSelected) return@remember null
+        if (selectedActionIndex <= 0) return@remember null
+        val prevIndex = run {
+            var idx = selectedActionIndex - 1
+            while (idx >= 0 && excludedActionTypes.contains(actionStateHistory[idx].actionType)) {
+                idx--
+            }
+            if (idx >= 0) idx else null
+        } ?: return@remember null
+        val capturedActions = actionStateHistory.map { event ->
+            CapturedAction(
+                clientId = event.clientId,
+                timestamp = event.timestamp,
+                actionType = event.actionType,
+                actionData = event.actionData,
+                stateDeltaJson = event.stateDeltaJson,
+                moduleName = event.moduleName
+            )
+        }
+        StateReconstructor.reconstructAtIndex(initialStateJson, capturedActions, prevIndex)
+    }
 
     Column(
         modifier = Modifier
@@ -78,7 +146,7 @@ fun StateViewer(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            if (!isLogicMethodSelected && !isCrashSelected) {
+            if (isActionSelected) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -89,11 +157,50 @@ fun StateViewer(
             }
         }
 
+        if (isActionSelected) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                TextButton(
+                    onClick = { activeTab = StateViewerTab.DELTA },
+                    colors = if (activeTab == StateViewerTab.DELTA) {
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                ) {
+                    Text("Delta")
+                }
+                TextButton(
+                    onClick = { activeTab = StateViewerTab.STATE },
+                    colors = if (activeTab == StateViewerTab.STATE) {
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                ) {
+                    Text("State")
+                }
+            }
+        }
+
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
         when {
             isCrashSelected && crashEvent != null -> {
-                CrashDataView(crashEvent = crashEvent)
+                CrashDataView(
+                    crashEvent = crashEvent,
+                    reconstructedStateJson = crashReconstructedState
+                )
             }
             isLogicMethodSelected -> {
                 LogicMethodDataView(
@@ -114,13 +221,30 @@ fun StateViewer(
                 }
             }
             else -> {
-                StateSnapshotView(
-                    event = selectedEvent,
-                    previousEvent = previousEvent,
-                    showAsDiff = showAsDiff,
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = { searchQuery = it }
-                )
+                when (activeTab) {
+                    StateViewerTab.DELTA -> {
+                        StateSnapshotView(
+                            event = selectedEvent,
+                            stateJson = selectedEvent.stateDeltaJson,
+                            previousStateJson = previousEvent?.stateDeltaJson,
+                            showAsDiff = showAsDiff,
+                            searchQuery = searchQuery,
+                            onSearchQueryChange = { searchQuery = it },
+                            label = "Delta"
+                        )
+                    }
+                    StateViewerTab.STATE -> {
+                        StateSnapshotView(
+                            event = selectedEvent,
+                            stateJson = reconstructedState ?: "{}",
+                            previousStateJson = previousReconstructedState,
+                            showAsDiff = showAsDiff,
+                            searchQuery = searchQuery,
+                            onSearchQueryChange = { searchQuery = it },
+                            label = "Full State"
+                        )
+                    }
+                }
             }
         }
     }
@@ -129,10 +253,12 @@ fun StateViewer(
 @Composable
 private fun StateSnapshotView(
     event: ActionStateEvent,
-    previousEvent: ActionStateEvent?,
+    stateJson: String,
+    previousStateJson: String?,
     showAsDiff: Boolean,
     searchQuery: String,
-    onSearchQueryChange: (String) -> Unit
+    onSearchQueryChange: (String) -> Unit,
+    label: String = "State Data"
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -169,8 +295,16 @@ private fun StateSnapshotView(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                if (event.moduleName.isNotBlank()) {
+                    Text(
+                        text = "Module: ${event.moduleName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 Text(
-                    text = "Size: ${event.resultingStateJson.length} bytes",
+                    text = "Size: ${stateJson.length} bytes",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -203,7 +337,7 @@ private fun StateSnapshotView(
                     .padding(12.dp)
             ) {
                 Text(
-                    text = "State Data",
+                    text = label,
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -216,10 +350,10 @@ private fun StateSnapshotView(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     JsonTreeViewer(
-                        jsonString = event.resultingStateJson,
-                        previousJsonString = previousEvent?.resultingStateJson,
+                        jsonString = stateJson,
+                        previousJsonString = previousStateJson,
                         searchQuery = searchQuery,
-                        showDiff = showAsDiff && previousEvent != null,
+                        showDiff = showAsDiff && previousStateJson != null,
                         modifier = Modifier.padding(8.dp)
                     )
                 }
@@ -606,7 +740,10 @@ private fun copyToClipboard(text: String) {
 }
 
 @Composable
-private fun CrashDataView(crashEvent: CrashEventInfo) {
+private fun CrashDataView(
+    crashEvent: CrashEventInfo,
+    reconstructedStateJson: String? = null
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -650,6 +787,45 @@ private fun CrashDataView(crashEvent: CrashEventInfo) {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
+                }
+            }
+        }
+
+        if (reconstructedStateJson != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "State at Crash Time",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        JsonTreeViewer(
+                            jsonString = reconstructedStateJson,
+                            previousJsonString = null,
+                            searchQuery = "",
+                            showDiff = false,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
                 }
             }
         }

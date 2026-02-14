@@ -22,7 +22,8 @@ class SessionCaptureTest {
         timestamp = 1000L + index,
         actionType = "TestAction$index",
         actionData = "data-$index",
-        resultingStateJson = "{}"
+        stateDeltaJson = "{}",
+        moduleName = "TestModule"
     )
 
     private fun capturedLogicStart(index: Int) = CapturedLogicStart(
@@ -135,6 +136,19 @@ class SessionCaptureTest {
         val json = capture.exportCrashSession(RuntimeException("test crash"))
         assertTrue(json.contains("\"crash\""))
         assertTrue(json.contains("test crash"))
+        assertTrue(json.contains("TestAction1"))
+    }
+
+    @Test
+    fun `captureCrashFromThrowable stores crash for later export`() {
+        val capture = createCapture()
+        capture.captureAction(capturedAction(1))
+
+        capture.captureCrashFromThrowable(RuntimeException("stored crash"))
+        val json = capture.exportSession()
+
+        assertTrue(json.contains("\"crash\""))
+        assertTrue(json.contains("stored crash"))
         assertTrue(json.contains("TestAction1"))
     }
 

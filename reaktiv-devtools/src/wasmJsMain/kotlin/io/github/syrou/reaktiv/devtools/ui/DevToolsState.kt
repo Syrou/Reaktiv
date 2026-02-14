@@ -35,7 +35,8 @@ data class DevToolsState(
     val crashSelected: Boolean = false,
     val publisherSessionStart: Long? = null,
     val canExportSession: Boolean = false,
-    val activeGhostId: String? = null
+    val activeGhostId: String? = null,
+    val initialStateJson: String = "{}"
 ) : ModuleState
 
 /**
@@ -85,6 +86,7 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data class BulkAddLogicMethodEvents(val events: List<LogicMethodEvent>) : DevToolsAction()
     data class SetActiveGhostId(val ghostId: String?) : DevToolsAction()
     data class EnableTimeTravelWithGhost(val ghostId: String) : DevToolsAction()
+    data class SetInitialState(val json: String) : DevToolsAction()
 }
 
 /**
@@ -96,7 +98,8 @@ data class ActionStateEvent(
     val timestamp: Long,
     val actionType: String,
     val actionData: String,
-    val resultingStateJson: String
+    val stateDeltaJson: String,
+    val moduleName: String = ""
 )
 
 /**

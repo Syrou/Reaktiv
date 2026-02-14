@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicComplete
 import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicFailed
 import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicStart
+import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
@@ -18,6 +19,10 @@ import kotlin.uuid.Uuid
 
 /**
  * Captures session data for crash reports and manual export.
+ *
+ * Events are stored in file-backed JSONL storage (when filesystem is available)
+ * to avoid holding large state snapshots in memory. Falls back to in-memory
+ * storage on platforms without filesystem access (e.g., wasmJs browser).
  *
  * Usage:
  * ```kotlin
@@ -44,19 +49,25 @@ class SessionCapture(
     private val maxActions: Int = 1000,
     private val maxLogicEvents: Int = 2000
 ) {
-    private val actions = ArrayDeque<CapturedAction>()
-    private val logicStarted = ArrayDeque<CapturedLogicStart>()
-    private val logicCompleted = ArrayDeque<CapturedLogicComplete>()
-    private val logicFailed = ArrayDeque<CapturedLogicFailed>()
+    private var actionsStorage: CaptureStorage = createCaptureStorage("actions")
+    private var logicStartedStorage: CaptureStorage = createCaptureStorage("logic_started")
+    private var logicCompletedStorage: CaptureStorage = createCaptureStorage("logic_completed")
+    private var logicFailedStorage: CaptureStorage = createCaptureStorage("logic_failed")
 
     private var sessionStartTime: Long = 0
     private var clientId: String = ""
     private var clientName: String = ""
     private var platform: String = ""
     private var started = false
+    private var initialStateJson: String = "{}"
+    private var capturedCrash: CrashInfo? = null
 
     private val json = Json {
-        prettyPrint = true
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+    private val exportJson = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
@@ -74,12 +85,28 @@ class SessionCapture(
         this.platform = platform
         this.sessionStartTime = Clock.System.now().toEpochMilliseconds()
         this.started = true
+        this.initialStateJson = "{}"
+        this.capturedCrash = null
 
-        actions.clear()
-        logicStarted.clear()
-        logicCompleted.clear()
-        logicFailed.clear()
+        actionsStorage.clear()
+        logicStartedStorage.clear()
+        logicCompletedStorage.clear()
+        logicFailedStorage.clear()
     }
+
+    /**
+     * Captures the initial full state snapshot at session start.
+     *
+     * @param stateJson The full state JSON captured before the first action
+     */
+    fun captureInitialState(stateJson: String) {
+        initialStateJson = stateJson
+    }
+
+    /**
+     * Gets the captured initial state JSON.
+     */
+    fun getInitialStateJson(): String = initialStateJson
 
     /**
      * Checks if session capture has been started.
@@ -97,9 +124,10 @@ class SessionCapture(
     fun captureAction(event: CapturedAction) {
         if (!started) return
 
-        actions.addLast(event)
-        while (actions.size > maxActions) {
-            actions.removeFirst()
+        val line = json.encodeToString(event)
+        actionsStorage.appendLine(line)
+        if (actionsStorage.lineCount() > maxActions) {
+            actionsStorage.trimTo(maxActions)
         }
     }
 
@@ -109,7 +137,8 @@ class SessionCapture(
     fun captureLogicStarted(event: CapturedLogicStart) {
         if (!started) return
 
-        logicStarted.addLast(event)
+        val line = json.encodeToString(event)
+        logicStartedStorage.appendLine(line)
         trimLogicEvents()
     }
 
@@ -119,7 +148,8 @@ class SessionCapture(
     fun captureLogicCompleted(event: CapturedLogicComplete) {
         if (!started) return
 
-        logicCompleted.addLast(event)
+        val line = json.encodeToString(event)
+        logicCompletedStorage.appendLine(line)
         trimLogicEvents()
     }
 
@@ -129,29 +159,95 @@ class SessionCapture(
     fun captureLogicFailed(event: CapturedLogicFailed) {
         if (!started) return
 
-        logicFailed.addLast(event)
+        val line = json.encodeToString(event)
+        logicFailedStorage.appendLine(line)
         trimLogicEvents()
     }
 
+    /**
+     * Captures crash information from a logic method failure.
+     * This should be called when a logic failure represents a fatal crash.
+     *
+     * @param event The logic failure event to capture as a crash
+     */
+    fun captureCrashFromLogicFailure(event: CapturedLogicFailed) {
+        if (!started) return
+
+        capturedCrash = CrashInfo(
+            timestamp = event.timestamp,
+            exception = CrashException(
+                exceptionType = event.exceptionType,
+                message = event.exceptionMessage,
+                stackTrace = "",
+                causedBy = null
+            )
+        )
+    }
+
+    /**
+     * Captures crash information from a throwable.
+     * This is typically called by the crash handler for uncaught exceptions.
+     *
+     * @param throwable The exception that caused the crash
+     */
+    fun captureCrashFromThrowable(throwable: Throwable) {
+        if (!started) return
+
+        capturedCrash = CrashInfo(
+            timestamp = Clock.System.now().toEpochMilliseconds(),
+            exception = throwable.toCrashException()
+        )
+    }
+
+    /**
+     * Gets the captured crash info if any.
+     */
+    fun getCapturedCrash(): CrashInfo? = capturedCrash
+
     private fun trimLogicEvents() {
-        val totalLogicEvents = logicStarted.size + logicCompleted.size + logicFailed.size
+        val totalLogicEvents = logicStartedStorage.lineCount() +
+                logicCompletedStorage.lineCount() +
+                logicFailedStorage.lineCount()
         if (totalLogicEvents > maxLogicEvents) {
             val toRemove = totalLogicEvents - maxLogicEvents
             var removed = 0
 
-            while (removed < toRemove && logicStarted.isNotEmpty()) {
-                logicStarted.removeFirst()
-                removed++
+            val startedCount = logicStartedStorage.lineCount()
+            if (removed < toRemove && startedCount > 0) {
+                val removeFromStarted = minOf(toRemove - removed, startedCount)
+                logicStartedStorage.trimTo(startedCount - removeFromStarted)
+                removed += removeFromStarted
             }
-            while (removed < toRemove && logicCompleted.isNotEmpty()) {
-                logicCompleted.removeFirst()
-                removed++
+
+            val completedCount = logicCompletedStorage.lineCount()
+            if (removed < toRemove && completedCount > 0) {
+                val removeFromCompleted = minOf(toRemove - removed, completedCount)
+                logicCompletedStorage.trimTo(completedCount - removeFromCompleted)
+                removed += removeFromCompleted
             }
-            while (removed < toRemove && logicFailed.isNotEmpty()) {
-                logicFailed.removeFirst()
-                removed++
+
+            val failedCount = logicFailedStorage.lineCount()
+            if (removed < toRemove && failedCount > 0) {
+                val removeFromFailed = minOf(toRemove - removed, failedCount)
+                logicFailedStorage.trimTo(failedCount - removeFromFailed)
             }
         }
+    }
+
+    private fun readActions(): List<CapturedAction> {
+        return actionsStorage.readLines().map { json.decodeFromString(it) }
+    }
+
+    private fun readLogicStarted(): List<CapturedLogicStart> {
+        return logicStartedStorage.readLines().map { json.decodeFromString(it) }
+    }
+
+    private fun readLogicCompleted(): List<CapturedLogicComplete> {
+        return logicCompletedStorage.readLines().map { json.decodeFromString(it) }
+    }
+
+    private fun readLogicFailed(): List<CapturedLogicFailed> {
+        return logicFailedStorage.readLines().map { json.decodeFromString(it) }
     }
 
     /**
@@ -160,15 +256,17 @@ class SessionCapture(
     fun getSessionHistory(): SessionHistory {
         return SessionHistory(
             startTime = sessionStartTime,
-            actions = actions.toList(),
-            logicStarted = logicStarted.toList(),
-            logicCompleted = logicCompleted.toList(),
-            logicFailed = logicFailed.toList()
+            initialStateJson = initialStateJson,
+            actions = readActions(),
+            logicStarted = readLogicStarted(),
+            logicCompleted = readLogicCompleted(),
+            logicFailed = readLogicFailed()
         )
     }
 
     /**
-     * Exports the current session as a JSON string (no crash).
+     * Exports the current session as a JSON string.
+     * Automatically includes any captured crash information.
      *
      * @return JSON string that can be imported as a ghost device in DevTools
      */
@@ -185,31 +283,31 @@ class SessionCapture(
                 clientName = clientName,
                 platform = platform
             ),
-            crash = null,
+            crash = capturedCrash,
             session = SessionData(
                 startTime = sessionStartTime,
                 endTime = now,
-                actions = actions.toList(),
-                logicStartedEvents = logicStarted.toList(),
-                logicCompletedEvents = logicCompleted.toList(),
-                logicFailedEvents = logicFailed.toList()
+                initialStateJson = initialStateJson,
+                actions = readActions(),
+                logicStartedEvents = readLogicStarted(),
+                logicCompletedEvents = readLogicCompleted(),
+                logicFailedEvents = readLogicFailed()
             )
         )
 
-        return json.encodeToString(export)
+        return exportJson.encodeToString(export)
     }
 
     /**
-     * Exports the current session with crash information as a JSON string.
+     * Exports the current session as a JSON string, including crash info from parameters.
+     * This is kept for DevTools compatibility where crash info is created externally.
      *
-     * @param throwable The exception that caused the crash
-     * @return JSON string that can be imported as a ghost device with crash info
+     * @param crashInfo Crash information to include in the export
+     * @return JSON string that can be imported as a ghost device in DevTools
      */
     @OptIn(ExperimentalUuidApi::class)
-    fun exportCrashSession(throwable: Throwable): String {
+    fun exportSessionWithCrash(crashInfo: CrashInfo): String {
         val now = Clock.System.now().toEpochMilliseconds()
-
-        val crashException = throwable.toCrashException()
 
         val export = SessionExport(
             version = SessionExportFormat.VERSION,
@@ -220,31 +318,42 @@ class SessionCapture(
                 clientName = clientName,
                 platform = platform
             ),
-            crash = CrashInfo(
-                timestamp = now,
-                exception = crashException
-            ),
+            crash = crashInfo,
             session = SessionData(
                 startTime = sessionStartTime,
                 endTime = now,
-                actions = actions.toList(),
-                logicStartedEvents = logicStarted.toList(),
-                logicCompletedEvents = logicCompleted.toList(),
-                logicFailedEvents = logicFailed.toList()
+                initialStateJson = initialStateJson,
+                actions = readActions(),
+                logicStartedEvents = readLogicStarted(),
+                logicCompletedEvents = readLogicCompleted(),
+                logicFailedEvents = readLogicFailed()
             )
         )
 
-        return json.encodeToString(export)
+        return exportJson.encodeToString(export)
+    }
+
+    /**
+     * Exports the current session with crash information as a JSON string.
+     * Captures the crash from the throwable before exporting.
+     *
+     * @param throwable The exception that caused the crash
+     * @return JSON string that can be imported as a ghost device with crash info
+     */
+    fun exportCrashSession(throwable: Throwable): String {
+        captureCrashFromThrowable(throwable)
+        return exportSession()
     }
 
     /**
      * Clears all captured data but keeps the session active.
      */
     fun clear() {
-        actions.clear()
-        logicStarted.clear()
-        logicCompleted.clear()
-        logicFailed.clear()
+        actionsStorage.clear()
+        logicStartedStorage.clear()
+        logicCompletedStorage.clear()
+        logicFailedStorage.clear()
+        capturedCrash = null
     }
 
     /**
@@ -252,7 +361,10 @@ class SessionCapture(
      */
     fun stop() {
         started = false
-        clear()
+        actionsStorage.delete()
+        logicStartedStorage.delete()
+        logicCompletedStorage.delete()
+        logicFailedStorage.delete()
     }
 }
 
@@ -261,6 +373,7 @@ class SessionCapture(
  */
 data class SessionHistory(
     val startTime: Long,
+    val initialStateJson: String = "{}",
     val actions: List<CapturedAction>,
     val logicStarted: List<CapturedLogicStart>,
     val logicCompleted: List<CapturedLogicComplete>,

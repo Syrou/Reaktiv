@@ -7,6 +7,12 @@ plugins {
     id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
+    id("io.github.syrou.reaktiv.tracing")
+}
+
+reaktivTracing {
+    enabled.set(true)
+    tracePrivateMethods.set(true)
 }
 
 group = "io.github.syrou"
@@ -82,6 +88,7 @@ kotlin {
                 implementation(project(":reaktiv-core"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
             }
         }
 
