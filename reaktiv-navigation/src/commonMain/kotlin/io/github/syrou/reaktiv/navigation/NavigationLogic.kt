@@ -133,12 +133,9 @@ class NavigationLogic(
      * Clears lifecycle jobs and restarts observation.
      */
     override suspend fun onStoreReset() {
-        // Cancel and wait for the old observation coroutine to complete before proceeding
         observationJob?.cancelAndJoin()
         observationJob = null
 
-        // Run removal handlers before clearing (lifecycle scopes are already cancelled
-        // by Store.cancelChildren(), but handlers should still execute for cleanup)
         entryLifecycles.values.forEach { lifecycle ->
             try { lifecycle.runRemovalHandlers() } catch (_: Exception) {}
         }
@@ -146,7 +143,6 @@ class NavigationLogic(
         entryLifecycleJobs.clear()
         entryLifecycles.clear()
 
-        // Now start a fresh observation
         startLifecycleObservation()
     }
 

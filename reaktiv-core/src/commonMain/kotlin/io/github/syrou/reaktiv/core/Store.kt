@@ -9,11 +9,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
@@ -148,8 +148,10 @@ typealias DispatchSuspend = (suspend (ModuleAction) -> Unit)
 sealed class DispatchResult {
     /** Action was processed and applied to state */
     data object Processed : DispatchResult()
+
     /** Action was blocked by middleware (e.g., spam protection) */
     data object Blocked : DispatchResult()
+
     /** Action processing failed with an error */
     data class Error(val cause: Throwable) : DispatchResult()
 }
@@ -621,6 +623,38 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     abstract suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult
 
     /**
+     * Resets the store by cancelling all child coroutines and restarting action processing.
+     *
+     * Only one reset can execute at a time. If a reset is already in progress, this function
+     * returns false immediately without waiting or executing.
+     *
+     * All module logic instances will have their [ModuleLogic.onStoreReset] method called
+     * sequentially. Any exceptions thrown during reset will propagate to the caller.
+     *
+     * Safe to call from action handlers - uses [NonCancellable] context to ensure
+     * reset completes even if called from within the store's own action processing.
+     *
+     * For fire-and-forget usage, use [resetAsync] instead.
+     *
+     * @return true if reset was executed, false if skipped due to concurrent reset
+     * @throws IllegalArgumentException if the store is not initialized
+     */
+    abstract suspend fun reset(): Boolean
+
+    /**
+     * Non-suspend convenience function that resets the store asynchronously.
+     *
+     * This launches [reset] in the store's coroutine scope and returns immediately.
+     * Use this for fire-and-forget reset operations where you don't need to wait
+     * for completion.
+     *
+     * If you need to wait for reset to complete, use the suspend [reset] function instead.
+     *
+     * @return A [Job] that completes when the reset finishes.
+     */
+    abstract fun resetAsync(): Job
+
+    /**
      * Provides access to internal store operations for specialized use cases.
      *
      * This method returns an [InternalStoreOperations] instance if the store
@@ -737,9 +771,6 @@ class Store private constructor(
             info.logic = module.createLogic(this)
             info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
         }
-        moduleInfo.forEach { entry ->
-            println("moduleInfo: ${entry.key} - ${entry.value.state.value}")
-        }
         _initialized.update { true }
     }
 
@@ -751,21 +782,7 @@ class Store private constructor(
     }
 
 
-    /**
-     * Resets the store by cancelling all child coroutines and restarting action processing.
-     *
-     * Only one reset can execute at a time. If a reset is already in progress, this function
-     * returns false immediately without waiting or executing.
-     *
-     * All module logic instances will have their [ModuleLogic.onStoreReset] method called
-     * sequentially. Any exceptions thrown during reset will propagate to the caller.
-     *
-     * For fire-and-forget usage, use [resetAsync] instead.
-     *
-     * @return true if reset was executed, false if skipped due to concurrent reset
-     * @throws IllegalArgumentException if the store is not initialized
-     */
-    suspend fun reset(): Boolean {
+    override suspend fun reset(): Boolean {
         if (!initialized.value) {
             throw IllegalArgumentException("Reset can not be called until the Store has been constructed!")
         }
@@ -774,37 +791,31 @@ class Store private constructor(
             return false
         }
 
-        try {
-            coroutineContext.cancelChildren(CancellationException("Store Reset"))
+        return withContext(NonCancellable) {
+            try {
+                this@Store.coroutineContext.cancelChildren(CancellationException("Store Reset"))
 
-            launch {
-                processActionChannel()
+                this@Store.launch {
+                    processActionChannel()
+                }
+
+                yield()
+
+                moduleInfo.values
+                    .mapNotNull { it.logic }
+                    .distinct()
+                    .forEach { logic ->
+                        logic.onStoreReset()
+                    }
+
+                true
+            } finally {
+                resetMutex.unlock()
             }
-
-            yield()
-
-            moduleInfo.values.mapNotNull { it.logic }.forEach { logic ->
-                logic.onStoreReset()
-            }
-
-            return true
-        } finally {
-            resetMutex.unlock()
         }
     }
 
-    /**
-     * Non-suspend convenience function that resets the store asynchronously.
-     *
-     * This launches [reset] in the store's coroutine scope and returns immediately.
-     * Use this for fire-and-forget reset operations where you don't need to wait
-     * for completion.
-     *
-     * If you need to wait for reset to complete, use the suspend [reset] function instead.
-     *
-     * @return A [Job] that completes when the reset finishes.
-     */
-    fun resetAsync(): Job = launch {
+    override fun resetAsync(): Job = launch {
         reset()
     }
 
@@ -924,9 +935,11 @@ class Store private constructor(
                 info == null -> {
                     println("DevTools: Cannot apply state for unknown module: $stateClassName")
                 }
+
                 info.state.value::class != newState::class -> {
                     println("DevTools: State type mismatch for $stateClassName - expected ${info.state.value::class.simpleName}, got ${newState::class.simpleName}")
                 }
+
                 else -> {
                     val finalState = if (info.module is StatefulModule<*, *>) {
                         @Suppress("UNCHECKED_CAST")
@@ -1082,8 +1095,8 @@ class StoreDSL {
         if (moduleStateRegistrations.containsKey(stateClassName)) {
             throw IllegalArgumentException(
                 "Duplicate module state registration detected: $stateClassName. " +
-                "Each state class can only be registered once. " +
-                "Check that you're not adding the same module multiple times or using the same state class in different modules."
+                        "Each state class can only be registered once. " +
+                        "Check that you're not adding the same module multiple times or using the same state class in different modules."
             )
         }
 
