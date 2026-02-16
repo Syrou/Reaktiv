@@ -28,7 +28,22 @@ import kotlinx.coroutines.flow.stateIn
  * via this scope are automatically cancelled when the entry is removed
  * from the backstack.
  *
- * Example:
+ * ## Lifecycle Flow
+ *
+ * **Normal Navigation:**
+ * 1. Screen added to backstack → [Navigatable.onLifecycleCreated] called once
+ * 2. Screen remains in backstack → No lifecycle events (observe [visibility] for changes)
+ * 3. Screen removed from backstack → [invokeOnRemoval] handlers called once, then scope cancelled
+ *
+ * **With Store.reset():**
+ * 1. `Store.reset()` called → [invokeOnRemoval] handlers for all existing entries
+ * 2. Observation restarts → [Navigatable.onLifecycleCreated] called once for each backstack entry
+ * 3. Fresh lifecycle instances created with clean state
+ *
+ * Each reset is idempotent - multiple resets follow the same pattern.
+ *
+ * ## Example Usage
+ *
  * ```kotlin
  * override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
  *     // Check current visibility
@@ -87,14 +102,25 @@ class BackstackLifecycle(
 
     /**
      * Register a callback to be invoked when this entry is removed from the backstack.
-     * The handler receives [StoreAccessor] as its receiver, providing access to
-     * [StoreAccessor.dispatch], [StoreAccessor.launch], and other store operations.
+     *
+     * ## When Handlers Are Called
+     *
+     * Removal handlers execute in two scenarios:
+     * 1. **Normal removal** - When navigating back/away and the entry leaves the backstack
+     * 2. **Store reset** - When `Store.reset()` is called (for all entries in backstack)
      *
      * Handlers run **before** the lifecycle scope is cancelled, so the store is still
-     * fully operational. Since the handler is non-suspend, use [StoreAccessor.launch]
-     * for any async/suspend work (fire-and-forget).
+     * fully operational. Multiple handlers can be registered and all will execute.
      *
-     * Example:
+     * ## Handler Execution
+     *
+     * - Handlers are non-suspend functions (synchronous)
+     * - Use [StoreAccessor.launch] for suspend/async work (fire-and-forget)
+     * - Exceptions in individual handlers are caught and swallowed to ensure all handlers run
+     * - Handlers receive [StoreAccessor] as receiver for dispatch, state access, etc.
+     *
+     * ## Example
+     *
      * ```kotlin
      * lifecycle.invokeOnRemoval {
      *     // `this` is StoreAccessor
@@ -150,21 +176,36 @@ interface Navigatable : NavigationNode {
     /**
      * Called when this navigatable is added to the backstack.
      *
-     * Use this to trigger side effects like loading data or dispatching actions.
-     * The lifecycle provides visibility status, state selection, action dispatching,
-     * and a coroutine scope that is automatically cancelled when the entry is removed.
+     * ## When This Is Called
      *
-     * For cleanup when removed, use [BackstackLifecycle.invokeOnRemoval] or a try/finally
-     * block in a launched coroutine.
+     * This method is invoked exactly **once** per lifecycle:
+     * - When navigating to this screen and it's added to the backstack
+     * - After `Store.reset()` for entries that remain in the backstack (new lifecycle instance)
      *
-     * Example:
+     * ## What You Can Do Here
+     *
+     * - Dispatch initial actions (e.g., load data)
+     * - Launch coroutines (automatically cancelled when entry is removed)
+     * - Register cleanup handlers via [BackstackLifecycle.invokeOnRemoval]
+     * - Observe state changes using [BackstackLifecycle.selectState]
+     * - Check/observe visibility via [BackstackLifecycle.visibility]
+     *
+     * ## Cleanup Options
+     *
+     * 1. **Recommended**: Use [BackstackLifecycle.invokeOnRemoval] for cleanup logic
+     * 2. Alternative: Use try/finally in launched coroutines (runs when scope is cancelled)
+     *
+     * ## Example
+     *
      * ```kotlin
      * object ProfileScreen : Screen {
      *     override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
+     *         // Dispatch initial action if visible
      *         if (lifecycle.visibility.value) {
      *             lifecycle.dispatch(ProfileAction.LoadProfile)
      *         }
      *
+     *         // Launch coroutine (auto-cancelled on removal)
      *         lifecycle.launch {
      *             lifecycle.selectState<UserState>().collect { state ->
      *                 if (!lifecycle.visibility.value) return@collect
@@ -172,8 +213,8 @@ interface Navigatable : NavigationNode {
      *             }
      *         }
      *
+     *         // Register cleanup handler
      *         lifecycle.invokeOnRemoval {
-     *             // `this` is StoreAccessor — runs before lifecycle scope is cancelled
      *             launch {
      *                 val logic = selectLogic<ProfileLogic>()
      *                 logic.cleanup()

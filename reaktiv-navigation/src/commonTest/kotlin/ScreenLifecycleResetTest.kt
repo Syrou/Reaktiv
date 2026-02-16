@@ -24,6 +24,7 @@ class ScreenLifecycleResetTest {
 
     private val lifecycleCreatedRoutes = mutableListOf<String>()
     private val removalHandlerRoutes = mutableListOf<String>()
+    private val lifecycleCreatedCounts = mutableMapOf<String, Int>()
 
     private fun createLifecycleTrackingScreen(screenRoute: String) = object : Screen {
         override val route = screenRoute
@@ -38,6 +39,7 @@ class ScreenLifecycleResetTest {
 
         override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
             lifecycleCreatedRoutes.add(screenRoute)
+            lifecycleCreatedCounts[screenRoute] = (lifecycleCreatedCounts[screenRoute] ?: 0) + 1
             lifecycle.invokeOnRemoval {
                 removalHandlerRoutes.add(screenRoute)
             }
@@ -84,9 +86,10 @@ class ScreenLifecycleResetTest {
             val preResetCreatedCount = lifecycleCreatedRoutes.size
             removalHandlerRoutes.clear()
 
-            // Reset the store
-            store.reset()
+            val resetExecuted = store.reset()
             advanceUntilIdle()
+
+            assertTrue(resetExecuted, "Reset should execute and return true")
 
             // Verify removal handlers were called for pre-reset entries
             assertTrue(
@@ -151,8 +154,10 @@ class ScreenLifecycleResetTest {
             assertEquals(3, state.backStack.size)
 
             removalHandlerRoutes.clear()
-            store.reset()
+            val resetExecuted = store.reset()
             advanceUntilIdle()
+
+            assertTrue(resetExecuted, "Reset should execute and return true")
 
             // All three entries should have had their removal handlers called
             assertEquals(
@@ -163,5 +168,70 @@ class ScreenLifecycleResetTest {
             assertTrue(removalHandlerRoutes.contains("home"))
             assertTrue(removalHandlerRoutes.contains("profile"))
             assertTrue(removalHandlerRoutes.contains("settings"))
+        }
+
+    @Test
+    fun `no duplicate lifecycle events after reset due to overlapping observations`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+
+            val homeScreen = createLifecycleTrackingScreen("home")
+            val profileScreen = createLifecycleTrackingScreen("profile")
+            val settingsScreen = createLifecycleTrackingScreen("settings")
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    startScreen(homeScreen)
+                    screens(homeScreen, profileScreen, settingsScreen)
+                }
+            }
+
+            val store = createStore {
+                module(navModule)
+                coroutineContext(testDispatcher)
+            }
+            advanceUntilIdle()
+
+            // Home should be created once
+            assertEquals(1, lifecycleCreatedCounts["home"])
+
+            // Navigate to profile
+            store.navigation { navigateTo("profile") }
+            advanceUntilIdle()
+
+            // Profile should be created once
+            assertEquals(1, lifecycleCreatedCounts["profile"])
+
+            lifecycleCreatedCounts.clear()
+            val resetExecuted = store.reset()
+            advanceUntilIdle()
+
+            assertTrue(resetExecuted, "Reset should execute and return true")
+
+            // After reset, the observation restarts from empty, so current backstack entries
+            // (home and profile) should appear as "added" and get lifecycles recreated.
+            // Each should be created exactly once, not multiple times due to overlapping observations.
+            assertEquals(
+                1,
+                lifecycleCreatedCounts["home"],
+                "Home lifecycle should be created exactly once after reset, not multiple times"
+            )
+            assertEquals(
+                1,
+                lifecycleCreatedCounts["profile"],
+                "Profile lifecycle should be created exactly once after reset, not multiple times"
+            )
+
+            // Navigate to a new screen (settings) after reset to verify observation is working
+            lifecycleCreatedCounts.clear()
+            store.navigation { navigateTo("settings") }
+            advanceUntilIdle()
+
+            // Settings lifecycle should be created exactly once
+            assertEquals(
+                1,
+                lifecycleCreatedCounts["settings"] ?: 0,
+                "Navigating to new screen after reset should create lifecycle exactly once"
+            )
         }
 }

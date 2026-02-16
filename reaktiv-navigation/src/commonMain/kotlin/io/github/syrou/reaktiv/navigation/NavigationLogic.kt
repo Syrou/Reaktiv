@@ -37,6 +37,7 @@ import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -72,6 +73,12 @@ class NavigationLogic(
      * Used to run removal handlers before cancelling the lifecycle job.
      */
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
+
+    /**
+     * Reference to the observation coroutine job.
+     * Used to cancel and wait for the old observation before starting a new one on reset.
+     */
+    private var observationJob: Job? = null
 
     init {
         startLifecycleObservation()
@@ -125,7 +132,11 @@ class NavigationLogic(
      * Called when the Store is reset.
      * Clears lifecycle jobs and restarts observation.
      */
-    override fun onStoreReset() {
+    override suspend fun onStoreReset() {
+        // Cancel and wait for the old observation coroutine to complete before proceeding
+        observationJob?.cancelAndJoin()
+        observationJob = null
+
         // Run removal handlers before clearing (lifecycle scopes are already cancelled
         // by Store.cancelChildren(), but handlers should still execute for cleanup)
         entryLifecycles.values.forEach { lifecycle ->
@@ -134,6 +145,8 @@ class NavigationLogic(
         entryLifecycleJobs.values.forEach { it.cancel() }
         entryLifecycleJobs.clear()
         entryLifecycles.clear()
+
+        // Now start a fresh observation
         startLifecycleObservation()
     }
 
@@ -142,7 +155,7 @@ class NavigationLogic(
      * This is called on init and again after store reset.
      */
     private fun startLifecycleObservation() {
-        storeAccessor.launch {
+        observationJob = storeAccessor.launch {
             storeAccessor.selectState<NavigationState>()
                 .map { it.backStack }
                 .distinctUntilChanged { old, new -> old.map { it.stableKey } == new.map { it.stableKey } }

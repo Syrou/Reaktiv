@@ -80,7 +80,7 @@ class IntrospectionLogic internal constructor(
      *
      * @return SessionCapture instance
      */
-    override fun onStoreReset() {
+    override suspend fun onStoreReset() {
         sessionCapture.clear()
     }
 

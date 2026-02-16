@@ -273,7 +273,7 @@ open class ModuleLogic<A : ModuleAction> : Logic {
      * }
      * ```
      */
-    open fun onStoreReset() {
+    open suspend fun onStoreReset() {
         // Default implementation does nothing
     }
 
@@ -659,6 +659,7 @@ class Store private constructor(
     val serializersModule: SerializersModule,
 ) : StoreAccessor(coroutineScope), InternalStoreOperations {
     private val stateUpdateMutex = Mutex()
+    private val resetMutex = Mutex()
     private val highPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
     private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
@@ -750,22 +751,61 @@ class Store private constructor(
     }
 
 
-    fun reset() {
+    /**
+     * Resets the store by cancelling all child coroutines and restarting action processing.
+     *
+     * Only one reset can execute at a time. If a reset is already in progress, this function
+     * returns false immediately without waiting or executing.
+     *
+     * All module logic instances will have their [ModuleLogic.onStoreReset] method called
+     * sequentially. Any exceptions thrown during reset will propagate to the caller.
+     *
+     * For fire-and-forget usage, use [resetAsync] instead.
+     *
+     * @return true if reset was executed, false if skipped due to concurrent reset
+     * @throws IllegalArgumentException if the store is not initialized
+     */
+    suspend fun reset(): Boolean {
         if (!initialized.value) {
             throw IllegalArgumentException("Reset can not be called until the Store has been constructed!")
         }
-        coroutineContext.cancelChildren(CancellationException("Store Reset"))
-        launch {
-            processActionChannel()
+
+        if (!resetMutex.tryLock()) {
+            return false
         }
-        launch {
-            // Yield to let processActionChannel set up its channel readers
+
+        try {
+            coroutineContext.cancelChildren(CancellationException("Store Reset"))
+
+            launch {
+                processActionChannel()
+            }
+
             yield()
-            // Notify all Logic instances that the store has been reset
+
             moduleInfo.values.mapNotNull { it.logic }.forEach { logic ->
                 logic.onStoreReset()
             }
+
+            return true
+        } finally {
+            resetMutex.unlock()
         }
+    }
+
+    /**
+     * Non-suspend convenience function that resets the store asynchronously.
+     *
+     * This launches [reset] in the store's coroutine scope and returns immediately.
+     * Use this for fire-and-forget reset operations where you don't need to wait
+     * for completion.
+     *
+     * If you need to wait for reset to complete, use the suspend [reset] function instead.
+     *
+     * @return A [Job] that completes when the reset finishes.
+     */
+    fun resetAsync(): Job = launch {
+        reset()
     }
 
     private suspend fun processActionChannel() = withContext(coroutineContext) {
