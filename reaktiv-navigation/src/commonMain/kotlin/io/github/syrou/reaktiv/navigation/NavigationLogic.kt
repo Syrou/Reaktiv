@@ -139,7 +139,6 @@ class NavigationLogic(
         entryLifecycles.values.forEach { lifecycle ->
             try { lifecycle.runRemovalHandlers() } catch (_: Exception) {}
         }
-        entryLifecycleJobs.values.forEach { it.cancel() }
         entryLifecycleJobs.clear()
         entryLifecycles.clear()
 
@@ -266,52 +265,43 @@ class NavigationLogic(
     }
 
     private suspend fun executeNavigation(builder: NavigationBuilder, source: String) {
-        // Try to acquire lock - if already locked, navigation is in progress, return immediately
         if (!navigationLock.tryLock()) {
             ReaktivDebug.warn("Navigation blocked, animation in progress")
             return
         }
 
-        try {
+        val animationDuration = try {
             val initialState = getCurrentNavigationState()
             val unifiedOps = collectUnifiedOperations(builder, initialState)
-
             validateUnifiedOperations(unifiedOps)
-
             val finalState = computeFinalNavigationState(unifiedOps, initialState)
-            val willAnimate = willNavigationAnimate(initialState, finalState)
-
-            val action = determineNavigationAction(unifiedOps, finalState, initialState, willAnimate)
-            
-
-            // Use dispatchAndAwait to know if the action was applied or blocked by middleware
+            val action = determineNavigationAction(
+                unifiedOps, finalState, initialState,
+                willNavigationAnimate(initialState, finalState)
+            )
             val result = storeAccessor.dispatchAndAwait(action)
-
             if (result == DispatchResult.Processed) {
-                // Calculate animation duration and schedule lock release
-                val exitDuration = initialState.currentEntry.navigatable.exitTransition.durationMillis
-                val enterDuration = finalState.currentEntry.navigatable.enterTransition.durationMillis
-                val animationDuration = maxOf(exitDuration, enterDuration).toLong()
-
-                // Lifecycle callbacks are handled reactively via state observer in init block
-
-                // Release lock after animation duration
-                if (animationDuration > 0) {
-                    storeAccessor.launch {
-                        delay(animationDuration)
-                        navigationLock.unlock()
-                    }
-                } else {
-                    navigationLock.unlock()
-                }
-            } else {
-                // Action was blocked, release lock immediately
-                navigationLock.unlock()
-            }
+                maxOf(
+                    initialState.currentEntry.navigatable.exitTransition.durationMillis,
+                    finalState.currentEntry.navigatable.enterTransition.durationMillis
+                ).toLong()
+            } else 0L
         } catch (e: Exception) {
-            // Ensure lock is released on error
             navigationLock.unlock()
             throw e
+        }
+
+        if (animationDuration > 0) {
+            storeAccessor.launch {
+                delay(animationDuration)
+                navigationLock.unlock()
+            }.invokeOnCompletion { cause ->
+                if (cause != null && navigationLock.isLocked) {
+                    navigationLock.unlock()
+                }
+            }
+        } else {
+            navigationLock.unlock()
         }
     }
 

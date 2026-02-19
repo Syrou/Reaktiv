@@ -701,7 +701,7 @@ class Store private constructor(
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
     private val crashListeners = mutableListOf<CrashListener>()
 
-    override val coroutineContext: CoroutineContext =
+    private val baseContext: CoroutineContext =
         coroutineScope.coroutineContext + CoroutineExceptionHandler { _, throwable ->
             if (crashListeners.isEmpty()) {
                 throw throwable
@@ -713,6 +713,11 @@ class Store private constructor(
                 }
             }
         }
+
+    private val storeJob: Job = SupervisorJob(coroutineScope.coroutineContext[Job])
+
+    override val coroutineContext: CoroutineContext
+        get() = baseContext + storeJob
 
     @ExperimentalReaktivApi
     override fun addCrashListener(listener: CrashListener) {
