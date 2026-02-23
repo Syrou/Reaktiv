@@ -89,17 +89,17 @@ class ConcurrentResetTest {
                 "Two resets should be skipped (return false)"
             )
 
-            // Should only have one set of lifecycle recreations (first reset wins)
-            // Second and third reset calls should be no-ops
+            // After full reset, state returns to initialState (home only)
+            // Only home lifecycle is recreated; profile is no longer in backstack
             assertEquals(
                 1,
                 lifecycleCreatedCount["home"],
                 "Home lifecycle should only be created once despite multiple reset calls"
             )
             assertEquals(
-                1,
+                null,
                 lifecycleCreatedCount["profile"],
-                "Profile lifecycle should only be created once despite multiple reset calls"
+                "Profile lifecycle should not be recreated after full reset"
             )
 
             // Removal handlers should only run once
@@ -157,18 +157,11 @@ class ConcurrentResetTest {
             val secondResetCreated = lifecycleCreatedCount.values.sum()
             val secondResetRemoved = removalHandlerCount.values.sum()
 
-            // Both resets should have same behavior
-            assertEquals(
-                firstResetCreated,
-                secondResetCreated,
-                "Sequential resets should have consistent lifecycle creation counts"
-            )
-            assertEquals(
-                firstResetRemoved,
-                secondResetRemoved,
-                "Sequential resets should have consistent removal handler counts"
-            )
-            assertTrue(firstResetCreated > 0, "Lifecycles should be created after reset")
-            assertTrue(firstResetRemoved > 0, "Removal handlers should run during reset")
+            // First reset: home + profile removed, home recreated
+            // Second reset: home removed (only entry after full reset), home recreated
+            assertEquals(1, secondResetCreated, "Second reset should recreate home lifecycle")
+            assertEquals(1, secondResetRemoved, "Second reset should remove home lifecycle")
+            assertTrue(firstResetCreated > 0, "Lifecycles should be created after first reset")
+            assertTrue(firstResetRemoved > 0, "Removal handlers should run during first reset")
         }
 }

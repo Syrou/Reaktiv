@@ -10,6 +10,7 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
+import io.github.syrou.reaktiv.navigation.definition.RemovalReason
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 import io.github.syrou.reaktiv.navigation.definition.Screen
@@ -37,7 +38,6 @@ import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -61,28 +61,18 @@ class NavigationLogic(
     private val guidedFlowMutex = Mutex()
     private val navigationLock = Mutex()
 
-    /**
-     * Tracks lifecycle scopes for each entry in the backstack.
-     * When an entry is removed, its scope is cancelled, which cancels all coroutines
-     * launched via that entry's BackstackLifecycle.
-     */
     private val entryLifecycleJobs = mutableMapOf<String, Job>()
-
-    /**
-     * Tracks BackstackLifecycle instances for each entry.
-     * Used to run removal handlers before cancelling the lifecycle job.
-     */
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
-
-    /**
-     * Reference to the observation coroutine job.
-     * Used to cancel and wait for the old observation before starting a new one on reset.
-     */
-    private var observationJob: Job? = null
 
     init {
         startLifecycleObservation()
         registerCrashListenerIfNeeded()
+    }
+
+    override suspend fun beforeReset() {
+        entryLifecycles.values.forEach { it.runRemovalHandlers(RemovalReason.RESET) }
+        entryLifecycleJobs.clear()
+        entryLifecycles.clear()
     }
 
     private fun registerCrashListenerIfNeeded() {
@@ -128,29 +118,8 @@ class NavigationLogic(
         }
     }
 
-    /**
-     * Called when the Store is reset.
-     * Clears lifecycle jobs and restarts observation.
-     */
-    override suspend fun onStoreReset() {
-        observationJob?.cancelAndJoin()
-        observationJob = null
-
-        entryLifecycles.values.forEach { lifecycle ->
-            try { lifecycle.runRemovalHandlers() } catch (_: Exception) {}
-        }
-        entryLifecycleJobs.clear()
-        entryLifecycles.clear()
-
-        startLifecycleObservation()
-    }
-
-    /**
-     * Starts the backstack observation for lifecycle callbacks.
-     * This is called on init and again after store reset.
-     */
     private fun startLifecycleObservation() {
-        observationJob = storeAccessor.launch {
+        storeAccessor.launch {
             storeAccessor.selectState<NavigationState>()
                 .map { it.backStack }
                 .distinctUntilChanged { old, new -> old.map { it.stableKey } == new.map { it.stableKey } }
@@ -269,8 +238,7 @@ class NavigationLogic(
             ReaktivDebug.warn("Navigation blocked, animation in progress")
             return
         }
-
-        val animationDuration = try {
+        try {
             val initialState = getCurrentNavigationState()
             val unifiedOps = collectUnifiedOperations(builder, initialState)
             validateUnifiedOperations(unifiedOps)
@@ -281,26 +249,13 @@ class NavigationLogic(
             )
             val result = storeAccessor.dispatchAndAwait(action)
             if (result == DispatchResult.Processed) {
-                maxOf(
+                val animationDuration = maxOf(
                     initialState.currentEntry.navigatable.exitTransition.durationMillis,
                     finalState.currentEntry.navigatable.enterTransition.durationMillis
                 ).toLong()
-            } else 0L
-        } catch (e: Exception) {
-            navigationLock.unlock()
-            throw e
-        }
-
-        if (animationDuration > 0) {
-            storeAccessor.launch {
-                delay(animationDuration)
-                navigationLock.unlock()
-            }.invokeOnCompletion { cause ->
-                if (cause != null && navigationLock.isLocked) {
-                    navigationLock.unlock()
-                }
+                if (animationDuration > 0) delay(animationDuration)
             }
-        } else {
+        } finally {
             navigationLock.unlock()
         }
     }
@@ -343,7 +298,7 @@ class NavigationLogic(
 
         // Run removal handlers before cancelling lifecycle scopes
         removedEntries.forEach { entry ->
-            entryLifecycles.remove(entry.stableKey)?.runRemovalHandlers()
+            entryLifecycles.remove(entry.stableKey)?.runRemovalHandlers(RemovalReason.NAVIGATION)
             entryLifecycleJobs.remove(entry.stableKey)?.cancel()
         }
     }

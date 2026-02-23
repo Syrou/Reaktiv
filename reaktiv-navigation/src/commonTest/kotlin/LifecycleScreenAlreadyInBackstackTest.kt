@@ -77,13 +77,12 @@ class LifecycleScreenAlreadyInBackstackTest {
             println("Events after reset: $lifecycleEvents")
 
             assertEquals(
-                4,
+                3,
                 lifecycleEvents.size,
-                "Should have removal + creation for both screens"
+                "Should have removal for both screens and creation for home only (full reset to initialState)"
             )
             assertEquals("home:removed", lifecycleEvents[0])
             assertEquals("profile:removed", lifecycleEvents[1])
             assertEquals("home:created", lifecycleEvents[2])
-            assertEquals("profile:created", lifecycleEvents[3])
         }
 }

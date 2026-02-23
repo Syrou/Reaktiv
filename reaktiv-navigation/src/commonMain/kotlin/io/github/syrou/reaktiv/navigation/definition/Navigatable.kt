@@ -21,6 +21,20 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /**
+ * Reason why an entry is being removed from the backstack.
+ *
+ * Passed to [BackstackLifecycle.invokeOnRemoval] handlers so they can
+ * distinguish between normal navigation removal and a full store reset.
+ */
+enum class RemovalReason {
+    /** Entry was removed via normal navigation (back, popUpTo, replace, etc.) */
+    NAVIGATION,
+
+    /** Entry was removed because [io.github.syrou.reaktiv.core.StoreAccessor.reset] was called */
+    RESET
+}
+
+/**
  * Lifecycle manager for a screen in the backstack.
  *
  * Provides access to visibility status, state selection, action dispatching,
@@ -98,7 +112,7 @@ class BackstackLifecycle(
 
     suspend inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = storeAccessor.selectLogic<L>()
 
-    private val removalHandlers = mutableListOf<StoreAccessor.() -> Unit>()
+    private val removalHandlers = mutableListOf<StoreAccessor.(RemovalReason) -> Unit>()
 
     /**
      * Register a callback to be invoked when this entry is removed from the backstack.
@@ -116,38 +130,38 @@ class BackstackLifecycle(
      *
      * - Handlers are non-suspend functions (synchronous)
      * - Use [StoreAccessor.launch] for suspend/async work (fire-and-forget)
-     * - Exceptions in individual handlers are caught and swallowed to ensure all handlers run
+     * - The [RemovalReason] parameter indicates why the entry is being removed
      * - Handlers receive [StoreAccessor] as receiver for dispatch, state access, etc.
      *
      * ## Example
      *
      * ```kotlin
-     * lifecycle.invokeOnRemoval {
-     *     // `this` is StoreAccessor
-     *     launch {
-     *         val logic = selectLogic<SomeLogic>()
-     *         logic.cleanup()
+     * lifecycle.invokeOnRemoval { reason ->
+     *     // `this` is StoreAccessor, reason indicates NAVIGATION or RESET
+     *     if (reason == RemovalReason.NAVIGATION) {
+     *         launch {
+     *             val logic = selectLogic<SomeLogic>()
+     *             logic.cleanup()
+     *         }
      *     }
      * }
      * ```
      *
-     * @param handler Callback invoked with [StoreAccessor] as receiver when the entry is removed.
+     * @param handler Callback invoked with [StoreAccessor] as receiver and [RemovalReason] as parameter.
      */
-    fun invokeOnRemoval(handler: StoreAccessor.() -> Unit) {
+    fun invokeOnRemoval(handler: StoreAccessor.(RemovalReason) -> Unit) {
         removalHandlers.add(handler)
     }
 
     /**
      * Executes all registered removal handlers with the [storeAccessor] as receiver.
      * Called internally by [NavigationLogic] before cancelling the lifecycle scope.
+     *
+     * @param reason Why the entry is being removed
      */
-    internal fun runRemovalHandlers() {
+    internal fun runRemovalHandlers(reason: RemovalReason) {
         removalHandlers.forEach { handler ->
-            try {
-                handler(storeAccessor)
-            } catch (e: Exception) {
-                // Swallow exceptions from individual handlers to ensure all handlers run
-            }
+            handler(storeAccessor, reason)
         }
     }
 }

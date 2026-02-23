@@ -91,15 +91,18 @@ class StoreResetMemorySafetyTest {
 
         // Reset the store
         store.reset()
-        advanceUntilIdle()
 
-        // Post-reset assertions
+        // Check session state immediately after reset, before advanceUntilIdle().
+        // sessionCapture.clear() is called synchronously during reset(), before any new
+        // coroutines (e.g. CrashLogic.installCrashHandler) have had a chance to dispatch actions.
         val postResetHistory = sessionCapture.getSessionHistory()
         assertTrue(postResetHistory.actions.isEmpty(), "Session capture actions should be cleared after reset")
         assertTrue(postResetHistory.logicStarted.isEmpty(), "Session capture logic events should be cleared after reset")
         assertEquals(0, LogicTracer.pendingCallCount(), "No leaked tracer entries after reset")
         assertEquals(1, LogicTracer.observerCount(), "Observer should still be registered after reset")
         assertTrue(sessionCapture.isStarted(), "Session capture should still be active after reset")
+
+        advanceUntilIdle()
 
         // Verify store still works after reset
         repeat(10) {

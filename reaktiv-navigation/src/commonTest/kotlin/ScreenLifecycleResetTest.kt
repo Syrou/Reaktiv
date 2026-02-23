@@ -101,8 +101,7 @@ class ScreenLifecycleResetTest {
                 "Removal handler should run for profile screen on reset"
             )
 
-            // After reset, the scan restarts from empty so current backstack entries
-            // appear as "added" again — lifecycle should be recreated
+            // After full reset, state returns to initialState — home lifecycle is recreated
             val postResetCreatedCount = lifecycleCreatedRoutes.size
             assertTrue(
                 postResetCreatedCount > preResetCreatedCount,
@@ -208,18 +207,17 @@ class ScreenLifecycleResetTest {
 
             assertTrue(resetExecuted, "Reset should execute and return true")
 
-            // After reset, the observation restarts from empty, so current backstack entries
-            // (home and profile) should appear as "added" and get lifecycles recreated.
-            // Each should be created exactly once, not multiple times due to overlapping observations.
+            // After full reset, state returns to initialState (home only).
+            // Home lifecycle is recreated exactly once; profile is no longer in backstack.
             assertEquals(
                 1,
                 lifecycleCreatedCounts["home"],
                 "Home lifecycle should be created exactly once after reset, not multiple times"
             )
             assertEquals(
-                1,
+                null,
                 lifecycleCreatedCounts["profile"],
-                "Profile lifecycle should be created exactly once after reset, not multiple times"
+                "Profile lifecycle should not be recreated after full reset"
             )
 
             // Navigate to a new screen (settings) after reset to verify observation is working

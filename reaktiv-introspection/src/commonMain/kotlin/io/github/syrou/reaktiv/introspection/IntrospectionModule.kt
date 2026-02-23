@@ -69,10 +69,18 @@ class IntrospectionLogic internal constructor(
 
     init {
         if (config.enabled) {
-            sessionCapture.start(config.clientId, config.clientName, config.platform)
+            if (!sessionCapture.isStarted()) {
+                sessionCapture.start(config.clientId, config.clientName, config.platform)
+            }
             logicObserver = IntrospectionLogicObserver(config.clientId, sessionCapture)
             LogicTracer.addObserver(logicObserver!!)
         }
+    }
+
+    override suspend fun beforeReset() {
+        sessionCapture.clear()
+        logicObserver?.let { LogicTracer.removeObserver(it) }
+        logicObserver = null
     }
 
     /**
@@ -80,9 +88,6 @@ class IntrospectionLogic internal constructor(
      *
      * @return SessionCapture instance
      */
-    override suspend fun onStoreReset() {
-        sessionCapture.clear()
-    }
 
     fun getSessionCapture(): SessionCapture = sessionCapture
 

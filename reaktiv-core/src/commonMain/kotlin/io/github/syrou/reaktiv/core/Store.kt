@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import kotlinx.coroutines.yield
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -243,41 +244,32 @@ open class ModuleLogic<A : ModuleAction> : Logic {
     }
 
     /**
-     * Called when the Store is reset.
+     * Called on the **current** logic instance just before the store is reset.
      *
-     * Override this method to handle store reset events, such as restarting
-     * long-running observation coroutines that were cancelled during reset.
+     * Override to clean up resources held by this logic instance — for example,
+     * running lifecycle handlers, releasing observers, or clearing caches — before
+     * the instance is discarded and a new one is created by [Module.createLogic].
      *
-     * This is called after the store's action processing channels have been
-     * restarted, so it's safe to launch new coroutines from this method.
+     * This is called after all operational coroutines have been cancelled and joined,
+     * but before modules are reinitialized. Suspend calls are safe here.
      *
      * Example:
      * ```kotlin
      * class MyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<MyAction>() {
-     *     private var observationJob: Job? = null
+     *     private var observer: SomeObserver? = null
      *
      *     init {
-     *         startObservation()
+     *         observer = SomeObserver()
      *     }
      *
-     *     override fun onStoreReset() {
-     *         // Restart observation after store reset
-     *         startObservation()
-     *     }
-     *
-     *     private fun startObservation() {
-     *         observationJob = storeAccessor.launch {
-     *             storeAccessor.selectState<SomeState>().collect { state ->
-     *                 // Handle state changes
-     *             }
-     *         }
+     *     override suspend fun beforeReset() {
+     *         observer?.release()
+     *         observer = null
      *     }
      * }
      * ```
      */
-    open suspend fun onStoreReset() {
-        // Default implementation does nothing
-    }
+    open suspend fun beforeReset() {}
 
     companion object {
 
@@ -680,6 +672,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      */
     @ExperimentalReaktivApi
     abstract fun removeCrashListener(listener: CrashListener)
+
 }
 
 
@@ -779,6 +772,22 @@ class Store private constructor(
         _initialized.update { true }
     }
 
+    private suspend fun reinitializeModules() {
+        _initialized.update { false }
+        stateUpdateMutex.withLock {
+            modules.forEach { module ->
+                val info = moduleInfo[module::class.qualifiedName!!]!!
+                info.state.update { module.initialState }
+            }
+            modules.forEach { module ->
+                val info = moduleInfo[module::class.qualifiedName!!]!!
+                info.logic = module.createLogic(this)
+                info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
+            }
+        }
+        _initialized.update { true }
+    }
+
     init {
         launch {
             initializeModules()
@@ -798,20 +807,18 @@ class Store private constructor(
 
         return withContext(NonCancellable) {
             try {
-                this@Store.coroutineContext.cancelChildren(CancellationException("Store Reset"))
-
-                this@Store.launch {
-                    processActionChannel()
-                }
-
+                storeJob.cancelChildren(CancellationException("Store Reset"))
                 yield()
 
-                moduleInfo.values
-                    .mapNotNull { it.logic }
-                    .distinct()
-                    .forEach { logic ->
-                        logic.onStoreReset()
-                    }
+                moduleInfo.values.distinctBy { it.module }.forEach { entry ->
+                    entry.logic?.beforeReset()
+                }
+
+                crashListeners.clear()
+
+                reinitializeModules()
+
+                this@Store.launch { processActionChannel() }
 
                 true
             } finally {
@@ -834,7 +841,6 @@ class Store private constructor(
         launch {
             for (envelope in lowPriorityChannel) {
                 processEnvelope(envelope)
-
                 yield()
             }
         }

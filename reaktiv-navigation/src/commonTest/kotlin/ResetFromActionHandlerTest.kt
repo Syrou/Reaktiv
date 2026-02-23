@@ -158,21 +158,10 @@ class ResetFromActionHandlerTest {
                     "home:removed",
                     "settings:removed",
                     "trigger:reset-returned",
-                    "home:created",
-                    "settings:created"
+                    "home:created"
                 ),
                 lifecycleEvents,
-                "Reset from action handler should complete and lifecycles recreated for current state"
-            )
-
-            lifecycleEvents.clear()
-            store.navigateBack()
-            advanceUntilIdle()
-
-            assertEquals(
-                listOf("settings:removed"),
-                lifecycleEvents,
-                "Navigate back should work after reset"
+                "Reset from action handler should fully reset store to initialState"
             )
 
             lifecycleEvents.clear()

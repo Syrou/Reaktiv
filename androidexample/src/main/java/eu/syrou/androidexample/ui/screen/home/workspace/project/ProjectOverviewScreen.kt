@@ -65,7 +65,7 @@ object ProjectTasksScreen : Screen {
 
         // Register cleanup callback for when entry is removed
         // `this` is StoreAccessor — runs before lifecycle scope is cancelled
-        lifecycle.invokeOnRemoval {
+        lifecycle.invokeOnRemoval { reason ->
             launch {
                 selectLogic<NewsLogic>().countDown()
                 println("HERPADERPA - Count down done!")

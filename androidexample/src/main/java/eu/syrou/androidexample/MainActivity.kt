@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DrawerState
@@ -141,7 +142,8 @@ fun MainRender() {
             "Settings" to Icons.Default.Settings,
             "DevTools" to Icons.Default.Build,
             "Crash Test" to Icons.Default.Warning,
-            "Contact" to Icons.Default.Notifications
+            "Contact" to Icons.Default.Notifications,
+            "Reset Store" to Icons.Default.Refresh
         )
     val selectedItem = remember { mutableStateOf(items[0]) }
 
@@ -185,6 +187,11 @@ fun MainRender() {
                                             store.launch {
                                                 val crashLogic = store.selectLogic<CrashTestLogic>()
                                                 crashLogic.triggerCrashWithTracedOperations()
+                                            }
+                                        }
+                                        "Reset Store" -> {
+                                            store.launch {
+                                                store.reset()
                                             }
                                         }
                                     }
