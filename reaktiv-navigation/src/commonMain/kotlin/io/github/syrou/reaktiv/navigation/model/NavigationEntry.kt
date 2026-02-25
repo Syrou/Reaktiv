@@ -14,9 +14,8 @@ data class NavigationEntry(
     val navigatable: Navigatable,
     val params: Params,
     val graphId: String,
-    val stackPosition: Int = 0,
-    val guidedFlowContext: GuidedFlowContext? = null
-){
+    val stackPosition: Int = 0
+) {
     companion object {
         private const val BASE_SCREEN_Z_INDEX = 0f
         private const val BASE_MODAL_Z_INDEX = 1000f
@@ -25,16 +24,15 @@ data class NavigationEntry(
     @Deprecated("Use navigatable instead", ReplaceWith("navigatable"))
     val screen: Navigatable get() = navigatable
 
-    
     val zIndex: Float get() = when (navigatable) {
-        is Modal -> BASE_MODAL_Z_INDEX + (stackPosition * 10f) // More spacing for modals
-        is Screen -> BASE_SCREEN_Z_INDEX + (stackPosition * 1f) // Standard spacing for screens
+        is Modal -> BASE_MODAL_Z_INDEX + (stackPosition * 10f)
+        is Screen -> BASE_SCREEN_Z_INDEX + (stackPosition * 1f)
         else -> BASE_SCREEN_Z_INDEX + (stackPosition * 1f)
     }
 
     val isModal: Boolean get() = navigatable is Modal
     val isScreen: Boolean get() = navigatable is Screen
-    
+
     /**
      * Stable key for compose key() functions and state tracking
      */
@@ -80,12 +78,10 @@ data class NavigationLayer(
 fun Navigatable.toNavigationEntry(
     params: Params = Params.empty(),
     graphId: String,
-    stackPosition: Int = 0,
-    guidedFlowContext: GuidedFlowContext? = null
+    stackPosition: Int = 0
 ): NavigationEntry = NavigationEntry(
     navigatable = this,
     params = params,
     graphId = graphId,
-    stackPosition = stackPosition,
-    guidedFlowContext = guidedFlowContext
+    stackPosition = stackPosition
 )

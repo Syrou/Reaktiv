@@ -12,8 +12,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.extension.resumePendingNavigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.serialization.Serializable
@@ -33,6 +35,7 @@ object NewsScreen : Screen {
     override fun Content(
         params: Params
     ) {
+        val store = rememberStore()
         LaunchedEffect(Unit) {
             println("HERPADERPA - NewsScreen Should trigger once")
         }

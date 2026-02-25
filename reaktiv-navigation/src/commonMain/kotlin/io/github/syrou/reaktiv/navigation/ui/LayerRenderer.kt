@@ -47,6 +47,17 @@ fun UnifiedLayerRenderer(
  *
  * Manages screen transitions by keeping current and previous screens composed simultaneously.
  * Previous entry is tracked locally in Compose and cleared after animation duration.
+ *
+ * When the layout hierarchy changes between screens (e.g. navigating out of a sub-graph),
+ * two strategies handle the exiting screen:
+ *
+ * INSIDE: When shared layout chrome exists (e.g. HomeNavigationScaffold). The shared chrome
+ * renders once and stays static. Inside its content slot, the entering screen and the animated
+ * exiting screen (wrapped in its unique layouts like ProjectTabLayout) coexist at different
+ * zIndex values. Only the unique layouts animate; shared chrome stays fixed.
+ *
+ * OUTSIDE: When no shared chrome exists (e.g. login → projects). The exiting screen is lifted
+ * outside the incoming layout hierarchy entirely, placed at the top level at zIndex=100.
  */
 @Composable
 private fun ContentLayerRenderer(
@@ -56,15 +67,92 @@ private fun ContentLayerRenderer(
 ) {
     val currentEntry = entries.lastOrNull() ?: navigationState.currentEntry
 
-    // Get animation state managing current + previous entries
     val animationState = rememberLayerAnimationState(
         entries = listOf(currentEntry)
     )
 
-    // Apply layout hierarchy for proper nesting
     val layoutGraphs = findLayoutGraphsInHierarchy(currentEntry.graphId, graphDefinitions)
-    ApplyLayoutsHierarchy(layoutGraphs) {
-        ContentRenderer(animationState)
+    val prevEntry = animationState.previousEntry
+    val prevLayoutGraphs = prevEntry?.let { findLayoutGraphsInHierarchy(it.graphId, graphDefinitions) }
+    val layoutChanged = prevLayoutGraphs != null &&
+        prevLayoutGraphs.map { it.route } != layoutGraphs.map { it.route }
+    val shouldLiftExiting = layoutChanged && (animationState.animationDecision?.shouldAnimateExit ?: false)
+
+    val prevRoutes = prevLayoutGraphs?.map { it.route }?.toSet() ?: emptySet()
+    val currentRoutes = layoutGraphs.map { it.route }.toSet()
+    val sharedRoutes = prevRoutes.intersect(currentRoutes)
+
+    val sharedLayouts = layoutGraphs.filter { it.route in sharedRoutes }
+    val currentUniqueLayouts = layoutGraphs.filter { it.route !in sharedRoutes }
+    val prevUniqueLayouts = prevLayoutGraphs?.filter { it.route !in sharedRoutes } ?: emptyList()
+
+    val useInsideStrategy = shouldLiftExiting && sharedLayouts.isNotEmpty()
+    val useOutsideStrategy = shouldLiftExiting && sharedLayouts.isEmpty()
+
+
+    val windowInfo = LocalWindowInfo.current
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (useInsideStrategy && prevEntry != null) {
+            ApplyLayoutsHierarchy(sharedLayouts) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ApplyLayoutsHierarchy(currentUniqueLayouts) {
+                        ContentRenderer(
+                            animationState.copy(
+                                aliveEntries = listOf(animationState.currentEntry),
+                                previousEntry = null,
+                                animationDecision = null
+                            )
+                        )
+                    }
+                    key(prevEntry.stableKey) {
+                        NavigationAnimations.AnimatedEntry(
+                            entry = prevEntry,
+                            animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
+                            animationDecision = animationState.animationDecision,
+                            screenWidth = windowInfo.containerSize.width.toFloat(),
+                            screenHeight = windowInfo.containerSize.height.toFloat(),
+                            zIndex = 100f,
+                            onAnimationComplete = null
+                        ) {
+                            ApplyLayoutsHierarchy(prevUniqueLayouts) {
+                                prevEntry.navigatable.Content(prevEntry.params)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            ApplyLayoutsHierarchy(layoutGraphs) {
+                val innerState = if (useOutsideStrategy && prevEntry != null) {
+                    animationState.copy(
+                        aliveEntries = listOf(animationState.currentEntry),
+                        previousEntry = null,
+                        animationDecision = null
+                    )
+                } else {
+                    animationState
+                }
+                ContentRenderer(innerState)
+            }
+            if (useOutsideStrategy && prevEntry != null) {
+                key(prevEntry.stableKey) {
+                    NavigationAnimations.AnimatedEntry(
+                        entry = prevEntry,
+                        animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
+                        animationDecision = animationState.animationDecision,
+                        screenWidth = windowInfo.containerSize.width.toFloat(),
+                        screenHeight = windowInfo.containerSize.height.toFloat(),
+                        zIndex = 100f,
+                        onAnimationComplete = null
+                    ) {
+                        ApplyLayoutsHierarchy(prevLayoutGraphs ?: emptyList()) {
+                            prevEntry.navigatable.Content(prevEntry.params)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -78,7 +166,6 @@ private fun OverlayLayerRenderer(
     val modalStates = rememberModalAnimationState(entries)
     val activeStates = remember { mutableStateMapOf<String, ModalEntryState>() }
 
-    // Update active states
     modalStates.forEach { state ->
         activeStates[state.entry.stableKey] = state
     }
@@ -95,7 +182,7 @@ private fun OverlayLayerRenderer(
                     NavigationAnimations.AnimatedEntry(
                         entry = modalState.entry,
                         animationType = modalState.animationType,
-                        animationDecision = null, // Modals manage their own transitions
+                        animationDecision = null,
                         screenWidth = screenWidth,
                         screenHeight = screenHeight,
                         zIndex = 2000f + modalState.entry.navigatable.elevation,
@@ -151,14 +238,12 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
     val screenWidth = windowInfo.containerSize.width.toFloat()
     val screenHeight = windowInfo.containerSize.height.toFloat()
 
-    // Determine zIndex ordering based on animation requirements
     val shouldExitBeOnTop = animationState.animationDecision?.let { decision ->
         decision.enterTransition is io.github.syrou.reaktiv.navigation.transition.NavTransition.None &&
                 decision.exitTransition !is io.github.syrou.reaktiv.navigation.transition.NavTransition.None
     } ?: false
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Render current and previous entries (max 2 screens)
         animationState.aliveEntries.forEach { entry ->
             val isCurrentScreen = entry.stableKey == animationState.currentEntry.stableKey
             val isPreviousScreen = entry.stableKey == animationState.previousEntry?.stableKey
@@ -180,7 +265,7 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
                     zIndex = zIndex,
-                    onAnimationComplete = null  // Timing managed by NavigationLogic
+                    onAnimationComplete = null
                 ) {
                     entry.navigatable.Content(entry.params)
                 }
@@ -200,7 +285,6 @@ private fun ApplyLayoutsHierarchy(
     if (layoutGraphs.isEmpty()) {
         content()
     } else {
-        // Use foldRight to create proper nested structure: outermost layout first
         layoutGraphs.foldRight(content) { graph, acc ->
             @Composable {
                 graph.layout?.invoke { acc() } ?: acc()

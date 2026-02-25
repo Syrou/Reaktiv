@@ -38,6 +38,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
+import androidx.compose.runtime.rememberCoroutineScope
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -64,6 +65,7 @@ object SettingsScreen : Screen {
         params: Params
     ) {
         val store = rememberStore()
+        val scope = rememberCoroutineScope()
         val context = LocalContext.current
         val settingsState by composeState<SettingsModule.SettingsState>()
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -114,8 +116,8 @@ object SettingsScreen : Screen {
                 context.startActivity(intent)
             })
             Button(onClick = {
-                store.launch {
-                    UserManagementScreens.startUserManagementFlow(store, "31")
+                scope.launch {
+                    store.navigation { navigateTo("user/31") }
                 }
             }) {
                 Text("Start User Management Flow")

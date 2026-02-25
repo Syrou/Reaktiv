@@ -43,8 +43,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import eu.syrou.androidexample.reaktiv.crashtest.CrashTestLogic
-import io.github.syrou.reaktiv.core.util.selectLogic
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import eu.syrou.androidexample.ui.components.NotificationPermissionHandler
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
@@ -54,10 +54,10 @@ import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
+import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.ui.NavigationBackgroundProvider
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
@@ -76,11 +76,8 @@ class MainActivity : ComponentActivity() {
                 val segments = uri.pathSegments
                 val route = path?.replace("/navigation/", "") ?: ""
                 println("KASTRULL - DEEP LINK PATH: $path, route: $route")
-                customApp.store.launch {
-                    customApp.store.navigation {
-                        // Use synthesizeBackstack to build proper backstack for deep links
-                        navigateTo(route, synthesizeBackstack = true)
-                    }
+                lifecycleScope.launch {
+                    customApp.store.navigateDeepLink(route)
                 }
             }
         }
@@ -176,6 +173,7 @@ fun MainRender() {
                                                 }
                                             }
                                         }
+
                                         "DevTools" -> {
                                             store.launch {
                                                 store.navigation {
@@ -183,12 +181,14 @@ fun MainRender() {
                                                 }
                                             }
                                         }
+
                                         "Crash Test" -> {
                                             store.launch {
                                                 val crashLogic = store.selectLogic<CrashTestLogic>()
                                                 crashLogic.triggerCrashWithTracedOperations()
                                             }
                                         }
+
                                         "Reset Store" -> {
                                             store.launch {
                                                 store.reset()
@@ -205,7 +205,9 @@ fun MainRender() {
         ) {
             NavigationBackgroundProvider(MaterialTheme.colorScheme.background) {
                 NavigationRender(
-                    modifier = Modifier.fillMaxSize().systemBarsPadding()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .systemBarsPadding()
                 )
             }
         }

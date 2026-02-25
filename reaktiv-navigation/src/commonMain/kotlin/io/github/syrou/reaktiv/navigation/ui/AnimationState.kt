@@ -52,36 +52,29 @@ fun rememberLayerAnimationState(
 ): LayerAnimationState {
     val currentEntry = entries.lastOrNull() ?: error("Layer must have at least one entry")
 
-    // Track previous entry and current entry locally in Compose
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
 
-    // Detect entry change and update previous
     if (currentEntryState.value.stableKey != currentEntry.stableKey) {
-        // Store the current entry as previous before updating
         previousEntryState.value = currentEntryState.value
         currentEntryState.value = currentEntry
     }
 
     val previousEntry = previousEntryState.value
 
-    // Compute animation decision
     val animationDecision = previousEntry?.let { prev ->
         determineContentAnimationDecision(prev, currentEntry)
     }
 
-    // Determine navigation direction from stack positions
     val isBackNavigation = previousEntry?.let { prev ->
         currentEntry.stackPosition < prev.stackPosition
     } ?: false
 
-    // Clear previous entry after animation duration
     LaunchedEffect(currentEntry.stableKey) {
         if (previousEntry != null && animationDecision != null) {
             val exitDuration = previousEntry.navigatable.exitTransition.durationMillis
             val enterDuration = currentEntry.navigatable.enterTransition.durationMillis
             val animationDuration = maxOf(exitDuration, enterDuration).toLong()
-
             if (animationDuration > 0) {
                 delay(animationDuration)
             }
@@ -89,7 +82,6 @@ fun rememberLayerAnimationState(
         }
     }
 
-    // Build entries to render
     val entriesToRender = buildList {
         add(currentEntry)
         if (previousEntry != null) {
@@ -126,11 +118,9 @@ fun rememberModalAnimationState(
 
     val currentEntryIds = entries.map { it.stableKey }.toSet()
 
-    // Update entry states when entries change
     if (previousEntries.value != currentEntryIds) {
         val newStates = entryStates.value.toMutableMap()
 
-        // Add new entries
         val added = currentEntryIds - previousEntries.value
         added.forEach { id ->
             val entry = entries.find { it.stableKey == id }
@@ -143,7 +133,6 @@ fun rememberModalAnimationState(
             }
         }
 
-        // Mark removed entries as exiting
         val removed = previousEntries.value - currentEntryIds
         removed.forEach { id ->
             newStates[id]?.let { state ->
@@ -179,7 +168,6 @@ data class ModalEntryState(
 
     fun markCompleted(): ModalEntryState? = when {
         isEntering -> copy(isEntering = false)
-        // Remove from state
         isExiting -> null
         else -> this
     }

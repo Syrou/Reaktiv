@@ -1,8 +1,6 @@
 package io.github.syrou.reaktiv.navigation.dsl
 
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
@@ -12,11 +10,7 @@ import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.param.SerializableParam
 import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 import io.github.syrou.reaktiv.navigation.param.Params
-import io.github.syrou.reaktiv.navigation.util.CommonUrlEncoder
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowContext
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
-import kotlinx.coroutines.flow.first
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.serializer
@@ -64,7 +58,6 @@ class NavigationParameterBuilder {
         return this
     }
 
-    // Convenience methods for common types  
     fun putString(key: String, value: String) = putRaw(key, value)
     fun putInt(key: String, value: Int) = putRaw(key, value)
     fun putBoolean(key: String, value: Boolean) = putRaw(key, value)
@@ -72,18 +65,16 @@ class NavigationParameterBuilder {
     fun putLong(key: String, value: Long) = putRaw(key, value)
     fun putFloat(key: String, value: Float) = putRaw(key, value)
 
-    // Shorter aliases
     fun param(key: String, value: Any) = putRaw(key, value)
 }
 
 
-
 /**
  * Builder for creating atomic navigation operations.
- * 
+ *
  * Provides a DSL for chaining multiple navigation actions into a single atomic operation.
  * All operations are validated and executed together to ensure consistent navigation state.
- * 
+ *
  * Example usage:
  * ```kotlin
  * store.navigation {
@@ -92,7 +83,7 @@ class NavigationParameterBuilder {
  *     navigateTo<ProfileScreen> { param("userId", "123") }
  * }
  * ```
- * 
+ *
  * @param storeAccessor Accessor for the store to execute operations
  * @param encoder Parameter encoder for serialization
  */
@@ -102,38 +93,20 @@ class NavigationBuilder(
 ) {
     @PublishedApi
     internal val operations = mutableListOf<NavigationStep>()
-    
-    @PublishedApi
-    internal val guidedFlowOperations = mutableMapOf<String, GuidedFlowOperationBuilder>()
-    
+
     @PublishedApi
     internal var currentParams = Params.empty()
-    
+
     @PublishedApi
     internal var shouldDismissModalsGlobally = false
-    
-    @PublishedApi
-    internal var guidedFlowContext: GuidedFlowContext? = null
-    
-    @PublishedApi
-    internal var activeGuidedFlowState: GuidedFlowState? = null
-    
-    @PublishedApi
-    internal var shouldClearActiveGuidedFlowState: Boolean = false
 
     /**
      * Get the full path for a Navigatable within the navigation builder context.
-     *
-     * This allows convenient access to full paths when building navigation operations.
      *
      * Example usage:
      * ```kotlin
      * store.navigation {
      *     navigateTo(ToolsScreen.fullPath)
-     *     // or with params:
-     *     navigateTo(ProfileScreen.fullPath) {
-     *         putString("userId", "123")
-     *     }
      * }
      * ```
      *
@@ -150,8 +123,6 @@ class NavigationBuilder(
      * @param path The route path to navigate to
      * @param replaceCurrent If true, replaces the current entry instead of pushing
      * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
-     *                            Useful for deep links to ensure proper back navigation.
-     *                            Umbrella graphs (without startScreen) are skipped.
      * @param paramBuilder Optional builder for navigation parameters
      */
     fun navigateTo(
@@ -163,14 +134,12 @@ class NavigationBuilder(
         val (cleanPath, queryParams) = parseUrlWithQueryParams(path)
         var stepParams = Params.fromMap(queryParams)
 
-        // Apply parameter builder if provided
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
             stepParams += Params.fromMap(parameterBuilder.params)
         }
 
-        // Add current accumulated params
         stepParams += currentParams
         currentParams = Params.empty()
 
@@ -187,13 +156,44 @@ class NavigationBuilder(
         return this
     }
 
+    /**
+     * Navigate to a [Navigatable] instance with full-path resolution.
+     *
+     * Unlike [navigateTo] with a string path, this overload resolves the navigatable's
+     * full path from the navigation graph, so nested screens are found correctly.
+     *
+     * @param navigatable The navigatable to navigate to
+     * @param replaceCurrent If true, replaces the current entry instead of pushing
+     * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
+     */
+    fun navigateTo(
+        navigatable: Navigatable,
+        replaceCurrent: Boolean = false,
+        synthesizeBackstack: Boolean = false
+    ): NavigationBuilder {
+        val stepParams = currentParams
+        currentParams = Params.empty()
+
+        val step = NavigationStep(
+            operation = if (replaceCurrent) NavigationOperation.Replace else NavigationOperation.Navigate,
+            target = NavigationTarget.NavigatableObject(navigatable),
+            params = stepParams,
+            shouldReplaceWith = replaceCurrent,
+            shouldDismissModals = shouldDismissModalsGlobally,
+            synthesizeBackstack = synthesizeBackstack
+        )
+        operations.add(step)
+
+        return this
+    }
+
     fun navigateBack(): NavigationBuilder {
         val step = NavigationStep(
             operation = NavigationOperation.Back,
             shouldDismissModals = shouldDismissModalsGlobally
         )
         operations.add(step)
-        
+
         return this
     }
 
@@ -210,8 +210,6 @@ class NavigationBuilder(
      * @param replaceCurrent If true, replaces the current entry instead of pushing
      * @param preferredGraphId Optional graph ID to prefer when resolving the target
      * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
-     *                            Useful for deep links to ensure proper back navigation.
-     *                            Umbrella graphs (without startScreen) are skipped.
      * @param paramBuilder Optional builder for navigation parameters
      */
     suspend inline fun <reified T : Navigatable> navigateTo(
@@ -229,14 +227,12 @@ class NavigationBuilder(
 
         var stepParams = Params.empty()
 
-        // Apply parameter builder if provided
         paramBuilder?.let { builder ->
             val parameterBuilder = NavigationParameterBuilder()
             builder(parameterBuilder)
             stepParams += Params.fromMap(parameterBuilder.params)
         }
 
-        // Add current accumulated params
         stepParams += currentParams
         currentParams = Params.empty()
 
@@ -253,15 +249,12 @@ class NavigationBuilder(
         return this
     }
 
-
-
     /**
      * Pop back to a specific route in the navigation stack.
      *
      * @param path The route to pop back to
      * @param inclusive If true, also removes the target route from the backstack
      * @param fallback Optional fallback route if the target route is not found in the backstack.
-     *                 This is useful for deep link scenarios where the expected backstack may not exist.
      */
     fun popUpTo(path: String, inclusive: Boolean = false, fallback: String? = null): NavigationBuilder {
         val (cleanPath, _) = parseUrlWithQueryParams(path)
@@ -288,7 +281,6 @@ class NavigationBuilder(
      * @param inclusive If true, also removes the target route from the backstack
      * @param preferredGraphId Optional graph ID to prefer when resolving the target
      * @param fallback Optional fallback route if the target route is not found in the backstack.
-     *                 This is useful for deep link scenarios where the expected backstack may not exist.
      */
     suspend inline fun <reified T : Navigatable> popUpTo(
         inclusive: Boolean = false,
@@ -326,17 +318,15 @@ class NavigationBuilder(
             shouldDismissModals = shouldDismissModalsGlobally
         )
         operations.add(step)
-        
+
         return this
     }
-
 
     /**
      * Dismiss any active modals as part of all navigation operations in this block
      */
     fun dismissModals(): NavigationBuilder {
         shouldDismissModalsGlobally = true
-        // Apply to all existing operations as well
         for (i in operations.indices) {
             operations[i] = operations[i].copy(shouldDismissModals = true)
         }
@@ -348,13 +338,11 @@ class NavigationBuilder(
         return this
     }
 
-    // Complex types using Params
     inline fun <reified T : Any> put(key: String, value: T): NavigationBuilder {
         currentParams = currentParams.withTyped(key, value)
         return this
     }
 
-    // Keep existing parameter methods for backward compatibility
     fun putRaw(key: String, value: Any): NavigationBuilder {
         currentParams = when (value) {
             is String -> currentParams.with(key, value)
@@ -368,7 +356,6 @@ class NavigationBuilder(
         return this
     }
 
-    // Convenience methods for common types
     fun putString(key: String, value: String): NavigationBuilder {
         currentParams = currentParams.with(key, value)
         return this
@@ -394,126 +381,46 @@ class NavigationBuilder(
         return this
     }
 
-    // Shorter aliases
     fun param(key: String, value: Any) = putRaw(key, value)
-    
-    /**
-     * Execute guided flow operations atomically with navigation operations.
-     * All guided flow modifications and steps will be executed as part of the same BatchUpdate.
-     *
-     * Example:
-     * ```kotlin
-     * navigation {
-     *     guidedFlow("signup") {
-     *         removeSteps(listOf(2, 3))
-     *         nextStep()
-     *     }
-     *     guidedFlow("onboarding") {
-     *         updateStepParams(0, mapOf("userId" to "123"))
-     *     }
-     *     navigateTo("dashboard")
-     * }
-     * ```
-     *
-     * @deprecated Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.
-     */
-    @Deprecated(
-        message = "Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.",
-        level = DeprecationLevel.WARNING
-    )
-    suspend fun guidedFlow(flowRoute: String, block: suspend GuidedFlowOperationBuilder.() -> Unit): NavigationBuilder {
-        val builder = guidedFlowOperations.getOrPut(flowRoute) { 
-            GuidedFlowOperationBuilder(flowRoute, storeAccessor) 
-        }
-        builder.block()
-        return this
-    }
-    
-    /**
-     * Execute guided flow operations on the currently active guided flow.
-     * Automatically detects the active flow route and operates on it.
-     *
-     * Example:
-     * ```kotlin
-     * store.navigation {
-     *     activeGuidedFlow {
-     *         nextStep()
-     *         updateStepParams(0, mapOf("data" to "value"))
-     *     }
-     * }
-     * ```
-     *
-     * @throws IllegalStateException if no guided flow is currently active
-     * @deprecated Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.
-     */
-    @Deprecated(
-        message = "Guided flows are deprecated. Use regular navigation with separate state modules for multi-step flows.",
-        level = DeprecationLevel.WARNING
-    )
-    suspend fun activeGuidedFlow(block: suspend GuidedFlowOperationBuilder.() -> Unit): NavigationBuilder {
-        val currentState = storeAccessor.selectState<NavigationState>().first()
-        val activeFlowRoute = currentState.activeGuidedFlowState?.flowRoute
-            ?: throw IllegalStateException("No active guided flow to operate on")
-        
-        return guidedFlow(activeFlowRoute, block)
-    }
-    
-    // GuidedFlow support
-    fun setGuidedFlowContext(context: GuidedFlowContext): NavigationBuilder {
-        guidedFlowContext = context
-        return this
-    }
 
     internal fun validate() {
-        if (operations.isEmpty() && guidedFlowOperations.isEmpty()) {
-            throw IllegalStateException("No navigation or guided flow operations specified")
+        if (operations.isEmpty()) {
+            throw IllegalStateException("No navigation operations specified")
         }
-        
-        // Validate guided flow operations
-        guidedFlowOperations.values.forEach { builder ->
-            builder.validate()
-        }
-        
-        // Validate each operation has required targets
+
         operations.forEach { step ->
             when (step.operation) {
                 NavigationOperation.PopUpTo -> {
-                    require(step.popUpToTarget != null) { 
-                        "PopUpTo operation requires a popUpTo target" 
+                    require(step.popUpToTarget != null) {
+                        "PopUpTo operation requires a popUpTo target"
                     }
                 }
                 NavigationOperation.ClearBackStack -> {
-                    require(step.popUpToTarget == null) { 
-                        "Pure ClearBackStack operation cannot have popUpTo target" 
+                    require(step.popUpToTarget == null) {
+                        "Pure ClearBackStack operation cannot have popUpTo target"
                     }
                 }
                 NavigationOperation.Navigate, NavigationOperation.Replace -> {
-                    require(step.target != null) { 
-                        "${step.operation.name} operation requires a target" 
+                    require(step.target != null) {
+                        "${step.operation.name} operation requires a target"
                     }
                 }
                 NavigationOperation.Back -> { /* Always valid */ }
             }
         }
-        
-        // Validate operation combinations that don't make sense
+
         val operationTypes = operations.map { it.operation }.toSet()
         val hasClearBackStack = NavigationOperation.ClearBackStack in operationTypes
         val hasPopUpTo = NavigationOperation.PopUpTo in operationTypes
         val hasReplaceCurrent = operations.any { it.shouldReplaceWith }
-        
+
         require(!(hasClearBackStack && hasPopUpTo)) {
             "Cannot combine clearBackStack with popUpTo operations in the same batch"
         }
-        
+
         require(!(hasClearBackStack && hasReplaceCurrent)) {
             "Cannot combine clearBackStack with replaceCurrent operations in the same batch"
         }
-    }
-
-    internal fun encodeParametersForStep(stepParams: Params): Params {
-        // Params already handles encoding/decoding, so we can return as-is
-        return stepParams
     }
 
     @PublishedApi
@@ -534,37 +441,5 @@ class NavigationBuilder(
             "Navigatable ${navigatableClass.simpleName} not found in navigation graph. " +
                     "Available navigatables: ${allNavigatables.map { it::class.simpleName }}"
         )
-    }
-    
-    /**
-     * Get all guided flow operations for execution
-     */
-    internal fun getGuidedFlowOperations(): Map<String, GuidedFlowOperationBuilder> {
-        return guidedFlowOperations.toMap()
-    }
-    
-    /**
-     * Check if there are any guided flow operations
-     */
-    internal fun hasGuidedFlowOperations(): Boolean {
-        return guidedFlowOperations.isNotEmpty()
-    }
-    
-    /**
-     * Set the active guided flow state to be included in the navigation update
-     */
-    fun setActiveGuidedFlowState(flowState: GuidedFlowState): NavigationBuilder {
-        this.activeGuidedFlowState = flowState
-        this.shouldClearActiveGuidedFlowState = false
-        return this
-    }
-    
-    /**
-     * Clear the active guided flow state in the navigation update
-     */
-    fun clearActiveGuidedFlowState(): NavigationBuilder {
-        this.activeGuidedFlowState = null
-        this.shouldClearActiveGuidedFlowState = true
-        return this
     }
 }

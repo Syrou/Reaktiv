@@ -2,59 +2,48 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
-import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import kotlinx.serialization.Serializable
 
 @Serializable
 sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 
     @Serializable
-    data class BatchUpdate(
-        val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null,
-        val modalContexts: Map<String, ModalContext>? = null,
-        val operations: List<NavigationOperation> = emptyList(),
-        val activeGuidedFlowState: GuidedFlowState? = null,
-        val guidedFlowModifications: Map<String, GuidedFlowDefinition>? = null
-    ) : NavigationAction(), HighPriorityAction
-
-    @Serializable
-    data class Back(
-        val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null,
-        val modalContexts: Map<String, ModalContext>? = null
-    ) : NavigationAction(), HighPriorityAction
-
-    @Serializable
-    data class ClearBackstack(
-        val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null,
-        val modalContexts: Map<String, ModalContext>? = null
-    ) : NavigationAction(), HighPriorityAction
-
-    @Serializable
     data class Navigate(
-        val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null,
-        val modalContexts: Map<String, ModalContext>? = null
+        val entry: NavigationEntry,
+        val modalContext: ModalContext? = null,
+        val dismissModals: Boolean = false
     ) : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    data class Replace(val entry: NavigationEntry) : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    object Back : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    object ClearBackstack : NavigationAction(), HighPriorityAction
 
     @Serializable
     data class PopUpTo(
-        val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null,
-        val modalContexts: Map<String, ModalContext>? = null
+        val newCurrentEntry: NavigationEntry,
+        val newBackStack: List<NavigationEntry>,
+        val newModalContexts: Map<String, ModalContext>
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class Replace(
-        val currentEntry: NavigationEntry? = null,
-        val backStack: List<NavigationEntry>? = null,
-        val modalContexts: Map<String, ModalContext>? = null
+    data class SetPendingNavigation(
+        val pending: PendingNavigation
     ) : NavigationAction(), HighPriorityAction
 
+    @Serializable
+    object ClearPendingNavigation : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    data class AtomicBatch(val actions: List<NavigationAction>) : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    object BootstrapComplete : NavigationAction(), HighPriorityAction
 }

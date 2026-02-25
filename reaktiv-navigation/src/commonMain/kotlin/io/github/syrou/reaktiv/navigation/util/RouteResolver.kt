@@ -460,19 +460,15 @@ class RouteResolver private constructor(
         val cleanPath = path.trimStart('/').trimEnd('/')
         if (cleanPath.isEmpty()) return null
 
-        // Check if this is an umbrella graph (graph without startDestination)
         if (graphDefinitions.containsKey(cleanPath)) {
             val graph = graphDefinitions[cleanPath]
             if (graph?.startDestination == null) {
-                // Umbrella graph - skip for backstack synthesis
                 return null
             }
         }
 
-        // Try to resolve normally
         val resolution = resolve(cleanPath)
 
-        // If resolution points to notFoundScreen, skip it for backstack synthesis
         if (resolution != null && notFoundScreen != null && resolution.targetNavigatable == notFoundScreen) {
             return null
         }

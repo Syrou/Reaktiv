@@ -68,6 +68,16 @@ suspend fun StoreAccessor.dismissModal(modalEntry: NavigationEntry) {
     }
 }
 
+/**
+ * Navigate to a deep link route, resolving any registered aliases first.
+ *
+ * @param route The deep link path (may include query parameters)
+ * @param params Additional parameters merged with any extracted from the route
+ */
+suspend fun StoreAccessor.navigateDeepLink(route: String, params: Params = Params.empty()) {
+    selectLogic<NavigationLogic>().navigateDeepLink(route, params)
+}
+
 suspend fun StoreAccessor.clearAllModals() {
     val navigationState = selectState<NavigationState>().first()
     val lastScreen = navigationState.orderedBackStack.reversed().firstOrNull { it.isScreen }
@@ -76,6 +86,16 @@ suspend fun StoreAccessor.clearAllModals() {
         val navigationLogic = selectLogic<NavigationLogic>()
         navigationLogic.popUpTo(lastScreen.navigatable.route, inclusive = false)
     }
+}
+
+/**
+ * Resume a pending navigation stored by [GuardResult.PendAndRedirectTo].
+ *
+ * Clears [NavigationState.pendingNavigation] and navigates to the stored route.
+ * No-op if there is no pending navigation.
+ */
+suspend fun StoreAccessor.resumePendingNavigation() {
+    selectLogic<NavigationLogic>().resumePendingNavigation()
 }
 
 

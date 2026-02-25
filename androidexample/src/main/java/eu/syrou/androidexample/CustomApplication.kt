@@ -10,15 +10,22 @@ import eu.syrou.androidexample.domain.logic.NotificationHelper
 import eu.syrou.androidexample.domain.network.news.PeriodicNewsFetches
 import eu.syrou.androidexample.domain.network.news.PeriodicNewsFetchesFactory
 import eu.syrou.androidexample.reaktiv.TestNavigationModule.TestNavigationModule
+import eu.syrou.androidexample.reaktiv.auth.AuthLogic
+import eu.syrou.androidexample.reaktiv.auth.AuthModule
 import eu.syrou.androidexample.reaktiv.crashtest.CrashTestModule
+import eu.syrou.androidexample.reaktiv.crashtest.MockCrashlytics
 import eu.syrou.androidexample.reaktiv.middleware.createTestNavigationMiddleware
 import eu.syrou.androidexample.reaktiv.news.NewsModule
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import eu.syrou.androidexample.reaktiv.twitchstreams.TwitchStreamsModule
 import eu.syrou.androidexample.reaktiv.videos.VideosModule
 import eu.syrou.androidexample.ui.scaffold.HomeNavigationScaffold
+import eu.syrou.androidexample.ui.screen.AuthLoadingScreen
+import eu.syrou.androidexample.ui.screen.CrashScreen
+import eu.syrou.androidexample.ui.screen.DevToolsScreen
+import eu.syrou.androidexample.ui.screen.LoginScreen
+import eu.syrou.androidexample.ui.screen.NotFoundScreen
 import eu.syrou.androidexample.ui.screen.SettingsScreen
-import eu.syrou.androidexample.ui.screen.SplashScreen
 import eu.syrou.androidexample.ui.screen.StreamsListScreen
 import eu.syrou.androidexample.ui.screen.TwitchAuthWebViewScreen
 import eu.syrou.androidexample.ui.screen.UserManagementScreens
@@ -36,26 +43,28 @@ import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectOverviewS
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectSettingsScreen
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTabLayout
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTasksScreen
-import eu.syrou.androidexample.ui.screen.DevToolsScreen
-import eu.syrou.androidexample.reaktiv.crashtest.MockCrashlytics
-import eu.syrou.androidexample.ui.screen.CrashScreen
-import eu.syrou.androidexample.ui.screen.NotFoundScreen
+import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.core.util.selectState
+import io.github.syrou.reaktiv.devtools.DevToolsModule
+import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
+import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.introspection.CrashModule
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.IntrospectionModule
 import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
-import io.github.syrou.reaktiv.devtools.DevToolsModule
-import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
-import io.github.syrou.reaktiv.devtools.protocol.ClientRole
-import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.model.GuardResult
+import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import java.util.concurrent.TimeUnit
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -74,6 +83,15 @@ class CustomApplication : Application() {
         println("---------- End of Action -------------\n")
     }
 
+    private val requireAuth: NavigationGuard = { store ->
+        val authLogic = store.selectLogic<AuthLogic>()
+        if (authLogic.checkSession()) GuardResult.Allow
+        else GuardResult.PendAndRedirectTo(
+            navigatable = LoginScreen,
+            displayHint = "Sign in to continue"
+        )
+    }
+
     private val navigationModule = createNavigationModule {
         notFoundScreen(NotFoundScreen)
         crashScreen(
@@ -84,9 +102,19 @@ class CustomApplication : Application() {
             }
         )
         rootGraph {
-
-            startScreen(SplashScreen)
+            entry(
+                route = { store ->
+                    store.selectLogic<AuthLogic>().initializeSession()
+                    val isAuthenticated = store.selectState<AuthModule.AuthState>()
+                        .mapNotNull { it.isAuthenticated }
+                        .first()
+                    if (isAuthenticated) NewsScreen else LoginScreen
+                },
+                loadingScreen = AuthLoadingScreen
+            )
             screens(
+                LoginScreen,
+                AuthLoadingScreen,
                 SettingsScreen,
                 TwitchAuthWebViewScreen,
                 VideosListScreen,
@@ -94,52 +122,49 @@ class CustomApplication : Application() {
                 DevToolsScreen,
             )
             modals(NotificationModal)
-            graph("home") {
-                startGraph("news")
-                layout { content ->
-                    HomeNavigationScaffold(content)
-                }
 
-                graph("news") {
-                    startScreen(NewsScreen)
-                    screens(NewsListScreen)
-                }
+            intercept(
+                guard = requireAuth,
+                loadingScreen = AuthLoadingScreen,
+            ) {
+                graph("home") {
+                    startGraph("news")
+                    layout { content ->
+                        HomeNavigationScaffold(content)
+                    }
 
-                graph("workspace") {
-                    startScreen(WorkspaceScreen)
+                    graph("news") {
+                        entry(NewsScreen)
+                        screens(NewsListScreen)
+                    }
 
-                    graph("projects") {
-                        startScreen(ProjectOverviewScreen)
-                        screens(
-                            ProjectOverviewScreen,
-                            ProjectTasksScreen,
-                            ProjectFilesScreen,
-                            ProjectSettingsScreen
-                        )
-                        layout { content ->
-                            ProjectTabLayout(content)
+                    graph("workspace") {
+                        entry(WorkspaceScreen)
+
+                        graph("projects") {
+                            entry(ProjectOverviewScreen)
+                            screens(
+                                ProjectOverviewScreen,
+                                ProjectTasksScreen,
+                                ProjectFilesScreen,
+                                ProjectSettingsScreen
+                            )
+                            layout { content ->
+                                ProjectTabLayout(content)
+                            }
                         }
                     }
-                }
 
-                graph("leaderboard") {
-                    startScreen(LeaderboardListScreen)
-                    screens(LeaderboardDetailScreen, PlayerProfileScreen, StatsDetailScreen)
+                    graph("leaderboard") {
+                        entry(LeaderboardListScreen)
+                        screens(LeaderboardDetailScreen, PlayerProfileScreen, StatsDetailScreen)
+                    }
                 }
             }
 
             screenGroup(UserManagementScreens)
         }
 
-        guidedFlow("user-management") {
-            step<UserManagementScreens.ViewUser>()
-            step("user/67/edit?query=EDIT")
-            step<UserManagementScreens.DeleteUser>()
-            onComplete {
-                clearBackStack()
-                navigateTo("home")
-            }
-        }
         screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
     }
 
@@ -171,6 +196,7 @@ class CustomApplication : Application() {
         /*persistenceManager(
             PlatformPersistenceStrategy(this@CustomApplication)
         )*/
+        module(AuthModule)
         module(
             NewsModule
         )

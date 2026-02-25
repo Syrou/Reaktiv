@@ -10,13 +10,15 @@ import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
+import io.github.syrou.reaktiv.navigation.dsl.DeepLinkAlias
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
+import io.github.syrou.reaktiv.navigation.model.EntryDefinition
+import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
+import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
@@ -34,11 +36,11 @@ class NavigationModule internal constructor(
     private val notFoundScreen: Screen? = null,
     internal val crashScreen: Screen? = null,
     internal val onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null,
-    private val originalGuidedFlowDefinitions: Map<String, GuidedFlowDefinition> = emptyMap(),
+    private val deepLinkAliases: List<DeepLinkAlias> = emptyList(),
     private val screenRetentionDuration: Duration
 ) : ModuleWithLogic<NavigationState, NavigationAction, NavigationLogic>, CustomTypeRegistrar {
     private val precomputedData: PrecomputedNavigationData by lazy {
-        PrecomputedNavigationData.create(rootGraph, notFoundScreen, crashScreen)
+        PrecomputedNavigationData.create(rootGraph, notFoundScreen, crashScreen, deepLinkAliases)
     }
 
     /**
@@ -52,9 +54,6 @@ class NavigationModule internal constructor(
     /**
      * Get the full path for a Navigatable.
      *
-     * The full path includes all graph prefixes, e.g., "home/workspace/projects/tools"
-     * for a screen with route "tools" nested in graphs home -> workspace -> projects.
-     *
      * @param navigatable The screen or modal to get the path for
      * @return The full path, or null if the navigatable is not registered
      */
@@ -64,7 +63,6 @@ class NavigationModule internal constructor(
 
     /**
      * Get all registered full paths mapped to their navigatables.
-     * Useful for debugging or building navigation UIs.
      */
     fun getAllFullPaths(): Map<Navigatable, String> {
         return precomputedData.navigatableToFullPath
@@ -91,10 +89,13 @@ class NavigationModule internal constructor(
             }
 
             null -> {
-                val fallbackScreen = notFoundScreen
+                val fallbackScreen = rootGraph.entryDefinition?.loadingScreen
+                    ?: notFoundScreen
                     ?: throw IllegalStateException(
-                        "Root graph has no startScreen/startGraph defined and no notFoundScreen is configured. " +
-                        "Either define a start destination for the root graph or configure a notFoundScreen."
+                        "Root graph has no startScreen/startGraph defined. " +
+                        "Either define a static start destination via entry(screen), " +
+                        "provide a loadingScreen in entry(route=..., loadingScreen=X), " +
+                        "or configure a notFoundScreen."
                     )
                 RouteResolution(
                     targetNavigatable = fallbackScreen,
@@ -147,8 +148,7 @@ class NavigationModule internal constructor(
             modalsInStack = computedState.modalsInStack,
             underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
             activeModalContexts = emptyMap(),
-            guidedFlowModifications = emptyMap(),
-            activeGuidedFlowState = null
+            pendingNavigation = null
         )
     }
 
@@ -271,10 +271,9 @@ class NavigationModule internal constructor(
         currentEntry: NavigationEntry?,
         backStack: List<NavigationEntry>?,
         modalContexts: Map<String, ModalContext>?,
-        activeGuidedFlowState: GuidedFlowState? = state.activeGuidedFlowState,
-        updateGuidedFlowState: Boolean = false,
-        guidedFlowModifications: Map<String, GuidedFlowDefinition>? = null,
-        navigationAction: NavigationAction? = null
+        navigationAction: NavigationAction? = null,
+        pendingNavigation: PendingNavigation? = null,
+        clearPendingNavigation: Boolean = false
     ): NavigationState {
         val newCurrentEntry = currentEntry ?: state.currentEntry
         val newBackStack = backStack ?: state.backStack
@@ -286,6 +285,12 @@ class NavigationModule internal constructor(
             precomputedData = precomputedData,
             existingModalContexts = newModalContexts
         )
+
+        val newPendingNavigation = when {
+            clearPendingNavigation -> null
+            pendingNavigation != null -> pendingNavigation
+            else -> state.pendingNavigation
+        }
 
         return state.copy(
             currentEntry = newCurrentEntry,
@@ -312,71 +317,104 @@ class NavigationModule internal constructor(
             modalsInStack = computedState.modalsInStack,
             underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
             activeModalContexts = newModalContexts,
-            guidedFlowModifications = guidedFlowModifications ?: state.guidedFlowModifications,
-            activeGuidedFlowState = if (updateGuidedFlowState) activeGuidedFlowState else state.activeGuidedFlowState
+            pendingNavigation = newPendingNavigation
         )
     }
 
-    override val reducer: (NavigationState, NavigationAction) -> NavigationState = { state, action ->
-        when (action) {
-            is NavigationAction.BatchUpdate -> reduceNavigationStateUpdate(
-                state = state,
-                currentEntry = action.currentEntry,
-                backStack = action.backStack,
-                modalContexts = action.modalContexts,
-                activeGuidedFlowState = action.activeGuidedFlowState,
-                updateGuidedFlowState = true,
-                guidedFlowModifications = action.guidedFlowModifications,
-                navigationAction = action
-            )
+    private fun reduceAction(state: NavigationState, action: NavigationAction): NavigationState = when (action) {
+        is NavigationAction.AtomicBatch -> action.actions.fold(state, ::reduceAction)
 
-            is NavigationAction.Back -> reduceNavigationStateUpdate(
-                state = state,
-                currentEntry = action.currentEntry,
-                backStack = action.backStack,
-                modalContexts = action.modalContexts,
-                navigationAction = action
-            )
-
-            is NavigationAction.ClearBackstack -> this.reduceNavigationStateUpdate(
-                state = state,
-                currentEntry = action.currentEntry,
-                backStack = action.backStack,
-                modalContexts = action.modalContexts,
-                navigationAction = action
-            )
-
-            is NavigationAction.Navigate -> reduceNavigationStateUpdate(
-                state = state,
-                currentEntry = action.currentEntry,
-                backStack = action.backStack,
-                modalContexts = action.modalContexts,
-                navigationAction = action
-            )
-
-            is NavigationAction.PopUpTo -> reduceNavigationStateUpdate(
-                state = state,
-                currentEntry = action.currentEntry,
-                backStack = action.backStack,
-                modalContexts = action.modalContexts,
-                navigationAction = action
-            )
-
-            is NavigationAction.Replace -> reduceNavigationStateUpdate(
-                state = state,
-                currentEntry = action.currentEntry,
-                backStack = action.backStack,
-                modalContexts = action.modalContexts,
-                navigationAction = action
-            )
+        is NavigationAction.Navigate -> {
+            val entry = action.entry
+            val isModal = entry.isModal
+            val baseBackStack = if (action.dismissModals) state.backStack.filter { it.isScreen }
+                                else state.backStack
+            val stackPosition = when {
+                isModal -> state.backStack.size + 1
+                baseBackStack.isEmpty() -> 1
+                else -> baseBackStack.size + 1
+            }
+            val positionedEntry = entry.copy(stackPosition = stackPosition)
+            val newBackStack = when {
+                isModal -> state.backStack + positionedEntry
+                baseBackStack.isEmpty() -> listOf(positionedEntry)
+                else -> baseBackStack + positionedEntry
+            }
+            val modalContexts = when {
+                action.dismissModals -> emptyMap()
+                isModal && action.modalContext != null ->
+                    state.activeModalContexts + (positionedEntry.navigatable.route to action.modalContext)
+                !isModal && !action.dismissModals && state.currentEntry.isModal && state.activeModalContexts.isNotEmpty() -> {
+                    val modalRoute = state.currentEntry.navigatable.route
+                    val ctx = state.activeModalContexts[modalRoute]
+                    if (ctx != null) {
+                        val underlying = ctx.originalUnderlyingScreenEntry.navigatable.route
+                        mapOf(underlying to ctx.copy(navigatedAwayToRoute = positionedEntry.navigatable.route))
+                    } else state.activeModalContexts
+                }
+                else -> state.activeModalContexts
+            }
+            reduceNavigationStateUpdate(state, positionedEntry, newBackStack, modalContexts, action)
         }
+
+        is NavigationAction.Replace -> {
+            val positioned = action.entry.copy(
+                stackPosition = if (state.backStack.isEmpty()) 1 else state.backStack.size
+            )
+            val newBackStack = if (state.backStack.isEmpty()) listOf(positioned)
+                               else state.backStack.dropLast(1) + positioned
+            reduceNavigationStateUpdate(state, positioned, newBackStack, state.activeModalContexts, action)
+        }
+
+        is NavigationAction.Back -> {
+            if (state.backStack.size <= 1) state
+            else {
+                val trimmed = state.backStack.dropLast(1)
+                val target = trimmed.last().copy(stackPosition = trimmed.size)
+                val finalStack = trimmed.dropLast(1) + target
+                val modalCtx = state.activeModalContexts[target.navigatable.route]
+                if (modalCtx != null) {
+                    val modal = modalCtx.modalEntry
+                    reduceNavigationStateUpdate(
+                        state, modal, finalStack + modal,
+                        mapOf(modal.navigatable.route to modalCtx.copy(navigatedAwayToRoute = null)), action
+                    )
+                } else {
+                    val cleaned = state.activeModalContexts.filterKeys {
+                        it != state.currentEntry.navigatable.route
+                    }
+                    reduceNavigationStateUpdate(state, target, finalStack, cleaned, action)
+                }
+            }
+        }
+
+        is NavigationAction.ClearBackstack ->
+            reduceNavigationStateUpdate(state, state.currentEntry, emptyList(), emptyMap(), action)
+
+        is NavigationAction.PopUpTo ->
+            reduceNavigationStateUpdate(
+                state, action.newCurrentEntry, action.newBackStack, action.newModalContexts, action
+            )
+
+        is NavigationAction.SetPendingNavigation -> state.copy(
+            pendingNavigation = action.pending
+        )
+
+        is NavigationAction.ClearPendingNavigation -> state.copy(
+            pendingNavigation = null
+        )
+
+        is NavigationAction.BootstrapComplete -> state.copy(
+            isBootstrapping = false
+        )
     }
+
+    override val reducer: (NavigationState, NavigationAction) -> NavigationState = ::reduceAction
 
     override val createLogic: (storeAccessor: StoreAccessor) -> NavigationLogic = { storeAccessor ->
         NavigationLogic(
             storeAccessor = storeAccessor,
             precomputedData = precomputedData,
-            guidedFlowDefinitions = originalGuidedFlowDefinitions,
             onCrash = onCrash
         )
     }
@@ -398,13 +436,17 @@ data class PrecomputedNavigationData(
     val routeToNavigatable: Map<String, Navigatable>,
     val navigatableToFullPath: Map<Navigatable, String>,
     val notFoundScreen: Screen? = null,
-    val crashScreen: Screen? = null
+    val crashScreen: Screen? = null,
+    val interceptedRoutes: Map<String, InterceptDefinition> = emptyMap(),
+    val graphEntries: Map<String, EntryDefinition> = emptyMap(),
+    val deepLinkAliases: List<DeepLinkAlias> = emptyList()
 ) {
     companion object {
         fun create(
             rootGraph: NavigationGraph,
             notFoundScreen: Screen? = null,
-            crashScreen: Screen? = null
+            crashScreen: Screen? = null,
+            deepLinkAliases: List<DeepLinkAlias> = emptyList()
         ): PrecomputedNavigationData {
             val graphDefinitions = mutableMapOf<String, NavigationGraph>()
             val availableNavigatables = mutableMapOf<String, Navigatable>()
@@ -412,13 +454,21 @@ data class PrecomputedNavigationData(
             val navigatableToGraph = mutableMapOf<Navigatable, String>()
             val routeToNavigatable = mutableMapOf<String, Navigatable>()
             val navigatableToFullPath = mutableMapOf<Navigatable, String>()
+            val interceptedRoutes = mutableMapOf<String, InterceptDefinition>()
+            val graphEntries = mutableMapOf<String, EntryDefinition>()
 
-            // Build parent graph lookup first for hierarchy calculations
             val parentGraphLookup = mutableMapOf<String, String>()
 
-            // Collect all graphs and navigatables in one pass
-            fun collectGraphs(graph: NavigationGraph) {
+            fun collectGraphs(graph: NavigationGraph, inheritedIntercept: InterceptDefinition? = null) {
+                val effectiveIntercept = graph.interceptDefinition ?: inheritedIntercept
+
                 graphDefinitions[graph.route] = graph
+
+                graph.entryDefinition?.let { graphEntries[graph.route] = it }
+
+                if (effectiveIntercept != null) {
+                    interceptedRoutes[graph.route] = effectiveIntercept
+                }
 
                 graph.nestedGraphs.forEach { nestedGraph ->
                     parentGraphLookup[nestedGraph.route] = graph.route
@@ -427,7 +477,6 @@ data class PrecomputedNavigationData(
                 graph.navigatables.forEach { navigatable ->
                     navigatableToGraph[navigatable] = graph.route
 
-                    // Compute full path for all navigatables
                     val fullPath = if (graph.route == "root") {
                         navigatable.route
                     } else {
@@ -439,7 +488,6 @@ data class PrecomputedNavigationData(
                         }
                     }
 
-                    // Register by full path to avoid route collisions
                     if (routeToNavigatable.containsKey(fullPath)) {
                         val existing = routeToNavigatable[fullPath]
                         throw IllegalStateException(
@@ -451,13 +499,16 @@ data class PrecomputedNavigationData(
                     routeToNavigatable[fullPath] = navigatable
                     allNavigatables[fullPath] = navigatable
 
-                    // Keep availableNavigatables for root-level screens (backward compatibility)
                     if (graph.route == "root") {
                         availableNavigatables[navigatable.route] = navigatable
                     }
+
+                    if (effectiveIntercept != null) {
+                        interceptedRoutes[fullPath] = effectiveIntercept
+                    }
                 }
 
-                graph.nestedGraphs.forEach { collectGraphs(it) }
+                graph.nestedGraphs.forEach { collectGraphs(it, effectiveIntercept) }
             }
 
             collectGraphs(rootGraph)
@@ -487,7 +538,10 @@ data class PrecomputedNavigationData(
                 routeToNavigatable = routeToNavigatable,
                 navigatableToFullPath = navigatableToFullPath,
                 notFoundScreen = notFoundScreen,
-                crashScreen = crashScreen
+                crashScreen = crashScreen,
+                interceptedRoutes = interceptedRoutes,
+                graphEntries = graphEntries,
+                deepLinkAliases = deepLinkAliases
             )
         }
 
@@ -673,13 +727,24 @@ private fun findOriginalUnderlyingScreenForModal(
     backStack: List<NavigationEntry>,
     modalContexts: Map<String, ModalContext> = emptyMap()
 ): NavigationEntry? {
-    // First try to find the underlying screen from modal contexts
     val modalContext = modalContexts[modalEntry.navigatable.route]
     if (modalContext != null) {
         return modalContext.originalUnderlyingScreenEntry
     }
 
-    val modalIndex = backStack.indexOf(modalEntry)
+    // The context may have been re-keyed to the underlying screen's route when navigating
+    // away from a modal. Search by matching the stored modalEntry's route.
+    val modalContextByEntry = modalContexts.values.find {
+        it.modalEntry.navigatable.route == modalEntry.navigatable.route
+    }
+    if (modalContextByEntry != null) {
+        return modalContextByEntry.originalUnderlyingScreenEntry
+    }
+
+    // Fall back to scanning the backStack by route/graphId (ignores stackPosition differences).
+    val modalIndex = backStack.indexOfFirst {
+        it.navigatable.route == modalEntry.navigatable.route && it.graphId == modalEntry.graphId
+    }
     if (modalIndex <= 0) return null
 
     return backStack.subList(0, modalIndex).lastOrNull { it.isScreen }

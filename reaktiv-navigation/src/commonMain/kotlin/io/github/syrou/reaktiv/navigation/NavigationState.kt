@@ -5,11 +5,10 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowDefinition
-import io.github.syrou.reaktiv.navigation.model.GuidedFlowState
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationLayer
+import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
@@ -56,11 +55,13 @@ data class NavigationState(
     // Modal contexts
     val activeModalContexts: Map<String, ModalContext>,
 
-    // GuidedFlow state - store runtime modifications per flow route
-    val guidedFlowModifications: Map<String, GuidedFlowDefinition> = emptyMap(),
+    // Pending navigation stored when a guard denies access via PendAndRedirect policy
+    val pendingNavigation: PendingNavigation? = null,
 
-    // Active guided flow state for the currently executing flow (backward compatibility)
-    val activeGuidedFlowState: GuidedFlowState? = null
+    // True until bootstrap (and any cold-start deep link) has fully resolved.
+    // NavigationRender skips rendering while this is true to avoid flashing the
+    // initial placeholder screen before the real destination is known.
+    val isBootstrapping: Boolean = true
 ) : ModuleState {
 
     val entriesByLayer: Map<RenderLayer, List<NavigationEntry>>
@@ -95,4 +96,3 @@ data class NavigationBreadcrumb(
     val path: String,
     val isGraph: Boolean
 )
-
