@@ -35,10 +35,8 @@ import io.github.syrou.reaktiv.navigation.extension.dismissModal
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
 
-@Serializable
 object NotificationModal : Modal {
     override val route = "notification"
     override val enterTransition = NavTransition.SlideUpBottom

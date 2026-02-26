@@ -22,9 +22,7 @@ import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
 object TwitchAuthWebViewScreen : Screen {
     override val route: String = "twitch_auth_webview"
     override val enterTransition: NavTransition = NavTransition.Fade

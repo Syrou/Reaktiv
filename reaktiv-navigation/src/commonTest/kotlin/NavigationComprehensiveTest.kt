@@ -93,7 +93,7 @@ class NavigationComprehensiveTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("settings", state.currentEntry.screen.route)
+        assertEquals("settings", state.currentEntry.route)
         assertEquals("root", state.currentEntry.graphId)
         assertEquals(2, state.backStack.size) // [splash, settings]
     }
@@ -113,7 +113,7 @@ class NavigationComprehensiveTest {
         val state = store.selectState<NavigationState>().first()
 
         // Key assertion: should end up in news graph, not home graph
-        assertEquals("overview", state.currentEntry.screen.route)
+        assertEquals("overview", state.currentEntry.route)
         assertEquals("news", state.currentEntry.graphId) // Should be "news", not "home"
         assertEquals(2, state.backStack.size) // [splash, news/overview]
     }
@@ -141,7 +141,7 @@ class NavigationComprehensiveTest {
             val state = store.selectState<NavigationState>().first()
 
             // Key assertions: should be in news graph with single entry
-            assertEquals("overview", state.currentEntry.screen.route)
+            assertEquals("overview", state.currentEntry.route)
             assertEquals("news", state.currentEntry.graphId) // Critical: should be "news", not "home"
             assertEquals(1, state.backStack.size) // Should have only one entry after clear
         }
@@ -161,7 +161,7 @@ class NavigationComprehensiveTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("overview", state.currentEntry.screen.route) // project overview
+        assertEquals("overview", state.currentEntry.route) // project overview
         assertEquals("projects", state.currentEntry.graphId)
         assertEquals(2, state.backStack.size)
     }
@@ -185,7 +185,7 @@ class NavigationComprehensiveTest {
         // Should have: [splash, news/overview, settings]
         var state = store.selectState<NavigationState>().first()
         assertEquals(3, state.backStack.size)
-        assertEquals("settings", state.currentEntry.screen.route)
+        assertEquals("settings", state.currentEntry.route)
 
         // Navigate back
         store.navigateBack()
@@ -193,7 +193,7 @@ class NavigationComprehensiveTest {
 
         state = store.selectState<NavigationState>().first()
         assertEquals(2, state.backStack.size)
-        assertEquals("overview", state.currentEntry.screen.route)
+        assertEquals("overview", state.currentEntry.route)
         assertEquals("news", state.currentEntry.graphId)
     }
 
@@ -235,9 +235,9 @@ class NavigationComprehensiveTest {
         state = store.selectState<NavigationState>().first()
 
         // Should pop back to workspace (inclusive=false) and add leaderboard
-        assertEquals("leaderboard", state.currentEntry.screen.route)
-        assertTrue(state.backStack.any { it.screen.route == "workspace" })
-        assertFalse(state.backStack.any { it.screen.route == "settings" })
+        assertEquals("leaderboard", state.currentEntry.route)
+        assertTrue(state.backStack.any { it.route == "workspace" })
+        assertFalse(state.backStack.any { it.route == "settings" })
     }
 
     @Test
@@ -270,9 +270,9 @@ class NavigationComprehensiveTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("settings", state.currentEntry.screen.route)
-        assertTrue(state.backStack.any { it.screen.route == "overview" && it.graphId == "news" })
-        assertFalse(state.backStack.any { it.screen.route == "workspace" })
+        assertEquals("settings", state.currentEntry.route)
+        assertTrue(state.backStack.any { it.route == "overview" && it.graphId == "news" })
+        assertFalse(state.backStack.any { it.route == "workspace" })
     }
 
     @Test
@@ -299,8 +299,8 @@ class NavigationComprehensiveTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("leaderboard", state.currentEntry.screen.route)
-        assertFalse(state.backStack.any { it.screen.route == "splash" })
+        assertEquals("leaderboard", state.currentEntry.route)
+        assertFalse(state.backStack.any { it.route == "splash" })
         assertEquals(1, state.backStack.size) // Only leaderboard should remain
     }
 
@@ -323,9 +323,9 @@ class NavigationComprehensiveTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("settings", state.currentEntry.screen.route)
+        assertEquals("settings", state.currentEntry.route)
         assertEquals(sizeBefore, state.backStack.size) // Size should remain the same
-        assertFalse(state.backStack.any { it.screen.route == "overview" }) // Previous screen should be gone
+        assertFalse(state.backStack.any { it.route == "overview" }) // Previous screen should be gone
     }
 
     @Test
@@ -375,7 +375,7 @@ class NavigationComprehensiveTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("overview", state.currentEntry.screen.route)
+        assertEquals("overview", state.currentEntry.route)
         assertEquals("abc123", state.currentEntry.params.getString("sessionId")) // Params should persist
     }
 
@@ -428,7 +428,7 @@ class NavigationComprehensiveTest {
 
             var state = store.selectState<NavigationState>().first()
             assertEquals("news", state.currentEntry.graphId)
-            assertEquals("overview", state.currentEntry.screen.route)
+            assertEquals("overview", state.currentEntry.route)
 
             // Navigate to workspace
             store.navigation {
@@ -447,7 +447,7 @@ class NavigationComprehensiveTest {
 
             // Critical assertions for the bug fix
             assertEquals("news", state.currentEntry.graphId) // Should be "news", not "home"
-            assertEquals("overview", state.currentEntry.screen.route)
+            assertEquals("overview", state.currentEntry.route)
             assertEquals(1, state.backStack.size)
         }
 
@@ -484,7 +484,7 @@ class NavigationComprehensiveTest {
             val state = store.selectState<NavigationState>().first()
 
             // Verify consistency
-            assertEquals("leaderboard", state.currentEntry.screen.route)
+            assertEquals("leaderboard", state.currentEntry.route)
             assertEquals("leaderboard", state.currentEntry.graphId)
 
             // Verify current entry is always the last in backstack
@@ -493,7 +493,7 @@ class NavigationComprehensiveTest {
             // Verify all entries have valid graph IDs
             state.backStack.forEach { entry ->
                 assertTrue(entry.graphId.isNotEmpty())
-                assertTrue(entry.screen.route.isNotEmpty())
+                assertTrue(entry.route.isNotEmpty())
             }
         }
 
@@ -515,7 +515,7 @@ class NavigationComprehensiveTest {
 
         // State should remain unchanged
         val state = store.selectState<NavigationState>().first()
-        assertEquals("splash", state.currentEntry.screen.route)
+        assertEquals("splash", state.currentEntry.route)
     }
 
     @Test
@@ -569,7 +569,7 @@ class NavigationComprehensiveTest {
         val currentEntry = navigationState.currentEntry
         
         // Verify the parameter was preserved correctly after encoding/decoding
-        assertEquals("overview", currentEntry.screen.route)
+        assertEquals("overview", currentEntry.route)
         assertEquals(contentUri, currentEntry.params.getString("fileUri"))
         
         // Verify the content URI structure is intact using the decoded value
@@ -601,7 +601,7 @@ class NavigationComprehensiveTest {
         val currentEntry = navigationState.currentEntry
 
         // Verify the parameter was preserved correctly after encoding/decoding
-        assertEquals("overview", currentEntry.screen.route)
+        assertEquals("overview", currentEntry.route)
         assertEquals(contentUri, currentEntry.params.getString("fileUri"))
     }
 }

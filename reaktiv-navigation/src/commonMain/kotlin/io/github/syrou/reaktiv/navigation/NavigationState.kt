@@ -2,12 +2,9 @@ package io.github.syrou.reaktiv.navigation
 
 import androidx.compose.runtime.Stable
 import io.github.syrou.reaktiv.core.ModuleState
-import io.github.syrou.reaktiv.navigation.definition.Navigatable
-import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
@@ -27,7 +24,7 @@ data class NavigationState(
 
     // Computed state properties (set by reducer, fully serializable)
     val orderedBackStack: List<NavigationEntry>,
-    val visibleLayers: List<NavigationLayer>,
+    val visibleLayers: List<NavigationEntry>,
     val currentFullPath: String,
     val currentPathSegments: List<String>,
     val currentGraphHierarchy: List<String>,
@@ -45,7 +42,6 @@ data class NavigationState(
     val contentLayerEntries: List<NavigationEntry>,
     val globalOverlayEntries: List<NavigationEntry>,
     val systemLayerEntries: List<NavigationEntry>,
-    val renderableEntries: List<NavigationEntry>,
     val underlyingScreen: NavigationEntry?,
     val modalsInStack: List<NavigationEntry>,
 
@@ -61,8 +57,14 @@ data class NavigationState(
     // True until bootstrap (and any cold-start deep link) has fully resolved.
     // NavigationRender skips content layers while this is true to avoid flashing the
     // initial placeholder before the real destination is known.
-    val isBootstrapping: Boolean = true
+    val isBootstrapping: Boolean = true,
+
+    // Resolved title string for the current entry, set by NavigationRender after invoking
+    // the navigatable's titleResource inside the Compose tree where stringResource is available.
+    val currentTitle: String? = null
 ) : ModuleState {
+
+    val renderableEntries: List<NavigationEntry> get() = visibleLayers
 
     val entriesByLayer: Map<RenderLayer, List<NavigationEntry>>
         get() = mapOf(
@@ -82,11 +84,7 @@ data class NavigationState(
     fun isAtPath(path: String): Boolean {
         val cleanPath = path.trimStart('/').trimEnd('/')
         return currentFullPath == cleanPath ||
-                visibleLayers.any { it.entry.navigatable.route == path }
-    }
-
-    fun getZIndex(entry: NavigationEntry): Float {
-        return visibleLayers.find { it.entry == entry }?.zIndex ?: entry.zIndex
+                visibleLayers.any { it.route == cleanPath || it.path == cleanPath }
     }
 }
 

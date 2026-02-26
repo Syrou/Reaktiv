@@ -1,6 +1,5 @@
 package eu.syrou.androidexample
 
-import NavigationRender
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
@@ -57,6 +56,7 @@ import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.ui.NavigationBackgroundProvider
+import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {

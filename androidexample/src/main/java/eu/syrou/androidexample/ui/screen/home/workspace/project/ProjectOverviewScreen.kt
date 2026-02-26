@@ -23,9 +23,7 @@ import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
 object ProjectOverviewScreen : Screen {
     override val route = "overview"
     override val enterTransition = NavTransition.None
@@ -41,7 +39,6 @@ object ProjectOverviewScreen : Screen {
     }
 }
 
-@Serializable
 object ProjectTasksScreen : Screen {
     override val route = "tasks"
     override val enterTransition = NavTransition.SlideInRight
@@ -75,7 +72,6 @@ object ProjectTasksScreen : Screen {
     }
 }
 
-@Serializable
 object ProjectFilesScreen : Screen {
     override val route = "files"
     override val enterTransition = NavTransition.SlideInRight
@@ -88,7 +84,6 @@ object ProjectFilesScreen : Screen {
     }
 }
 
-@Serializable
 object ProjectSettingsScreen : Screen {
     override val route = "settings"
     override val enterTransition = NavTransition.SlideInRight

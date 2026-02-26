@@ -38,13 +38,12 @@ fun HomeNavigationScaffold(content: @Composable () -> Unit) {
     val settingsState by composeState<SettingsModule.SettingsState>()
     val scope = rememberCoroutineScope()
 
-
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = {
-                    Text(navigationState.currentEntry.screen.titleResource?.invoke() ?: "Home")
+                    Text(navigationState.currentTitle ?: "Home")
                 },
                 navigationIcon = {
                     IconButton(onClick = {

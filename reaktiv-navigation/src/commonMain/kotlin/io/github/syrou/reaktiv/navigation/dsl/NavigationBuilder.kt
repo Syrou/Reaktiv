@@ -57,15 +57,6 @@ class NavigationParameterBuilder {
         params[key] = value
         return this
     }
-
-    fun putString(key: String, value: String) = putRaw(key, value)
-    fun putInt(key: String, value: Int) = putRaw(key, value)
-    fun putBoolean(key: String, value: Boolean) = putRaw(key, value)
-    fun putDouble(key: String, value: Double) = putRaw(key, value)
-    fun putLong(key: String, value: Long) = putRaw(key, value)
-    fun putFloat(key: String, value: Float) = putRaw(key, value)
-
-    fun param(key: String, value: Any) = putRaw(key, value)
 }
 
 

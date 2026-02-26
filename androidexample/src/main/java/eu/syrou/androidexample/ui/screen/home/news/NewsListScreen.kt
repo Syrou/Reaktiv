@@ -41,10 +41,8 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.serialization.Serializable
 import java.util.*
 
-@Serializable
 object NewsListScreen : Screen {
 
     override val route: String = "list"

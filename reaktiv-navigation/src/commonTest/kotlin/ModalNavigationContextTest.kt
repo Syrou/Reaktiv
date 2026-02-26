@@ -90,21 +90,21 @@ class ModalNavigationContextTest {
             // Step 1: Start on WorkspaceScreen
             advanceUntilIdle()
             var state = store.selectState<NavigationState>().first()
-            assertEquals("workspace", state.currentEntry.navigatable.route)
+            assertEquals("workspace", state.currentEntry.route)
 
             // Step 2: Open NotificationScreen modal from WorkspaceScreen
             store.navigation { navigateTo("notification") }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
-            assertEquals("notification", state.currentEntry.navigatable.route)
+            assertEquals("notification", state.currentEntry.route)
             assertTrue(state.isCurrentModal)
-            assertEquals("workspace", state.underlyingScreen?.navigatable?.route)
+            assertEquals("workspace", state.underlyingScreen?.route)
 
             // Step 3: Navigate from modal to VideosListScreen (modal should close)
             store.navigation { navigateTo("videos") }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
-            assertEquals("videos", state.currentEntry.navigatable.route)
+            assertEquals("videos", state.currentEntry.route)
             assertFalse(state.isCurrentModal)
 
             // Step 4: Go back - should restore WorkspaceScreen with NotificationModal on top
@@ -113,10 +113,10 @@ class ModalNavigationContextTest {
             state = store.selectState<NavigationState>().first()
             
             // Validate the correct behavior: modal should be restored over original underlying screen
-            assertEquals("notification", state.currentEntry.navigatable.route, "Should be back to the notification modal")
+            assertEquals("notification", state.currentEntry.route, "Should be back to the notification modal")
             assertTrue(state.isCurrentModal, "Should be showing a modal")
             assertNotNull(state.underlyingScreen, "Should have an underlying screen")
-            assertEquals("workspace", state.underlyingScreen!!.navigatable.route, "Underlying screen should be workspace")
+            assertEquals("workspace", state.underlyingScreen!!.route, "Underlying screen should be workspace")
         }
 
     @Test
@@ -131,16 +131,16 @@ class ModalNavigationContextTest {
             // Step 1: Start on WorkspaceScreen
             advanceUntilIdle()
             var state = store.selectState<NavigationState>().first()
-            assertEquals("workspace", state.currentEntry.navigatable.route)
+            assertEquals("workspace", state.currentEntry.route)
             assertTrue(state.activeModalContexts.isEmpty(), "Should have no active modal contexts initially")
 
             // Step 2: Open NotificationScreen modal from WorkspaceScreen
             store.navigation { navigateTo("notification") }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
-            assertEquals("notification", state.currentEntry.navigatable.route)
+            assertEquals("notification", state.currentEntry.route)
             assertTrue(state.isCurrentModal, "Should be showing a modal")
-            assertEquals("workspace", state.underlyingScreen?.navigatable?.route)
+            assertEquals("workspace", state.underlyingScreen?.route)
             assertTrue(state.activeModalContexts.isNotEmpty(), "Should have active modal contexts")
 
             // Step 3: Navigate to VideosListScreen with dismissModals() - modal should be completely dismissed
@@ -150,7 +150,7 @@ class ModalNavigationContextTest {
             }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
-            assertEquals("videos", state.currentEntry.navigatable.route, "Should be on videos screen")
+            assertEquals("videos", state.currentEntry.route, "Should be on videos screen")
             assertFalse(state.isCurrentModal, "Should not be showing a modal")
             println("DEBUG: Modal contexts after dismissal: ${state.activeModalContexts}")
             assertTrue(state.activeModalContexts.isEmpty(), "Should have no active modal contexts after dismissal")
@@ -161,13 +161,14 @@ class ModalNavigationContextTest {
             state = store.selectState<NavigationState>().first()
             
             // Validate the correct behavior: modal should NOT be restored
-            assertEquals("workspace", state.currentEntry.navigatable.route, "Should be back to workspace screen")
+            assertEquals("workspace", state.currentEntry.route, "Should be back to workspace screen")
             assertFalse(state.isCurrentModal, "Should not be showing a modal")
             assertTrue(state.activeModalContexts.isEmpty(), "Should have no modal contexts - modal was permanently dismissed")
             
             // Verify backstack only contains screens, no modals
-            val screensInBackStack = state.backStack.filter { it.isScreen }
+            val modalKeys = state.modalsInStack.map { it.stableKey }.toSet()
+            val screensInBackStack = state.backStack.filter { it.stableKey !in modalKeys }
             assertEquals(1, screensInBackStack.size, "Should only have workspace screen in backstack")
-            assertEquals("workspace", screensInBackStack.first().navigatable.route)
+            assertEquals("workspace", screensInBackStack.first().route)
         }
 }

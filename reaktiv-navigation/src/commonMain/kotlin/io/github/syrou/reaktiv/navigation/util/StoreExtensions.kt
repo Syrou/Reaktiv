@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
+import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 
 /**
  * Convenience extension to get NavigationModule from Store.
@@ -70,6 +71,35 @@ fun Store.getFullPath(navigatable: Navigatable): String? {
  */
 fun StoreAccessor.getFullPath(navigatable: Navigatable): String? {
     return (this as Store).getFullPath(navigatable)
+}
+
+/**
+ * Resolve the [Navigatable] for a [NavigationEntry].
+ *
+ * This replaces the old `entry.screen` / `entry.navigatable` direct property that existed
+ * before the path-based NavigationEntry migration. The navigatable is looked up by the
+ * entry's full path in the navigation module's registered routes.
+ *
+ * Usage:
+ * ```kotlin
+ * val navigationState by composeState<NavigationState>()
+ * val navigatable = store.resolveNavigatable(navigationState.currentEntry)
+ * val title = navigatable?.titleResource?.invoke() ?: "Home"
+ * ```
+ *
+ * @param entry The navigation entry to resolve
+ * @return The [Navigatable], or null if not found
+ */
+fun Store.resolveNavigatable(entry: NavigationEntry): Navigatable? {
+    return getNavigationModule().resolveNavigatable(entry)
+}
+
+/**
+ * Resolve the [Navigatable] for a [NavigationEntry] from StoreAccessor.
+ * @see Store.resolveNavigatable
+ */
+fun StoreAccessor.resolveNavigatable(entry: NavigationEntry): Navigatable? {
+    return (this as Store).resolveNavigatable(entry)
 }
 
 /**

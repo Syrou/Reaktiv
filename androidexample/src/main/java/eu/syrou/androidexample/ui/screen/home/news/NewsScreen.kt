@@ -18,9 +18,7 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.resumePendingNavigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
-import kotlinx.serialization.Serializable
 
-@Serializable
 object NewsScreen : Screen {
     override val route: String = "overview"
     override val titleResource: TitleResource = {

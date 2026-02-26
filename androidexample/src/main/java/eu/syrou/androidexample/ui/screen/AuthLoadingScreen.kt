@@ -24,9 +24,7 @@ import io.github.syrou.reaktiv.navigation.extension.navigate
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
 object AuthLoadingScreen : LoadingModal {
     override val route = "auth-loading"
     override val enterTransition = NavTransition.Fade

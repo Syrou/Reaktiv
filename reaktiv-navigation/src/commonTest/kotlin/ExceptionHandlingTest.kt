@@ -224,7 +224,7 @@ class ExceptionHandlingTest {
             val stateAfterFail = store.selectState<NavigationState>().first()
             assertEquals(stateBeforeFail.currentEntry, stateAfterFail.currentEntry)
             assertEquals(stateBeforeFail.backStack.size, stateAfterFail.backStack.size)
-            assertEquals("profile", stateAfterFail.currentEntry.screen.route)
+            assertEquals("profile", stateAfterFail.currentEntry.route)
         }
 
     @Test

@@ -4,7 +4,6 @@ import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
@@ -18,17 +17,11 @@ import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.model.NavigationLayer
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
+import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
-import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.modules.SerializersModuleBuilder
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.serializer
-import kotlin.reflect.KClass
 import kotlin.time.Duration
 
 
@@ -40,8 +33,8 @@ class NavigationModule internal constructor(
     private val deepLinkAliases: List<DeepLinkAlias> = emptyList(),
     private val screenRetentionDuration: Duration,
     private val loadingModal: LoadingModal? = null
-) : ModuleWithLogic<NavigationState, NavigationAction, NavigationLogic>, CustomTypeRegistrar {
-    private val precomputedData: PrecomputedNavigationData by lazy {
+) : ModuleWithLogic<NavigationState, NavigationAction, NavigationLogic> {
+    internal val precomputedData: PrecomputedNavigationData by lazy {
         PrecomputedNavigationData.create(rootGraph, notFoundScreen, crashScreen, deepLinkAliases, loadingModal)
     }
 
@@ -68,6 +61,26 @@ class NavigationModule internal constructor(
      */
     fun getAllFullPaths(): Map<Navigatable, String> {
         return precomputedData.navigatableToFullPath
+    }
+
+    /**
+     * Resolve the Navigatable for a NavigationEntry using the registered path.
+     *
+     * @param entry The navigation entry to resolve
+     * @return The Navigatable, or null if not found
+     */
+    fun resolveNavigatable(entry: NavigationEntry): Navigatable? {
+        return precomputedData.allNavigatables[entry.path]
+    }
+
+    /**
+     * Get the graph ID for a NavigationEntry by resolving its Navigatable.
+     *
+     * @param entry The navigation entry
+     * @return The graph ID, or null if the entry cannot be resolved
+     */
+    fun getGraphId(entry: NavigationEntry): String? {
+        return resolveNavigatable(entry)?.let { precomputedData.navigatableToGraph[it] }
     }
 
     override val initialState: NavigationState by lazy {
@@ -108,12 +121,13 @@ class NavigationModule internal constructor(
             }
         }
 
-        val effectiveGraphId = resolution.getEffectiveGraphId()
+        val initialPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
+            ?: resolution.targetNavigatable.route
 
         val initialEntry = NavigationEntry(
-            navigatable = resolution.targetNavigatable,
+            path = initialPath,
             params = Params.empty(),
-            graphId = effectiveGraphId
+            navigatableRoute = resolution.targetNavigatable.route
         )
 
         val initialBackStack = listOf(initialEntry)
@@ -145,149 +159,12 @@ class NavigationModule internal constructor(
             contentLayerEntries = computedState.contentLayerEntries,
             globalOverlayEntries = computedState.globalOverlayEntries,
             systemLayerEntries = computedState.systemLayerEntries,
-            renderableEntries = computedState.renderableEntries,
             underlyingScreen = computedState.underlyingScreen,
             modalsInStack = computedState.modalsInStack,
             underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
             activeModalContexts = emptyMap(),
             pendingNavigation = null
         )
-    }
-
-    @OptIn(InternalSerializationApi::class)
-    override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {
-        builder.polymorphic(Navigatable::class) {
-            fun registerGraphNavigatables(graph: NavigationGraph) {
-                graph.navigatables.forEach { navigatable ->
-                    try {
-                        @Suppress("UNCHECKED_CAST")
-                        subclass(
-                            navigatable::class as KClass<Navigatable>,
-                            navigatable::class.serializer() as KSerializer<Navigatable>
-                        )
-                    } catch (e: Exception) {
-                    }
-                }
-                graph.nestedGraphs.forEach { registerGraphNavigatables(it) }
-            }
-            registerGraphNavigatables(rootGraph)
-
-            notFoundScreen?.let { screen ->
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    subclass(
-                        screen::class as KClass<Navigatable>,
-                        screen::class.serializer() as KSerializer<Navigatable>
-                    )
-                } catch (e: Exception) {
-                }
-            }
-
-            crashScreen?.let { screen ->
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    subclass(
-                        screen::class as KClass<Navigatable>,
-                        screen::class.serializer() as KSerializer<Navigatable>
-                    )
-                } catch (e: Exception) {
-                }
-            }
-
-            loadingModal?.let { modal ->
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    subclass(
-                        modal::class as KClass<Navigatable>,
-                        modal::class.serializer() as KSerializer<Navigatable>
-                    )
-                } catch (e: Exception) {
-                }
-            }
-        }
-
-        builder.polymorphic(Screen::class) {
-            fun registerScreens(graph: NavigationGraph) {
-                graph.navigatables.filterIsInstance<Screen>()
-                    .forEach { screen ->
-                        try {
-                            @Suppress("UNCHECKED_CAST")
-                            subclass(
-                                screen::class as KClass<Screen>,
-                                screen::class.serializer() as KSerializer<Screen>
-                            )
-                        } catch (e: Exception) {
-                        }
-                    }
-                graph.nestedGraphs.forEach { registerScreens(it) }
-            }
-            registerScreens(rootGraph)
-
-            notFoundScreen?.let { screen ->
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    subclass(
-                        screen::class as KClass<Screen>,
-                        screen::class.serializer() as KSerializer<Screen>
-                    )
-                } catch (e: Exception) {
-                }
-            }
-
-            crashScreen?.let { screen ->
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    subclass(
-                        screen::class as KClass<Screen>,
-                        screen::class.serializer() as KSerializer<Screen>
-                    )
-                } catch (e: Exception) {
-                }
-            }
-        }
-
-        builder.polymorphic(Modal::class) {
-            fun registerModals(graph: NavigationGraph) {
-                graph.navigatables.filterIsInstance<Modal>().forEach { modal ->
-                    try {
-                        @Suppress("UNCHECKED_CAST")
-                        subclass(
-                            modal::class as KClass<Modal>,
-                            modal::class.serializer() as KSerializer<Modal>
-                        )
-                    } catch (e: Exception) {
-                    }
-                }
-                graph.nestedGraphs.forEach { registerModals(it) }
-            }
-            registerModals(rootGraph)
-
-            loadingModal?.let { modal ->
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    subclass(
-                        modal::class as KClass<Modal>,
-                        modal::class.serializer() as KSerializer<Modal>
-                    )
-                } catch (e: Exception) {
-                }
-            }
-        }
-
-        builder.polymorphic(NavigationGraph::class) {
-            fun registerGraphTypes(graph: NavigationGraph) {
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    subclass(
-                        graph::class as KClass<NavigationGraph>,
-                        graph::class.serializer() as KSerializer<NavigationGraph>
-                    )
-                } catch (e: Exception) {
-                }
-                graph.nestedGraphs.forEach { registerGraphTypes(it) }
-            }
-            registerGraphTypes(rootGraph)
-        }
     }
 
     private fun reduceNavigationStateUpdate(
@@ -336,7 +213,6 @@ class NavigationModule internal constructor(
             contentLayerEntries = computedState.contentLayerEntries,
             globalOverlayEntries = computedState.globalOverlayEntries,
             systemLayerEntries = computedState.systemLayerEntries,
-            renderableEntries = computedState.renderableEntries,
             underlyingScreen = computedState.underlyingScreen,
             modalsInStack = computedState.modalsInStack,
             underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
@@ -345,14 +221,26 @@ class NavigationModule internal constructor(
         )
     }
 
+    private fun NavigationEntry.resolvedNavigatable(): Navigatable? =
+        precomputedData.allNavigatables[path]
+
+    private fun NavigationEntry.isModal(): Boolean =
+        resolvedNavigatable() is Modal
+
+    private fun NavigationEntry.isScreen(): Boolean =
+        resolvedNavigatable() is Screen
+
+    private fun NavigationEntry.renderLayer(): RenderLayer? =
+        resolvedNavigatable()?.renderLayer
+
     private fun reduceAction(state: NavigationState, action: NavigationAction): NavigationState = when (action) {
         is NavigationAction.AtomicBatch -> action.actions.fold(state, ::reduceAction)
 
         is NavigationAction.Navigate -> {
             val entry = action.entry
-            val isModal = entry.isModal
-            val isSystemLayer = entry.navigatable.renderLayer == RenderLayer.SYSTEM
-            val baseBackStack = if (action.dismissModals) state.backStack.filter { it.isScreen }
+            val isModal = entry.isModal()
+            val isSystemLayer = entry.renderLayer() == RenderLayer.SYSTEM
+            val baseBackStack = if (action.dismissModals) state.backStack.filter { !it.isModal() }
                                 else state.backStack
             val stackPosition = when {
                 isModal -> state.backStack.size + 1
@@ -362,13 +250,10 @@ class NavigationModule internal constructor(
             val positionedEntry = entry.copy(stackPosition = stackPosition)
 
             val newBackStack = if (isSystemLayer) {
-                // SYSTEM entries always go to the end so they remain currentEntry
                 state.backStack + positionedEntry
             } else {
-                // Non-system entries are inserted before any existing SYSTEM entries
-                // so the SYSTEM modal stays on top
-                val systemTail = baseBackStack.filter { it.navigatable.renderLayer == RenderLayer.SYSTEM }
-                val nonSystemBase = baseBackStack.filter { it.navigatable.renderLayer != RenderLayer.SYSTEM }
+                val systemTail = baseBackStack.filter { it.renderLayer() == RenderLayer.SYSTEM }
+                val nonSystemBase = baseBackStack.filter { it.renderLayer() != RenderLayer.SYSTEM }
                 when {
                     isModal -> nonSystemBase + positionedEntry + systemTail
                     nonSystemBase.isEmpty() -> listOf(positionedEntry) + systemTail
@@ -376,23 +261,21 @@ class NavigationModule internal constructor(
                 }
             }
 
-            // When a non-system entry is added but SYSTEM entries remain at the tail,
-            // keep the SYSTEM entry as currentEntry (invariant: backStack.last() == currentEntry)
             val effectiveCurrentEntry = if (!isSystemLayer &&
-                newBackStack.lastOrNull()?.navigatable?.renderLayer == RenderLayer.SYSTEM) {
+                newBackStack.lastOrNull()?.renderLayer() == RenderLayer.SYSTEM) {
                 newBackStack.last()
             } else positionedEntry
 
             val modalContexts = when {
                 action.dismissModals -> emptyMap()
                 isModal && action.modalContext != null ->
-                    state.activeModalContexts + (positionedEntry.navigatable.route to action.modalContext)
-                !isModal && !action.dismissModals && state.currentEntry.isModal && state.activeModalContexts.isNotEmpty() -> {
-                    val modalRoute = state.currentEntry.navigatable.route
-                    val ctx = state.activeModalContexts[modalRoute]
+                    state.activeModalContexts + (positionedEntry.path to action.modalContext)
+                !isModal && !action.dismissModals && state.currentEntry.isModal() && state.activeModalContexts.isNotEmpty() -> {
+                    val modalPath = state.currentEntry.path
+                    val ctx = state.activeModalContexts[modalPath]
                     if (ctx != null) {
-                        val underlying = ctx.originalUnderlyingScreenEntry.navigatable.route
-                        mapOf(underlying to ctx.copy(navigatedAwayToRoute = positionedEntry.navigatable.route))
+                        val underlying = ctx.originalUnderlyingScreenEntry.path
+                        mapOf(underlying to ctx.copy(navigatedAwayToRoute = positionedEntry.path))
                     } else state.activeModalContexts
                 }
                 else -> state.activeModalContexts
@@ -415,16 +298,16 @@ class NavigationModule internal constructor(
                 val trimmed = state.backStack.dropLast(1)
                 val target = trimmed.last().copy(stackPosition = trimmed.size)
                 val finalStack = trimmed.dropLast(1) + target
-                val modalCtx = state.activeModalContexts[target.navigatable.route]
+                val modalCtx = state.activeModalContexts[target.path]
                 if (modalCtx != null) {
                     val modal = modalCtx.modalEntry
                     reduceNavigationStateUpdate(
                         state, modal, finalStack + modal,
-                        mapOf(modal.navigatable.route to modalCtx.copy(navigatedAwayToRoute = null)), action
+                        mapOf(modal.path to modalCtx.copy(navigatedAwayToRoute = null)), action
                     )
                 } else {
                     val cleaned = state.activeModalContexts.filterKeys {
-                        it != state.currentEntry.navigatable.route
+                        it != state.currentEntry.path
                     }
                     reduceNavigationStateUpdate(state, target, finalStack, cleaned, action)
                 }
@@ -432,10 +315,8 @@ class NavigationModule internal constructor(
         }
 
         is NavigationAction.ClearBackstack -> {
-            // Preserve SYSTEM layer entries — they float above the navigation hierarchy
-            // and should not be cleared by normal backstack resets (e.g. during bootstrap)
             val systemEntries = state.backStack.filter {
-                it.navigatable.renderLayer == RenderLayer.SYSTEM
+                it.renderLayer() == RenderLayer.SYSTEM
             }
             val effectiveCurrent = if (systemEntries.isNotEmpty()) systemEntries.last()
                                    else state.currentEntry
@@ -459,12 +340,14 @@ class NavigationModule internal constructor(
             isBootstrapping = false
         )
 
+        is NavigationAction.SetCurrentTitle -> state.copy(currentTitle = action.title)
+
         is NavigationAction.RemoveLoadingModals -> {
-            val newBackStack = state.backStack.filter { it.navigatable !is LoadingModal }
+            val newBackStack = state.backStack.filter { precomputedData.allNavigatables[it.path] !is LoadingModal }
             if (newBackStack == state.backStack) {
                 state
             } else {
-                val newCurrentEntry = if (state.currentEntry.navigatable is LoadingModal) {
+                val newCurrentEntry = if (precomputedData.allNavigatables[state.currentEntry.path] is LoadingModal) {
                     newBackStack.lastOrNull() ?: state.currentEntry
                 } else state.currentEntry
                 reduceNavigationStateUpdate(state, newCurrentEntry, newBackStack, state.activeModalContexts, action)
@@ -580,6 +463,20 @@ data class PrecomputedNavigationData(
 
             collectGraphs(rootGraph)
 
+            // Register special navigatables not discovered via graph traversal
+            notFoundScreen?.let { screen ->
+                val path = navigatableToFullPath.getOrPut(screen) { screen.route }
+                allNavigatables.putIfAbsent(path, screen)
+            }
+            crashScreen?.let { screen ->
+                val path = navigatableToFullPath.getOrPut(screen) { screen.route }
+                allNavigatables.putIfAbsent(path, screen)
+            }
+            loadingModal?.let { modal ->
+                val path = navigatableToFullPath.getOrPut(modal) { modal.route }
+                allNavigatables.putIfAbsent(path, modal)
+            }
+
             val routeResolver = RouteResolver.create(graphDefinitions, notFoundScreen)
             val graphHierarchies = mutableMapOf<String, List<String>>()
             for (graphId in graphDefinitions.keys) {
@@ -632,7 +529,7 @@ data class PrecomputedNavigationData(
 // Internal data class for computed navigation state
 private data class ComputedNavigationState(
     val orderedBackStack: List<NavigationEntry>,
-    val visibleLayers: List<NavigationLayer>,
+    val visibleLayers: List<NavigationEntry>,
     val currentFullPath: String,
     val currentPathSegments: List<String>,
     val currentGraphHierarchy: List<String>,
@@ -646,7 +543,6 @@ private data class ComputedNavigationState(
     val contentLayerEntries: List<NavigationEntry>,
     val globalOverlayEntries: List<NavigationEntry>,
     val systemLayerEntries: List<NavigationEntry>,
-    val renderableEntries: List<NavigationEntry>,
     val underlyingScreen: NavigationEntry?,
     val modalsInStack: List<NavigationEntry>,
     val underlyingScreenGraphHierarchy: List<String>?
@@ -659,42 +555,49 @@ private fun computeNavigationDerivedState(
     precomputedData: PrecomputedNavigationData,
     existingModalContexts: Map<String, ModalContext> = emptyMap()
 ): ComputedNavigationState {
+    fun resolve(entry: NavigationEntry): Navigatable? = precomputedData.allNavigatables[entry.path]
+    fun isModal(entry: NavigationEntry): Boolean = resolve(entry) is Modal
+    fun isScreen(entry: NavigationEntry): Boolean = resolve(entry) is Screen
+    fun renderLayerOf(entry: NavigationEntry): RenderLayer? = resolve(entry)?.renderLayer
+
     val orderedBackStack = backStack.mapIndexed { index, entry ->
         entry.copy(stackPosition = index)
     }
 
-    val visibleLayers = computeVisibleLayers(orderedBackStack, existingModalContexts)
+    val visibleLayers = computeVisibleLayers(orderedBackStack, existingModalContexts, precomputedData)
 
     val currentFullPath = precomputedData.routeResolver.buildFullPathForEntry(currentEntry)
-        ?: currentEntry.navigatable.route
 
     val currentPathSegments = currentFullPath.split("/").filter { it.isNotEmpty() }
 
-    val currentGraphHierarchy = precomputedData.graphHierarchies[currentEntry.graphId]
-        ?: listOf(currentEntry.graphId)
+    val currentNavigatable = resolve(currentEntry)
+    val currentGraphId = currentNavigatable?.let { precomputedData.navigatableToGraph[it] }
+    val currentGraphHierarchy = currentGraphId?.let { precomputedData.graphHierarchies[it] }
+        ?: listOf(currentEntry.route)
 
     val breadcrumbs = buildBreadcrumbs(currentPathSegments, precomputedData.graphDefinitions)
 
     val canGoBack = backStack.size > 1
-    val isCurrentModal = currentEntry.isModal
-    val isCurrentScreen = currentEntry.isScreen
-    val hasModalsInStack = backStack.any { it.isModal }
+    val isCurrentModal = isModal(currentEntry)
+    val isCurrentScreen = isScreen(currentEntry)
+    val hasModalsInStack = backStack.any { isModal(it) }
     val effectiveDepth = backStack.size
     val navigationDepth = currentPathSegments.size
 
-    val entriesByLayer = visibleLayers.map { it.entry }.groupBy { it.navigatable.renderLayer }
+    val entriesByLayer = visibleLayers.groupBy { renderLayerOf(it) ?: RenderLayer.CONTENT }
     val contentLayerEntries = entriesByLayer[RenderLayer.CONTENT] ?: emptyList()
     val globalOverlayEntries = entriesByLayer[RenderLayer.GLOBAL_OVERLAY] ?: emptyList()
     val systemLayerEntries = entriesByLayer[RenderLayer.SYSTEM] ?: emptyList()
-    val renderableEntries = visibleLayers.map { it.entry }
 
     val underlyingScreen = if (isCurrentModal) {
-        findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, existingModalContexts)
+        findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, existingModalContexts, precomputedData)
     } else null
-    val modalsInStack = backStack.filter { it.isModal }
+    val modalsInStack = backStack.filter { isModal(it) }
 
     val underlyingScreenGraphHierarchy = underlyingScreen?.let { screen ->
-        precomputedData.graphHierarchies[screen.graphId] ?: listOf(screen.graphId)
+        val screenNavigatable = resolve(screen)
+        val graphId = screenNavigatable?.let { precomputedData.navigatableToGraph[it] }
+        graphId?.let { precomputedData.graphHierarchies[it] } ?: listOf(screen.route)
     }
 
     return ComputedNavigationState(
@@ -713,7 +616,6 @@ private fun computeNavigationDerivedState(
         contentLayerEntries = contentLayerEntries,
         globalOverlayEntries = globalOverlayEntries,
         systemLayerEntries = systemLayerEntries,
-        renderableEntries = renderableEntries,
         underlyingScreen = underlyingScreen,
         modalsInStack = modalsInStack,
         underlyingScreenGraphHierarchy = underlyingScreenGraphHierarchy
@@ -722,49 +624,25 @@ private fun computeNavigationDerivedState(
 
 private fun computeVisibleLayers(
     orderedBackStack: List<NavigationEntry>,
-    modalContexts: Map<String, ModalContext> = emptyMap()
-): List<NavigationLayer> {
+    modalContexts: Map<String, ModalContext> = emptyMap(),
+    precomputedData: PrecomputedNavigationData
+): List<NavigationEntry> {
     if (orderedBackStack.isEmpty()) return emptyList()
 
-    val layers = mutableListOf<NavigationLayer>()
     val currentEntry = orderedBackStack.last()
+    val currentNavigatable = precomputedData.allNavigatables[currentEntry.path]
 
-    if (currentEntry.isModal) {
-        val modal = currentEntry.navigatable as Modal
-        val underlyingScreen = findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, modalContexts)
-
+    if (currentNavigatable is Modal) {
+        val underlyingScreen = findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, modalContexts, precomputedData)
+        val layers = mutableListOf<NavigationEntry>()
         if (underlyingScreen != null) {
-            layers.add(
-                NavigationLayer(
-                    entry = underlyingScreen,
-                    zIndex = underlyingScreen.zIndex,
-                    isVisible = true,
-                    shouldDim = modal.shouldDimBackground,
-                    dimAlpha = if (modal.shouldDimBackground) modal.backgroundDimAlpha else 0f
-                )
-            )
+            layers.add(underlyingScreen)
         }
-        layers.add(
-            NavigationLayer(
-                entry = currentEntry,
-                zIndex = currentEntry.zIndex,
-                isVisible = true,
-                shouldDim = false
-            )
-        )
-
-        return layers.sortedBy { it.zIndex }
+        layers.add(currentEntry)
+        return layers
     }
-    layers.add(
-        NavigationLayer(
-            entry = currentEntry,
-            zIndex = currentEntry.zIndex,
-            isVisible = true,
-            shouldDim = false
-        )
-    )
 
-    return layers
+    return listOf(currentEntry)
 }
 
 private fun buildBreadcrumbs(
@@ -793,29 +671,27 @@ private fun buildBreadcrumbs(
 private fun findOriginalUnderlyingScreenForModal(
     modalEntry: NavigationEntry,
     backStack: List<NavigationEntry>,
-    modalContexts: Map<String, ModalContext> = emptyMap()
+    modalContexts: Map<String, ModalContext> = emptyMap(),
+    precomputedData: PrecomputedNavigationData
 ): NavigationEntry? {
-    val modalContext = modalContexts[modalEntry.navigatable.route]
+    val modalContext = modalContexts[modalEntry.path]
     if (modalContext != null) {
         return modalContext.originalUnderlyingScreenEntry
     }
 
-    // The context may have been re-keyed to the underlying screen's route when navigating
-    // away from a modal. Search by matching the stored modalEntry's route.
     val modalContextByEntry = modalContexts.values.find {
-        it.modalEntry.navigatable.route == modalEntry.navigatable.route
+        it.modalEntry.path == modalEntry.path
     }
     if (modalContextByEntry != null) {
         return modalContextByEntry.originalUnderlyingScreenEntry
     }
 
-    // Fall back to scanning the backStack by route/graphId (ignores stackPosition differences).
-    val modalIndex = backStack.indexOfFirst {
-        it.navigatable.route == modalEntry.navigatable.route && it.graphId == modalEntry.graphId
-    }
+    val modalIndex = backStack.indexOfFirst { it.path == modalEntry.path }
     if (modalIndex <= 0) return null
 
-    return backStack.subList(0, modalIndex).lastOrNull { it.isScreen }
+    return backStack.subList(0, modalIndex).lastOrNull {
+        precomputedData.allNavigatables[it.path] is Screen
+    }
 }
 
 fun createNavigationModule(block: GraphBasedBuilder.() -> Unit): NavigationModule {

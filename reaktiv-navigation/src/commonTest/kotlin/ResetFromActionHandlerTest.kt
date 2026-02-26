@@ -56,7 +56,7 @@ class ResetFromActionHandlerTest {
                     .filterNotNull()
                     .collect { action ->
                         if (action is NavigationAction.Navigate) {
-                            val route = action.entry.navigatable.route
+                            val route = action.entry.route
                             if (route == "settings") {
                                 lifecycleEvents.add("trigger:saw-settings")
                                 lifecycleEvents.add("trigger:calling-reset")

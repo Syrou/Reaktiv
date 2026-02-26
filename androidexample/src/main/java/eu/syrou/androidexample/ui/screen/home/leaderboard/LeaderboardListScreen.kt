@@ -29,9 +29,7 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
 object LeaderboardListScreen : Screen {
     override val route: String = "overview"
     override val titleResource: TitleResource = { "Leaderboard" }

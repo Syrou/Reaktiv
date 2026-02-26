@@ -234,7 +234,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("invite/{token}", state.currentEntry.navigatable.route)
+            assertEquals("invite/{token}", state.currentEntry.route)
             assertEquals("abc123", state.currentEntry.params["token"] as? String)
         }
 
@@ -273,7 +273,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("home", state.currentEntry.navigatable.route)
+            assertEquals("home", state.currentEntry.route)
         }
 
     @Test
@@ -292,7 +292,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("home", state.currentEntry.navigatable.route)
+            assertEquals("home", state.currentEntry.route)
         }
 
     @Test
@@ -309,7 +309,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("start", state.currentEntry.navigatable.route)
+            assertEquals("start", state.currentEntry.route)
             assertNull(state.pendingNavigation)
         }
 
@@ -327,7 +327,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("login", state.currentEntry.navigatable.route)
+            assertEquals("login", state.currentEntry.route)
             assertNull(state.pendingNavigation)
         }
 
@@ -345,7 +345,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("login", state.currentEntry.navigatable.route)
+            assertEquals("login", state.currentEntry.route)
             assertNotNull(state.pendingNavigation)
             assertEquals("workspace/home", state.pendingNavigation!!.route)
         }
@@ -403,7 +403,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("login", state.currentEntry.navigatable.route)
+            assertEquals("login", state.currentEntry.route)
             assertNotNull(state.pendingNavigation)
             assertEquals("workspace/invite/{token}", state.pendingNavigation!!.route)
         }
@@ -429,7 +429,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("home", state.currentEntry.navigatable.route)
+            assertEquals("home", state.currentEntry.route)
             assertNull(state.pendingNavigation)
         }
 
@@ -447,7 +447,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("start", state.currentEntry.navigatable.route)
+            assertEquals("start", state.currentEntry.route)
         }
 
     @Test
@@ -466,7 +466,7 @@ class ProtectedRoutesTest {
             // Guard resolves immediately (faster than threshold) → loading screen never shown
             // Guard returns Reject → navigation silently dropped
             val state = store.selectState<NavigationState>().first()
-            assertEquals("start", state.currentEntry.navigatable.route)
+            assertEquals("start", state.currentEntry.route)
         }
 
     @Test
@@ -485,7 +485,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("home", state.currentEntry.navigatable.route)
+            assertEquals("home", state.currentEntry.route)
         }
 
     @Test
@@ -520,13 +520,13 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val duringGuard = store.selectState<NavigationState>().first()
-            assertEquals("loading", duringGuard.currentEntry.navigatable.route)
+            assertEquals("loading", duringGuard.currentEntry.route)
 
             guardGate.complete(GuardResult.Allow)
             advanceUntilIdle()
 
             val afterGuard = store.selectState<NavigationState>().first()
-            assertEquals("home", afterGuard.currentEntry.navigatable.route)
+            assertEquals("home", afterGuard.currentEntry.route)
         }
 
     @Test
@@ -561,13 +561,13 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val duringGuard = store.selectState<NavigationState>().first()
-            assertEquals("loading", duringGuard.currentEntry.navigatable.route)
+            assertEquals("loading", duringGuard.currentEntry.route)
 
             guardGate.complete(GuardResult.RedirectTo(loginScreen))
             advanceUntilIdle()
 
             val afterGuard = store.selectState<NavigationState>().first()
-            assertEquals("login", afterGuard.currentEntry.navigatable.route)
+            assertEquals("login", afterGuard.currentEntry.route)
         }
 
     @Test
@@ -604,13 +604,13 @@ class ProtectedRoutesTest {
             store.navigation { navigateTo("workspace/home") }
             advanceUntilIdle()
 
-            assertEquals("login", store.selectState<NavigationState>().first().currentEntry.navigatable.route)
+            assertEquals("login", store.selectState<NavigationState>().first().currentEntry.route)
 
             store.navigation { navigateTo("check-email") }
             advanceUntilIdle()
 
             val atCheckEmail = store.selectState<NavigationState>().first()
-            assertEquals("check-email", atCheckEmail.currentEntry.navigatable.route)
+            assertEquals("check-email", atCheckEmail.currentEntry.route)
             assertNotNull(atCheckEmail.pendingNavigation)
             assertEquals("Pending invite", atCheckEmail.pendingNavigation!!.displayHint)
 
@@ -618,7 +618,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val atRegister = store.selectState<NavigationState>().first()
-            assertEquals("register", atRegister.currentEntry.navigatable.route)
+            assertEquals("register", atRegister.currentEntry.route)
             assertNotNull(atRegister.pendingNavigation)
         }
 
@@ -636,7 +636,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val afterAlias = store.selectState<NavigationState>().first()
-            assertEquals("login", afterAlias.currentEntry.navigatable.route)
+            assertEquals("login", afterAlias.currentEntry.route)
             assertNotNull(afterAlias.pendingNavigation)
             assertEquals("workspace/invite/{token}", afterAlias.pendingNavigation!!.route)
             assertEquals("INVITE_TOKEN", afterAlias.pendingNavigation!!.params["token"] as? String)
@@ -676,7 +676,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val atStart = store.selectState<NavigationState>().first()
-            assertEquals("start", atStart.currentEntry.navigatable.route)
+            assertEquals("start", atStart.currentEntry.route)
             assertNotNull(atStart.pendingNavigation)
 
             store.dispatch(NavigationAction.ClearPendingNavigation)
@@ -722,7 +722,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("artists", state.currentEntry.navigatable.route)
+            assertEquals("artists", state.currentEntry.route)
         }
 
     @Test
@@ -762,7 +762,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("releases", state.currentEntry.navigatable.route)
+            assertEquals("releases", state.currentEntry.route)
         }
 
     @Test
@@ -799,7 +799,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("no-artists", state.currentEntry.navigatable.route)
+            assertEquals("no-artists", state.currentEntry.route)
         }
 
     // ─── intercept wrapping a single graph ───────────────────────────────────
@@ -837,7 +837,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("login", state.currentEntry.navigatable.route)
+            assertEquals("login", state.currentEntry.route)
         }
 
     @Test
@@ -876,7 +876,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("releases", state.currentEntry.navigatable.route)
+            assertEquals("releases", state.currentEntry.route)
         }
 }
 

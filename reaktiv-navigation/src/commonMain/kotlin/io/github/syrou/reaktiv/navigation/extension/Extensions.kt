@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -61,8 +62,9 @@ inline fun Modifier.applyIf(condition: Boolean, modifier: Modifier.() -> Modifie
 }
 
 suspend fun StoreAccessor.dismissModal(modalEntry: NavigationEntry) {
-    if (modalEntry.isModal) {
-        selectLogic<NavigationLogic>().popUpTo(modalEntry.navigatable.route, inclusive = true)
+    val navModule = getNavigationModule()
+    if (navModule.resolveNavigatable(modalEntry) is Modal) {
+        selectLogic<NavigationLogic>().popUpTo(modalEntry.path, inclusive = true)
     }
 }
 
@@ -78,11 +80,14 @@ suspend fun StoreAccessor.navigateDeepLink(route: String, params: Params = Param
 
 suspend fun StoreAccessor.clearAllModals() {
     val navigationState = selectState<NavigationState>().first()
-    val lastScreen = navigationState.orderedBackStack.reversed().firstOrNull { it.isScreen }
+    val navModule = getNavigationModule()
+    val lastScreen = navigationState.orderedBackStack.reversed().firstOrNull {
+        navModule.resolveNavigatable(it) is Screen
+    }
 
     if (lastScreen != null) {
         val navigationLogic = selectLogic<NavigationLogic>()
-        navigationLogic.popUpTo(lastScreen.navigatable.route, inclusive = false)
+        navigationLogic.popUpTo(lastScreen.path, inclusive = false)
     }
 }
 

@@ -386,39 +386,34 @@ class RouteResolver private constructor(
         return navigatableToFullPath[navigatable]
     }
 
-    
+
     fun findRouteInBackStack(
         targetRoute: String,
         backStack: List<NavigationEntry>
     ): Int {
-        val directMatch = backStack.indexOfLast { it.navigatable.route == targetRoute }
-        if (directMatch != -1) return directMatch
+        val directRouteMatch = backStack.indexOfLast { it.route == targetRoute }
+        if (directRouteMatch != -1) return directRouteMatch
+
+        val directPathMatch = backStack.indexOfLast { it.path == targetRoute }
+        if (directPathMatch != -1) return directPathMatch
+
         val targetResolution = resolve(targetRoute)
         if (targetResolution != null) {
-            val resolvedMatch = backStack.indexOfLast { entry ->
-                entry.navigatable.route == targetResolution.targetNavigatable.route &&
-                        entry.graphId == targetResolution.getEffectiveGraphId()
+            val resolvedFullPath = navigatableToFullPath[targetResolution.targetNavigatable]
+            if (resolvedFullPath != null) {
+                val resolvedMatch = backStack.indexOfLast { it.path == resolvedFullPath }
+                if (resolvedMatch != -1) return resolvedMatch
             }
-            if (resolvedMatch != -1) return resolvedMatch
         }
+
         return backStack.indexOfLast { entry ->
-            val fullPath = buildFullPathForEntry(entry)
-            fullPath == targetRoute || fullPath.endsWith("/$targetRoute")
+            entry.path == targetRoute || entry.path.endsWith("/$targetRoute")
         }
     }
 
-    
-    fun buildFullPathForEntry(entry: NavigationEntry): String {
-        val graphPath = graphHierarchy[entry.graphId]?.filter { it != "root" }?.joinToString("/") ?: ""
-        val navigatablePath = substituteRouteParameters(entry.navigatable.route, entry.params)
 
-        return if (graphPath.isEmpty()) {
-            navigatablePath
-        } else if (navigatablePath != entry.graphId) {
-            "$graphPath/$navigatablePath"
-        } else {
-            graphPath
-        }
+    fun buildFullPathForEntry(entry: NavigationEntry): String {
+        return substituteRouteParameters(entry.path, entry.params)
     }
 
     private fun substituteRouteParameters(routeTemplate: String, params: Params): String {

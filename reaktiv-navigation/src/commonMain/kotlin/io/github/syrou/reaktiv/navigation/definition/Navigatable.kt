@@ -104,7 +104,7 @@ class BackstackLifecycle(
         )
 
     val params: Params get() = entry.params
-    val route: String get() = entry.navigatable.route
+    val route: String get() = entry.route
 
     fun dispatch(action: ModuleAction) = storeAccessor.dispatch(action)
 

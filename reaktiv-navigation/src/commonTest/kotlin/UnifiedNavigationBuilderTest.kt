@@ -68,7 +68,7 @@ class UnifiedNavigationBuilderTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("settings", state.currentEntry.screen.route)
+            assertEquals("settings", state.currentEntry.route)
             assertEquals("root", state.currentEntry.graphId)
             assertEquals("settings", state.currentFullPath)
         }
@@ -89,7 +89,7 @@ class UnifiedNavigationBuilderTest {
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("project-overview", state.currentEntry.screen.route)
+            assertEquals("project-overview", state.currentEntry.route)
             assertEquals("projects", state.currentEntry.graphId)
             assertEquals("home/workspace/projects/project-overview", state.currentFullPath)
         }
@@ -167,10 +167,10 @@ class UnifiedNavigationBuilderTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("settings", state.currentEntry.screen.route)
-        assertTrue(state.backStack.any { it.screen.route == "home-overview" })
-        assertTrue(state.backStack.none { it.screen.route == "news-overview" })
-        assertTrue(state.backStack.none { it.screen.route == "workspace-overview" })
+        assertEquals("settings", state.currentEntry.route)
+        assertTrue(state.backStack.any { it.route == "home-overview" })
+        assertTrue(state.backStack.none { it.route == "news-overview" })
+        assertTrue(state.backStack.none { it.route == "workspace-overview" })
     }
 
     @Test
@@ -196,10 +196,10 @@ class UnifiedNavigationBuilderTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("settings", state.currentEntry.screen.route)
+        assertEquals("settings", state.currentEntry.route)
         assertEquals(sizeBefore, state.backStack.size) // Size should remain the same
         assertEquals("replace", state.currentEntry.params["source"])
-        assertTrue(state.backStack.none { it.screen.route == "home-overview" }) // Old screen should be gone
+        assertTrue(state.backStack.none { it.route == "home-overview" }) // Old screen should be gone
     }
 
     @Test
@@ -224,7 +224,7 @@ class UnifiedNavigationBuilderTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("workspace-overview", state.currentEntry.screen.route)
+        assertEquals("workspace-overview", state.currentEntry.route)
         assertEquals(1, state.backStack.size) // Only current entry should remain
         assertEquals("home/workspace/workspace-overview", state.currentFullPath)
     }
@@ -270,7 +270,7 @@ class UnifiedNavigationBuilderTest {
         val state = store.selectState<NavigationState>().first()
 
         // Verify the screen and basic navigation
-        assertEquals("stats/{type}", state.currentEntry.screen.route)
+        assertEquals("stats/{type}", state.currentEntry.route)
         assertEquals("leaderboard", state.currentEntry.graphId)
         assertEquals("home/leaderboard/stats/individual", state.currentFullPath)
 
@@ -424,9 +424,9 @@ class UnifiedNavigationBuilderTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("project-tasks", state.currentEntry.screen.route)
+        assertEquals("project-tasks", state.currentEntry.route)
         assertEquals("projects", state.currentEntry.graphId)
-        assertTrue(state.backStack.any { it.screen.route == "news-overview" && it.graphId == "news" })
+        assertTrue(state.backStack.any { it.route == "news-overview" && it.graphId == "news" })
     }
 
     @Test
@@ -446,7 +446,7 @@ class UnifiedNavigationBuilderTest {
         advanceUntilIdle()
 
         val state = store.selectState<NavigationState>().first()
-        assertEquals("project-overview", state.currentEntry.screen.route)
+        assertEquals("project-overview", state.currentEntry.route)
         assertEquals("projects", state.currentEntry.graphId)
         assertEquals("projects", state.currentEntry.params["context"])
         assertEquals("home/workspace/projects/project-overview", state.currentFullPath)
@@ -550,16 +550,16 @@ class UnifiedNavigationBuilderTest {
 
         val state = store.selectState<NavigationState>().first()
 
-        assertEquals("settings", state.currentEntry.screen.route)
+        assertEquals("settings", state.currentEntry.route)
         assertEquals("root", state.currentEntry.graphId)
         assertEquals("complex", state.currentEntry.params["source"])
         assertEquals(1234567890L, state.currentEntry.params["timestamp"])
 
         // Should have: [settings] (home and everything after should be gone)
         assertEquals(2, state.backStack.size) // [splash, settings]
-        assertTrue(state.backStack.none { it.screen.route == "home-overview" })
-        assertTrue(state.backStack.none { it.screen.route == "news-overview" })
-        assertTrue(state.backStack.none { it.screen.route == "workspace-overview" })
-        assertTrue(state.backStack.none { it.screen.route == "project-tasks" })
+        assertTrue(state.backStack.none { it.route == "home-overview" })
+        assertTrue(state.backStack.none { it.route == "news-overview" })
+        assertTrue(state.backStack.none { it.route == "workspace-overview" })
+        assertTrue(state.backStack.none { it.route == "project-tasks" })
     }
 }

@@ -111,7 +111,7 @@ class GraphReferenceEdgeCaseTest {
             val state = store.selectState<NavigationState>().first()
 
             // CRITICAL ASSERTIONS - These were failing before the fix
-            assertEquals("overview", state.currentEntry.screen.route)
+            assertEquals("overview", state.currentEntry.route)
             // This was "home" before the fix!
             assertEquals("news", state.currentEntry.graphId)
             // Should have cleared to single entry
@@ -120,10 +120,10 @@ class GraphReferenceEdgeCaseTest {
 
             // Debug output for verification
             println("User bug test result:")
-            println("- Screen: ${state.currentEntry.screen.route}")
+            println("- Screen: ${state.currentEntry.route}")
             println("- Graph: ${state.currentEntry.graphId}")
             println("- Expected: news/overview")
-            println("- SUCCESS: ${state.currentEntry.graphId == "news" && state.currentEntry.screen.route == "overview"}")
+            println("- SUCCESS: ${state.currentEntry.graphId == "news" && state.currentEntry.route == "overview"}")
         }
 
     @Test
@@ -141,7 +141,7 @@ class GraphReferenceEdgeCaseTest {
 
             val state = store.selectState<NavigationState>().first()
 
-            assertEquals("overview", state.currentEntry.screen.route)
+            assertEquals("overview", state.currentEntry.route)
             // Should resolve to news, not home
             assertEquals("news", state.currentEntry.graphId)
             // [splash, news/overview]
@@ -178,7 +178,7 @@ class GraphReferenceEdgeCaseTest {
             val state = store.selectState<NavigationState>().first()
 
             // Should resolve to news/overview, not home/overview
-            assertEquals("overview", state.currentEntry.screen.route)
+            assertEquals("overview", state.currentEntry.route)
             assertEquals("news", state.currentEntry.graphId)
             assertEquals(1, state.backStack.size)
         }
@@ -212,13 +212,13 @@ class GraphReferenceEdgeCaseTest {
 
             val state = store.selectState<NavigationState>().first()
 
-            assertEquals("leaderboard", state.currentEntry.screen.route)
+            assertEquals("leaderboard", state.currentEntry.route)
             assertEquals("leaderboard", state.currentEntry.graphId)
 
             // Should have popped back to the news/overview entry (the resolved "home")
-            assertTrue(state.backStack.any { it.screen.route == "overview" && it.graphId == "news" })
-            assertFalse(state.backStack.any { it.screen.route == "workspace" })
-            assertFalse(state.backStack.any { it.screen.route == "settings" })
+            assertTrue(state.backStack.any { it.route == "overview" && it.graphId == "news" })
+            assertFalse(state.backStack.any { it.route == "workspace" })
+            assertFalse(state.backStack.any { it.route == "settings" })
         }
 
     @Test
@@ -264,7 +264,7 @@ class GraphReferenceEdgeCaseTest {
 
             val state = store.selectState<NavigationState>().first()
 
-            assertEquals("screen-c", state.currentEntry.screen.route)
+            assertEquals("screen-c", state.currentEntry.route)
             // Should be final graph in chain
             assertEquals("level3", state.currentEntry.graphId)
         }
@@ -304,13 +304,13 @@ class GraphReferenceEdgeCaseTest {
             val popUpToNav = store.selectState<NavigationState>().first().currentEntry
 
             // All should resolve to the same screen and graph
-            assertEquals(directNav.screen.route, clearNav.screen.route)
+            assertEquals(directNav.route, clearNav.route)
             assertEquals(directNav.graphId, clearNav.graphId)
-            assertEquals(directNav.screen.route, popUpToNav.screen.route)
+            assertEquals(directNav.route, popUpToNav.route)
             assertEquals(directNav.graphId, popUpToNav.graphId)
 
             // All should be news/overview
-            assertEquals("overview", directNav.screen.route)
+            assertEquals("overview", directNav.route)
             assertEquals("news", directNav.graphId)
         }
 
@@ -335,7 +335,7 @@ class GraphReferenceEdgeCaseTest {
 
             val state = store.selectState<NavigationState>().first()
 
-            assertEquals("overview", state.currentEntry.screen.route)
+            assertEquals("overview", state.currentEntry.route)
             assertEquals("news", state.currentEntry.graphId)
             assertEquals("abc123", state.currentEntry.params.getString("sessionId"))
             assertEquals("deep_link", state.currentEntry.params.getString("source"))
@@ -395,7 +395,7 @@ class GraphReferenceEdgeCaseTest {
         // If it doesn't throw, verify we're still in a valid state
         val state = store.selectState<NavigationState>().first()
         assertTrue(state.backStack.isNotEmpty())
-        assertTrue(state.currentEntry.screen.route.isNotEmpty())
+        assertTrue(state.currentEntry.route.isNotEmpty())
 
     }
 }

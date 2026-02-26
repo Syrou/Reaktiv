@@ -55,4 +55,13 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
      */
     @Serializable
     object RemoveLoadingModals : NavigationAction(), HighPriorityAction
+
+    /**
+     * Sets [NavigationState.currentTitle] to the resolved title string for the current entry.
+     * Dispatched from [io.github.syrou.reaktiv.navigation.ui.NavigationRender] after invoking
+     * the current navigatable's [io.github.syrou.reaktiv.navigation.definition.Navigatable.titleResource]
+     * inside the Compose tree, where localization APIs like `stringResource` are available.
+     */
+    @Serializable
+    data class SetCurrentTitle(val title: String?) : NavigationAction()
 }

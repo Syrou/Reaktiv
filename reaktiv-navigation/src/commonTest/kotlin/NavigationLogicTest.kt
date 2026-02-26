@@ -80,10 +80,10 @@ class NavigationLogicTest {
 
             state = store.selectState<NavigationState>().first()
             assertEquals(3, state.backStack.size)
-            assertEquals("news", state.currentEntry.screen.route)
-            assertTrue(state.backStack.any { it.screen.route == "profile" }) // Profile should still be there
-            assertFalse(state.backStack.any { it.screen.route == "settings" }) // Settings should be gone
-            assertFalse(state.backStack.any { it.screen.route == "about" }) // About should be gone
+            assertEquals("news", state.currentEntry.route)
+            assertTrue(state.backStack.any { it.route == "profile" }) // Profile should still be there
+            assertFalse(state.backStack.any { it.route == "settings" }) // Settings should be gone
+            assertFalse(state.backStack.any { it.route == "about" }) // About should be gone
         }
 
     @Test
@@ -114,10 +114,10 @@ class NavigationLogicTest {
 
             // Should have: [home, news]
             assertEquals(2, state.backStack.size)
-            assertEquals("news", state.currentEntry.screen.route)
-            assertFalse(state.backStack.any { it.screen.route == "profile" }) // Profile should be gone
-            assertFalse(state.backStack.any { it.screen.route == "settings" }) // Settings should be gone
-            assertFalse(state.backStack.any { it.screen.route == "about" }) // About should be gone
+            assertEquals("news", state.currentEntry.route)
+            assertFalse(state.backStack.any { it.route == "profile" }) // Profile should be gone
+            assertFalse(state.backStack.any { it.route == "settings" }) // Settings should be gone
+            assertFalse(state.backStack.any { it.route == "about" }) // About should be gone
         }
 
     @Test
@@ -148,9 +148,9 @@ class NavigationLogicTest {
 
             val state = store.selectState<NavigationState>().first()
 
-            assertEquals("settings", state.currentEntry.screen.route)
-            assertTrue(state.backStack.any { it.screen.route == "profile" })
-            assertTrue(state.backStack.any { it.screen.route == "settings" })
+            assertEquals("settings", state.currentEntry.route)
+            assertTrue(state.backStack.any { it.route == "profile" })
+            assertTrue(state.backStack.any { it.route == "settings" })
         }
 
     @Test
@@ -180,7 +180,7 @@ class NavigationLogicTest {
 
         // Should have only one entry
         assertEquals(1, state.backStack.size)
-        assertEquals("news", state.currentEntry.screen.route)
+        assertEquals("news", state.currentEntry.route)
         assertEquals("content", state.currentEntry.graphId)
         assertFalse(state.canGoBack)
     }
@@ -210,12 +210,12 @@ class NavigationLogicTest {
 
             // Size should remain the same
             assertEquals(sizeBefore, state.backStack.size)
-            assertEquals("about", state.currentEntry.screen.route)
+            assertEquals("about", state.currentEntry.route)
 
             // Settings should be replaced by about
-            assertFalse(state.backStack.any { it.screen.route == "settings" })
-            assertTrue(state.backStack.any { it.screen.route == "about" })
-            assertTrue(state.backStack.any { it.screen.route == "profile" }) // Profile should still be there
+            assertFalse(state.backStack.any { it.route == "settings" })
+            assertTrue(state.backStack.any { it.route == "about" })
+            assertTrue(state.backStack.any { it.route == "profile" }) // Profile should still be there
         }
 
     @Test
@@ -245,18 +245,18 @@ class NavigationLogicTest {
 
         val state = store.selectState<NavigationState>().first()
 
-        assertEquals("workspace", state.currentEntry.screen.route)
+        assertEquals("workspace", state.currentEntry.route)
 
         // Should have: [home, profile, workspace]
         assertEquals(3, state.backStack.size)
-        assertTrue(state.backStack.any { it.screen.route == "home" })
-        assertTrue(state.backStack.any { it.screen.route == "profile" })
-        assertTrue(state.backStack.any { it.screen.route == "workspace" })
+        assertTrue(state.backStack.any { it.route == "home" })
+        assertTrue(state.backStack.any { it.route == "profile" })
+        assertTrue(state.backStack.any { it.route == "workspace" })
 
         // News, settings, and about should be gone
-        assertFalse(state.backStack.any { it.screen.route == "news" })
-        assertFalse(state.backStack.any { it.screen.route == "settings" })
-        assertFalse(state.backStack.any { it.screen.route == "about" })
+        assertFalse(state.backStack.any { it.route == "news" })
+        assertFalse(state.backStack.any { it.route == "settings" })
+        assertFalse(state.backStack.any { it.route == "about" })
     }
 
     @Test
@@ -321,7 +321,7 @@ class NavigationLogicTest {
 
             // Verify all entries have valid properties
             state.backStack.forEach { entry ->
-                assertTrue(entry.screen.route.isNotEmpty())
+                assertTrue(entry.route.isNotEmpty())
                 assertTrue(entry.graphId.isNotEmpty())
                 assertTrue(entry.params != null) // Should never be null
             }
@@ -364,7 +364,7 @@ class NavigationLogicTest {
         val state = store.selectState<NavigationState>().first()
 
         // Profile's parameters should be preserved
-        val profileEntry = state.backStack.find { it.screen.route == "profile" }
+        val profileEntry = state.backStack.find { it.route == "profile" }
         assertNotNull(profileEntry)
         assertEquals("123", profileEntry!!.params["userId"])
 
@@ -372,7 +372,7 @@ class NavigationLogicTest {
         assertEquals("menu", state.currentEntry.params["source"])
 
         // Settings should be gone along with its parameters
-        assertFalse(state.backStack.any { it.screen.route == "settings" })
+        assertFalse(state.backStack.any { it.route == "settings" })
     }
 
     @Test
@@ -400,7 +400,7 @@ class NavigationLogicTest {
 
         val stateAfter = store.selectState<NavigationState>().first()
         assertEquals(1, stateAfter.backStack.size)
-        assertEquals("profile", stateAfter.currentEntry.screen.route)
+        assertEquals("profile", stateAfter.currentEntry.route)
         assertEquals(stateBefore.currentEntry, stateAfter.currentEntry) // Should be unchanged
     }
 
@@ -437,13 +437,13 @@ class NavigationLogicTest {
             val state = store.selectState<NavigationState>().first()
 
             // Should have news (content) and settings (root)
-            assertTrue(state.backStack.any { it.screen.route == "news" && it.graphId == "content" })
-            assertEquals("settings", state.currentEntry.screen.route)
+            assertTrue(state.backStack.any { it.route == "news" && it.graphId == "content" })
+            assertEquals("settings", state.currentEntry.route)
             assertEquals("root", state.currentEntry.graphId)
 
             // Should not have profile or workspace
-            assertFalse(state.backStack.any { it.screen.route == "profile" })
-            assertFalse(state.backStack.any { it.screen.route == "workspace" })
+            assertFalse(state.backStack.any { it.route == "profile" })
+            assertFalse(state.backStack.any { it.route == "workspace" })
         }
 
     @Test
@@ -464,7 +464,7 @@ class NavigationLogicTest {
 
         var state = store.selectState<NavigationState>().first()
         assertEquals(4, state.backStack.size)
-        assertEquals("about", state.currentEntry.screen.route)
+        assertEquals("about", state.currentEntry.route)
 
         // Test standalone popUpTo - should navigate back to profile
         store.navigation {
@@ -475,12 +475,12 @@ class NavigationLogicTest {
         state = store.selectState<NavigationState>().first()
 
         // Should navigate to profile and remove everything after it
-        assertEquals("profile", state.currentEntry.screen.route)
+        assertEquals("profile", state.currentEntry.route)
         assertEquals(2, state.backStack.size) // [home, profile]
-        assertTrue(state.backStack.any { it.screen.route == "home" })
-        assertTrue(state.backStack.any { it.screen.route == "profile" })
-        assertFalse(state.backStack.any { it.screen.route == "settings" })
-        assertFalse(state.backStack.any { it.screen.route == "about" })
+        assertTrue(state.backStack.any { it.route == "home" })
+        assertTrue(state.backStack.any { it.route == "profile" })
+        assertFalse(state.backStack.any { it.route == "settings" })
+        assertFalse(state.backStack.any { it.route == "about" })
     }
 
     @Test
@@ -501,7 +501,7 @@ class NavigationLogicTest {
 
         var state = store.selectState<NavigationState>().first()
         assertEquals(4, state.backStack.size)
-        assertEquals("about", state.currentEntry.screen.route)
+        assertEquals("about", state.currentEntry.route)
 
         // Test combined popUpTo + navigateTo - should pop to profile then navigate to content/news
         store.navigation {
@@ -513,14 +513,14 @@ class NavigationLogicTest {
         state = store.selectState<NavigationState>().first()
 
         // Should navigate to news, not profile, and backstack should include popped-to state
-        assertEquals("news", state.currentEntry.screen.route)
+        assertEquals("news", state.currentEntry.route)
         assertEquals("content", state.currentEntry.graphId)
         assertEquals(3, state.backStack.size) // [home, profile, news]
-        assertTrue(state.backStack.any { it.screen.route == "home" })
-        assertTrue(state.backStack.any { it.screen.route == "profile" })
-        assertTrue(state.backStack.any { it.screen.route == "news" })
-        assertFalse(state.backStack.any { it.screen.route == "settings" })
-        assertFalse(state.backStack.any { it.screen.route == "about" })
+        assertTrue(state.backStack.any { it.route == "home" })
+        assertTrue(state.backStack.any { it.route == "profile" })
+        assertTrue(state.backStack.any { it.route == "news" })
+        assertFalse(state.backStack.any { it.route == "settings" })
+        assertFalse(state.backStack.any { it.route == "about" })
     }
 
     @Test
@@ -548,11 +548,11 @@ class NavigationLogicTest {
         val state = store.selectState<NavigationState>().first()
 
         // Should navigate to home and remove profile and everything after it
-        assertEquals("home", state.currentEntry.screen.route)
+        assertEquals("home", state.currentEntry.route)
         assertEquals(1, state.backStack.size) // [home]
-        assertTrue(state.backStack.any { it.screen.route == "home" })
-        assertFalse(state.backStack.any { it.screen.route == "profile" })
-        assertFalse(state.backStack.any { it.screen.route == "settings" })
-        assertFalse(state.backStack.any { it.screen.route == "about" })
+        assertTrue(state.backStack.any { it.route == "home" })
+        assertFalse(state.backStack.any { it.route == "profile" })
+        assertFalse(state.backStack.any { it.route == "settings" })
+        assertFalse(state.backStack.any { it.route == "about" })
     }
 }

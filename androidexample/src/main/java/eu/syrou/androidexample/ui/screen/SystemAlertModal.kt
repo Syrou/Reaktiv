@@ -31,7 +31,6 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
 /**
  * Demonstrates a system-layer modal that renders above the loading screen (zIndex 9001f+).
@@ -52,7 +51,6 @@ import kotlinx.serialization.Serializable
  * 3. Observe that this modal is visible on top of the loading screen
  * 4. Tap "Dismiss" — the loading screen remains until auth completes, then navigates home
  */
-@Serializable
 object SystemAlertModal : Modal {
     override val route = "system-alert"
     override val enterTransition = NavTransition.Fade

@@ -1,42 +1,27 @@
 package io.github.syrou.reaktiv.navigation.model
 
 import androidx.compose.runtime.Stable
-import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
-import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
-import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.serialization.Serializable
 
 @Stable
 @Serializable
 data class NavigationEntry(
-    val navigatable: Navigatable,
+    val path: String,
     val params: Params,
-    val graphId: String,
-    val stackPosition: Int = 0
+    val stackPosition: Int = 0,
+    val navigatableRoute: String = path.substringAfterLast("/")
 ) {
-    companion object {
-        private const val BASE_SCREEN_Z_INDEX = 0f
-        private const val BASE_MODAL_Z_INDEX = 1000f
+    val route: String get() = navigatableRoute
+
+    val stableKey: String get() = "${path}_${params.hashCode()}"
+
+    val graphId: String get() {
+        val prefix = path.removeSuffix("/$navigatableRoute")
+        return if (prefix == path || prefix.isEmpty()) "root"
+        else prefix.substringAfterLast("/")
     }
-
-    @Deprecated("Use navigatable instead", ReplaceWith("navigatable"))
-    val screen: Navigatable get() = navigatable
-
-    val zIndex: Float get() = when (navigatable) {
-        is Modal -> BASE_MODAL_Z_INDEX + (stackPosition * 10f)
-        is Screen -> BASE_SCREEN_Z_INDEX + (stackPosition * 1f)
-        else -> BASE_SCREEN_Z_INDEX + (stackPosition * 1f)
-    }
-
-    val isModal: Boolean get() = navigatable is Modal
-    val isScreen: Boolean get() = navigatable is Screen
-
-    /**
-     * Stable key for compose key() functions and state tracking
-     */
-    val stableKey: String get() = "${navigatable.route}_${graphId}_${params.hashCode()}"
 }
 
 data class RouteResolution(
@@ -66,22 +51,13 @@ data class ScreenResolution(
     val screen: Navigatable get() = navigatable
 }
 
-@Serializable
-data class NavigationLayer(
-    val entry: NavigationEntry,
-    val zIndex: Float,
-    val isVisible: Boolean,
-    val shouldDim: Boolean = false,
-    val dimAlpha: Float = 0f
-)
-
 fun Navigatable.toNavigationEntry(
+    path: String,
     params: Params = Params.empty(),
-    graphId: String,
     stackPosition: Int = 0
 ): NavigationEntry = NavigationEntry(
-    navigatable = this,
+    path = path,
     params = params,
-    graphId = graphId,
-    stackPosition = stackPosition
+    stackPosition = stackPosition,
+    navigatableRoute = this.route
 )

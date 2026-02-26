@@ -119,7 +119,7 @@ class ScreenLifecycleResetTest {
             )
 
             val state = store.selectState<NavigationState>().first()
-            assertEquals("settings", state.currentEntry.navigatable.route)
+            assertEquals("settings", state.currentEntry.route)
         }
 
     @Test

@@ -67,9 +67,9 @@ class ClearBackStackNavigateTest {
             var state = store.selectState<NavigationState>().first()
 
             println("=== INITIAL STATE ===")
-            println("Current: ${state.currentEntry.navigatable.route} (${state.currentEntry.graphId})")
+            println("Current: ${state.currentEntry.route} (${state.currentEntry.graphId})")
             println("BackStack size: ${state.backStack.size}")
-            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.navigatable.route}" }}")
+            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.route}" }}")
             println("Can go back: ${state.canGoBack}")
 
             // Navigate to establish some history first
@@ -81,9 +81,9 @@ class ClearBackStackNavigateTest {
             state = store.selectState<NavigationState>().first()
 
             println("\n=== AFTER NAVIGATE TO HOME ===")
-            println("Current: ${state.currentEntry.navigatable.route} (${state.currentEntry.graphId})")
+            println("Current: ${state.currentEntry.route} (${state.currentEntry.graphId})")
             println("BackStack size: ${state.backStack.size}")
-            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.navigatable.route}" }}")
+            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.route}" }}")
             println("Can go back: ${state.canGoBack}")
 
             // Now test the problematic sequence: clearBackStack + navigateTo in same block
@@ -96,14 +96,14 @@ class ClearBackStackNavigateTest {
             state = store.selectState<NavigationState>().first()
 
             println("\n=== AFTER CLEAR + NAVIGATE (PROBLEMATIC) ===")
-            println("Current: ${state.currentEntry.navigatable.route} (${state.currentEntry.graphId})")
+            println("Current: ${state.currentEntry.route} (${state.currentEntry.graphId})")
             println("BackStack size: ${state.backStack.size}")
-            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.navigatable.route}" }}")
+            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.route}" }}")
             println("Can go back: ${state.canGoBack}")
 
             // This should have 1 entry in backStack but we suspect it's empty
             assertEquals(1, state.backStack.size, "BackStack should have 1 entry after clearBackStack + navigateTo")
-            assertEquals("overview", state.currentEntry.navigatable.route)
+            assertEquals("overview", state.currentEntry.route)
             assertEquals("news", state.currentEntry.graphId)
 
             // Now navigate to list screen - this should ADD to backStack
@@ -114,14 +114,14 @@ class ClearBackStackNavigateTest {
             state = store.selectState<NavigationState>().first()
 
             println("\n=== AFTER NAVIGATE TO LIST ===")
-            println("Current: ${state.currentEntry.navigatable.route} (${state.currentEntry.graphId})")
+            println("Current: ${state.currentEntry.route} (${state.currentEntry.graphId})")
             println("BackStack size: ${state.backStack.size}")
-            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.navigatable.route}" }}")
+            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.route}" }}")
             println("Can go back: ${state.canGoBack}")
 
             // This should have 2 entries and be able to go back
             assertEquals(2, state.backStack.size, "BackStack should have 2 entries after navigating to list")
-            assertEquals("list", state.currentEntry.navigatable.route)
+            assertEquals("list", state.currentEntry.route)
             assertEquals("news", state.currentEntry.graphId)
             assertTrue(state.canGoBack, "Should be able to go back with 2 entries in backStack")
         }
@@ -147,18 +147,18 @@ class ClearBackStackNavigateTest {
 
             var state = store.selectState<NavigationState>().first()
             println("\n=== AFTER CLEAR ONLY ===")
-            println("Current: ${state.currentEntry.navigatable.route} (${state.currentEntry.graphId})")
+            println("Current: ${state.currentEntry.route} (${state.currentEntry.graphId})")
             println("BackStack size: ${state.backStack.size}")
-            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.navigatable.route}" }}")
+            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.route}" }}")
 
             store.navigation { navigateTo("home") }
             advanceUntilIdle()
             state = store.selectState<NavigationState>().first()
 
             println("\n=== AFTER SEPARATE NAVIGATE ===")
-            println("Current: ${state.currentEntry.navigatable.route} (${state.currentEntry.graphId})")
+            println("Current: ${state.currentEntry.route} (${state.currentEntry.graphId})")
             println("BackStack size: ${state.backStack.size}")
-            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.navigatable.route}" }}")
+            println("BackStack: ${state.backStack.map { "${it.graphId}/${it.route}" }}")
             println("Can go back: ${state.canGoBack}")
 
             // This should work correctly

@@ -157,13 +157,15 @@ object NavigationAnimations {
         onAnimationComplete: (() -> Unit)?,
         content: @Composable () -> Unit
     ) {
-        val modal = entry.navigatable as? Modal
+        val navModule = LocalNavigationModule.current
+        val navigatable = navModule.resolveNavigatable(entry)
+        val modal = navigatable as? Modal
         val scope = rememberCoroutineScope()
         val store = rememberStore()
-        
+
         val transition = when {
-            isEntering -> entry.navigatable.popEnterTransition ?: entry.navigatable.enterTransition
-            else -> entry.navigatable.popExitTransition ?: entry.navigatable.exitTransition
+            isEntering -> navigatable?.popEnterTransition ?: navigatable?.enterTransition ?: NavTransition.None
+            else -> navigatable?.popExitTransition ?: navigatable?.exitTransition ?: NavTransition.None
         }
         
         val shouldAnimate = transition != NavTransition.Hold && transition != NavTransition.None

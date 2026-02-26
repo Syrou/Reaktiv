@@ -47,9 +47,7 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
 object SettingsScreen : Screen {
     override val route: String = "settings"
     override val titleResource: TitleResource = {

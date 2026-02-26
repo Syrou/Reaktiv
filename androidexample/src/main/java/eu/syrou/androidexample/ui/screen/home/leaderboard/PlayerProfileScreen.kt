@@ -51,9 +51,7 @@ import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
 object PlayerProfileScreen : Screen {
     override val route: String = "player/{playerId}"
     override val titleResource: TitleResource = { "Player Profile" }

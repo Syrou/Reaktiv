@@ -34,9 +34,7 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
-import kotlinx.serialization.Serializable
 
-@Serializable
 object StreamsListScreen : Screen {
     override val route: String = "streams-list-screen"
     override val titleResource: TitleResource = {

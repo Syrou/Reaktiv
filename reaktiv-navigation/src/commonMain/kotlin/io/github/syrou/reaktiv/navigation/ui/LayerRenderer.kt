@@ -11,17 +11,9 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
-
-/**
- * Layer types for unified rendering
- */
-sealed class LayerType {
-    object Content : LayerType()
-    object GlobalOverlay : LayerType()
-    object System : LayerType()
-}
 
 private object NavigationZIndex {
     const val CONTENT_BACK = 2f
@@ -36,15 +28,15 @@ private object NavigationZIndex {
  */
 @Composable
 fun UnifiedLayerRenderer(
-    layerType: LayerType,
+    layerType: RenderLayer,
     entries: List<NavigationEntry>,
     graphDefinitions: Map<String, NavigationGraph>
 ) {
     if (entries.isNotEmpty()) {
         when (layerType) {
-            LayerType.Content -> ContentLayerRenderer(entries, graphDefinitions)
-            LayerType.GlobalOverlay -> OverlayLayerRenderer(entries)
-            LayerType.System -> SystemLayerRenderer(entries)
+            RenderLayer.CONTENT -> ContentLayerRenderer(entries, graphDefinitions)
+            RenderLayer.GLOBAL_OVERLAY -> OverlayLayerRenderer(entries)
+            RenderLayer.SYSTEM -> SystemLayerRenderer(entries)
         }
     }
 }
@@ -71,13 +63,18 @@ private fun ContentLayerRenderer(
     entries: List<NavigationEntry>,
     graphDefinitions: Map<String, NavigationGraph>
 ) {
+    val navModule = LocalNavigationModule.current
     val currentEntry = entries.last()
 
     val animationState = rememberLayerAnimationState(currentEntry)
 
-    val layoutGraphs = findLayoutGraphsInHierarchy(currentEntry.graphId, graphDefinitions)
+    val currentGraphId = navModule.getGraphId(currentEntry) ?: currentEntry.route
+    val layoutGraphs = findLayoutGraphsInHierarchy(currentGraphId, graphDefinitions)
     val prevEntry = animationState.previousEntry
-    val prevLayoutGraphs = prevEntry?.let { findLayoutGraphsInHierarchy(it.graphId, graphDefinitions) }
+    val prevLayoutGraphs = prevEntry?.let {
+        val prevGraphId = navModule.getGraphId(it) ?: it.route
+        findLayoutGraphsInHierarchy(prevGraphId, graphDefinitions)
+    }
     val layoutChanged = prevLayoutGraphs != null &&
         prevLayoutGraphs.map { it.route } != layoutGraphs.map { it.route }
     val shouldLiftExiting = layoutChanged && (animationState.animationDecision?.shouldAnimateExit ?: false)
@@ -92,7 +89,6 @@ private fun ContentLayerRenderer(
 
     val useInsideStrategy = shouldLiftExiting && sharedLayouts.isNotEmpty()
     val useOutsideStrategy = shouldLiftExiting && sharedLayouts.isEmpty()
-
 
     val windowInfo = LocalWindowInfo.current
 
@@ -110,6 +106,7 @@ private fun ContentLayerRenderer(
                         )
                     }
                     key(prevEntry.stableKey) {
+                        val prevNavigatable = navModule.resolveNavigatable(prevEntry)
                         NavigationAnimations.AnimatedEntry(
                             entry = prevEntry,
                             animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
@@ -120,7 +117,7 @@ private fun ContentLayerRenderer(
                             onAnimationComplete = null
                         ) {
                             ApplyLayoutsHierarchy(prevUniqueLayouts) {
-                                prevEntry.navigatable.Content(prevEntry.params)
+                                prevNavigatable?.Content(prevEntry.params)
                             }
                         }
                     }
@@ -141,6 +138,7 @@ private fun ContentLayerRenderer(
             }
             if (useOutsideStrategy && prevEntry != null) {
                 key(prevEntry.stableKey) {
+                    val prevNavigatable = navModule.resolveNavigatable(prevEntry)
                     NavigationAnimations.AnimatedEntry(
                         entry = prevEntry,
                         animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
@@ -151,7 +149,7 @@ private fun ContentLayerRenderer(
                         onAnimationComplete = null
                     ) {
                         ApplyLayoutsHierarchy(prevLayoutGraphs ?: emptyList()) {
-                            prevEntry.navigatable.Content(prevEntry.params)
+                            prevNavigatable?.Content(prevEntry.params)
                         }
                     }
                 }
@@ -167,6 +165,7 @@ private fun ContentLayerRenderer(
 private fun OverlayLayerRenderer(
     entries: List<NavigationEntry>
 ) {
+    val navModule = LocalNavigationModule.current
     val modalStates = rememberModalAnimationState(entries)
     val activeStates = remember { mutableStateMapOf<String, ModalEntryState>() }
 
@@ -180,16 +179,17 @@ private fun OverlayLayerRenderer(
         val screenHeight = windowInfo.containerSize.height.toFloat()
 
         activeStates.values
-            .sortedBy { it.entry.navigatable.elevation }
+            .sortedBy { navModule.resolveNavigatable(it.entry)?.elevation ?: 0f }
             .forEach { modalState ->
                 key(modalState.entry.stableKey) {
+                    val navigatable = navModule.resolveNavigatable(modalState.entry)
                     NavigationAnimations.AnimatedEntry(
                         entry = modalState.entry,
                         animationType = modalState.animationType,
                         animationDecision = null,
                         screenWidth = screenWidth,
                         screenHeight = screenHeight,
-                        zIndex = NavigationZIndex.GLOBAL_OVERLAY_BASE + modalState.entry.navigatable.elevation,
+                        zIndex = NavigationZIndex.GLOBAL_OVERLAY_BASE + (navigatable?.elevation ?: 0f),
                         onAnimationComplete = {
                             val completed = modalState.markCompleted()
                             if (completed != null) {
@@ -199,7 +199,7 @@ private fun OverlayLayerRenderer(
                             }
                         }
                     ) {
-                        modalState.entry.navigatable.Content(modalState.entry.params)
+                        navigatable?.Content(modalState.entry.params)
                     }
                 }
             }
@@ -217,33 +217,35 @@ private fun OverlayLayerRenderer(
 private fun SystemLayerRenderer(
     entries: List<NavigationEntry>
 ) {
+    val navModule = LocalNavigationModule.current
     val windowInfo = LocalWindowInfo.current
     val screenWidth = windowInfo.containerSize.width.toFloat()
     val screenHeight = windowInfo.containerSize.height.toFloat()
 
     entries
-        .sortedBy { it.navigatable.elevation }
+        .sortedBy { navModule.resolveNavigatable(it)?.elevation ?: 0f }
         .forEach { entry ->
+            val navigatable = navModule.resolveNavigatable(entry)
             key(entry.stableKey) {
-                if (entry.navigatable is Modal) {
+                if (navigatable is Modal) {
                     NavigationAnimations.AnimatedEntry(
                         entry = entry,
                         animationType = NavigationAnimations.AnimationType.MODAL_ENTER,
                         animationDecision = null,
                         screenWidth = screenWidth,
                         screenHeight = screenHeight,
-                        zIndex = NavigationZIndex.SYSTEM_BASE + entry.navigatable.elevation,
+                        zIndex = NavigationZIndex.SYSTEM_BASE + navigatable.elevation,
                         onAnimationComplete = null
                     ) {
-                        entry.navigatable.Content(entry.params)
+                        navigatable.Content(entry.params)
                     }
                 } else {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .zIndex(9001f + entry.navigatable.elevation)
+                            .zIndex(9001f + (navigatable?.elevation ?: 0f))
                     ) {
-                        entry.navigatable.Content(entry.params)
+                        navigatable?.Content(entry.params)
                     }
                 }
             }
@@ -259,6 +261,7 @@ private fun SystemLayerRenderer(
  */
 @Composable
 private fun ContentRenderer(animationState: LayerAnimationState) {
+    val navModule = LocalNavigationModule.current
 
     val windowInfo = LocalWindowInfo.current
     val screenWidth = windowInfo.containerSize.width.toFloat()
@@ -273,6 +276,7 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
         animationState.aliveEntries.forEach { entry ->
             val isCurrentScreen = entry.stableKey == animationState.currentEntry.stableKey
             val isPreviousScreen = entry.stableKey == animationState.previousEntry?.stableKey
+            val navigatable = navModule.resolveNavigatable(entry)
 
             key(entry.stableKey) {
                 val zIndex = when {
@@ -293,7 +297,7 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
                     zIndex = zIndex,
                     onAnimationComplete = null
                 ) {
-                    entry.navigatable.Content(entry.params)
+                    navigatable?.Content(entry.params)
                 }
             }
         }

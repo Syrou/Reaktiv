@@ -54,9 +54,7 @@ import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
 object DevToolsScreen : Screen {
     override val route: String = "devtools"
     override val titleResource: TitleResource = { "DevTools" }

@@ -11,17 +11,22 @@ fun NavigationDebugger(navigationState: NavigationState, store: io.github.syrou.
     LaunchedEffect(navigationState) {
         val graphKeys = store.getNavigationModule().getGraphDefinitions().keys
         ReaktivDebug.nav("=== Simplified Navigation Debug ===")
-        ReaktivDebug.nav("Current screen: ${navigationState.currentEntry.screen.route}")
-        ReaktivDebug.nav("Current graph: ${navigationState.currentEntry.graphId}")
+        val navModule = store.getNavigationModule()
+        val currentGraphId = navModule.getGraphId(navigationState.currentEntry) ?: "unknown"
+        ReaktivDebug.nav("Current screen: ${navigationState.currentEntry.route}")
+        ReaktivDebug.nav("Current path: ${navigationState.currentEntry.path}")
+        ReaktivDebug.nav("Current graph: $currentGraphId")
         ReaktivDebug.nav("Back stack size: ${navigationState.backStack.size}")
-        ReaktivDebug.nav("Back stack: ${navigationState.backStack.map { "${it.graphId}/${it.screen.route}" }}")
+        ReaktivDebug.nav("Back stack: ${navigationState.backStack.map { it.path }}")
         ReaktivDebug.nav("Available graphs: $graphKeys")
         ReaktivDebug.nav("Can go back: ${navigationState.canGoBack}")
 
         ReaktivDebug.nav("=== End Debug Info ===")
     }
-    val graphDefinitions = store.getNavigationModule().getGraphDefinitions()
-    val layoutGraphs = findLayoutGraphsInHierarchy(navigationState.currentEntry.graphId, graphDefinitions)
+    val navModule = store.getNavigationModule()
+    val currentGraphId = navModule.getGraphId(navigationState.currentEntry) ?: "unknown"
+    val graphDefinitions = navModule.getGraphDefinitions()
+    val layoutGraphs = findLayoutGraphsInHierarchy(currentGraphId, graphDefinitions)
     if (layoutGraphs.isNotEmpty()) {
         ReaktivDebug.nav("Layout hierarchy: ${layoutGraphs.map { it.route }}")
     } else {

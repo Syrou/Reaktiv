@@ -35,9 +35,7 @@ import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
-import kotlinx.serialization.Serializable
 
-@Serializable
 object StatsDetailScreen : Screen {
     override val route: String = "stats/{type}"
     override val titleResource: TitleResource = { "Statistics" }

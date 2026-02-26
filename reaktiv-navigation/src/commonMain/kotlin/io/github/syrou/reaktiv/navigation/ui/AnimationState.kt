@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
 import kotlinx.coroutines.delay
+import androidx.compose.runtime.getValue
 
 /**
  * Animation state for content layer rendering
@@ -47,6 +48,7 @@ data class LayerAnimationState(
 fun rememberLayerAnimationState(
     currentEntry: NavigationEntry
 ): LayerAnimationState {
+    val navModule = LocalNavigationModule.current
 
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
@@ -59,7 +61,7 @@ fun rememberLayerAnimationState(
     val previousEntry = previousEntryState.value
 
     val animationDecision = previousEntry?.let { prev ->
-        determineContentAnimationDecision(prev, currentEntry)
+        determineContentAnimationDecision(prev, currentEntry, navModule)
     }
 
     val isBackNavigation = previousEntry?.let { prev ->
@@ -68,8 +70,10 @@ fun rememberLayerAnimationState(
 
     LaunchedEffect(currentEntry.stableKey) {
         if (previousEntry != null && animationDecision != null) {
-            val exitDuration = previousEntry.navigatable.exitTransition.durationMillis
-            val enterDuration = currentEntry.navigatable.enterTransition.durationMillis
+            val prevNavigatable = navModule.resolveNavigatable(previousEntry)
+            val currNavigatable = navModule.resolveNavigatable(currentEntry)
+            val exitDuration = prevNavigatable?.exitTransition?.durationMillis ?: 0
+            val enterDuration = currNavigatable?.enterTransition?.durationMillis ?: 0
             val animationDuration = maxOf(exitDuration, enterDuration).toLong()
             if (animationDuration > 0) {
                 delay(animationDuration)
@@ -143,8 +147,9 @@ fun rememberModalAnimationState(
         previousEntries.value = currentEntryIds
     }
 
+    val navModule = LocalNavigationModule.current
     return entryStates.value.values
-        .sortedBy { it.entry.navigatable.elevation }
+        .sortedBy { navModule.resolveNavigatable(it.entry)?.elevation ?: 0f }
 }
 
 /**

@@ -6,6 +6,5 @@ import kotlinx.serialization.Serializable
 data class ModalContext(
     val modalEntry: NavigationEntry,
     val originalUnderlyingScreenEntry: NavigationEntry,
-    val createdFromScreenRoute: String,
     val navigatedAwayToRoute: String? = null
 )

@@ -19,9 +19,7 @@ import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
 object WorkspaceScreen : Screen {
     override val route = "overview"
     override val enterTransition = NavTransition.None
