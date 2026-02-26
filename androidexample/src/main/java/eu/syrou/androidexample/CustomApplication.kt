@@ -27,6 +27,7 @@ import eu.syrou.androidexample.ui.screen.LoginScreen
 import eu.syrou.androidexample.ui.screen.NotFoundScreen
 import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.screen.StreamsListScreen
+import eu.syrou.androidexample.ui.screen.SystemAlertModal
 import eu.syrou.androidexample.ui.screen.TwitchAuthWebViewScreen
 import eu.syrou.androidexample.ui.screen.UserManagementScreens
 import eu.syrou.androidexample.ui.screen.VideosListScreen
@@ -101,6 +102,7 @@ class CustomApplication : Application() {
                 CrashRecovery.NAVIGATE_TO_CRASH_SCREEN
             }
         )
+        loadingModal(AuthLoadingScreen)
         rootGraph {
             entry(
                 route = { store ->
@@ -109,23 +111,20 @@ class CustomApplication : Application() {
                         .mapNotNull { it.isAuthenticated }
                         .first()
                     if (isAuthenticated) NewsScreen else LoginScreen
-                },
-                loadingScreen = AuthLoadingScreen
+                }
             )
             screens(
                 LoginScreen,
-                AuthLoadingScreen,
                 SettingsScreen,
                 TwitchAuthWebViewScreen,
                 VideosListScreen,
                 StreamsListScreen,
                 DevToolsScreen,
             )
-            modals(NotificationModal)
+            modals(NotificationModal, SystemAlertModal)
 
             intercept(
                 guard = requireAuth,
-                loadingScreen = AuthLoadingScreen,
             ) {
                 graph("home") {
                     startGraph("news")

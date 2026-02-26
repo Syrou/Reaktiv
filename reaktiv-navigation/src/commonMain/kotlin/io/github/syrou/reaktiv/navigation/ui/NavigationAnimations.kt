@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.resolve
@@ -219,7 +220,8 @@ object NavigationAnimations {
                 .fillMaxSize()
                 .zIndex(zIndex)
         ) {
-            // Dimmer background
+            // Dimmer background — always captures taps to prevent click pass-through.
+            // Only navigates back when tapOutsideToDismiss is true.
             if (modal?.shouldDimBackground == true && dimmerAlpha > 0f) {
                 Box(
                     modifier = Modifier
@@ -228,10 +230,10 @@ object NavigationAnimations {
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            enabled = modal.onDismissTapOutside != null && isEntering
+                            enabled = isEntering
                         ) {
-                            scope.launch {
-                                modal.onDismissTapOutside?.invoke(store)
+                            if (modal.tapOutsideToDismiss) {
+                                scope.launch { store.navigateBack() }
                             }
                         }
                 )

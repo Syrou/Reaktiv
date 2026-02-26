@@ -10,6 +10,7 @@ import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
@@ -45,10 +46,20 @@ class ProtectedRoutesTest {
         override fun Content(params: Params) { Text(route) }
     }
 
+    private fun loadingModal(route: String) = object : LoadingModal {
+        override val route = route
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val requiresAuth = false
+
+        @Composable
+        override fun Content(params: Params) { Text(route) }
+    }
+
     private val startScreen    = screen("start")
     private val homeScreen     = screen("home")
     private val loginScreen    = screen("login")
-    private val loadingScreen  = screen("loading")
+    private val loadingModal  = loadingModal("loading")
     private val inviteScreen   = screen("invite/{token}")
     private val checkEmail     = screen("check-email")
     private val registerScreen = screen("register")
@@ -189,15 +200,15 @@ class ProtectedRoutesTest {
     }
 
     private fun moduleWithLoadingScreen() = createNavigationModule {
+        loadingModal(loadingModal)
         rootGraph {
             entry(startScreen)
-            screens(startScreen, loginScreen, loadingScreen)
+            screens(startScreen, loginScreen)
             intercept(
                 guard = { store ->
                     if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
                     else GuardResult.Reject
-                },
-                loadingScreen = loadingScreen
+                }
             ) {
                 graph("workspace") {
                     entry(homeScreen)
@@ -484,12 +495,12 @@ class ProtectedRoutesTest {
             val guardGate = CompletableDeferred<GuardResult>()
 
             val navModule = createNavigationModule {
+                loadingModal(loadingModal)
                 rootGraph {
                     entry(startScreen)
-                    screens(startScreen, loadingScreen)
+                    screens(startScreen)
                     intercept(
-                        guard = { guardGate.await() },
-                        loadingScreen = loadingScreen
+                        guard = { guardGate.await() }
                     ) {
                         graph("workspace") {
                             entry(homeScreen)
@@ -525,12 +536,12 @@ class ProtectedRoutesTest {
             val guardGate = CompletableDeferred<GuardResult>()
 
             val navModule = createNavigationModule {
+                loadingModal(loadingModal)
                 rootGraph {
                     entry(startScreen)
-                    screens(startScreen, loadingScreen, loginScreen)
+                    screens(startScreen, loginScreen)
                     intercept(
-                        guard = { guardGate.await() },
-                        loadingScreen = loadingScreen
+                        guard = { guardGate.await() }
                     ) {
                         graph("workspace") {
                             entry(homeScreen)

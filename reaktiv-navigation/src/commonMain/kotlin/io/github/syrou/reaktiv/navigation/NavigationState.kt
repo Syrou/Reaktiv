@@ -59,8 +59,8 @@ data class NavigationState(
     val pendingNavigation: PendingNavigation? = null,
 
     // True until bootstrap (and any cold-start deep link) has fully resolved.
-    // NavigationRender skips rendering while this is true to avoid flashing the
-    // initial placeholder screen before the real destination is known.
+    // NavigationRender skips content layers while this is true to avoid flashing the
+    // initial placeholder before the real destination is known.
     val isBootstrapping: Boolean = true
 ) : ModuleState {
 

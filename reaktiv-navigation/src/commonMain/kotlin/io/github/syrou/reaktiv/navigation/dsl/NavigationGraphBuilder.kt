@@ -47,8 +47,8 @@ class NavigationGraphBuilder(
      * [route] is evaluated when navigating directly to this graph to determine the destination.
      * Return any [NavigationNode] — a [Screen], [Navigatable], or [Graph] object.
      *
-     * If [loadingScreen] is provided and evaluation exceeds [loadingThreshold], the loading
-     * screen is shown while evaluation completes.
+     * If evaluation exceeds [loadingThreshold], the global loading modal configured via
+     * `loadingModal()` at the module level is shown as a [RenderLayer.SYSTEM] overlay.
      *
      * To guard all routes inside this graph (including deep links and direct screen navigation),
      * wrap the graph with [intercept] at the parent level instead.
@@ -60,25 +60,21 @@ class NavigationGraphBuilder(
      *         route = { store ->
      *             val state = store.selectState<ContentState>().value
      *             if (state.releases.isNotEmpty()) ReleasesScreen else NoContentScreen
-     *         },
-     *         loadingScreen = LoadingScreen
+     *         }
      *     )
-     *     screens(ReleasesScreen, NoContentScreen, LoadingScreen)
+     *     screens(ReleasesScreen, NoContentScreen)
      * }
      * ```
      *
      * @param route Typed selector returning the [NavigationNode] to navigate to
-     * @param loadingScreen Screen shown when evaluation exceeds [loadingThreshold]
-     * @param loadingThreshold How long to wait before showing the loading screen (default 200ms)
+     * @param loadingThreshold How long to wait before showing the global loading modal (default 200ms)
      */
     fun entry(
         route: suspend (StoreAccessor) -> NavigationNode,
-        loadingScreen: Screen? = null,
         loadingThreshold: Duration = 200.milliseconds
     ) {
         pendingEntryDefinition = EntryDefinition(
             route = route,
-            loadingScreen = loadingScreen,
             loadingThreshold = loadingThreshold
         )
     }
@@ -130,8 +126,8 @@ class NavigationGraphBuilder(
      * The [guard] is evaluated before navigation is committed to any route inside this block.
      * It returns a [GuardResult] that decides whether to allow, reject, or redirect navigation.
      *
-     * If [loadingScreen] is provided and guard evaluation exceeds [loadingThreshold], the
-     * loading screen is shown while the guard suspends.
+     * If guard evaluation exceeds [loadingThreshold], the global loading modal configured via
+     * `loadingModal()` at the module level is shown as a [RenderLayer.SYSTEM] overlay.
      *
      * Example:
      * ```kotlin
@@ -153,17 +149,15 @@ class NavigationGraphBuilder(
      * ```
      *
      * @param guard Guard evaluated before navigation; returns [GuardResult] decision
-     * @param loadingScreen Optional screen shown while guard suspends beyond [loadingThreshold]
-     * @param loadingThreshold How long to wait before showing the loading screen (default 200ms)
+     * @param loadingThreshold How long to wait before showing the global loading modal (default 200ms)
      * @param block Builder block containing the graphs and screens to intercept
      */
     fun intercept(
         guard: NavigationGuard,
-        loadingScreen: Screen? = null,
         loadingThreshold: Duration = 200.milliseconds,
         block: NavigationGraphBuilder.() -> Unit
     ) {
-        val interceptDef = InterceptDefinition(guard, loadingScreen, loadingThreshold)
+        val interceptDef = InterceptDefinition(guard, loadingThreshold)
         val innerBuilder = NavigationGraphBuilder("_intercept_")
         innerBuilder.apply(block)
 

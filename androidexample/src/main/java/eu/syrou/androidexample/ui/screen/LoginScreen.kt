@@ -24,10 +24,12 @@ import androidx.compose.ui.unit.dp
 import eu.syrou.androidexample.R
 import eu.syrou.androidexample.reaktiv.auth.AuthLogic
 import eu.syrou.androidexample.reaktiv.auth.AuthModule
+import eu.syrou.androidexample.reaktiv.auth.AuthModule.AuthAction
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -40,6 +42,12 @@ object LoginScreen : Screen {
     override val enterTransition = NavTransition.Fade
     override val exitTransition = NavTransition.FadeOut
     override val requiresAuth = false
+
+    override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
+        lifecycle.invokeOnRemoval { handler ->
+            dispatch(AuthAction.SetLoading(false))
+        }
+    }
 
     @Composable
     override fun Content(params: Params) {

@@ -46,4 +46,13 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 
     @Serializable
     object BootstrapComplete : NavigationAction(), HighPriorityAction
+
+    /**
+     * Removes all [io.github.syrou.reaktiv.navigation.definition.LoadingModal] entries from
+     * the backStack. Dispatched atomically with the navigation batch that follows guard or
+     * entry-definition evaluation, so the loading overlay and the destination appear/disappear
+     * in a single state emission with no intermediate flash.
+     */
+    @Serializable
+    object RemoveLoadingModals : NavigationAction(), HighPriorityAction
 }

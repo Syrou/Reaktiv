@@ -9,7 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.zIndex
-import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
@@ -23,6 +23,14 @@ sealed class LayerType {
     object System : LayerType()
 }
 
+private object NavigationZIndex {
+    const val CONTENT_BACK = 2f
+    const val CONTENT_FRONT = 3f
+    const val CONTENT_LIFTED_EXIT = 100f
+    const val GLOBAL_OVERLAY_BASE = 2000f
+    const val SYSTEM_BASE = 9001f
+}
+
 /**
  * Unified layer renderer that handles all navigation layer types consistently
  */
@@ -30,14 +38,13 @@ sealed class LayerType {
 fun UnifiedLayerRenderer(
     layerType: LayerType,
     entries: List<NavigationEntry>,
-    navigationState: NavigationState,
     graphDefinitions: Map<String, NavigationGraph>
 ) {
     if (entries.isNotEmpty()) {
         when (layerType) {
-            LayerType.Content -> ContentLayerRenderer(entries, navigationState, graphDefinitions)
+            LayerType.Content -> ContentLayerRenderer(entries, graphDefinitions)
             LayerType.GlobalOverlay -> OverlayLayerRenderer(entries)
-            LayerType.System -> SystemLayerRenderer(entries, navigationState, graphDefinitions)
+            LayerType.System -> SystemLayerRenderer(entries)
         }
     }
 }
@@ -62,14 +69,11 @@ fun UnifiedLayerRenderer(
 @Composable
 private fun ContentLayerRenderer(
     entries: List<NavigationEntry>,
-    navigationState: NavigationState,
     graphDefinitions: Map<String, NavigationGraph>
 ) {
-    val currentEntry = entries.lastOrNull() ?: navigationState.currentEntry
+    val currentEntry = entries.last()
 
-    val animationState = rememberLayerAnimationState(
-        entries = listOf(currentEntry)
-    )
+    val animationState = rememberLayerAnimationState(currentEntry)
 
     val layoutGraphs = findLayoutGraphsInHierarchy(currentEntry.graphId, graphDefinitions)
     val prevEntry = animationState.previousEntry
@@ -112,7 +116,7 @@ private fun ContentLayerRenderer(
                             animationDecision = animationState.animationDecision,
                             screenWidth = windowInfo.containerSize.width.toFloat(),
                             screenHeight = windowInfo.containerSize.height.toFloat(),
-                            zIndex = 100f,
+                            zIndex = NavigationZIndex.CONTENT_LIFTED_EXIT,
                             onAnimationComplete = null
                         ) {
                             ApplyLayoutsHierarchy(prevUniqueLayouts) {
@@ -185,7 +189,7 @@ private fun OverlayLayerRenderer(
                         animationDecision = null,
                         screenWidth = screenWidth,
                         screenHeight = screenHeight,
-                        zIndex = 2000f + modalState.entry.navigatable.elevation,
+                        zIndex = NavigationZIndex.GLOBAL_OVERLAY_BASE + modalState.entry.navigatable.elevation,
                         onAnimationComplete = {
                             val completed = modalState.markCompleted()
                             if (completed != null) {
@@ -203,23 +207,45 @@ private fun OverlayLayerRenderer(
 }
 
 /**
- * System layer renderer for simple overlays
+ * System layer renderer for top-level overlays.
+ *
+ * Modal entries are rendered via [NavigationAnimations.AnimatedEntry] so they receive
+ * the standard dimmer background and tap-outside dismiss support. Non-modal entries
+ * (e.g. full-screen loading overlays) are rendered as plain Boxes.
  */
 @Composable
 private fun SystemLayerRenderer(
-    entries: List<NavigationEntry>,
-    navigationState: NavigationState,
-    graphDefinitions: Map<String, NavigationGraph>
+    entries: List<NavigationEntry>
 ) {
+    val windowInfo = LocalWindowInfo.current
+    val screenWidth = windowInfo.containerSize.width.toFloat()
+    val screenHeight = windowInfo.containerSize.height.toFloat()
+
     entries
         .sortedBy { it.navigatable.elevation }
         .forEach { entry ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(3000f + entry.navigatable.elevation)
-            ) {
-                entry.navigatable.Content(entry.params)
+            key(entry.stableKey) {
+                if (entry.navigatable is Modal) {
+                    NavigationAnimations.AnimatedEntry(
+                        entry = entry,
+                        animationType = NavigationAnimations.AnimationType.MODAL_ENTER,
+                        animationDecision = null,
+                        screenWidth = screenWidth,
+                        screenHeight = screenHeight,
+                        zIndex = NavigationZIndex.SYSTEM_BASE + entry.navigatable.elevation,
+                        onAnimationComplete = null
+                    ) {
+                        entry.navigatable.Content(entry.params)
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(9001f + entry.navigatable.elevation)
+                    ) {
+                        entry.navigatable.Content(entry.params)
+                    }
+                }
             }
         }
 }
@@ -250,8 +276,8 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
 
             key(entry.stableKey) {
                 val zIndex = when {
-                    isCurrentScreen -> if (shouldExitBeOnTop) 2f else 3f
-                    isPreviousScreen -> if (shouldExitBeOnTop) 3f else 2f
+                    isCurrentScreen -> if (shouldExitBeOnTop) NavigationZIndex.CONTENT_BACK else NavigationZIndex.CONTENT_FRONT
+                    isPreviousScreen -> if (shouldExitBeOnTop) NavigationZIndex.CONTENT_FRONT else NavigationZIndex.CONTENT_BACK
                     else -> 1f
                 }
 

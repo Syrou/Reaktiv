@@ -20,9 +20,7 @@ suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit
 }
 
 suspend fun StoreAccessor.navigateBack() {
-    navigation {
-        navigateBack()
-    }
+    selectLogic<NavigationLogic>().navigateBack()
 }
 
 suspend fun StoreAccessor.navigate(route: String, params: Params? = null) {

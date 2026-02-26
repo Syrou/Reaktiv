@@ -9,11 +9,13 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
+import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationNode
 import io.github.syrou.reaktiv.navigation.definition.RemovalReason
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
 import io.github.syrou.reaktiv.navigation.dsl.NavigationStep
@@ -164,13 +166,33 @@ class NavigationLogic(
     /**
      * Execute a navigation operation. Evaluates intercept guards and entry definitions
      * before committing navigation.
+     *
+     * [RenderLayer.SYSTEM] navigatables bypass the bootstrap wait so they can appear
+     * above the loading screen immediately without waiting for startup to complete.
      */
     suspend fun navigate(block: suspend NavigationBuilder.() -> Unit) {
-        bootstrapCompleted.await()
         val builder = NavigationBuilder(storeAccessor, parameterEncoder)
         builder.apply { block() }
         builder.validate()
+        if (!isSystemLayerNavigation(builder)) {
+            bootstrapCompleted.await()
+        }
         evaluateAndExecute(builder)
+    }
+
+    private fun isSystemLayerNavigation(builder: NavigationBuilder): Boolean {
+        val primaryNavigate = builder.operations.firstOrNull {
+            it.operation == NavigationOperation.Navigate
+        } ?: return false
+        val targetRoute = try {
+            primaryNavigate.target?.resolve(precomputedData)
+        } catch (e: Exception) {
+            return false
+        } ?: return false
+        val resolution = precomputedData.routeResolver.resolve(
+            targetRoute, precomputedData.availableNavigatables
+        ) ?: return false
+        return resolution.targetNavigatable.renderLayer == RenderLayer.SYSTEM
     }
 
     private sealed class GuardEvaluation {
@@ -198,7 +220,6 @@ class NavigationLogic(
             ?: return null
 
         return when (val result = evaluateWithThreshold(
-            loadingScreen = interceptDef.loadingScreen,
             loadingThreshold = interceptDef.loadingThreshold
         ) { interceptDef.guard(storeAccessor) }) {
             is GuardResult.Allow -> GuardEvaluation.Allow
@@ -228,7 +249,6 @@ class NavigationLogic(
         val entryDef = precomputedData.graphEntries[targetRoute] ?: return null
         if (entryDef.route == null) return null
         return evaluateWithThreshold(
-            loadingScreen = entryDef.loadingScreen,
             loadingThreshold = entryDef.loadingThreshold
         ) { entryDef.route.invoke(storeAccessor) }
     }
@@ -251,60 +271,66 @@ class NavigationLogic(
         if (!navigationMutex.tryLock()) return
         try {
             withContext(NonCancellable) {
-                val primaryStep = builder.operations.firstOrNull {
-                    it.operation == NavigationOperation.Navigate || it.operation == NavigationOperation.Replace
-                }
+                try {
+                    val primaryStep = builder.operations.firstOrNull {
+                        it.operation == NavigationOperation.Navigate || it.operation == NavigationOperation.Replace
+                    }
 
-                if (primaryStep == null) {
-                    executeNavigation(builder)
-                    return@withContext
-                }
-
-                val targetRoute = try {
-                    primaryStep.target?.resolve(precomputedData)
-                } catch (e: Exception) {
-                    null
-                }
-
-                if (targetRoute == null) {
-                    executeNavigation(builder)
-                    return@withContext
-                }
-
-                val targetResolution = precomputedData.routeResolver.resolve(targetRoute)
-                val currentState = getCurrentNavigationState()
-
-                when (val guard = evaluateGuard(targetRoute, primaryStep, currentState)) {
-                    is GuardEvaluation.Reject -> return@withContext
-                    is GuardEvaluation.Redirect -> {
-                        navigateDirect(guard.route)
+                    if (primaryStep == null) {
+                        executeNavigation(builder)
                         return@withContext
                     }
-                    is GuardEvaluation.PendAndRedirect -> {
-                        storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
-                        if (!guard.alreadyAtRedirect) {
-                            val redirectBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
-                            redirectBuilder.clearBackStack()
-                            redirectBuilder.navigateTo(guard.redirectRoute)
-                            redirectBuilder.validate()
-                            executeNavigation(redirectBuilder)
+
+                    val targetRoute = try {
+                        primaryStep.target?.resolve(precomputedData)
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    if (targetRoute == null) {
+                        executeNavigation(builder)
+                        return@withContext
+                    }
+
+                    val currentState = getCurrentNavigationState()
+
+                    when (val guard = evaluateGuard(targetRoute, primaryStep, currentState)) {
+                        is GuardEvaluation.Reject -> return@withContext
+                        is GuardEvaluation.Redirect -> {
+                            navigateDirect(guard.route)
+                            return@withContext
                         }
+                        is GuardEvaluation.PendAndRedirect -> {
+                            storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
+                            if (!guard.alreadyAtRedirect) {
+                                val redirectBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                                redirectBuilder.clearBackStack()
+                                redirectBuilder.navigateTo(guard.redirectRoute)
+                                redirectBuilder.validate()
+                                executeNavigation(redirectBuilder)
+                            }
+                            return@withContext
+                        }
+                        is GuardEvaluation.Allow, null -> Unit
+                    }
+
+                    val entryNode = resolveEntryNavigatable(targetRoute)
+                    if (entryNode != null) {
+                        val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                        if (entryNode is Navigatable) routeBuilder.navigateTo(entryNode)
+                        else routeBuilder.navigateTo(entryNode.route)
+                        routeBuilder.validate()
+                        executeNavigation(routeBuilder)
                         return@withContext
                     }
-                    is GuardEvaluation.Allow, null -> Unit
-                }
 
-                val entryNode = resolveEntryNavigatable(targetRoute)
-                if (entryNode != null) {
-                    val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
-                    if (entryNode is Navigatable) routeBuilder.navigateTo(entryNode)
-                    else routeBuilder.navigateTo(entryNode.route)
-                    routeBuilder.validate()
-                    executeNavigation(routeBuilder)
-                    return@withContext
+                    executeNavigation(builder)
+                } finally {
+                    val stateAfter = getCurrentNavigationState()
+                    if (stateAfter.backStack.any { it.navigatable is LoadingModal }) {
+                        storeAccessor.dispatchAndAwait(NavigationAction.RemoveLoadingModals)
+                    }
                 }
-
-                executeNavigation(builder)
             }
         } finally {
             navigationMutex.unlock()
@@ -312,11 +338,14 @@ class NavigationLogic(
     }
 
     /**
-     * Evaluate a suspend block, showing a loading screen if evaluation takes longer than
-     * [loadingThreshold].
+     * Evaluate a suspend block, showing the global [LoadingModal] as a SYSTEM overlay if
+     * evaluation takes longer than [loadingThreshold].
+     *
+     * The modal is dispatched directly as [NavigationAction.Navigate] so it bypasses
+     * [evaluateAndExecute] and the navigation mutex. Cleanup is handled by the
+     * [evaluateAndExecute] finally block via [NavigationAction.RemoveLoadingModals].
      */
     private suspend fun <T> evaluateWithThreshold(
-        loadingScreen: Screen?,
         loadingThreshold: Duration,
         evaluate: suspend () -> T
     ): T = coroutineScope {
@@ -325,17 +354,16 @@ class NavigationLogic(
         if (quickResult != null) {
             quickResult
         } else {
-            if (loadingScreen != null) {
-                val lb = NavigationBuilder(storeAccessor, parameterEncoder)
-                lb.navigateTo(loadingScreen.route)
-                lb.validate()
-                executeNavigation(lb)
+            val loadingModal = precomputedData.loadingModal
+            if (loadingModal != null) {
+                val loadingEntry = loadingModal.toNavigationEntry(
+                    params = Params.empty(),
+                    graphId = "loading",
+                    stackPosition = 0
+                )
+                storeAccessor.dispatchAndAwait(NavigationAction.Navigate(loadingEntry))
             }
-            val result = deferred.await()
-            if (loadingScreen != null) {
-                storeAccessor.dispatchAndAwait(NavigationAction.Back)
-            }
-            result
+            deferred.await()
         }
     }
 
@@ -362,12 +390,15 @@ class NavigationLogic(
 
     /**
      * Navigate back in the navigation stack.
+     *
+     * No-op if the current entry is a [Modal] with [Modal.dismissable] set to false —
+     * such modals cannot be dismissed by the user via back gesture or tap-outside.
      */
     suspend fun navigateBack() {
         val currentState = getCurrentNavigationState()
-        if (!currentState.canGoBack) {
-            return
-        }
+        if (!currentState.canGoBack) return
+        val currentModal = currentState.currentEntry.navigatable as? Modal
+        if (currentModal != null && !currentModal.dismissable) return
         navigate {
             navigateBack()
         }
@@ -632,7 +663,13 @@ class NavigationLogic(
             }
         }
 
-        val allActions = wrapActions(batchedActions)
+        val stateBeforeDispatch = getCurrentNavigationState()
+        val baseActions = wrapActions(batchedActions)
+        val allActions = if (stateBeforeDispatch.backStack.any { it.navigatable is LoadingModal }) {
+            listOf(NavigationAction.RemoveLoadingModals) + baseActions
+        } else {
+            baseActions
+        }
         when {
             allActions.isEmpty() -> return
             allActions.size == 1 -> storeAccessor.dispatchAndAwait(allActions[0])

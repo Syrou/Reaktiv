@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation.dsl
 import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.navigation.NavigationModule
+import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import kotlin.time.Duration
@@ -15,6 +16,7 @@ class GraphBasedBuilder {
     private var onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null
     private val deepLinkAliasBuilder = DeepLinkAliasBuilder()
     private var screenRetentionDuration: Duration = 10.seconds
+    private var loadingModal: LoadingModal? = null
 
     fun rootGraph(block: NavigationGraphBuilder.() -> Unit) {
         val builder = NavigationGraphBuilder("root")
@@ -56,6 +58,21 @@ class GraphBasedBuilder {
     }
 
     /**
+     * Sets the global loading modal shown while guards or dynamic entry routes are evaluating.
+     *
+     * The modal is shown as a [RenderLayer.SYSTEM] overlay when evaluation takes longer than
+     * the [loadingThreshold] configured on `entry()` or `intercept()` (default 200ms).
+     *
+     * It does not need to be registered in [screens] or [modals] — it is registered
+     * automatically by the navigation module.
+     *
+     * @param modal The loading modal to display during async evaluation
+     */
+    fun loadingModal(modal: LoadingModal) {
+        this.loadingModal = modal
+    }
+
+    /**
      * Register deep link alias mappings for [NavigationLogic.navigateDeepLink].
      *
      * Aliases are checked first before normal route resolution. This allows mapping legacy
@@ -87,7 +104,8 @@ class GraphBasedBuilder {
             crashScreen = crashScreen,
             onCrash = onCrash,
             deepLinkAliases = deepLinkAliasBuilder.aliases.toList(),
-            screenRetentionDuration = screenRetentionDuration
+            screenRetentionDuration = screenRetentionDuration,
+            loadingModal = loadingModal
         )
     }
 }

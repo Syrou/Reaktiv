@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.ui.LayerType
 import io.github.syrou.reaktiv.navigation.ui.UnifiedLayerRenderer
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
@@ -29,25 +30,29 @@ fun NavigationRender(
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        // Render all layers using unified layer renderer
-        UnifiedLayerRenderer(
-            layerType = LayerType.Content,
-            entries = navigationState.contentLayerEntries,
-            navigationState = navigationState,
-            graphDefinitions = graphDefinitions
-        )
+        // Hide content/overlay layers while bootstrapping AND a LoadingModal is in the SYSTEM
+        // layer — avoids flashing the placeholder screen before the real destination is known.
+        val hasActiveLoadingModal = navigationState.systemLayerEntries.any {
+            it.navigatable is LoadingModal
+        }
+        val showContentLayers = !navigationState.isBootstrapping || !hasActiveLoadingModal
+        if (showContentLayers) {
+            UnifiedLayerRenderer(
+                layerType = LayerType.Content,
+                entries = navigationState.contentLayerEntries,
+                graphDefinitions = graphDefinitions
+            )
 
-        UnifiedLayerRenderer(
-            layerType = LayerType.GlobalOverlay,
-            entries = navigationState.globalOverlayEntries,
-            navigationState = navigationState,
-            graphDefinitions = graphDefinitions
-        )
+            UnifiedLayerRenderer(
+                layerType = LayerType.GlobalOverlay,
+                entries = navigationState.globalOverlayEntries,
+                graphDefinitions = graphDefinitions
+            )
+        }
 
         UnifiedLayerRenderer(
             layerType = LayerType.System,
             entries = navigationState.systemLayerEntries,
-            navigationState = navigationState,
             graphDefinitions = graphDefinitions
         )
     }

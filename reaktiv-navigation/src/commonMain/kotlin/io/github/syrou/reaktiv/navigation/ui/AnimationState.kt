@@ -2,11 +2,8 @@ package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import io.github.syrou.reaktiv.compose.composeState
-import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
@@ -43,14 +40,13 @@ data class LayerAnimationState(
  * Previous entry is tracked locally in Compose and cleared after animation duration.
  * This avoids storing animation state in NavigationState.
  *
- * @param entries The content layer entries (typically just the current entry)
+ * @param currentEntry The currently active screen entry
  * @return Animation state containing current, previous, and all entries to keep composed
  */
 @Composable
 fun rememberLayerAnimationState(
-    entries: List<NavigationEntry>
+    currentEntry: NavigationEntry
 ): LayerAnimationState {
-    val currentEntry = entries.lastOrNull() ?: error("Layer must have at least one entry")
 
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }

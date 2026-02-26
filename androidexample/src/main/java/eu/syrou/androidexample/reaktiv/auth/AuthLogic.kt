@@ -21,7 +21,7 @@ class AuthLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<AuthActi
      * where the startup delay would live.
      */
     suspend fun initializeSession() {
-        delay(2000)
+        delay(5000)
         storeAccessor.dispatch(AuthAction.SetAuthenticated(Random.nextBoolean()))
         //storeAccessor.dispatch(AuthAction.SetAuthenticated(false))
     }
@@ -44,7 +44,6 @@ class AuthLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<AuthActi
         storeAccessor.dispatch(AuthAction.SetLoading(true))
         delay(1500)
         storeAccessor.dispatchAndAwait(AuthAction.SetAuthenticated(true))
-        storeAccessor.dispatch(AuthAction.SetLoading(false))
         val hasPending = storeAccessor.selectState<NavigationState>().first().pendingNavigation != null
         if (hasPending) {
             println("HERPADERPA - hasPending")

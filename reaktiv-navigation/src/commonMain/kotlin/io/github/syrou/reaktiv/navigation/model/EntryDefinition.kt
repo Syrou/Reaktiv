@@ -1,6 +1,5 @@
 package io.github.syrou.reaktiv.navigation.model
 
-import io.github.syrou.reaktiv.navigation.definition.Screen
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -30,11 +29,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * ```
  *
  * @param route Dynamic selector returning which [NavigationNode] inside the graph to navigate to
- * @param loadingScreen Optional screen shown while evaluation exceeds [loadingThreshold]
- * @param loadingThreshold How long to wait before showing the loading screen (default 200ms)
+ * @param loadingThreshold How long to wait before showing the global loading modal (default 200ms)
  */
 data class EntryDefinition(
     val route: RouteSelector? = null,
-    val loadingScreen: Screen? = null,
     val loadingThreshold: Duration = 200.milliseconds
 )
