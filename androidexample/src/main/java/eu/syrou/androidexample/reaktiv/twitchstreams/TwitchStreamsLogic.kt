@@ -13,7 +13,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class TwitchStreamsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<TwitchStreamsModule.TwitchStreamsAction>() {
+class TwitchStreamsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {

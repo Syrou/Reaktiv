@@ -110,7 +110,7 @@ class BackstackLifecycle(
 
     suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = storeAccessor.selectState()
 
-    suspend inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = storeAccessor.selectLogic<L>()
+    suspend inline fun <reified L : ModuleLogic> selectLogic(): L = storeAccessor.selectLogic<L>()
 
     private val removalHandlers = mutableListOf<StoreAccessor.(RemovalReason) -> Unit>()
 

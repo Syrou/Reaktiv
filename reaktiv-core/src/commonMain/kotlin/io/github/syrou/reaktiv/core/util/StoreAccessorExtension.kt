@@ -1,6 +1,5 @@
 package io.github.syrou.reaktiv.core.util
 
-import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
@@ -14,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * Example:
  * ```kotlin
- * class MyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<MyAction>() {
+ * class MyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
  *     suspend fun checkUserState() {
  *         val userState = storeAccessor.selectState<UserState>().first()
  *         if (userState.isLoggedIn) {
@@ -36,7 +35,7 @@ suspend inline fun <reified S : ModuleState> StoreAccessor.selectState(): StateF
  *
  * Example:
  * ```kotlin
- * class OrderLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<OrderAction>() {
+ * class OrderLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
  *     suspend fun processOrder() {
  *         val paymentLogic = storeAccessor.selectLogic<PaymentLogic>()
  *         paymentLogic.processPayment(amount)
@@ -47,4 +46,4 @@ suspend inline fun <reified S : ModuleState> StoreAccessor.selectState(): StateF
  * @return The logic instance of the requested type
  * @throws IllegalStateException if no module with the specified logic type is registered
  */
-suspend inline fun <reified L : ModuleLogic<out ModuleAction>> StoreAccessor.selectLogic(): L = selectLogic(L::class)
+suspend inline fun <reified L : ModuleLogic> StoreAccessor.selectLogic(): L = selectLogic(L::class)

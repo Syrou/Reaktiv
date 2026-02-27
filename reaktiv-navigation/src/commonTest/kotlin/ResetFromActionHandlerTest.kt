@@ -42,7 +42,7 @@ class ResetFromActionHandlerTest {
     class ResetTriggerLogic(
         private val storeAccessor: StoreAccessor,
         private val lifecycleEvents: MutableList<String>
-    ) : ModuleLogic<ResetTriggerAction>() {
+    ) : ModuleLogic() {
 
         init {
             startObservation()

@@ -31,7 +31,7 @@ object TwitchStreamsModule : Module<TwitchStreamsModule.TwitchStreamsState, Twit
         }
     }
 
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<TwitchStreamsAction> = { storeAccessor ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic = { storeAccessor ->
         println("HERPA DERPA - Assigning and creating logic for: ${this::class.qualifiedName}")
         TwitchStreamsLogic(storeAccessor)
     }

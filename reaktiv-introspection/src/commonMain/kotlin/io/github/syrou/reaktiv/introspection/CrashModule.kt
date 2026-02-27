@@ -36,7 +36,7 @@ class CrashLogic(
     private val storeAccessor: StoreAccessor,
     private val platformContext: PlatformContext,
     private val sessionCapture: SessionCapture
-) : ModuleLogic<CrashAction>() {
+) : ModuleLogic() {
 
     init {
         storeAccessor.launch {

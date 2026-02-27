@@ -215,7 +215,7 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
 /**
  * Logic for handling DevTools UI side effects.
  */
-class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<DevToolsAction>() {
+class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
     private lateinit var connection: DevToolsConnection
 
     private val json = Json {

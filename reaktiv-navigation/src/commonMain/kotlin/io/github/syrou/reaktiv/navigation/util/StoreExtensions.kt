@@ -1,13 +1,12 @@
 package io.github.syrou.reaktiv.navigation.util
 
-import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 
 /**
- * Convenience extension to get NavigationModule from Store.
+ * Convenience extension to get NavigationModule from a StoreAccessor (or Store).
  *
  * Usage:
  * ```kotlin
@@ -18,26 +17,9 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
  * @return NavigationModule instance
  * @throws IllegalStateException if NavigationModule is not registered in the store
  */
-fun Store.getNavigationModule(): NavigationModule {
-    return getModule<NavigationModule>()
-        ?: error("NavigationModule not registered in store")
-}
-
-/**
- * Convenience extension to get NavigationModule from StoreAccessor.
- * Casts to Store and delegates to Store.getNavigationModule().
- *
- * Usage:
- * ```kotlin
- * val navModule = storeAccessor.getNavigationModule()
- * val graphDefinitions = navModule.getGraphDefinitions()
- * ```
- *
- * @return NavigationModule instance
- * @throws IllegalStateException if NavigationModule is not registered in the store
- */
 fun StoreAccessor.getNavigationModule(): NavigationModule {
-    return (this as Store).getNavigationModule()
+    return getModule(NavigationModule::class)
+        ?: error("NavigationModule not registered in store")
 }
 
 /**
@@ -61,16 +43,8 @@ fun StoreAccessor.getNavigationModule(): NavigationModule {
  * @param navigatable The screen or modal to get the path for
  * @return The full path, or null if the navigatable is not registered
  */
-fun Store.getFullPath(navigatable: Navigatable): String? {
-    return getNavigationModule().getFullPath(navigatable)
-}
-
-/**
- * Get the full path for a Navigatable from StoreAccessor.
- * @see Store.getFullPath
- */
 fun StoreAccessor.getFullPath(navigatable: Navigatable): String? {
-    return (this as Store).getFullPath(navigatable)
+    return getNavigationModule().getFullPath(navigatable)
 }
 
 /**
@@ -90,16 +64,8 @@ fun StoreAccessor.getFullPath(navigatable: Navigatable): String? {
  * @param entry The navigation entry to resolve
  * @return The [Navigatable], or null if not found
  */
-fun Store.resolveNavigatable(entry: NavigationEntry): Navigatable? {
-    return getNavigationModule().resolveNavigatable(entry)
-}
-
-/**
- * Resolve the [Navigatable] for a [NavigationEntry] from StoreAccessor.
- * @see Store.resolveNavigatable
- */
 fun StoreAccessor.resolveNavigatable(entry: NavigationEntry): Navigatable? {
-    return (this as Store).resolveNavigatable(entry)
+    return getNavigationModule().resolveNavigatable(entry)
 }
 
 /**
@@ -116,15 +82,7 @@ fun StoreAccessor.resolveNavigatable(entry: NavigationEntry): Navigatable? {
  * @return The full path
  * @throws IllegalStateException if the navigatable is not registered
  */
-fun Store.requireFullPath(navigatable: Navigatable): String {
+fun StoreAccessor.requireFullPath(navigatable: Navigatable): String {
     return getFullPath(navigatable)
         ?: error("Navigatable '${navigatable.route}' is not registered in any navigation graph")
-}
-
-/**
- * Get the full path for a Navigatable from StoreAccessor, throwing if not found.
- * @see Store.requireFullPath
- */
-fun StoreAccessor.requireFullPath(navigatable: Navigatable): String {
-    return (this as Store).requireFullPath(navigatable)
 }

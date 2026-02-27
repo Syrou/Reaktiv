@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
-class VideosLogic(val storeAccessor: StoreAccessor) : ModuleLogic<VideosModule.VideosAction>() {
+class VideosLogic(val storeAccessor: StoreAccessor) : ModuleLogic() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val videoAggregator = VideosAggregator(
         listOf(

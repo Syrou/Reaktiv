@@ -2,6 +2,7 @@ package eu.syrou.androidexample.reaktiv.TestNavigationModule
 
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
+import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import kotlinx.serialization.Serializable
@@ -32,8 +33,6 @@ object TestNavigationModule : Module<TestNavigationState, TestNavigationAction> 
         }
     }
 
-    override val createLogic: (StoreAccessor) -> io.github.syrou.reaktiv.core.ModuleLogic<TestNavigationAction> =
-        {
-            io.github.syrou.reaktiv.core.ModuleLogic { }
-        }
+    override val createLogic: (StoreAccessor) -> ModuleLogic =
+        { object : ModuleLogic() {} }
 }

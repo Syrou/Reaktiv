@@ -56,7 +56,4 @@ sealed class NavigationTarget {
         }
     }
 
-    private fun getAllAvailableRoutes(graphDefinitions: Map<String, NavigationGraph>): List<String> {
-        return graphDefinitions.keys.toList()
-    }
 }

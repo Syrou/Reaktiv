@@ -25,7 +25,7 @@ class StoreResetMemorySafetyTest {
         data object Increment : HeavyAction()
     }
 
-    class HeavyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<HeavyAction>() {
+    class HeavyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
         suspend fun doWork(iteration: Int): String {
             return "result-$iteration"
         }

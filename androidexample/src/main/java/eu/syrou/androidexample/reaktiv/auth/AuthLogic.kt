@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlin.random.Random
 
-class AuthLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<AuthAction>() {
+class AuthLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
 
     /**
      * Determines the initial session state on cold start. In a real app this reads a

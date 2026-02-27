@@ -32,7 +32,7 @@ object AuthModule : Module<AuthModule.AuthState, AuthModule.AuthAction> {
         }
     }
 
-    override val createLogic: (StoreAccessor) -> ModuleLogic<AuthAction> = { storeAccessor ->
+    override val createLogic: (StoreAccessor) -> ModuleLogic = { storeAccessor ->
         AuthLogic(storeAccessor)
     }
 }

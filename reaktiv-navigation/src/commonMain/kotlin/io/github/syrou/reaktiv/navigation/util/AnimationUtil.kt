@@ -56,8 +56,8 @@ fun determineAnimationDecision(
         else -> prevNavigatable?.exitTransition ?: NavTransition.None
     }
 
-    val shouldAnimateEnter = enterTransition != NavTransition.Hold && enterTransition != NavTransition.None
-    val shouldAnimateExit = exitTransition != NavTransition.Hold && exitTransition != NavTransition.None
+    val shouldAnimateEnter = enterTransition != NavTransition.None
+    val shouldAnimateExit = exitTransition != NavTransition.None
 
     if (ReaktivDebug.isEnabled) {
         ReaktivDebug.nav("🎯 Animation Decision:")

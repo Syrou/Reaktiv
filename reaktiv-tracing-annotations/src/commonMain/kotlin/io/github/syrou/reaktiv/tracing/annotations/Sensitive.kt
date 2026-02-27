@@ -8,7 +8,7 @@ package io.github.syrou.reaktiv.tracing.annotations
  *
  * Usage:
  * ```kotlin
- * class UserLogic(storeAccessor: StoreAccessor) : ModuleLogic<UserAction>() {
+ * class UserLogic(storeAccessor: StoreAccessor) : ModuleLogic() {
  *     suspend fun login(
  *         username: String,
  *         @Sensitive password: String

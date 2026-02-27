@@ -102,7 +102,7 @@ class DevToolsLogic(
     private val storeAccessor: StoreAccessor,
     private val config: DevToolsConfig,
     private val sessionCapture: SessionCapture? = null
-) : ModuleLogic<DevToolsAction>() {
+) : ModuleLogic() {
 
     private var connection: DevToolsConnection? = null
     private var currentServerUrl: String? = config.serverUrl

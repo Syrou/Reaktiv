@@ -46,9 +46,8 @@ object TestModule : Module<TestModule.TestState, TestModule.Action> {
         }
     }
 
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<Action> = { storeAccessor: StoreAccessor ->
-        ModuleLogic { action -> }
-    }
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic =
+        { object : ModuleLogic() {} }
 }
 
 
@@ -68,9 +67,8 @@ object TestModule2 : Module<TestModule2.TestState2, TestModule2.Action> {
         }
     }
 
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<Action> = { storeAccessor: StoreAccessor ->
-        ModuleLogic { action -> }
-    }
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic =
+        { object : ModuleLogic() {} }
 }
 
 object ComplexModule : Module<ComplexModule.ComplexState, ComplexModule.ComplexAction> {
@@ -91,10 +89,8 @@ object ComplexModule : Module<ComplexModule.ComplexState, ComplexModule.ComplexA
             else -> state
         }
     }
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<ComplexAction> =
-        { storeAccessor: StoreAccessor ->
-            ModuleLogic { action -> }
-        }
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic =
+        { object : ModuleLogic() {} }
 }
 
 object LargeStateModule : Module<LargeStateModule.LargeState, LargeStateModule.LargeAction> {
@@ -114,10 +110,8 @@ object LargeStateModule : Module<LargeStateModule.LargeState, LargeStateModule.L
             else -> state
         }
     }
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<LargeAction> =
-        { storeAccessor: StoreAccessor ->
-            ModuleLogic { action -> }
-        }
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic =
+        { object : ModuleLogic() {} }
 }
 
 class StoreTest {

@@ -25,7 +25,7 @@ sealed class CrashTestAction : ModuleAction(CrashTestModule::class)
  */
 class CrashTestLogic(
     private val storeAccessor: StoreAccessor
-) : ModuleLogic<CrashTestAction>() {
+) : ModuleLogic() {
 
     fun triggerCrashWithTracedOperations() {
         storeAccessor.launch {

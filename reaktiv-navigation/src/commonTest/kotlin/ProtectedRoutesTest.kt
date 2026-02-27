@@ -83,9 +83,8 @@ class ProtectedRoutesTest {
                 AuthAction.Logout -> state.copy(isAuthenticated = false)
             }
         }
-        override val createLogic: (StoreAccessor) -> ModuleLogic<AuthAction> = {
-            ModuleLogic { }
-        }
+        override val createLogic: (StoreAccessor) -> ModuleLogic =
+            { object : ModuleLogic() {} }
     }
 
     @Serializable
@@ -107,9 +106,8 @@ class ProtectedRoutesTest {
                 ContentAction.AddArtists  -> state.copy(hasArtists = true)
             }
         }
-        override val createLogic: (StoreAccessor) -> ModuleLogic<ContentAction> = {
-            ModuleLogic { }
-        }
+        override val createLogic: (StoreAccessor) -> ModuleLogic =
+            { object : ModuleLogic() {} }
     }
 
     private fun moduleWithReject() = createNavigationModule {

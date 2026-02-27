@@ -37,8 +37,8 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override val actionResource: ActionResource = { Text("asdf") }
         override val enterTransition = NavTransition.SlideInRight
         override val exitTransition = NavTransition.SlideOutLeft
-        override val popEnterTransition: NavTransition = NavTransition.Hold
-        override val popExitTransition: NavTransition = NavTransition.Hold
+        override val popEnterTransition: NavTransition = NavTransition.None
+        override val popExitTransition: NavTransition = NavTransition.None
         override val requiresAuth = false
 
         @Composable
@@ -72,8 +72,8 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override val titleResource: TitleResource = { "User edit" }
         override val enterTransition = NavTransition.SlideInRight
         override val exitTransition = NavTransition.SlideOutLeft
-        override val popEnterTransition: NavTransition = NavTransition.Hold
-        override val popExitTransition: NavTransition = NavTransition.Hold
+        override val popEnterTransition: NavTransition = NavTransition.None
+        override val popExitTransition: NavTransition = NavTransition.None
         override val requiresAuth = false
 
         @Composable

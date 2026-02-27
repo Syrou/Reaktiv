@@ -168,7 +168,7 @@ object NavigationAnimations {
             else -> navigatable?.popExitTransition ?: navigatable?.exitTransition ?: NavTransition.None
         }
         
-        val shouldAnimate = transition != NavTransition.Hold && transition != NavTransition.None
+        val shouldAnimate = transition != NavTransition.None
         
         val resolved = remember(transition, screenWidth, screenHeight, shouldAnimate) {
             if (shouldAnimate) {

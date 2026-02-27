@@ -13,7 +13,7 @@ package io.github.syrou.reaktiv.tracing.annotations
  *
  * Usage:
  * ```kotlin
- * class PaymentLogic(storeAccessor: StoreAccessor) : ModuleLogic<PaymentAction>() {
+ * class PaymentLogic(storeAccessor: StoreAccessor) : ModuleLogic() {
  *
  *     suspend fun processPayment(amount: Double) {
  *         // This method WILL be traced

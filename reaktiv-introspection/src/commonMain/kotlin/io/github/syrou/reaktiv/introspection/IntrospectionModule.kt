@@ -62,7 +62,7 @@ class IntrospectionLogic internal constructor(
     private val config: IntrospectionConfig,
     private val sessionCapture: SessionCapture,
     platformContext: PlatformContext
-) : ModuleLogic<IntrospectionAction>() {
+) : ModuleLogic() {
 
     private var logicObserver: IntrospectionLogicObserver? = null
     private val sessionFileExport = SessionFileExport(platformContext)

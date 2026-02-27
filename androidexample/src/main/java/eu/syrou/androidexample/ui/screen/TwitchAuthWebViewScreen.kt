@@ -14,7 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import eu.syrou.androidexample.reaktiv.settings.SettingsModule
+import eu.syrou.androidexample.reaktiv.settings.SettingsLogic
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.definition.Screen
@@ -64,8 +64,8 @@ object TwitchAuthWebViewScreen : Screen {
         val twitchAuthWebViewClient by remember {
             mutableStateOf(TwitchAuthWebViewClient().apply {
                 onAccessTokenReceived = { accessToken ->
-                    store.dispatch.invoke(SettingsModule.SettingsAction.SetTwitchAccessToken(accessToken))
                     store.launch {
+                        store.selectLogic<SettingsLogic>().setTwitchAccessToken(accessToken)
                         store.navigation {
                             popUpTo(SettingsScreen.route, inclusive = false)
                         }

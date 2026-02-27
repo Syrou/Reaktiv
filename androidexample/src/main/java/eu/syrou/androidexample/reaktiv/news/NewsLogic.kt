@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.time.delay
 import kotlinx.coroutines.withContext
 
-class NewsLogic(storeAccessor: StoreAccessor) : ModuleLogic<NewsModule.NewsAction>() {
+class NewsLogic(storeAccessor: StoreAccessor) : ModuleLogic() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val rssNewsSource = RssNewsSource("https://www.pathofexile.com/news/rss", "pathofexile.com")
     val maxrollSource =

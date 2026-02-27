@@ -72,9 +72,9 @@ enum class CrashRecovery {
  * Implementations can handle crash recovery (e.g., navigating to a crash screen)
  * and return a [CrashRecovery] to control whether the exception is re-thrown.
  *
- * The [action] parameter is non-null when the crash occurred during action processing
- * (invoke() path) and null when the crash occurred in a coroutine launched via
- * `storeAccessor.launch` from a logic method.
+ * The [action] parameter is provided for context when a crash is associated with a
+ * specific action dispatch, and null when the crash occurred in a coroutine launched
+ * via `storeAccessor.launch` from a logic method.
  */
 @ExperimentalReaktivApi
 interface CrashListener {
@@ -167,35 +167,7 @@ internal data class DispatchEnvelope(
 )
 
 
-interface Logic {
-
-    /**
-     * @deprecated The invoke() pattern is deprecated. Define specific suspend methods in your Logic class
-     * and call them directly instead. Use ModuleWithLogic for typed access to your logic methods.
-     *
-     * Example migration:
-     * ```kotlin
-     * // Old way (deprecated):
-     * logic.invoke(SomeAction())
-     * logic(SomeAction())
-     *
-     * // New way (recommended):
-     * class MyLogic : ModuleLogic<MyAction>() {
-     *     suspend fun handleSomeAction(data: String) {
-     *         // implementation
-     *     }
-     * }
-     * // Call directly:
-     * myLogic.handleSomeAction("data")
-     * ```
-     */
-    @Deprecated(
-        message = "The invoke() pattern is deprecated. Define specific suspend methods in your Logic class " +
-                "and call them directly instead. Use ModuleWithLogic for typed access.",
-        level = DeprecationLevel.WARNING
-    )
-    suspend operator fun invoke(action: ModuleAction)
-}
+interface Logic
 
 
 /**
@@ -207,7 +179,7 @@ interface Logic {
  *
  * Example:
  * ```kotlin
- * class UserLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<UserAction>() {
+ * class UserLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
  *     private val api = UserApi()
  *
  *     suspend fun loadUser(userId: String) {
@@ -231,17 +203,7 @@ interface Logic {
  *
  * @param A The action type this logic handles
  */
-open class ModuleLogic<A : ModuleAction> : Logic {
-    /**
-     * @deprecated The invoke() pattern is deprecated. Define specific suspend methods in your Logic subclass
-     * and call them directly for better type safety and clarity.
-     */
-    @Deprecated(
-        message = "The invoke() pattern is deprecated. Define specific suspend methods and call them directly.",
-        level = DeprecationLevel.WARNING
-    )
-    override suspend fun invoke(action: ModuleAction) {
-    }
+open class ModuleLogic : Logic {
 
     /**
      * Called on the **current** logic instance just before the store is reset.
@@ -255,7 +217,7 @@ open class ModuleLogic<A : ModuleAction> : Logic {
      *
      * Example:
      * ```kotlin
-     * class MyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<MyAction>() {
+     * class MyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
      *     private var observer: SomeObserver? = null
      *
      *     init {
@@ -270,28 +232,6 @@ open class ModuleLogic<A : ModuleAction> : Logic {
      * ```
      */
     open suspend fun beforeReset() {}
-
-    companion object {
-
-        /**
-         * @deprecated The invoke() pattern is deprecated. Create a proper ModuleLogic subclass with named methods instead.
-         */
-        @Deprecated(
-            message = "The invoke() pattern is deprecated. Create a proper ModuleLogic subclass with named methods.",
-            level = DeprecationLevel.WARNING
-        )
-        operator fun <A : ModuleAction> invoke(logic: suspend (ModuleAction) -> Unit): ModuleLogic<A> {
-            return object : ModuleLogic<A>() {
-                @Deprecated(
-                    message = "The invoke() pattern is deprecated.",
-                    level = DeprecationLevel.WARNING
-                )
-                override suspend fun invoke(action: ModuleAction) {
-                    logic(action)
-                }
-            }
-        }
-    }
 }
 
 /**
@@ -310,7 +250,7 @@ open class ModuleLogic<A : ModuleAction> : Logic {
  *     data class SetCount(val value: Int) : CounterAction()
  * }
  *
- * class CounterLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<CounterAction>() {
+ * class CounterLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
  *     suspend fun incrementAsync() {
  *         delay(1000)
  *         storeAccessor.dispatch(CounterAction.Increment)
@@ -335,7 +275,7 @@ open class ModuleLogic<A : ModuleAction> : Logic {
  * @param A The action type for this module (must extend ModuleAction)
  * @param L The logic type for this module (must extend ModuleLogic)
  */
-interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic<A>> : Module<S, A> {
+interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic> : Module<S, A> {
 
     override val createLogic: (StoreAccessor) -> L
 
@@ -345,22 +285,20 @@ interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic<A>>
      * @param store The store to select logic from
      * @return The typed logic instance
      */
-    suspend fun selectLogicTyped(store: Store): L {
+    suspend fun selectLogicTyped(store: StoreAccessor): L {
         @Suppress("UNCHECKED_CAST")
-        return super.selectLogic(store) as L
+        return selectLogic(store) as L
     }
 }
 
 /**
- * @deprecated Consider using ModuleWithLogic for better type safety and direct access to logic methods.
- * Module still works but ModuleWithLogic provides typed logic access without needing invoke().
- * This is a soft deprecation - Module remains functional but ModuleWithLogic is recommended.
+ * Interface for defining modules in the MVLI architecture.
+ *
+ * A module owns a slice of application state, a reducer for transforming that state,
+ * and a logic factory for creating the logic instance that handles side effects.
+ *
+ * For type-safe logic access without casting, prefer [ModuleWithLogic].
  */
-@Deprecated(
-    message = "Consider using ModuleWithLogic for better type safety and direct access to logic methods. " +
-            "Module still works but ModuleWithLogic provides typed logic access.",
-    level = DeprecationLevel.WARNING
-)
 interface Module<S : ModuleState, A : ModuleAction> {
 
     val initialState: S
@@ -369,7 +307,7 @@ interface Module<S : ModuleState, A : ModuleAction> {
     val reducer: (S, A) -> S
 
 
-    val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<A>
+    val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic
 
     /**
      * Optional factory for creating a middleware provided by this module.
@@ -396,87 +334,22 @@ interface Module<S : ModuleState, A : ModuleAction> {
     val createMiddleware: (() -> Middleware)?
         get() = null
 
-    suspend fun selectStateFlow(store: Store): StateFlow<S> {
+    fun selectStateFlowNonSuspend(store: StoreAccessor): StateFlow<S> {
         @Suppress("UNCHECKED_CAST")
-        return store.selectState(initialState::class as KClass<S>)
+        return store.getStateFlowForModule(this) as? StateFlow<S>
+            ?: error("No state found for module $this")
     }
 
-    fun selectStateFlowNonSuspend(store: Store): StateFlow<S> {
-        @Suppress("UNCHECKED_CAST")
-        return store.selectStateNonSuspend(initialState::class as KClass<S>)
-    }
-
-    suspend fun selectLogic(store: Store): ModuleLogic<A> {
-        @Suppress("UNCHECKED_CAST")
-        return store.selectLogicThroughState(initialState::class as KClass<ModuleState>) as ModuleLogic<A>
+    suspend fun selectLogic(store: StoreAccessor): ModuleLogic {
+        return store.getLogicForModule(this)
+            ?: error("No logic found for module $this")
     }
 }
-
-/**
- * Extension of Module that allows custom merging of externally synced state.
- *
- * Used when modules need to preserve local state properties that shouldn't be
- * replaced by synced state (e.g., DevTools state sync where graph definitions
- * with Composable layouts should be preserved locally).
- *
- * Usage:
- * ```kotlin
- * object NavigationModule : StatefulModule<NavigationState, NavigationAction> {
- *     override fun mergeExternalState(local: NavigationState, synced: NavigationState): NavigationState {
- *         return synced.copy(
- *             graphDefinitions = local.graphDefinitions
- *         )
- *     }
- * }
- * ```
- *
- * @deprecated StatefulModule is no longer needed. Static configuration data should not be stored in state.
- * Use Module or ModuleWithLogic directly instead. This interface will be removed in a future version.
- */
-@Deprecated(
-    message = "StatefulModule is no longer needed. Static configuration data should not be stored in state. " +
-            "Use Module or ModuleWithLogic directly instead.",
-    level = DeprecationLevel.WARNING
-)
-interface StatefulModule<S : ModuleState, A : ModuleAction> : Module<S, A> {
-    /**
-     * Merges externally synced state with local state.
-     *
-     * @param local The current local state with properties that should be preserved
-     * @param synced The incoming synced state from external source
-     * @return Merged state combining synced updates with preserved local properties
-     */
-    fun mergeExternalState(local: S, synced: S): S
-}
-
-/**
- * Combination of StatefulModule and ModuleWithLogic.
- * Use this when you need both typed logic access and custom state merging.
- *
- * Usage:
- * ```kotlin
- * object NavigationModule : StatefulModuleWithLogic<NavigationState, NavigationAction, NavigationLogic> {
- *     override fun mergeExternalState(local: NavigationState, synced: NavigationState): NavigationState {
- *         return synced.copy(graphDefinitions = local.graphDefinitions)
- *     }
- * }
- * ```
- *
- * @deprecated StatefulModuleWithLogic is no longer needed. Static configuration data should not be stored in state.
- * Use ModuleWithLogic directly instead. This interface will be removed in a future version.
- */
-@Deprecated(
-    message = "StatefulModuleWithLogic is no longer needed. Static configuration data should not be stored in state. " +
-            "Use ModuleWithLogic directly instead.",
-    level = DeprecationLevel.WARNING
-)
-interface StatefulModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic<A>> :
-    StatefulModule<S, A>, ModuleWithLogic<S, A, L>
 
 internal data class ModuleInfo(
     val module: Module<*, *>,
     val state: MutableStateFlow<ModuleState>,
-    var logic: ModuleLogic<out ModuleAction>? = null
+    var logic: ModuleLogic? = null
 )
 
 
@@ -559,7 +432,7 @@ interface InternalStoreOperations {
  *
  * Example:
  * ```kotlin
- * class OrderLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<OrderAction>() {
+ * class OrderLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
  *     suspend fun placeOrder(order: Order) {
  *         // Dispatch an action
  *         storeAccessor.dispatch(OrderAction.SetProcessing(true))
@@ -591,7 +464,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @param logicClass The KClass of the logic to select
      * @return The logic instance
      */
-    abstract suspend fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L
+    abstract suspend fun <L : ModuleLogic> selectLogic(logicClass: KClass<L>): L
 
     /**
      * The dispatch function for sending actions to the store.
@@ -662,6 +535,56 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     fun asInternalOperations(): InternalStoreOperations? = this as? InternalStoreOperations
 
     /**
+     * Get a module instance by its class.
+     *
+     * Use this method from [StoreAccessor] references (e.g. inside Logic classes).
+     *
+     * Example usage:
+     * ```kotlin
+     * val navModule = storeAccessor.getModule(NavigationModule::class)
+     *     ?: error("NavigationModule not registered")
+     * ```
+     *
+     * @return The module instance if found, null otherwise
+     */
+    abstract fun <M : Any> getModule(moduleClass: KClass<M>): M?
+
+    /**
+     * Convenience reified overload for [getModule].
+     *
+     * Example usage:
+     * ```kotlin
+     * val navModule = storeAccessor.getModule<NavigationModule>()
+     *     ?: error("NavigationModule not registered")
+     * ```
+     *
+     * @return The module instance if found, null otherwise
+     */
+    inline fun <reified M : Any> getModule(): M? = getModule(M::class)
+
+    /**
+     * Returns the [StateFlow] for the given module's state, or null if the module
+     * is not registered in this store.
+     *
+     * This is a non-suspend, direct accessor intended for use by module interface
+     * default implementations (e.g. [Module.selectStateFlowNonSuspend]) and for
+     * Swift/SKIE interop where suspend functions cannot be called.
+     *
+     * @param module The module whose state flow to retrieve
+     * @return The [StateFlow] of the module's state, or null if not registered
+     */
+    abstract fun getStateFlowForModule(module: Module<*, *>): StateFlow<ModuleState>?
+
+    /**
+     * Returns the logic instance for the given module, suspending until the store
+     * is fully initialized.
+     *
+     * @param module The module whose logic to retrieve
+     * @return The logic instance, or null if the module is not registered
+     */
+    abstract suspend fun getLogicForModule(module: Module<*, *>): ModuleLogic?
+
+    /**
      * Registers a [CrashListener] to be notified when logic invocation throws.
      */
     @ExperimentalReaktivApi
@@ -690,6 +613,21 @@ class Store private constructor(
     private val highPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
     private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
+
+    private fun infoByModule(module: Module<*, *>): ModuleInfo? =
+        moduleInfo[module::class.qualifiedName!!]
+
+    private fun infoByModuleTag(moduleTag: KClass<*>): ModuleInfo? =
+        moduleInfo[moduleTag.qualifiedName]
+
+    private fun infoByStateClass(stateClass: KClass<*>): ModuleInfo? =
+        moduleInfo[stateClass.qualifiedName]
+
+    private fun infoByStateClassName(qualifiedName: String): ModuleInfo? =
+        moduleInfo[qualifiedName]
+
+    private fun infoByLogicClass(logicClass: KClass<*>): ModuleInfo? =
+        moduleInfo[logicClass.qualifiedName]
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
     private val crashListeners = mutableListOf<CrashListener>()
@@ -776,11 +714,10 @@ class Store private constructor(
         _initialized.update { false }
         stateUpdateMutex.withLock {
             modules.forEach { module ->
-                val info = moduleInfo[module::class.qualifiedName!!]!!
-                info.state.update { module.initialState }
+                infoByModule(module)!!.state.update { module.initialState }
             }
             modules.forEach { module ->
-                val info = moduleInfo[module::class.qualifiedName!!]!!
+                val info = infoByModule(module)!!
                 info.logic = module.createLogic(this)
                 info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
             }
@@ -872,7 +809,7 @@ class Store private constructor(
         onActionApplied: () -> Unit
     ): suspend (ModuleAction) -> Unit {
         val baseHandler: suspend (ModuleAction) -> Unit = { action ->
-            val info = moduleInfo[action.moduleTag.qualifiedName] ?: throw IllegalArgumentException(
+            val info = infoByModuleTag(action.moduleTag) ?: throw IllegalArgumentException(
                 "No module found for action: ${action::class}"
             )
 
@@ -880,21 +817,7 @@ class Store private constructor(
             val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
             updateState(newState::class.qualifiedName!!, newState)
 
-            // Signal that the action was applied
             onActionApplied()
-
-            launch {
-                try {
-                    info.logic?.invoke(action)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    val recovery = handleLogicException(e, action)
-                    if (recovery == CrashRecovery.RETHROW) {
-                        throw e
-                    }
-                }
-            }
         }
 
         return middlewares.foldRight(baseHandler) { middleware, next ->
@@ -930,7 +853,7 @@ class Store private constructor(
     }
 
     private suspend fun updateState(stateClass: String, newState: ModuleState) = stateUpdateMutex.withLock {
-        moduleInfo[stateClass]?.state?.value = newState
+        infoByStateClassName(stateClass)?.state?.value = newState
     }
 
     private suspend fun getAllStates(): Map<String, ModuleState> = stateUpdateMutex.withLock {
@@ -940,7 +863,7 @@ class Store private constructor(
     @ExperimentalReaktivApi
     override suspend fun applyExternalStates(states: Map<String, ModuleState>) = stateUpdateMutex.withLock {
         states.forEach { (stateClassName, newState) ->
-            val info = moduleInfo[stateClassName]
+            val info = infoByStateClassName(stateClassName)
 
             when {
                 info == null -> {
@@ -952,16 +875,7 @@ class Store private constructor(
                 }
 
                 else -> {
-                    val finalState = if (info.module is StatefulModule<*, *>) {
-                        @Suppress("UNCHECKED_CAST")
-                        (info.module as StatefulModule<ModuleState, *>).mergeExternalState(
-                            local = info.state.value,
-                            synced = newState
-                        )
-                    } else {
-                        newState
-                    }
-                    info.state.value = finalState
+                    info.state.value = newState
                 }
             }
         }
@@ -980,15 +894,11 @@ class Store private constructor(
     }
 
     fun <S : ModuleState> selectStateNonSuspend(stateClass: KClass<S>): StateFlow<S> {
-        val retrievedState = moduleInfo[stateClass.qualifiedName]?.state
-        val stateExists = retrievedState != null
-        return moduleInfo[stateClass.qualifiedName]?.state?.asStateFlow() as? StateFlow<S>
+        val info = infoByStateClass(stateClass)
+        @Suppress("UNCHECKED_CAST")
+        return info?.state?.asStateFlow() as? StateFlow<S>
             ?: throw IllegalStateException(
-                """
-                    No state found for state class: ${stateClass.qualifiedName},
-                    retrievedState: $retrievedState,
-                    stateExists: $stateExists 
-                """.trimIndent()
+                "No state found for state class: ${stateClass.qualifiedName}, stateExists: ${info != null}"
             )
     }
 
@@ -999,47 +909,31 @@ class Store private constructor(
 
 
     @Suppress("UNCHECKED_CAST")
-    override suspend fun <L : ModuleLogic<out ModuleAction>> selectLogic(logicClass: KClass<L>): L {
+    override suspend fun <L : ModuleLogic> selectLogic(logicClass: KClass<L>): L {
         initialized.first { it }
         stateUpdateMutex.lock()
         try {
-            return moduleInfo[logicClass.qualifiedName]?.logic as? L
+            return infoByLogicClass(logicClass)?.logic as? L
                 ?: throw IllegalStateException("No logic found for logic class: $logicClass")
         } finally {
             stateUpdateMutex.unlock()
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    suspend fun <S : ModuleState> selectLogicThroughState(stateClass: KClass<S>): ModuleLogic<out ModuleAction> {
+    override fun <M : Any> getModule(moduleClass: KClass<M>): M? {
+        @Suppress("UNCHECKED_CAST")
+        return modules.firstOrNull { moduleClass.isInstance(it) } as M?
+    }
+
+    override fun getStateFlowForModule(module: Module<*, *>): StateFlow<ModuleState>? =
+        infoByModule(module)?.state?.asStateFlow()
+
+    override suspend fun getLogicForModule(module: Module<*, *>): ModuleLogic? {
         initialized.first { it }
-        stateUpdateMutex.lock()
-        try {
-            return moduleInfo[stateClass.qualifiedName]?.logic
-                ?: throw IllegalStateException("No logic found for state class: $stateClass")
-        } finally {
-            stateUpdateMutex.unlock()
-        }
+        return infoByModule(module)?.logic
     }
 
-    /**
-     * Get a module instance by its type.
-     *
-     * Example usage:
-     * ```kotlin
-     * val navModule = store.getModule<NavigationModule>()
-     *     ?: error("NavigationModule not registered")
-     * ```
-     *
-     * @return The module instance if found, null otherwise
-     */
-    inline fun <reified T : Module<*, *>> getModule(): T? {
-        return modules.filterIsInstance<T>().firstOrNull()
-    }
-
-
-    suspend inline fun <reified L : ModuleLogic<out ModuleAction>> selectLogic(): L = selectLogic(L::class)
-
+    suspend inline fun <reified L : ModuleLogic> selectLogic(): L = selectLogic(L::class)
 
     fun cleanup() {
         coroutineScope.cancel()

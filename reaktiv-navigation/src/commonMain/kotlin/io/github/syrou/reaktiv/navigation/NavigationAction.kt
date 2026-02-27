@@ -7,6 +7,38 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import kotlinx.serialization.Serializable
 
+/**
+ * Result of a [NavigationLogic.navigate] call.
+ *
+ * Callers can ignore the return value for fire-and-forget behaviour (same as before),
+ * or inspect it to react to specific outcomes.
+ *
+ * Example:
+ * ```kotlin
+ * val outcome = navLogic.navigate { navigateTo(ProfileScreen) }
+ * if (outcome is NavigationOutcome.Dropped) {
+ *     // another navigation was in progress, retry or notify the user
+ * }
+ * ```
+ */
+sealed class NavigationOutcome {
+    /** Navigation was executed successfully. */
+    data object Success : NavigationOutcome()
+
+    /** Navigation was silently dropped because another navigation was already in progress. */
+    data object Dropped : NavigationOutcome()
+
+    /** Navigation was rejected by a guard. */
+    data object Rejected : NavigationOutcome()
+
+    /**
+     * Navigation was redirected by a guard.
+     *
+     * @param to The route the guard redirected to.
+     */
+    data class Redirected(val to: String) : NavigationOutcome()
+}
+
 @Serializable
 sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 
@@ -28,9 +60,9 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 
     @Serializable
     data class PopUpTo(
-        val newCurrentEntry: NavigationEntry,
-        val newBackStack: List<NavigationEntry>,
-        val newModalContexts: Map<String, ModalContext>
+        val route: String,
+        val inclusive: Boolean,
+        val entryToReAdd: NavigationEntry? = null
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable

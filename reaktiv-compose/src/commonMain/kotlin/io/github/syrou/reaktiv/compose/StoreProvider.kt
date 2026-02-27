@@ -13,7 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.ModuleState
-import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.Store
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,45 +76,6 @@ fun rememberStore(): Store {
 fun rememberDispatcher(): Dispatch {
     val store = rememberStore()
     return remember { store.dispatch }
-}
-
-/**
- * Remember and access typed Logic from a Compose function using the module type.
- *
- * This provides type-safe access to a module's logic instance, allowing you to
- * call suspend methods on the logic from within Composables.
- *
- * Example usage:
- * ```kotlin
- * @Composable
- * fun MyScreen() {
- *     val navLogic = rememberLogic<NavigationModule, NavigationLogic>()
- *     val scope = rememberCoroutineScope()
- *
- *     Button(onClick = {
- *         scope.launch {
- *             navLogic.navigateTo("settings")
- *         }
- *     }) {
- *         Text("Go to Settings")
- *     }
- * }
- * ```
- *
- * @param M The module type that provides the logic (must implement ModuleWithLogic)
- * @param L The logic type to access
- * @return The logic instance of type L
- * @throws IllegalStateException if the module is not found in the store
- */
-@Composable
-inline fun <reified M : ModuleWithLogic<*, *, L>, reified L : io.github.syrou.reaktiv.core.ModuleLogic<*>> rememberLogic(): L {
-    val store = rememberStore()
-    val logic by produceState<L?>(initialValue = null) {
-        val module = store.getModule<M>()
-            ?: throw IllegalStateException("Module ${M::class.simpleName} not found in store")
-        value = module.selectLogicTyped(store)
-    }
-    return logic ?: throw IllegalStateException("Logic not yet initialized")
 }
 
 

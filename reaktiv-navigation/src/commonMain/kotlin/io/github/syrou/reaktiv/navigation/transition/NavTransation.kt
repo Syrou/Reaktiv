@@ -7,9 +7,6 @@ import kotlinx.serialization.Transient
 sealed class NavTransition(@Transient open val durationMillis: Int = DEFAULT_ANIMATION_DURATION) {
     @Serializable
     data object None : NavTransition(0)
-    @Deprecated("This is deprecated and will be removed in future versions, use None")
-    @Serializable
-    data object Hold : NavTransition(0)
     @Serializable
     data object Fade : NavTransition()
     @Serializable
@@ -76,11 +73,6 @@ fun NavTransition.resolve(
         is NavTransition.None -> ResolvedNavTransition(
             durationMillis = 0,
             alpha = { 1f }
-        )
-
-        is NavTransition.Hold -> ResolvedNavTransition(
-            durationMillis = 0,
-            alpha = { if (it == 0f) 0.99f else 1f }
         )
 
         is NavTransition.Fade -> ResolvedNavTransition(

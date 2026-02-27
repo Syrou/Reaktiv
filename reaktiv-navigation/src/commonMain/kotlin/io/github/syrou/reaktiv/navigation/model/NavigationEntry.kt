@@ -31,9 +31,6 @@ data class RouteResolution(
     val navigationGraphId: String? = null,
     val isGraphReference: Boolean = false
 ) {
-    @Deprecated("Use targetNavigatable instead", ReplaceWith("targetNavigatable"))
-    val targetScreen: Navigatable get() = targetNavigatable
-
     fun getEffectiveGraphId(): String {
         return when {
             isGraphReference -> targetGraphId
@@ -46,10 +43,7 @@ data class RouteResolution(
 data class ScreenResolution(
     val navigatable: Navigatable,
     val actualGraphId: String
-) {
-    @Deprecated("Use navigatable instead", ReplaceWith("navigatable"))
-    val screen: Navigatable get() = navigatable
-}
+)
 
 fun Navigatable.toNavigationEntry(
     path: String,

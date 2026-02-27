@@ -2,7 +2,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.param.Params
-import io.github.syrou.reaktiv.navigation.param.getString
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 
 object SplashScreen : Screen {

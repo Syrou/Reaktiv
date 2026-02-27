@@ -37,6 +37,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import eu.syrou.androidexample.reaktiv.settings.SettingsLogic
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import androidx.compose.runtime.rememberCoroutineScope
 import io.github.syrou.reaktiv.compose.composeState
@@ -104,7 +105,9 @@ object SettingsScreen : Screen {
                     }
                 },
                 onUnlinkClick = {
-                    store.dispatch(SettingsModule.SettingsAction.SetTwitchAccessToken(null))
+                    scope.launch {
+                        store.selectLogic<SettingsLogic>().setTwitchAccessToken(null)
+                    }
                 }
             )
             Spacer(modifier = Modifier.height(8.dp))

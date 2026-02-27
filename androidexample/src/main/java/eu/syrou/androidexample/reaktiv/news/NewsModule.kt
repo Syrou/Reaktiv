@@ -28,7 +28,7 @@ object NewsModule : Module<NewsModule.NewsState, NewsModule.NewsAction> {
             is NewsAction.NewsLoading -> state.copy(loading = action.loading)
         }
     }
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<NewsAction> = { storeAccessor ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic = { storeAccessor ->
         println("HERPA DERPA - Assigning and creating logic for: ${this::class.qualifiedName}")
         NewsLogic(storeAccessor = storeAccessor)
     }

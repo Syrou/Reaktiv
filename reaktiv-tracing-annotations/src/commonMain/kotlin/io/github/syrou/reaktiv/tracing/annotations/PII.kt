@@ -14,7 +14,7 @@ package io.github.syrou.reaktiv.tracing.annotations
  *
  * Usage:
  * ```kotlin
- * class UserLogic(storeAccessor: StoreAccessor) : ModuleLogic<UserAction>() {
+ * class UserLogic(storeAccessor: StoreAccessor) : ModuleLogic() {
  *     suspend fun updateProfile(
  *         @PII email: String,
  *         @PII phoneNumber: String

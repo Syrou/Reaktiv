@@ -33,10 +33,8 @@ class MiddlewareTest {
             }
         }
 
-        override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<MiddlewareTestAction> =
-            { storeAccessor: StoreAccessor ->
-                ModuleLogic { action -> }
-            }
+        override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic =
+            { object : ModuleLogic() {} }
     }
 
     @Test

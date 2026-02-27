@@ -54,7 +54,7 @@ class NavigationLogic(
     private val precomputedData: PrecomputedNavigationData,
     private val parameterEncoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder(),
     private val onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null
-) : ModuleLogic<NavigationAction>() {
+) : ModuleLogic() {
 
     private val bootstrapCompleted = CompletableDeferred<Unit>()
     private val navigationMutex = Mutex()
@@ -177,15 +177,18 @@ class NavigationLogic(
      * [io.github.syrou.reaktiv.navigation.layer.RenderLayer.SYSTEM] navigatables bypass the
      * bootstrap wait so they can appear above the loading screen immediately without waiting
      * for startup to complete.
+     *
+     * @return [NavigationOutcome] describing whether the navigation succeeded, was dropped,
+     *   rejected, or redirected. Callers can ignore the return value for fire-and-forget use.
      */
-    suspend fun navigate(block: suspend NavigationBuilder.() -> Unit) {
+    suspend fun navigate(block: suspend NavigationBuilder.() -> Unit): NavigationOutcome {
         val builder = NavigationBuilder(storeAccessor, parameterEncoder)
         builder.apply { block() }
         builder.validate()
         if (!isSystemLayerNavigation(builder)) {
             bootstrapCompleted.await()
         }
-        evaluateAndExecute(builder)
+        return evaluateAndExecute(builder)
     }
 
     private fun isSystemLayerNavigation(builder: NavigationBuilder): Boolean {
@@ -276,13 +279,13 @@ class NavigationLogic(
      * the navigation. Runs inside [NonCancellable] so that guard evaluation and state
      * commits are never partially cancelled.
      *
-     * Returns immediately if another navigation is already in progress (animation spam prevention).
+     * Returns [NavigationOutcome.Dropped] immediately if another navigation is already in progress.
      */
-    private suspend fun evaluateAndExecute(builder: NavigationBuilder) {
-        if (!navigationMutex.tryLock()) return
+    private suspend fun evaluateAndExecute(builder: NavigationBuilder): NavigationOutcome {
+        if (!navigationMutex.tryLock()) return NavigationOutcome.Dropped
         val isSystemLayer = isSystemLayerNavigation(builder)
         try {
-            withContext(NonCancellable) {
+            return withContext(NonCancellable) {
                 try {
                     val primaryStep = builder.operations.firstOrNull {
                         it.operation == NavigationOperation.Navigate || it.operation == NavigationOperation.Replace
@@ -290,7 +293,7 @@ class NavigationLogic(
 
                     if (primaryStep == null) {
                         executeNavigation(builder)
-                        return@withContext
+                        return@withContext NavigationOutcome.Success
                     }
 
                     val targetRoute = try {
@@ -301,16 +304,16 @@ class NavigationLogic(
 
                     if (targetRoute == null) {
                         executeNavigation(builder)
-                        return@withContext
+                        return@withContext NavigationOutcome.Success
                     }
 
                     val currentState = getCurrentNavigationState()
 
                     when (val guard = evaluateGuard(targetRoute, primaryStep, currentState)) {
-                        is GuardEvaluation.Reject -> return@withContext
+                        is GuardEvaluation.Reject -> return@withContext NavigationOutcome.Rejected
                         is GuardEvaluation.Redirect -> {
                             navigateDirect(guard.route)
-                            return@withContext
+                            return@withContext NavigationOutcome.Redirected(guard.route)
                         }
                         is GuardEvaluation.PendAndRedirect -> {
                             storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
@@ -321,7 +324,7 @@ class NavigationLogic(
                                 redirectBuilder.validate()
                                 executeNavigation(redirectBuilder)
                             }
-                            return@withContext
+                            return@withContext NavigationOutcome.Redirected(guard.redirectRoute)
                         }
                         is GuardEvaluation.Allow, null -> Unit
                     }
@@ -333,10 +336,11 @@ class NavigationLogic(
                         else routeBuilder.navigateTo(entryNode.route)
                         routeBuilder.validate()
                         executeNavigation(routeBuilder)
-                        return@withContext
+                        return@withContext NavigationOutcome.Success
                     }
 
                     executeNavigation(builder)
+                    NavigationOutcome.Success
                 } finally {
                     if (!isSystemLayer) {
                         val stateAfter = getCurrentNavigationState()
@@ -388,14 +392,16 @@ class NavigationLogic(
      * @param params Parameters to pass to the destination screen
      * @param replaceCurrent If true, replaces current entry instead of pushing new one
      * @param config Optional additional navigation configuration
+     * @return [NavigationOutcome] describing whether the navigation succeeded, was dropped,
+     *   rejected, or redirected.
      */
     suspend fun navigate(
         route: String,
         params: Params = Params.empty(),
         replaceCurrent: Boolean = false,
         config: (NavigationBuilder.() -> Unit)? = null
-    ) {
-        navigate {
+    ): NavigationOutcome {
+        return navigate {
             params(params)
             navigateTo(route, replaceCurrent)
             config?.invoke(this)
@@ -524,9 +530,9 @@ class NavigationLogic(
         val navigationStartEntry = simulatedCurrentEntry
         var simulatedBackStack = initialState.backStack
         var simulatedModalContexts = initialState.activeModalContexts
+        var lastNavigatedEntry: NavigationEntry? = null
 
         val batchedActions = mutableListOf<NavigationAction>()
-        var lastNavigatedEntry: NavigationEntry? = null
 
         for (step in builder.operations) {
             when (step.operation) {
@@ -556,6 +562,7 @@ class NavigationLogic(
                             batchedActions.add(NavigationAction.Navigate(intermediate))
                             simulatedBackStack = simulatedBackStack + intermediate
                             simulatedCurrentEntry = intermediate
+                            lastNavigatedEntry = intermediate
                         }
                         val finalPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
                             ?: resolution.targetNavigatable.route
@@ -639,43 +646,68 @@ class NavigationLogic(
                 }
 
                 NavigationOperation.PopUpTo -> {
-                    val popUpToBackStack = if (lastNavigatedEntry != null) {
-                        simulatedBackStack.filter { it !== lastNavigatedEntry }
-                    } else {
-                        simulatedBackStack
-                    }
-                    val result = applyPopUpToStep(
-                        step, simulatedCurrentEntry, popUpToBackStack, simulatedModalContexts,
-                        hasNavigationOperations = lastNavigatedEntry != null
+                    val resolvedRoute = step.popUpToTarget?.resolve(precomputedData)
+                        ?: throw IllegalStateException("PopUpTo operation requires a popUpTo target")
+
+                    val targetIndex = precomputedData.routeResolver.findRouteInBackStack(
+                        resolvedRoute, simulatedBackStack
                     )
 
-                    val navigated = lastNavigatedEntry
-                    val finalCurrentEntry: NavigationEntry
-                    val finalBackStack: List<NavigationEntry>
-
-                    if (navigated != null) {
-                        val navigatedInTrimmed = result.backStack.any { it.path == navigated.path }
-                        if (navigatedInTrimmed) {
-                            finalCurrentEntry = result.currentEntry
-                            finalBackStack = result.backStack
+                    if (targetIndex < 0) {
+                        if (step.popUpToFallback != null) {
+                            val fallbackRoute = step.popUpToFallback.resolve(precomputedData)
+                            val resolution = precomputedData.routeResolver.resolve(
+                                fallbackRoute, precomputedData.availableNavigatables
+                            ) ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
+                            val fallbackPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
+                                ?: resolution.targetNavigatable.route
+                            val newEntry = createNavigationEntry(
+                                step.copy(target = step.popUpToFallback),
+                                resolution,
+                                fallbackPath,
+                                stackPosition = 1
+                            )
+                            batchedActions.add(NavigationAction.Navigate(newEntry))
+                            simulatedBackStack = listOf(newEntry)
+                            simulatedCurrentEntry = newEntry
+                            simulatedModalContexts = emptyMap()
+                            lastNavigatedEntry = newEntry
                         } else {
-                            val pos = result.backStack.size + 1
-                            val repositioned = navigated.copy(stackPosition = pos)
-                            finalCurrentEntry = repositioned
-                            finalBackStack = result.backStack + repositioned
+                            throw RouteNotFoundException("No match found for route $resolvedRoute")
                         }
                     } else {
-                        finalCurrentEntry = result.currentEntry
-                        finalBackStack = result.backStack
-                    }
+                        val trimmedBackStack = if (step.popUpToInclusive) {
+                            simulatedBackStack.take(targetIndex)
+                        } else {
+                            simulatedBackStack.take(targetIndex + 1)
+                        }
 
-                    batchedActions.add(
-                        NavigationAction.PopUpTo(finalCurrentEntry, finalBackStack, result.modalContexts)
-                    )
-                    simulatedCurrentEntry = finalCurrentEntry
-                    simulatedBackStack = finalBackStack
-                    simulatedModalContexts = result.modalContexts
-                    lastNavigatedEntry = null
+                        val entryToReAdd = if (lastNavigatedEntry != null &&
+                            trimmedBackStack.none { it.path == lastNavigatedEntry!!.path }) {
+                            lastNavigatedEntry
+                        } else null
+
+                        val wouldBeEmpty = trimmedBackStack.isEmpty() && entryToReAdd == null
+                        if (wouldBeEmpty) {
+                            throw IllegalStateException(
+                                "PopUpTo with inclusive=true on route '$resolvedRoute' would result in an empty back stack. " +
+                                "Either use inclusive=false, or navigate to a new destination before calling popUpTo."
+                            )
+                        }
+
+                        batchedActions.add(NavigationAction.PopUpTo(resolvedRoute, step.popUpToInclusive, entryToReAdd))
+
+                        simulatedBackStack = if (entryToReAdd != null) {
+                            val pos = trimmedBackStack.size + 1
+                            trimmedBackStack + entryToReAdd.copy(stackPosition = pos)
+                        } else {
+                            trimmedBackStack
+                        }
+                        simulatedCurrentEntry = simulatedBackStack.lastOrNull() ?: simulatedCurrentEntry
+                        val trimmedPaths = simulatedBackStack.map { it.path }.toSet()
+                        simulatedModalContexts = simulatedModalContexts.filterKeys { it in trimmedPaths }
+                        lastNavigatedEntry = null
+                    }
                 }
             }
         }
@@ -797,127 +829,4 @@ class NavigationLogic(
         return storeAccessor.selectState<NavigationState>().first()
     }
 
-    private data class NavigationStepResult(
-        val currentEntry: NavigationEntry,
-        val backStack: List<NavigationEntry>,
-        val modalContexts: Map<String, ModalContext>
-    )
-
-    private suspend fun applyPopUpToStep(
-        step: NavigationStep,
-        currentEntry: NavigationEntry,
-        backStack: List<NavigationEntry>,
-        modalContexts: Map<String, ModalContext>,
-        allOperations: List<NavigationStep> = emptyList(),
-        hasNavigationOperations: Boolean = allOperations.any {
-            it.operation == NavigationOperation.Navigate || it.operation == NavigationOperation.Replace
-        }
-    ): NavigationStepResult {
-        val popUpToRoute = step.popUpToTarget?.resolve(precomputedData)
-            ?: throw IllegalStateException("PopUpTo operation requires a popUpTo target")
-        var popIndex = precomputedData.routeResolver.findRouteInBackStack(
-            targetRoute = popUpToRoute,
-            backStack = backStack
-        )
-
-        if (popIndex < 0 && step.popUpToFallback != null) {
-            val fallbackRoute = step.popUpToFallback.resolve(precomputedData)
-            popIndex = precomputedData.routeResolver.findRouteInBackStack(
-                targetRoute = fallbackRoute,
-                backStack = backStack
-            )
-
-            if (popIndex < 0) {
-                val resolution =
-                    precomputedData.routeResolver.resolve(fallbackRoute, precomputedData.availableNavigatables)
-                        ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
-
-                val fallbackPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                    ?: resolution.targetNavigatable.route
-                val newEntry = createNavigationEntry(
-                    step.copy(target = step.popUpToFallback),
-                    resolution,
-                    fallbackPath,
-                    stackPosition = 1
-                )
-
-                return NavigationStepResult(
-                    currentEntry = newEntry,
-                    backStack = listOf(newEntry),
-                    modalContexts = emptyMap()
-                )
-            }
-        }
-
-        if (popIndex < 0) {
-            throw RouteNotFoundException("No match found for route $popUpToRoute")
-        }
-
-        val newBackStackAfterPop = if (step.popUpToInclusive) {
-            backStack.take(popIndex)
-        } else {
-            backStack.take(popIndex + 1)
-        }
-
-        return if (step.target != null) {
-            val resolvedRoute = step.target!!.resolve(precomputedData)
-            val resolution = precomputedData.routeResolver.resolve(resolvedRoute, precomputedData.availableNavigatables)
-                ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
-
-            val entryPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                ?: resolution.targetNavigatable.route
-            val newEntry = createNavigationEntry(
-                step,
-                resolution,
-                entryPath,
-                stackPosition = newBackStackAfterPop.size + 1
-            )
-
-            NavigationStepResult(
-                currentEntry = newEntry,
-                backStack = newBackStackAfterPop + newEntry,
-                modalContexts = modalContexts
-            )
-        } else {
-            if (hasNavigationOperations) {
-                if (newBackStackAfterPop.isEmpty()) {
-                    if (currentEntry.route == step.popUpToTarget?.resolve(precomputedData) && step.popUpToInclusive) {
-                        throw IllegalStateException("Cannot pop up to route that would result in empty back stack")
-                    } else {
-                        return NavigationStepResult(
-                            currentEntry = currentEntry,
-                            backStack = listOf(currentEntry),
-                            modalContexts = modalContexts
-                        )
-                    }
-                }
-
-                NavigationStepResult(
-                    currentEntry = currentEntry,
-                    backStack = newBackStackAfterPop,
-                    modalContexts = modalContexts
-                )
-            } else {
-                if (newBackStackAfterPop.isEmpty()) {
-                    if (step.popUpToInclusive) {
-                        throw IllegalStateException("Cannot pop up to route with inclusive=true that would result in empty back stack")
-                    } else {
-                        return NavigationStepResult(
-                            currentEntry = currentEntry,
-                            backStack = listOf(currentEntry),
-                            modalContexts = modalContexts
-                        )
-                    }
-                }
-
-                val targetEntry = newBackStackAfterPop.last()
-
-                NavigationStepResult(
-                    currentEntry = targetEntry,
-                    backStack = newBackStackAfterPop,
-                    modalContexts = modalContexts
-                )
-            }
-        }
-    }
 }

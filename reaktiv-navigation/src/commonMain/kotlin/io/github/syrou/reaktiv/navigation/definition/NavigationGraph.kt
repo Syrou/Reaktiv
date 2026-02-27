@@ -13,18 +13,12 @@ interface NavigationGraph : NavigationNode {
     val interceptDefinition: InterceptDefinition? get() = null
     val entryDefinition: EntryDefinition? get() = null
 
-    @Deprecated("Use navigatables instead", ReplaceWith("navigatables"))
-    val screens: List<Navigatable> get() = navigatables
-
     fun getAllNavigatables(): Map<String, Navigatable> = buildMap {
         navigatables.forEach { navigatable -> put(navigatable.route, navigatable) }
         nestedGraphs.forEach { nestedGraph ->
             putAll(nestedGraph.getAllNavigatables())
         }
     }
-
-    @Deprecated("Use getAllNavigatables", ReplaceWith("getAllNavigatables()"))
-    fun getAllScreens(): Map<String, Navigatable> = getAllNavigatables()
 
     fun findGraphContaining(route: String): NavigationGraph? {
         if (navigatables.any { it.route == route }) return this

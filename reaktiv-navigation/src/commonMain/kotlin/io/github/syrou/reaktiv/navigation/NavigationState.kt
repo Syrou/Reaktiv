@@ -23,20 +23,15 @@ data class NavigationState(
     val screenRetentionDuration: Duration,
 
     // Computed state properties (set by reducer, fully serializable)
-    val orderedBackStack: List<NavigationEntry>,
     val visibleLayers: List<NavigationEntry>,
     val currentFullPath: String,
-    val currentPathSegments: List<String>,
     val currentGraphHierarchy: List<String>,
     val breadcrumbs: List<NavigationBreadcrumb>,
 
     // Boolean flags (computed by reducer)
-    val canGoBack: Boolean,
     val isCurrentModal: Boolean,
     val isCurrentScreen: Boolean,
     val hasModalsInStack: Boolean,
-    val effectiveDepth: Int,
-    val navigationDepth: Int,
 
     // Layer entries (computed by reducer)
     val contentLayerEntries: List<NavigationEntry>,
@@ -63,6 +58,12 @@ data class NavigationState(
     // the navigatable's titleResource inside the Compose tree where stringResource is available.
     val currentTitle: String? = null
 ) : ModuleState {
+
+    val canGoBack: Boolean get() = backStack.size > 1
+    val effectiveDepth: Int get() = backStack.size
+    val currentPathSegments: List<String> get() = currentFullPath.split("/").filter { it.isNotEmpty() }
+    val navigationDepth: Int get() = currentPathSegments.size
+    val orderedBackStack: List<NavigationEntry> get() = backStack.mapIndexed { i, e -> e.copy(stackPosition = i) }
 
     val renderableEntries: List<NavigationEntry> get() = visibleLayers
 

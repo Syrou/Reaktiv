@@ -30,7 +30,7 @@ object VideosModule : Module<VideosModule.VideosState, VideosModule.VideosAction
         }
     }
 
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<VideosAction> = { storeAccessor ->
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic = { storeAccessor ->
         println("HERPA DERPA - Assigning and creating logic for: ${this::class.qualifiedName}")
         VideosLogic(storeAccessor)
     }

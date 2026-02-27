@@ -30,16 +30,6 @@ object SettingsModule : Module<SettingsModule.SettingsState, SettingsModule.Sett
             is SettingsAction.SetTwitchAccessToken -> state.copy(twitchAccessToken = action.accessToken)
         }
     }
-    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic<SettingsAction> = { storeAccessor: StoreAccessor ->
-        println("HERPA DERPA - Assigning and creating logic for: ${this::class.qualifiedName}")
-        ModuleLogic<SettingsAction> { action ->
-            when (action) {
-                is SettingsAction.SetTwitchAccessToken -> {
-                    action.accessToken?.let {
-                        storeAccessor.dispatch.invoke(TwitchStreamsModule.TwitchStreamsAction.AccessToken(it))
-                    }
-                }
-            }
-        }
-    }
+    override val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic =
+        { storeAccessor -> SettingsLogic(storeAccessor) }
 }
