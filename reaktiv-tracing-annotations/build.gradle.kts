@@ -22,12 +22,12 @@ dokka {
 }
 
 centralPublisher {
-    username = CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_TOKEN")
-    password = CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_PASSWORD")
+    username.set(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_TOKEN"))
+    password.set(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_PASSWORD"))
     publishingType = PublishingType.AUTOMATIC
 
-    signingPassword = CentralPublisherCredentials.getRequiredCredential(project, "SIGNING_PASSWORD")
-    signingSecretKey = CentralPublisherCredentials.getRequiredCredential(project, "SIGNING_SECRET_KEY")
+    signingPassword.set(CentralPublisherCredentials.credentialProvider(project, "SIGNING_PASSWORD"))
+    signingSecretKey.set(CentralPublisherCredentials.credentialProvider(project, "SIGNING_SECRET_KEY"))
 
     projectName = "Reaktiv Tracing Annotations"
     projectDescription = "Marker annotations for the Reaktiv logic tracing compiler plugin"

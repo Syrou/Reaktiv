@@ -1089,6 +1089,17 @@ object CentralPublisherCredentials {
             ?: throw GradleException("Missing credential '$key'. Add to local.properties or environment variables.")
     }
 
+    /**
+     * Returns a lazy [Provider] that resolves the credential only when a task executes.
+     * Use this in `centralPublisher { }` configuration blocks via `property.set(...)` so
+     * that tasks like `dokkaGeneratePublicationHtml` can run in environments without
+     * publishing credentials. The `uploadToCentral` task validates that the resolved
+     * value is non-blank before attempting to publish.
+     */
+    fun credentialProvider(project: Project, key: String): Provider<String> {
+        return project.providers.provider { getCredential(project, key) ?: "" }
+    }
+
     private fun getLocalProperties(project: Project): Properties {
         // First try the current project's root
         var propertiesFile = project.rootProject.file("local.properties")

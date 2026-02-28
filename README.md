@@ -131,7 +131,7 @@ sealed class CounterAction : ModuleAction(CounterModule::class) {
     data class SetCount(val value: Int) : CounterAction()
 }
 
-class CounterLogic(private val storeAccessor: StoreAccessor) : ModuleLogic<CounterAction>() {
+class CounterLogic(val storeAccessor: StoreAccessor) : ModuleLogic() {
 
     suspend fun incrementDelayed() {
         delay(1000)
@@ -164,12 +164,12 @@ object CounterModule : ModuleWithLogic<CounterState, CounterAction, CounterLogic
 ```kotlin
 val navigationModule = createNavigationModule {
     rootGraph {
-        startScreen(HomeScreen)
-        screens(ProfileScreen, SettingsScreen)
+        entry(HomeScreen)
+        screens(HomeScreen, ProfileScreen, SettingsScreen)
 
         graph("auth") {
-            startScreen(LoginScreen)
-            screens(SignUpScreen)
+            entry(LoginScreen)
+            screens(LoginScreen, SignUpScreen)
         }
     }
     notFoundScreen(NotFoundScreen)
