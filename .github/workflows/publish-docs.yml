@@ -30,7 +30,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v3
 
       - name: Generate Dokka multi-module site
-        run: ./gradlew :dokkaGeneratePublicationHtml
+        run: |
+          chmod +x gradlew
+          ./gradlew :dokkaGeneratePublicationHtml
 
       - uses: actions/configure-pages@v5
 
