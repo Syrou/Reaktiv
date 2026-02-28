@@ -1,0 +1,311 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>MutableNavigationGraph</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-navigation/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-navigation/commonMain" data-filter=":reaktiv-navigation/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="reaktiv-navigation::io.github.syrou.reaktiv.navigation.definition/MutableNavigationGraph///PointingToDeclaration//-1582837976">
+  <div class="breadcrumbs"><a href="../../index.html">reaktiv-navigation</a><span class="delimiter">/</span><a href="../index.html">io.github.syrou.reaktiv.navigation.definition</a><span class="delimiter">/</span><span class="current">MutableNavigationGraph</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Mutable</span><wbr><span>Navigation</span><wbr><span><span>Graph</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="index.html">MutableNavigationGraph</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>route<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>startDestination<span class="token operator">: </span><a href="../-start-destination/index.html">StartDestination</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>navigatables<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-navigatable/index.html">Navigatable</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>nestedGraphs<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-navigation-graph/index.html">NavigationGraph</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>layout<span class="token operator">: </span><span><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a>&nbsp;</span><span class="token punctuation">(</span><span><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a>&nbsp;</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>interceptDefinition<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.navigation.model/-intercept-definition/index.html">InterceptDefinition</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>entryDefinition<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.navigation.model/-entry-definition/index.html">EntryDefinition</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="../-navigation-graph/index.html">NavigationGraph</a><span class="clearfix"><span class="floating-right">(<a href="https://github.com/Syrou/Reaktiv/blob/main/reaktiv-navigation/src/commonMain/kotlin/io/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph.kt#L9">source</a>)</span></span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="">Constructors</h2>
+        <div class="table"><a data-name="112676784%2FConstructors%2F-1582837976" anchor-label="MutableNavigationGraph" id="112676784%2FConstructors%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-togglable="CONSTRUCTOR" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mutable-navigation-graph.html"><span>Mutable</span><wbr><span>Navigation</span><wbr><span><span>Graph</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="112676784%2FConstructors%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">route<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">startDestination<span class="token operator">: </span><a href="../-start-destination/index.html">StartDestination</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">navigatables<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-navigatable/index.html">Navigatable</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">nestedGraphs<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-navigation-graph/index.html">NavigationGraph</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">layout<span class="token operator">: </span><span><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a>&nbsp;</span><span class="token punctuation">(</span><span><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a>&nbsp;</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">interceptDefinition<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.navigation.model/-intercept-definition/index.html">InterceptDefinition</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">entryDefinition<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.navigation.model/-entry-definition/index.html">EntryDefinition</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="">Properties</h2>
+        <div class="table"><a data-name="-617446200%2FProperties%2F-1582837976" anchor-label="entryDefinition" id="-617446200%2FProperties%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="entry-definition.html"><span>entry</span><wbr><span><span>Definition</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-617446200%2FProperties%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Transient///PointingToDeclaration/"><span class="token annotation builtin">Transient</span></span></div></div><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="entry-definition.html">entryDefinition</a><span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.navigation.model/-entry-definition/index.html">EntryDefinition</a><span class="token operator">?</span><span class="token operator"> = </span>null</div><div class="brief "><p class="paragraph">Dynamic entry-point resolver; overrides <a href="start-destination.html">startDestination</a> when present.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-152362376%2FProperties%2F-1582837976" anchor-label="interceptDefinition" id="-152362376%2FProperties%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="intercept-definition.html"><span>intercept</span><wbr><span><span>Definition</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-152362376%2FProperties%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Transient///PointingToDeclaration/"><span class="token annotation builtin">Transient</span></span></div></div><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="intercept-definition.html">interceptDefinition</a><span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.navigation.model/-intercept-definition/index.html">InterceptDefinition</a><span class="token operator">?</span><span class="token operator"> = </span>null</div><div class="brief "><p class="paragraph">Guard evaluated before entering any route within this graph.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1507124989%2FProperties%2F-1582837976" anchor-label="layout" id="-1507124989%2FProperties%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="layout.html"><span><span>layout</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1507124989%2FProperties%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Transient///PointingToDeclaration/"><span class="token annotation builtin">Transient</span></span></div></div><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="layout.html">layout</a><span class="token operator">: </span><span><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a>&nbsp;</span><span class="token punctuation">(</span><span><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a>&nbsp;</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token operator">?</span><span class="token operator"> = </span>null</div><div class="brief "><p class="paragraph">Optional shared layout wrapper applied to every screen inside this graph.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1478384856%2FProperties%2F-1582837976" anchor-label="navigatables" id="-1478384856%2FProperties%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="navigatables.html"><span><span>navigatables</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1478384856%2FProperties%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="navigatables.html">navigatables</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-navigatable/index.html">Navigatable</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Direct children of this graph.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="637966257%2FProperties%2F-1582837976" anchor-label="nestedGraphs" id="637966257%2FProperties%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="nested-graphs.html"><span>nested</span><wbr><span><span>Graphs</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="637966257%2FProperties%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="nested-graphs.html">nestedGraphs</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-navigation-graph/index.html">NavigationGraph</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Sub-graphs owned by this graph.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-931065244%2FProperties%2F-1582837976" anchor-label="route" id="-931065244%2FProperties%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="route.html"><span><span>route</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-931065244%2FProperties%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="route.html">route</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-572732383%2FProperties%2F-1582837976" anchor-label="startDestination" id="-572732383%2FProperties%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="start-destination.html"><span>start</span><wbr><span><span>Destination</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-572732383%2FProperties%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="start-destination.html">startDestination</a><span class="token operator">: </span><a href="../-start-destination/index.html">StartDestination</a><span class="token operator">?</span><span class="token operator"> = </span>null</div><div class="brief "><p class="paragraph">The default destination shown when navigating to this graph without a specific target.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="-475349526%2FFunctions%2F-1582837976" anchor-label="findGraphContaining" id="-475349526%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-navigation-graph/find-graph-containing.html"><span>find</span><wbr><span>Graph</span><wbr><span><span>Containing</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-475349526%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-navigation-graph/find-graph-containing.html"><span class="token function">findGraphContaining</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">route<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-navigation-graph/index.html">NavigationGraph</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Returns the graph that directly owns a navigatable with the given <a href="../-navigation-graph/find-graph-containing.html">route</a>, searching recursively through <a href="../-navigation-graph/nested-graphs.html">nestedGraphs</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="982071621%2FFunctions%2F-1582837976" anchor-label="findNestedGraph" id="982071621%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-navigation-graph/find-nested-graph.html"><span>find</span><wbr><span>Nested</span><wbr><span><span>Graph</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="982071621%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-navigation-graph/find-nested-graph.html"><span class="token function">findNestedGraph</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">graphId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-navigation-graph/index.html">NavigationGraph</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Returns the nested graph with the given <a href="../-navigation-graph/find-nested-graph.html">graphId</a>, searching recursively.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1414731405%2FFunctions%2F-1582837976" anchor-label="getAllNavigatables" id="1414731405%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-navigation-graph/get-all-navigatables.html"><span>get</span><wbr><span>All</span><wbr><span><span>Navigatables</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1414731405%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-navigation-graph/get-all-navigatables.html"><span class="token function">getAllNavigatables</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="../-navigatable/index.html">Navigatable</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Returns a flat map of route → <a href="../-navigatable/index.html">Navigatable</a> for this graph and all nested graphs.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1416089913%2FFunctions%2F-1582837976" anchor-label="resolveStartScreen" id="-1416089913%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-navigation-graph/resolve-start-screen.html"><span>resolve</span><wbr><span>Start</span><wbr><span><span>Screen</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1416089913%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-navigation-graph/resolve-start-screen.html"><span class="token function">resolveStartScreen</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">graphDefinitions<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="../-navigation-graph/index.html">NavigationGraph</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-navigatable/index.html">Navigatable</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Resolves the initial <a href="../-navigatable/index.html">Navigatable</a> for this graph, following <a href="../-start-destination/-graph-reference/index.html">StartDestination.GraphReference</a> chains through <a href="../-navigation-graph/resolve-start-screen.html">graphDefinitions</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

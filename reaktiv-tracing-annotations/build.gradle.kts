@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     kotlin("multiplatform")
     id("org.jetbrains.dokka")
@@ -6,6 +8,18 @@ plugins {
 }
 
 group = "io.github.syrou"
+
+dokka {
+    moduleName.set("reaktiv-tracing-annotations")
+    dokkaSourceSets.configureEach {
+        includes.from("module.md")
+        sourceLink {
+            localDirectory.set(file("src"))
+            remoteUrl.set(URI("https://github.com/Syrou/Reaktiv/blob/main/reaktiv-tracing-annotations/src"))
+            remoteLineSuffix.set("#L")
+        }
+    }
+}
 
 centralPublisher {
     username = CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_TOKEN")

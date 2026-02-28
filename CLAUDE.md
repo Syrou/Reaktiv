@@ -440,3 +440,86 @@ pluginManagement {
 - **AtomicFU**: 0.27.0
 - Target platforms: JVM, Android, potentially iOS/Desktop
 - Uses kotlinx.coroutines and kotlinx.serialization
+
+## Migration Documentation
+
+All API changes — breaking removals and significant additions — must be recorded in
+`migrations/pending.md` so that users on older versions can migrate mechanically and
+LLMs know what new APIs are available. See `migrations/README.md` for the full format.
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `migrations/README.md` | Canonical entry format and LLM workflow |
+| `migrations/v{old}-to-v{new}.md` | Released migration guide |
+| `migrations/pending.md` | Accumulates changes during active development |
+
+### When you introduce a breaking change
+
+**Immediately** append a `BC-NN` entry to `migrations/pending.md`. Use the next
+available ID (inspect the last BC entry in the file).
+
+```
+### [BC-NN] Short Title
+
+**Type:** Breaking | Deprecation-removal | Behavioural
+
+**Grep:** `old pattern to search in user's code`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// old code
+```
+
+**After:**
+```kotlin
+// replacement
+```
+
+**Notes:** Any caveats.
+
+---
+```
+
+### When you add a significant new API
+
+**Immediately** append an `AD-NN` entry to `migrations/pending.md`. This covers:
+- New public classes, functions, or DSLs
+- New properties on existing types
+- Replacements for deprecated or removed APIs (cross-reference the BC entry)
+
+```
+### [AD-NN] Short Title
+
+**Type:** Addition | Replaces-deprecated
+
+**Grep:** `new API pattern to check adoption`
+**File glob:** `**/*.kt`
+
+**Replaces:** (Replaces-deprecated only) brief description of the old API
+
+**Example:**
+```kotlin
+// self-contained usage example
+```
+
+**Notes:** When to use, caveats, related entries.
+
+---
+```
+
+### Rule: removed deprecated API → always two entries
+
+When a previously deprecated API is removed, write:
+1. A `BC-NN` entry for the removal (Grep = old pattern, Before/After = migration path)
+2. An `AD-NN` entry for the replacement API (Grep = new pattern, Example = usage)
+
+Cross-reference them with "see BC-NN" / "see AD-NN" in the Notes field.
+
+### On version release
+
+1. Rename `migrations/pending.md` → `migrations/v{old}-to-v{new}.md`
+2. Reset `migrations/pending.md` to its template header (both section headings,
+   no actual entries)

@@ -1,0 +1,363 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>DevToolsMessage</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-devtools/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/commonMain" data-filter=":reaktiv-devtools/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="reaktiv-devtools::io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage///PointingToDeclaration//-190804614">
+  <div class="breadcrumbs"><a href="../../index.html">reaktiv-devtools</a><span class="delimiter">/</span><a href="../index.html">io.github.syrou.reaktiv.devtools.protocol</a><span class="delimiter">/</span><span class="current">DevToolsMessage</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>Message</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">sealed </span><span class="token keyword">class </span><a href="index.html">DevToolsMessage</a><span class="clearfix"><span class="floating-right">(<a href="https://github.com/Syrou/Reaktiv/blob/main/reaktiv-devtools/src/commonMain/kotlin/io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage.kt#L22">source</a>)</span></span></div><p class="paragraph">DevTools network protocol messages.</p><p class="paragraph">These messages are used for communication between DevTools clients and server. Data capture types (CapturedAction, etc.) are imported from reaktiv-crash-capture.</p><h4 class="">Inheritors</h4><div class="table"><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-client-registration/index.html">ClientRegistration</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-role-assignment/index.html">RoleAssignment</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-action-dispatched/index.html">ActionDispatched</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-state-sync/index.html">StateSync</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-client-list-update/index.html">ClientListUpdate</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-role-acknowledgment/index.html">RoleAcknowledgment</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-logic-method-started/index.html">LogicMethodStarted</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-logic-method-completed/index.html">LogicMethodCompleted</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-logic-method-failed/index.html">LogicMethodFailed</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-ghost-device-registration/index.html">GhostDeviceRegistration</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-ghost-device-removal/index.html">GhostDeviceRemoval</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-ghost-session-restore/index.html">GhostSessionRestore</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-listener-attached/index.html">ListenerAttached</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-publisher-changed/index.html">PublisherChanged</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-crash-report/index.html">CrashReport</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-session-history-sync/index.html">SessionHistorySync</a></div></span></div><div></div></div></div></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="">Types</h2>
+        <div class="table"><a data-name="-2081592931%2FClasslikes%2F-190804614" anchor-label="ActionDispatched" id="-2081592931%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-action-dispatched/index.html"><span>Action</span><wbr><span><span>Dispatched</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2081592931%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-action-dispatched/index.html">ActionDispatched</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timestamp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>actionType<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>actionData<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>stateDeltaJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>moduleName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Sent when an action is dispatched. Wraps CapturedAction from crash-capture.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1976995642%2FClasslikes%2F-190804614" anchor-label="ClientListUpdate" id="1976995642%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-client-list-update/index.html"><span>Client</span><wbr><span>List</span><wbr><span><span>Update</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1976995642%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-client-list-update/index.html">ClientListUpdate</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clients<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-client-info/index.html">ClientInfo</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-878170680%2FClasslikes%2F-190804614" anchor-label="ClientRegistration" id="-878170680%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-client-registration/index.html"><span>Client</span><wbr><span><span>Registration</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-878170680%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-client-registration/index.html">ClientRegistration</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>platform<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>isGhost<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1554890757%2FClasslikes%2F-190804614" anchor-label="CrashReport" id="-1554890757%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-crash-report/index.html"><span>Crash</span><wbr><span><span>Report</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1554890757%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-crash-report/index.html">CrashReport</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timestamp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>exceptionType<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>exceptionMessage<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>stackTrace<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>failedCallId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>sessionJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Sent when a crash occurs in a logic method. Carries crash info and optional session snapshot for real-time crash reporting.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1745160584%2FClasslikes%2F-190804614" anchor-label="GhostDeviceRegistration" id="-1745160584%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-ghost-device-registration/index.html"><span>Ghost</span><wbr><span>Device</span><wbr><span><span>Registration</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1745160584%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-ghost-device-registration/index.html">GhostDeviceRegistration</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>sessionId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>originalClientInfo<span class="token operator">: </span><a href="../-client-info/index.html">ClientInfo</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>crashException<span class="token operator">: </span><a href="../../../reaktiv-introspection/io.github.syrou.reaktiv.introspection.protocol/-crash-exception/index.html">CrashException</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>eventCount<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>logicEventCount<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>sessionStartTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>sessionEndTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>sessionExportJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Registers a ghost device from an imported session. Ghost devices represent recorded sessions that can be replayed.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1684177691%2FClasslikes%2F-190804614" anchor-label="GhostDeviceRemoval" id="-1684177691%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-ghost-device-removal/index.html"><span>Ghost</span><wbr><span>Device</span><wbr><span><span>Removal</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1684177691%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-ghost-device-removal/index.html">GhostDeviceRemoval</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>ghostClientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Request to remove a ghost device.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-798986065%2FClasslikes%2F-190804614" anchor-label="GhostSessionRestore" id="-798986065%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-ghost-session-restore/index.html"><span>Ghost</span><wbr><span>Session</span><wbr><span><span>Restore</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-798986065%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-ghost-session-restore/index.html">GhostSessionRestore</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>ghostClientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>sessionExportJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Sent by the server to restore ghost session data on client reconnect. Contains the full session export JSON so the WASM UI can rebuild its state.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1348244300%2FClasslikes%2F-190804614" anchor-label="ListenerAttached" id="-1348244300%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-listener-attached/index.html"><span>Listener</span><wbr><span><span>Attached</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1348244300%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-listener-attached/index.html">ListenerAttached</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>listenerId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Sent by the server to a publisher when a new listener attaches. The publisher should respond by sending a full StateSync.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1247278848%2FClasslikes%2F-190804614" anchor-label="LogicMethodCompleted" id="-1247278848%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-logic-method-completed/index.html"><span>Logic</span><wbr><span>Method</span><wbr><span><span>Completed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1247278848%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-logic-method-completed/index.html">LogicMethodCompleted</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timestamp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>callId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>result<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>resultType<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>durationMs<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Sent when a traced logic method completes successfully.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1409256474%2FClasslikes%2F-190804614" anchor-label="LogicMethodFailed" id="1409256474%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-logic-method-failed/index.html"><span>Logic</span><wbr><span>Method</span><wbr><span><span>Failed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1409256474%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-logic-method-failed/index.html">LogicMethodFailed</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timestamp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>callId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>exceptionType<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>exceptionMessage<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>stackTrace<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>durationMs<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Sent when a traced logic method fails with an exception.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-886772214%2FClasslikes%2F-190804614" anchor-label="LogicMethodStarted" id="-886772214%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-logic-method-started/index.html"><span>Logic</span><wbr><span>Method</span><wbr><span><span>Started</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-886772214%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-logic-method-started/index.html">LogicMethodStarted</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timestamp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>callId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>logicClass<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>methodName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>params<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>sourceFile<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>lineNumber<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>githubSourceUrl<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Sent when a traced logic method starts execution.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="561114644%2FClasslikes%2F-190804614" anchor-label="PublisherChanged" id="561114644%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-publisher-changed/index.html"><span>Publisher</span><wbr><span><span>Changed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="561114644%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-publisher-changed/index.html">PublisherChanged</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>newPublisherId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>previousPublisherId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>reason<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Notification when the publisher changes.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="468713007%2FClasslikes%2F-190804614" anchor-label="RoleAcknowledgment" id="468713007%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-role-acknowledgment/index.html"><span>Role</span><wbr><span><span>Acknowledgment</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="468713007%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-role-acknowledgment/index.html">RoleAcknowledgment</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>role<span class="token operator">: </span><a href="../-client-role/index.html">ClientRole</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>success<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1972537239%2FClasslikes%2F-190804614" anchor-label="RoleAssignment" id="-1972537239%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-role-assignment/index.html"><span>Role</span><wbr><span><span>Assignment</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1972537239%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-role-assignment/index.html">RoleAssignment</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>targetClientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>role<span class="token operator">: </span><a href="../-client-role/index.html">ClientRole</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>publisherClientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-678332749%2FClasslikes%2F-190804614" anchor-label="SessionHistorySync" id="-678332749%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-session-history-sync/index.html"><span>Session</span><wbr><span>History</span><wbr><span><span>Sync</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-678332749%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-session-history-sync/index.html">SessionHistorySync</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>sessionStartTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>initialStateJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">"{}"</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>actionEvents<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-action-dispatched/index.html">DevToolsMessage.ActionDispatched</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>logicStartedEvents<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-logic-method-started/index.html">DevToolsMessage.LogicMethodStarted</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>logicCompletedEvents<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-logic-method-completed/index.html">DevToolsMessage.LogicMethodCompleted</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>logicFailedEvents<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-logic-method-failed/index.html">DevToolsMessage.LogicMethodFailed</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div><div class="brief "><p class="paragraph">Sent by a publisher to sync its session history on connect. Allows the WASM orchestrator to track and export the session.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-98561206%2FClasslikes%2F-190804614" anchor-label="StateSync" id="-98561206%2FClasslikes%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-state-sync/index.html"><span>State</span><wbr><span><span>Sync</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-98561206%2FClasslikes%2F-190804614"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-state-sync/index.html">StateSync</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>fromClientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timestamp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>stateJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>moduleName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>orchestrated<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsMessage</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>reaktiv-core</title>
+<link href="../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../scripts/sourceset_dependencies.js" async></script>
+<link href="../styles/style.css" rel="Stylesheet">
+<link href="../styles/main.css" rel="Stylesheet">
+<link href="../styles/prism.css" rel="Stylesheet">
+<link href="../styles/logo-styles.css" rel="Stylesheet">
+<link href="../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../scripts/main.js" defer></script>
+<script type="text/javascript" src="../scripts/prism.js" async></script>
+<script type="text/javascript" src="../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-core/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-core/commonMain" data-filter=":reaktiv-core/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" id="content" pageids="reaktiv-core::////PointingToDeclaration//-1233518157">
+  <div class="breadcrumbs"></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>reaktiv-core</span></span></h1>
+    <div class="platform-hinted UnderCoverText" data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><p class="paragraph">The Core module is the foundation of Reaktiv, providing the essential building blocks for the Model-View-Logic-Intent (MVLI) architecture in Kotlin Multiplatform projects.</p><h2 class="">Setup</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>dependencies {<br>    implementation("io.github.syrou:reaktiv-core:&lt;version&gt;")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Core Concepts</h2><h3 class="">Store + Module</h3><p class="paragraph">The Store is the central coordinator. Each feature domain is expressed as a Module that owns its ModuleState, a pure reducer, and a ModuleLogic factory.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// 1. Define state<br>data class CounterState(val count: Int = 0) : ModuleState<br><br>// 2. Define actions<br>sealed class CounterAction : ModuleAction() {<br>    data object Increment : CounterAction()<br>    data class Add(val amount: Int) : CounterAction()<br>}<br><br>// 3. Define logic (business logic + side effects)<br>class CounterLogic(val storeAccessor: StoreAccessor) : ModuleLogic() {<br>    suspend fun increment() {<br>        storeAccessor.dispatch(CounterAction.Increment)<br>    }<br><br>    suspend fun addDelayed(amount: Int) {<br>        delay(500)<br>        storeAccessor.dispatch(CounterAction.Add(amount))<br>    }<br>}<br><br>// 4. Define module (wires everything together)<br>object CounterModule : ModuleWithLogic&lt;CounterState, CounterAction, CounterLogic&gt; {<br>    override val initialState = CounterState()<br>    override val reducer = { state: CounterState, action: CounterAction -&gt;<br>        when (action) {<br>            is CounterAction.Increment -&gt; state.copy(count = state.count + 1)<br>            is CounterAction.Add -&gt; state.copy(count = state.count + action.amount)<br>        }<br>    }<br>    override val createLogic = { storeAccessor: StoreAccessor -&gt; CounterLogic(storeAccessor) }<br>}<br><br>// 5. Create the store<br>val store = createStore {<br>    module(CounterModule)<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">Dispatching Actions and Reading State</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// Dispatch a simple action<br>store.dispatch(CounterAction.Increment)<br><br>// Read the current state once<br>val state = store.getCurrentState&lt;CounterState&gt;()<br><br>// Observe state as a flow<br>store.selectState&lt;CounterState&gt;().collect { state -&gt;<br>    println("Count is now: ${state.count}")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">Calling Logic from Outside Compose</h3><p class="paragraph">Use StoreAccessor.launch to call suspend methods on a ModuleLogic instance from non-Compose code (e.g. lifecycle callbacks, ViewModels, application-level events).</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// From a ViewModel or lifecycle-aware component<br>store.launch {<br>    val logic = store.selectLogic&lt;CounterLogic&gt;()<br>    logic.addDelayed(10)<br>}<br><br>// Cross-module logic call (from inside another Logic class)<br>class CheckoutLogic(val storeAccessor: StoreAccessor) : ModuleLogic() {<br>    suspend fun checkout() {<br>        val orderLogic = storeAccessor.selectLogic&lt;OrderLogic&gt;()<br>        orderLogic.submitOrder("order-123")<br>    }<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">Middleware</h3><p class="paragraph">Middleware intercepts every dispatched action. Use it for logging, analytics, or side-effect orchestration. The <code class="lang-kotlin">updatedState</code> lambda returns the module state <i>after</i> the action is reduced.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val loggingMiddleware = Middleware { action, updatedState -&gt;<br>    println("Action dispatched: $action")<br>    val newState = updatedState(action)<br>    println("New state: $newState")<br>}<br><br>val store = createStore {<br>    module(CounterModule)<br>    middleware(loggingMiddleware)<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">State Persistence</h3><p class="paragraph">Implement PersistenceStrategy to save and restore state across sessions. Pass it to <code class="lang-kotlin">createStore</code> via <code class="lang-kotlin">persistWith</code>.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">class DataStorePersistence(private val dataStore: DataStore&lt;Preferences&gt;) : PersistenceStrategy {<br>    override suspend fun save(key: String, value: String) {<br>        dataStore.edit { prefs -&gt; prefs[stringPreferencesKey(key)] = value }<br>    }<br><br>    override suspend fun load(key: String): String? {<br>        return dataStore.data.first()[stringPreferencesKey(key)]<br>    }<br><br>    override suspend fun remove(key: String) {<br>        dataStore.edit { prefs -&gt; prefs.remove(stringPreferencesKey(key)) }<br>    }<br>}<br><br>val store = createStore {<br>    module(CounterModule)<br>    persistWith(DataStorePersistence(dataStore))<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">Custom Type Serializers</h3><p class="paragraph">When a module's state contains polymorphic types or types requiring custom serializers, implement CustomTypeRegistrar so the store can build a unified SerializersModule.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">@Serializable<br>sealed interface AppSettings<br>@Serializable data class BasicSettings(val theme: String) : AppSettings<br>@Serializable data class AdvancedSettings(val theme: String, val locale: String) : AppSettings<br><br>object SettingsModule : ModuleWithLogic&lt;SettingsState, SettingsAction, SettingsLogic&gt;,<br>        CustomTypeRegistrar {<br>    override val initialState = SettingsState(BasicSettings("dark"))<br>    override val reducer = { state: SettingsState, action: SettingsAction -&gt; /* ... */ state }<br>    override val createLogic = { accessor: StoreAccessor -&gt; SettingsLogic(accessor) }<br><br>    override fun registerAdditionalSerializers(builder: SerializersModuleBuilder) {<br>        builder.polymorphic(AppSettings::class) {<br>            subclass(BasicSettings::class)<br>            subclass(AdvancedSettings::class)<br>        }<br>    }<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Key Types</h2><ul><li><p class="paragraph">Store — central coordinator; created via <code class="lang-kotlin">createStore { }</code></p></li><li><p class="paragraph">Module / ModuleWithLogic — feature domain definition</p></li><li><p class="paragraph">ModuleState — immutable state marker interface</p></li><li><p class="paragraph">ModuleAction — action marker base class</p></li><li><p class="paragraph">ModuleLogic — side-effect and business logic base class</p></li><li><p class="paragraph">StoreAccessor — access point for <code class="lang-kotlin">dispatch</code>, <code class="lang-kotlin">selectState</code>, <code class="lang-kotlin">selectLogic</code>, <code class="lang-kotlin">launch</code></p></li><li><p class="paragraph">Middleware — action interception</p></li><li><p class="paragraph">PersistenceStrategy — save/restore state across sessions</p></li><li><p class="paragraph">CustomTypeRegistrar — register additional serializers for polymorphic state types</p></li></ul></div></div>
+  </div>
+  <h2 class="">Packages</h2>
+  <div class="table"><a data-name="-542803926%2FPackages%2F-1233518157" anchor-label="io.github.syrou.reaktiv.core" id="-542803926%2FPackages%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.core/index.html">io.github.syrou.reaktiv.core</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-542803926%2FPackages%2F-1233518157"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-1302369249%2FPackages%2F-1233518157" anchor-label="io.github.syrou.reaktiv.core.persistance" id="-1302369249%2FPackages%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.core.persistance/index.html">io.github.syrou.reaktiv.core.persistance</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1302369249%2FPackages%2F-1233518157"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="145441324%2FPackages%2F-1233518157" anchor-label="io.github.syrou.reaktiv.core.serialization" id="145441324%2FPackages%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.core.serialization/index.html">io.github.syrou.reaktiv.core.serialization</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="145441324%2FPackages%2F-1233518157"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="1823895550%2FPackages%2F-1233518157" anchor-label="io.github.syrou.reaktiv.core.tracing" id="1823895550%2FPackages%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.core.tracing/index.html">io.github.syrou.reaktiv.core.tracing</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1823895550%2FPackages%2F-1233518157"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="384635850%2FPackages%2F-1233518157" anchor-label="io.github.syrou.reaktiv.core.util" id="384635850%2FPackages%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.core.util/index.html">io.github.syrou.reaktiv.core.util</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="384635850%2FPackages%2F-1233518157"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

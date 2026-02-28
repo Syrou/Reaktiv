@@ -48,6 +48,33 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
 
+/**
+ * Side-effecting logic for the navigation system.
+ *
+ * `NavigationLogic` orchestrates all navigation operations — guard evaluation, entry-point
+ * resolution, back-stack synthesis, deep-link handling, and lifecycle callbacks. It is
+ * created automatically by [NavigationModule] and registered with the store.
+ *
+ * The preferred way to trigger navigation from application code is via the
+ * [StoreAccessor] extension functions (`navigation { }`, `navigateBack()`, etc.) which
+ * delegate to the public methods on this class. Direct access via
+ * `storeAccessor.selectLogic<NavigationLogic>()` is also supported when finer control
+ * is needed.
+ *
+ * ```kotlin
+ * // Typical usage via extension (recommended)
+ * storeAccessor.navigation {
+ *     navigateTo(ProfileScreen)
+ * }
+ *
+ * // Or directly
+ * val navLogic = storeAccessor.selectLogic<NavigationLogic>()
+ * navLogic.navigate { navigateTo(ProfileScreen) }
+ * ```
+ *
+ * @see NavigationModule
+ * @see NavigationState
+ */
 @OptIn(ExperimentalReaktivApi::class)
 class NavigationLogic(
     val storeAccessor: StoreAccessor,

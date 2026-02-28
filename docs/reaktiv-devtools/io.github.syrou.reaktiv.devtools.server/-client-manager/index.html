@@ -1,0 +1,401 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>ClientManager</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-devtools/nativeMain">native</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/nativeMain" data-filter=":reaktiv-devtools/nativeMain">
+                                <span class="checkbox--icon"></span>
+                                native
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="reaktiv-devtools::io.github.syrou.reaktiv.devtools.server/ClientManager///PointingToDeclaration//1358857722">
+  <div class="breadcrumbs"><a href="../../index.html">reaktiv-devtools</a><span class="delimiter">/</span><a href="../index.html">io.github.syrou.reaktiv.devtools.server</a><span class="delimiter">/</span><span class="current">ClientManager</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Client</span><wbr><span><span>Manager</span></span></h1>
+    <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+      <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">ClientManager</a><span class="clearfix"><span class="floating-right">(<a href="https://github.com/Syrou/Reaktiv/blob/main/reaktiv-devtools/src/nativeMain/kotlin/io/github/syrou/reaktiv/devtools/server/ClientManager.kt#L29">source</a>)</span></span></div><p class="paragraph">Manages connected clients and their WebSocket sessions.</p></div>    </div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="">Constructors</h2>
+        <div class="table"><a data-name="-1100184555%2FConstructors%2F1358857722" anchor-label="ClientManager" id="-1100184555%2FConstructors%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-togglable="CONSTRUCTOR" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-client-manager.html"><span>Client</span><wbr><span><span>Manager</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1100184555%2FConstructors%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="-733849219%2FFunctions%2F1358857722" anchor-label="assignRole" id="-733849219%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="assign-role.html"><span>assign</span><wbr><span><span>Role</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-733849219%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="assign-role.html"><span class="token function">assignRole</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">role<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-client-role/index.html">ClientRole</a><span class="token punctuation">, </span></span><span class="parameter ">publisherClientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Assigns a role to a client.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1498328019%2FFunctions%2F1358857722" anchor-label="broadcastClientList" id="-1498328019%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="broadcast-client-list.html"><span>broadcast</span><wbr><span>Client</span><wbr><span><span>List</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1498328019%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="broadcast-client-list.html"><span class="token function">broadcastClientList</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Broadcasts the current client list to all connected clients. Includes both real clients and ghost devices.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1610747826%2FFunctions%2F1358857722" anchor-label="broadcastGhostEvent" id="1610747826%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="broadcast-ghost-event.html"><span>broadcast</span><wbr><span>Ghost</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1610747826%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="broadcast-ghost-event.html"><span class="token function">broadcastGhostEvent</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">ghostId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">message<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-dev-tools-message/index.html">DevToolsMessage</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Broadcasts a ghost device's events to all listeners.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-674573251%2FFunctions%2F1358857722" anchor-label="broadcastToListeners" id="-674573251%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="broadcast-to-listeners.html"><span>broadcast</span><wbr><span>To</span><wbr><span><span>Listeners</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-674573251%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="broadcast-to-listeners.html"><span class="token function">broadcastToListeners</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">publisherId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">message<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-dev-tools-message/index.html">DevToolsMessage</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Broadcasts a message to all listeners of a publisher.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="755082394%2FFunctions%2F1358857722" anchor-label="getAllClients" id="755082394%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-all-clients.html"><span>get</span><wbr><span>All</span><wbr><span><span>Clients</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="755082394%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="get-all-clients.html"><span class="token function">getAllClients</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-client-info/index.html">ClientInfo</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Gets all connected clients including ghost devices.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-524492722%2FFunctions%2F1358857722" anchor-label="getClient" id="-524492722%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-client.html"><span>get</span><wbr><span><span>Client</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-524492722%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="get-client.html"><span class="token function">getClient</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-client-info/index.html">ClientInfo</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Gets information about a specific client.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="94132670%2FFunctions%2F1358857722" anchor-label="getCurrentPublisher" id="94132670%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-current-publisher.html"><span>get</span><wbr><span>Current</span><wbr><span><span>Publisher</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="94132670%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="get-current-publisher.html"><span class="token function">getCurrentPublisher</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Gets the current publisher ID.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1603985520%2FFunctions%2F1358857722" anchor-label="getGhostDevice" id="-1603985520%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-ghost-device.html"><span>get</span><wbr><span>Ghost</span><wbr><span><span>Device</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1603985520%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="get-ghost-device.html"><span class="token function">getGhostDevice</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">ghostId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-ghost-device/index.html">GhostDevice</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Gets a ghost device by ID.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-496261816%2FFunctions%2F1358857722" anchor-label="isGhostDevice" id="-496261816%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-ghost-device.html"><span>is</span><wbr><span>Ghost</span><wbr><span><span>Device</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-496261816%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="is-ghost-device.html"><span class="token function">isGhostDevice</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Checks if a client ID belongs to a ghost device.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1874083534%2FFunctions%2F1358857722" anchor-label="registerClient" id="-1874083534%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="register-client.html"><span>register</span><wbr><span><span>Client</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1874083534%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="register-client.html"><span class="token function">registerClient</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">session<span class="token operator">: </span><span data-unresolved-link="io.ktor.websocket/WebSocketSession///PointingToDeclaration/">WebSocketSession</span><span class="token punctuation">, </span></span><span class="parameter ">registration<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-dev-tools-message/-client-registration/index.html">DevToolsMessage.ClientRegistration</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Registers a new client connection.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2142981197%2FFunctions%2F1358857722" anchor-label="registerGhostDevice" id="-2142981197%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="register-ghost-device.html"><span>register</span><wbr><span>Ghost</span><wbr><span><span>Device</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2142981197%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="register-ghost-device.html"><span class="token function">registerGhostDevice</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">registration<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-dev-tools-message/-ghost-device-registration/index.html">DevToolsMessage.GhostDeviceRegistration</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Registers a ghost device from an imported session. Ghost devices can be played back and will broadcast events to listeners.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1276288558%2FFunctions%2F1358857722" anchor-label="removeGhostDevice" id="1276288558%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="remove-ghost-device.html"><span>remove</span><wbr><span>Ghost</span><wbr><span><span>Device</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1276288558%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="remove-ghost-device.html"><span class="token function">removeGhostDevice</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">ghostId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Removes a ghost device.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="637261535%2FFunctions%2F1358857722" anchor-label="sendToPublisher" id="637261535%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="send-to-publisher.html"><span>send</span><wbr><span>To</span><wbr><span><span>Publisher</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="637261535%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="send-to-publisher.html"><span class="token function">sendToPublisher</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">publisherId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">message<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-dev-tools-message/index.html">DevToolsMessage</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Sends a message to the publisher client.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1274487456%2FFunctions%2F1358857722" anchor-label="setPublisher" id="1274487456%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-publisher.html"><span>set</span><wbr><span><span>Publisher</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1274487456%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="set-publisher.html"><span class="token function">setPublisher</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">reason<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Sets the current publisher. Only one publisher is allowed at a time. If the new publisher is a real device and there's a ghost publisher, the ghost is removed.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="284778920%2FFunctions%2F1358857722" anchor-label="unregisterClient" id="284778920%2FFunctions%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="unregister-client.html"><span>unregister</span><wbr><span><span>Client</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="284778920%2FFunctions%2F1358857722"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-active="" data-toggle=":reaktiv-devtools/nativeMain">native</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/nativeMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="unregister-client.html"><span class="token function">unregisterClient</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Unregisters a client and removes all subscriptions.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

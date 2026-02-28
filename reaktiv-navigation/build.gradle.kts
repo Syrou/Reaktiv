@@ -1,4 +1,5 @@
 import org.jetbrains.compose.ExperimentalComposeLibrary
+import java.net.URI
 
 plugins {
     kotlin("multiplatform")
@@ -12,6 +13,18 @@ plugins {
 }
 
 group = "io.github.syrou"
+
+dokka {
+    moduleName.set("reaktiv-navigation")
+    dokkaSourceSets.configureEach {
+        includes.from("module.md")
+        sourceLink {
+            localDirectory.set(file("src"))
+            remoteUrl.set(URI("https://github.com/Syrou/Reaktiv/blob/main/reaktiv-navigation/src"))
+            remoteLineSuffix.set("#L")
+        }
+    }
+}
 
 centralPublisher {
     username = CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_TOKEN")

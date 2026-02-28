@@ -37,6 +37,26 @@ subprojects {
     }
 }
 
+dokka {
+    moduleName.set("Reaktiv")
+    dokkaPublications.html {
+        outputDirectory.set(rootDir.resolve("docs"))
+    }
+}
+
+dependencies {
+    listOf(
+        ":reaktiv-core",
+        ":reaktiv-navigation",
+        ":reaktiv-compose",
+        ":reaktiv-devtools",
+        ":reaktiv-tracing-annotations",
+        ":reaktiv-introspection"
+    ).forEach { path ->
+        dokka(project(path))
+    }
+}
+
 allprojects {
     repositories {
         google()

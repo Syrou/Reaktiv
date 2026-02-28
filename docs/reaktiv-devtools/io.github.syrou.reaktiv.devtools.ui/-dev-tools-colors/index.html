@@ -1,0 +1,567 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>DevToolsColors</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector wasm-like" data-active="" data-filter=":reaktiv-devtools/wasmJsMain">wasmJs</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option wasm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/wasmJsMain" data-filter=":reaktiv-devtools/wasmJsMain">
+                                <span class="checkbox--icon"></span>
+                                wasmJs
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="reaktiv-devtools::io.github.syrou.reaktiv.devtools.ui/DevToolsColors///PointingToDeclaration//-1635886175">
+  <div class="breadcrumbs"><a href="../../index.html">reaktiv-devtools</a><span class="delimiter">/</span><a href="../index.html">io.github.syrou.reaktiv.devtools.ui</a><span class="delimiter">/</span><span class="current">DevToolsColors</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>Colors</span></span></h1>
+    <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+      <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">DevToolsColors</a><span class="clearfix"><span class="floating-right">(<a href="https://github.com/Syrou/Reaktiv/blob/main/reaktiv-devtools/src/wasmJsMain/kotlin/io/github/syrou/reaktiv/devtools/ui/DevToolsTheme.kt#L25">source</a>)</span></span></div><p class="paragraph">DevTools color scheme optimized for debugging and state inspection.</p><p class="paragraph">Color choices are designed for:</p><ul><li><p class="paragraph">Clear differentiation between added, modified, and removed states</p></li><li><p class="paragraph">High contrast syntax highlighting for JSON values</p></li><li><p class="paragraph">Reduced eye strain during long debugging sessions</p></li><li><p class="paragraph">Consistent visual hierarchy</p></li></ul><p class="paragraph">Color system:</p><ul><li><p class="paragraph">Primary (Blue): Keys, links, interactive elements</p></li><li><p class="paragraph">Secondary (Orange): String values</p></li><li><p class="paragraph">Tertiary (Purple): Boolean values, special types</p></li><li><p class="paragraph">Error (Red): Removed items, errors</p></li><li><p class="paragraph">Custom diff colors: Added (green), Modified (yellow)</p></li></ul></div>    </div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="">Properties</h2>
+        <div class="table"><a data-name="1606305650%2FProperties%2F-1635886175" anchor-label="background" id="1606305650%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="background.html"><span><span>background</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1606305650%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="background.html">background</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1563764814%2FProperties%2F-1635886175" anchor-label="error" id="-1563764814%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="error.html"><span><span>error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1563764814%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="error.html">error</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1729255897%2FProperties%2F-1635886175" anchor-label="errorContainer" id="-1729255897%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="error-container.html"><span>error</span><wbr><span><span>Container</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1729255897%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="error-container.html">errorContainer</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-383811501%2FProperties%2F-1635886175" anchor-label="onBackground" id="-383811501%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-background.html"><span>on</span><wbr><span><span>Background</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-383811501%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-background.html">onBackground</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="999282225%2FProperties%2F-1635886175" anchor-label="onError" id="999282225%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-error.html"><span>on</span><wbr><span><span>Error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="999282225%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-error.html">onError</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1420458360%2FProperties%2F-1635886175" anchor-label="onErrorContainer" id="-1420458360%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-error-container.html"><span>on</span><wbr><span>Error</span><wbr><span><span>Container</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1420458360%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-error-container.html">onErrorContainer</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1751238537%2FProperties%2F-1635886175" anchor-label="onPrimary" id="-1751238537%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-primary.html"><span>on</span><wbr><span><span>Primary</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1751238537%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-primary.html">onPrimary</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-395685118%2FProperties%2F-1635886175" anchor-label="onPrimaryContainer" id="-395685118%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-primary-container.html"><span>on</span><wbr><span>Primary</span><wbr><span><span>Container</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-395685118%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-primary-container.html">onPrimaryContainer</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="621152837%2FProperties%2F-1635886175" anchor-label="onSecondary" id="621152837%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-secondary.html"><span>on</span><wbr><span><span>Secondary</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="621152837%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-secondary.html">onSecondary</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="123119860%2FProperties%2F-1635886175" anchor-label="onSecondaryContainer" id="123119860%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-secondary-container.html"><span>on</span><wbr><span>Secondary</span><wbr><span><span>Container</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="123119860%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-secondary-container.html">onSecondaryContainer</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-753819604%2FProperties%2F-1635886175" anchor-label="onSurface" id="-753819604%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-surface.html"><span>on</span><wbr><span><span>Surface</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-753819604%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-surface.html">onSurface</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="585220009%2FProperties%2F-1635886175" anchor-label="onSurfaceVariant" id="585220009%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-surface-variant.html"><span>on</span><wbr><span>Surface</span><wbr><span><span>Variant</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="585220009%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-surface-variant.html">onSurfaceVariant</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1305841327%2FProperties%2F-1635886175" anchor-label="onTertiary" id="1305841327%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-tertiary.html"><span>on</span><wbr><span><span>Tertiary</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1305841327%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-tertiary.html">onTertiary</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1545894858%2FProperties%2F-1635886175" anchor-label="onTertiaryContainer" id="1545894858%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-tertiary-container.html"><span>on</span><wbr><span>Tertiary</span><wbr><span><span>Container</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1545894858%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="on-tertiary-container.html">onTertiaryContainer</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="755886968%2FProperties%2F-1635886175" anchor-label="outline" id="755886968%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="outline.html"><span><span>outline</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="755886968%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="outline.html">outline</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1536923939%2FProperties%2F-1635886175" anchor-label="outlineVariant" id="-1536923939%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="outline-variant.html"><span>outline</span><wbr><span><span>Variant</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1536923939%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="outline-variant.html">outlineVariant</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="471784888%2FProperties%2F-1635886175" anchor-label="primary" id="471784888%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="primary.html"><span><span>primary</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="471784888%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="primary.html">primary</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-797374751%2FProperties%2F-1635886175" anchor-label="primaryContainer" id="-797374751%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="primary-container.html"><span>primary</span><wbr><span><span>Container</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-797374751%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="primary-container.html">primaryContainer</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1947049146%2FProperties%2F-1635886175" anchor-label="secondary" id="-1947049146%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="secondary.html"><span><span>secondary</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1947049146%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="secondary.html">secondary</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="646439187%2FProperties%2F-1635886175" anchor-label="secondaryContainer" id="646439187%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="secondary-container.html"><span>secondary</span><wbr><span><span>Container</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="646439187%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="secondary-container.html">secondaryContainer</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1136410327%2FProperties%2F-1635886175" anchor-label="success" id="1136410327%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="success.html"><span><span>success</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1136410327%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="success.html">success</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1469203821%2FProperties%2F-1635886175" anchor-label="surface" id="1469203821%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="surface.html"><span><span>surface</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1469203821%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="surface.html">surface</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="276422472%2FProperties%2F-1635886175" anchor-label="surfaceVariant" id="276422472%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="surface-variant.html"><span>surface</span><wbr><span><span>Variant</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="276422472%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="surface-variant.html">surfaceVariant</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1500090766%2FProperties%2F-1635886175" anchor-label="tertiary" id="1500090766%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="tertiary.html"><span><span>tertiary</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1500090766%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="tertiary.html">tertiary</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1978418123%2FProperties%2F-1635886175" anchor-label="tertiaryContainer" id="1978418123%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="tertiary-container.html"><span>tertiary</span><wbr><span><span>Container</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1978418123%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="tertiary-container.html">tertiaryContainer</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="559504734%2FProperties%2F-1635886175" anchor-label="warning" id="559504734%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="warning.html"><span><span>warning</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="559504734%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="warning.html">warning</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

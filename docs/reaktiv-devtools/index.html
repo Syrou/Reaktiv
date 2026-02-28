@@ -1,0 +1,290 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>reaktiv-devtools</title>
+<link href="../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../scripts/sourceset_dependencies.js" async></script>
+<link href="../styles/style.css" rel="Stylesheet">
+<link href="../styles/main.css" rel="Stylesheet">
+<link href="../styles/prism.css" rel="Stylesheet">
+<link href="../styles/logo-styles.css" rel="Stylesheet">
+<link href="../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../scripts/main.js" defer></script>
+<script type="text/javascript" src="../scripts/prism.js" async></script>
+<script type="text/javascript" src="../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":reaktiv-devtools/androidMain">android</button>
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-devtools/commonMain">common</button>
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-devtools/nativeMain">native</button>
+                <button class="platform-tag platform-selector wasm-like" data-active="" data-filter=":reaktiv-devtools/wasmJsMain">wasmJs</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/androidMain" data-filter=":reaktiv-devtools/androidMain">
+                                <span class="checkbox--icon"></span>
+                                android
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/commonMain" data-filter=":reaktiv-devtools/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/nativeMain" data-filter=":reaktiv-devtools/nativeMain">
+                                <span class="checkbox--icon"></span>
+                                native
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option wasm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/wasmJsMain" data-filter=":reaktiv-devtools/wasmJsMain">
+                                <span class="checkbox--icon"></span>
+                                wasmJs
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" id="content" pageids="reaktiv-devtools::////PointingToDeclaration//-1790201199">
+  <div class="breadcrumbs"></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>reaktiv-devtools</span></span></h1>
+    <div class="platform-hinted UnderCoverText with-platform-tabs" data-platform-hinted="data-platform-hinted">
+      <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/androidMain" data-filterable-set=":reaktiv-devtools/androidMain" data-active="" data-toggle=":reaktiv-devtools/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain" data-toggle=":reaktiv-devtools/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain" data-toggle=":reaktiv-devtools/nativeMain">native</button><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/androidMain"><p class="paragraph">Real-time debugging and state inspection tools for Reaktiv applications. DevTools provides a WebSocket-based bridge between your app and a browser-based UI for watching state changes, replaying action streams, and importing crash sessions.</p><h2 class="">Architecture</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">Your App  ──WebSocket──►  DevTools Server (native binary)<br>                                   │<br>                          WebSocket▼<br>                          DevTools UI  (WASM, runs in browser)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Setup</h2><h3 class="">1. Add the dependency</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>dependencies {<br>    implementation("io.github.syrou:reaktiv-devtools:&lt;version&gt;")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">2. Configure and add to your store</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val introspectionConfig = IntrospectionConfig(<br>    clientName = "My App",<br>    platform = "${Build.MANUFACTURER} ${Build.MODEL}"  // any descriptive string<br>)<br>val sessionCapture = SessionCapture()<br><br>val store = createStore {<br>    module(CounterModule)<br>    module(navigationModule)<br><br>    module(IntrospectionModule(introspectionConfig, sessionCapture, platformContext))<br><br>    module(DevToolsModule(<br>        config = DevToolsConfig(<br>            introspectionConfig = introspectionConfig,<br>            serverUrl = "ws://192.168.1.100:8080/ws",<br>            defaultRole = ClientRole.PUBLISHER<br>        ),<br>        scope = lifecycleScope,<br>        sessionCapture = sessionCapture<br>    ))<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Running the Server and UI</h2><p class="paragraph">Build and run the native server for your platform:</p><div class="sample-container"><pre><code class="block lang-bash" theme="idea"># Linux<br>./gradlew :reaktiv-devtools:linkDebugExecutableLinuxX64<br>./reaktiv-devtools/build/bin/linuxX64/debugExecutable/reaktiv-devtools.kexe<br><br># macOS<br>./gradlew :reaktiv-devtools:linkDebugExecutableMacosX64<br><br># Windows<br>./gradlew :reaktiv-devtools:linkDebugExecutableMingwX64</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Build the WASM browser UI, then serve it with any static file server:</p><div class="sample-container"><pre><code class="block lang-bash" theme="idea">./gradlew :reaktiv-devtools:wasmJsBrowserDevelopmentExecutableDistribution<br># Output: reaktiv-devtools/build/dist/wasmJs/developmentExecutable/</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">WebSocket URL by Target</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">serverUrl = "ws://10.0.2.2:8080/ws"       // Android Emulator → host machine<br>serverUrl = "ws://192.168.1.100:8080/ws"   // Real device on same WiFi<br>serverUrl = "ws://localhost:8080/ws"        // iOS Simulator</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Runtime Connection Control</h2><p class="paragraph">Connect, disconnect, or reconnect without rebuilding:</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">store.dispatch(DevToolsAction.Connect("ws://192.168.1.100:8080/ws"))<br>store.dispatch(DevToolsAction.Disconnect)<br>store.dispatch(DevToolsAction.Reconnect)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Ghost Sessions and Crash Capture</h2><p class="paragraph">Export a recorded session from the DevTools UI and import it later for offline debugging or post-mortem analysis.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// Install crash handler so sessions are saved on crash<br>val store = createStore {<br>    module(IntrospectionModule(config, sessionCapture, platformContext))<br>    module(CrashModule(platformContext, sessionCapture))<br>}<br><br>// Export a session manually (e.g. from a debug menu)<br>val devToolsMiddleware = store.getMiddleware&lt;DevToolsMiddleware&gt;()<br>val json = devToolsMiddleware.exportSessionJson()<br>// Save or share `json` however is appropriate for your platform</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Crash sessions are saved to the device's Downloads (Android) or Documents (iOS) folder. Import them in the DevTools UI as <i>ghost sessions</i> and use time travel to replay events.</p><h2 class="">Tracing Integration</h2><p class="paragraph">Add the tracing Gradle plugin to automatically instrument all <code class="lang-kotlin">ModuleLogic</code> methods. The DevTools UI shows method names, parameters, execution duration, and return values.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>plugins {<br>    id("io.github.syrou.reaktiv.tracing") version "&lt;version&gt;"<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Use <code class="lang-kotlin">@NoTrace</code> to exclude helpers, and <code class="lang-kotlin">@Sensitive</code> / <code class="lang-kotlin">@PII</code> to obfuscate parameter values in the trace output — see <code class="lang-kotlin">reaktiv-tracing-annotations</code> for details.</p><h2 class="">Key Types</h2><ul><li><p class="paragraph"><code class="lang-kotlin">DevToolsModule</code> — the Reaktiv module that connects your app to the server</p></li><li><p class="paragraph"><code class="lang-kotlin">DevToolsConfig</code> — configuration (server URL, role, capture flags)</p></li><li><p class="paragraph"><code class="lang-kotlin">IntrospectionConfig</code> — shared identity used by both DevTools and Introspection modules</p></li><li><p class="paragraph"><code class="lang-kotlin">SessionCapture</code> — records actions and logic events for export or crash reports</p></li><li><p class="paragraph"><code class="lang-kotlin">IntrospectionModule</code> — manages session recording and platform context</p></li><li><p class="paragraph"><code class="lang-kotlin">CrashModule</code> — installs a crash handler that saves the session to disk</p></li><li><p class="paragraph"><code class="lang-kotlin">DevToolsAction</code> — <code class="lang-kotlin">Connect</code>, <code class="lang-kotlin">Disconnect</code>, <code class="lang-kotlin">Reconnect</code> dispatch targets</p></li><li><p class="paragraph"><code class="lang-kotlin">ClientRole</code> — <code class="lang-kotlin">PUBLISHER</code>, <code class="lang-kotlin">LISTENER</code>, <code class="lang-kotlin">ORCHESTRATOR</code></p></li></ul></div><div class="content sourceset-dependent-content" data-togglable=":reaktiv-devtools/commonMain"><p class="paragraph">Real-time debugging and state inspection tools for Reaktiv applications. DevTools provides a WebSocket-based bridge between your app and a browser-based UI for watching state changes, replaying action streams, and importing crash sessions.</p><h2 class="">Architecture</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">Your App  ──WebSocket──►  DevTools Server (native binary)<br>                                   │<br>                          WebSocket▼<br>                          DevTools UI  (WASM, runs in browser)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Setup</h2><h3 class="">1. Add the dependency</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>dependencies {<br>    implementation("io.github.syrou:reaktiv-devtools:&lt;version&gt;")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">2. Configure and add to your store</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val introspectionConfig = IntrospectionConfig(<br>    clientName = "My App",<br>    platform = "${Build.MANUFACTURER} ${Build.MODEL}"  // any descriptive string<br>)<br>val sessionCapture = SessionCapture()<br><br>val store = createStore {<br>    module(CounterModule)<br>    module(navigationModule)<br><br>    module(IntrospectionModule(introspectionConfig, sessionCapture, platformContext))<br><br>    module(DevToolsModule(<br>        config = DevToolsConfig(<br>            introspectionConfig = introspectionConfig,<br>            serverUrl = "ws://192.168.1.100:8080/ws",<br>            defaultRole = ClientRole.PUBLISHER<br>        ),<br>        scope = lifecycleScope,<br>        sessionCapture = sessionCapture<br>    ))<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Running the Server and UI</h2><p class="paragraph">Build and run the native server for your platform:</p><div class="sample-container"><pre><code class="block lang-bash" theme="idea"># Linux<br>./gradlew :reaktiv-devtools:linkDebugExecutableLinuxX64<br>./reaktiv-devtools/build/bin/linuxX64/debugExecutable/reaktiv-devtools.kexe<br><br># macOS<br>./gradlew :reaktiv-devtools:linkDebugExecutableMacosX64<br><br># Windows<br>./gradlew :reaktiv-devtools:linkDebugExecutableMingwX64</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Build the WASM browser UI, then serve it with any static file server:</p><div class="sample-container"><pre><code class="block lang-bash" theme="idea">./gradlew :reaktiv-devtools:wasmJsBrowserDevelopmentExecutableDistribution<br># Output: reaktiv-devtools/build/dist/wasmJs/developmentExecutable/</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">WebSocket URL by Target</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">serverUrl = "ws://10.0.2.2:8080/ws"       // Android Emulator → host machine<br>serverUrl = "ws://192.168.1.100:8080/ws"   // Real device on same WiFi<br>serverUrl = "ws://localhost:8080/ws"        // iOS Simulator</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Runtime Connection Control</h2><p class="paragraph">Connect, disconnect, or reconnect without rebuilding:</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">store.dispatch(DevToolsAction.Connect("ws://192.168.1.100:8080/ws"))<br>store.dispatch(DevToolsAction.Disconnect)<br>store.dispatch(DevToolsAction.Reconnect)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Ghost Sessions and Crash Capture</h2><p class="paragraph">Export a recorded session from the DevTools UI and import it later for offline debugging or post-mortem analysis.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// Install crash handler so sessions are saved on crash<br>val store = createStore {<br>    module(IntrospectionModule(config, sessionCapture, platformContext))<br>    module(CrashModule(platformContext, sessionCapture))<br>}<br><br>// Export a session manually (e.g. from a debug menu)<br>val devToolsMiddleware = store.getMiddleware&lt;DevToolsMiddleware&gt;()<br>val json = devToolsMiddleware.exportSessionJson()<br>// Save or share `json` however is appropriate for your platform</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Crash sessions are saved to the device's Downloads (Android) or Documents (iOS) folder. Import them in the DevTools UI as <i>ghost sessions</i> and use time travel to replay events.</p><h2 class="">Tracing Integration</h2><p class="paragraph">Add the tracing Gradle plugin to automatically instrument all <code class="lang-kotlin">ModuleLogic</code> methods. The DevTools UI shows method names, parameters, execution duration, and return values.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>plugins {<br>    id("io.github.syrou.reaktiv.tracing") version "&lt;version&gt;"<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Use <code class="lang-kotlin">@NoTrace</code> to exclude helpers, and <code class="lang-kotlin">@Sensitive</code> / <code class="lang-kotlin">@PII</code> to obfuscate parameter values in the trace output — see <code class="lang-kotlin">reaktiv-tracing-annotations</code> for details.</p><h2 class="">Key Types</h2><ul><li><p class="paragraph"><code class="lang-kotlin">DevToolsModule</code> — the Reaktiv module that connects your app to the server</p></li><li><p class="paragraph"><code class="lang-kotlin">DevToolsConfig</code> — configuration (server URL, role, capture flags)</p></li><li><p class="paragraph"><code class="lang-kotlin">IntrospectionConfig</code> — shared identity used by both DevTools and Introspection modules</p></li><li><p class="paragraph"><code class="lang-kotlin">SessionCapture</code> — records actions and logic events for export or crash reports</p></li><li><p class="paragraph"><code class="lang-kotlin">IntrospectionModule</code> — manages session recording and platform context</p></li><li><p class="paragraph"><code class="lang-kotlin">CrashModule</code> — installs a crash handler that saves the session to disk</p></li><li><p class="paragraph"><code class="lang-kotlin">DevToolsAction</code> — <code class="lang-kotlin">Connect</code>, <code class="lang-kotlin">Disconnect</code>, <code class="lang-kotlin">Reconnect</code> dispatch targets</p></li><li><p class="paragraph"><code class="lang-kotlin">ClientRole</code> — <code class="lang-kotlin">PUBLISHER</code>, <code class="lang-kotlin">LISTENER</code>, <code class="lang-kotlin">ORCHESTRATOR</code></p></li></ul></div><div class="content sourceset-dependent-content" data-togglable=":reaktiv-devtools/nativeMain"><p class="paragraph">Real-time debugging and state inspection tools for Reaktiv applications. DevTools provides a WebSocket-based bridge between your app and a browser-based UI for watching state changes, replaying action streams, and importing crash sessions.</p><h2 class="">Architecture</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">Your App  ──WebSocket──►  DevTools Server (native binary)<br>                                   │<br>                          WebSocket▼<br>                          DevTools UI  (WASM, runs in browser)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Setup</h2><h3 class="">1. Add the dependency</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>dependencies {<br>    implementation("io.github.syrou:reaktiv-devtools:&lt;version&gt;")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">2. Configure and add to your store</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val introspectionConfig = IntrospectionConfig(<br>    clientName = "My App",<br>    platform = "${Build.MANUFACTURER} ${Build.MODEL}"  // any descriptive string<br>)<br>val sessionCapture = SessionCapture()<br><br>val store = createStore {<br>    module(CounterModule)<br>    module(navigationModule)<br><br>    module(IntrospectionModule(introspectionConfig, sessionCapture, platformContext))<br><br>    module(DevToolsModule(<br>        config = DevToolsConfig(<br>            introspectionConfig = introspectionConfig,<br>            serverUrl = "ws://192.168.1.100:8080/ws",<br>            defaultRole = ClientRole.PUBLISHER<br>        ),<br>        scope = lifecycleScope,<br>        sessionCapture = sessionCapture<br>    ))<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Running the Server and UI</h2><p class="paragraph">Build and run the native server for your platform:</p><div class="sample-container"><pre><code class="block lang-bash" theme="idea"># Linux<br>./gradlew :reaktiv-devtools:linkDebugExecutableLinuxX64<br>./reaktiv-devtools/build/bin/linuxX64/debugExecutable/reaktiv-devtools.kexe<br><br># macOS<br>./gradlew :reaktiv-devtools:linkDebugExecutableMacosX64<br><br># Windows<br>./gradlew :reaktiv-devtools:linkDebugExecutableMingwX64</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Build the WASM browser UI, then serve it with any static file server:</p><div class="sample-container"><pre><code class="block lang-bash" theme="idea">./gradlew :reaktiv-devtools:wasmJsBrowserDevelopmentExecutableDistribution<br># Output: reaktiv-devtools/build/dist/wasmJs/developmentExecutable/</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">WebSocket URL by Target</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">serverUrl = "ws://10.0.2.2:8080/ws"       // Android Emulator → host machine<br>serverUrl = "ws://192.168.1.100:8080/ws"   // Real device on same WiFi<br>serverUrl = "ws://localhost:8080/ws"        // iOS Simulator</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Runtime Connection Control</h2><p class="paragraph">Connect, disconnect, or reconnect without rebuilding:</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">store.dispatch(DevToolsAction.Connect("ws://192.168.1.100:8080/ws"))<br>store.dispatch(DevToolsAction.Disconnect)<br>store.dispatch(DevToolsAction.Reconnect)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Ghost Sessions and Crash Capture</h2><p class="paragraph">Export a recorded session from the DevTools UI and import it later for offline debugging or post-mortem analysis.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// Install crash handler so sessions are saved on crash<br>val store = createStore {<br>    module(IntrospectionModule(config, sessionCapture, platformContext))<br>    module(CrashModule(platformContext, sessionCapture))<br>}<br><br>// Export a session manually (e.g. from a debug menu)<br>val devToolsMiddleware = store.getMiddleware&lt;DevToolsMiddleware&gt;()<br>val json = devToolsMiddleware.exportSessionJson()<br>// Save or share `json` however is appropriate for your platform</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Crash sessions are saved to the device's Downloads (Android) or Documents (iOS) folder. Import them in the DevTools UI as <i>ghost sessions</i> and use time travel to replay events.</p><h2 class="">Tracing Integration</h2><p class="paragraph">Add the tracing Gradle plugin to automatically instrument all <code class="lang-kotlin">ModuleLogic</code> methods. The DevTools UI shows method names, parameters, execution duration, and return values.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>plugins {<br>    id("io.github.syrou.reaktiv.tracing") version "&lt;version&gt;"<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Use <code class="lang-kotlin">@NoTrace</code> to exclude helpers, and <code class="lang-kotlin">@Sensitive</code> / <code class="lang-kotlin">@PII</code> to obfuscate parameter values in the trace output — see <code class="lang-kotlin">reaktiv-tracing-annotations</code> for details.</p><h2 class="">Key Types</h2><ul><li><p class="paragraph"><code class="lang-kotlin">DevToolsModule</code> — the Reaktiv module that connects your app to the server</p></li><li><p class="paragraph"><code class="lang-kotlin">DevToolsConfig</code> — configuration (server URL, role, capture flags)</p></li><li><p class="paragraph"><code class="lang-kotlin">IntrospectionConfig</code> — shared identity used by both DevTools and Introspection modules</p></li><li><p class="paragraph"><code class="lang-kotlin">SessionCapture</code> — records actions and logic events for export or crash reports</p></li><li><p class="paragraph"><code class="lang-kotlin">IntrospectionModule</code> — manages session recording and platform context</p></li><li><p class="paragraph"><code class="lang-kotlin">CrashModule</code> — installs a crash handler that saves the session to disk</p></li><li><p class="paragraph"><code class="lang-kotlin">DevToolsAction</code> — <code class="lang-kotlin">Connect</code>, <code class="lang-kotlin">Disconnect</code>, <code class="lang-kotlin">Reconnect</code> dispatch targets</p></li><li><p class="paragraph"><code class="lang-kotlin">ClientRole</code> — <code class="lang-kotlin">PUBLISHER</code>, <code class="lang-kotlin">LISTENER</code>, <code class="lang-kotlin">ORCHESTRATOR</code></p></li></ul></div><div class="content sourceset-dependent-content" data-togglable=":reaktiv-devtools/wasmJsMain"><p class="paragraph">Real-time debugging and state inspection tools for Reaktiv applications. DevTools provides a WebSocket-based bridge between your app and a browser-based UI for watching state changes, replaying action streams, and importing crash sessions.</p><h2 class="">Architecture</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">Your App  ──WebSocket──►  DevTools Server (native binary)<br>                                   │<br>                          WebSocket▼<br>                          DevTools UI  (WASM, runs in browser)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Setup</h2><h3 class="">1. Add the dependency</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>dependencies {<br>    implementation("io.github.syrou:reaktiv-devtools:&lt;version&gt;")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h3 class="">2. Configure and add to your store</h3><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val introspectionConfig = IntrospectionConfig(<br>    clientName = "My App",<br>    platform = "${Build.MANUFACTURER} ${Build.MODEL}"  // any descriptive string<br>)<br>val sessionCapture = SessionCapture()<br><br>val store = createStore {<br>    module(CounterModule)<br>    module(navigationModule)<br><br>    module(IntrospectionModule(introspectionConfig, sessionCapture, platformContext))<br><br>    module(DevToolsModule(<br>        config = DevToolsConfig(<br>            introspectionConfig = introspectionConfig,<br>            serverUrl = "ws://192.168.1.100:8080/ws",<br>            defaultRole = ClientRole.PUBLISHER<br>        ),<br>        scope = lifecycleScope,<br>        sessionCapture = sessionCapture<br>    ))<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Running the Server and UI</h2><p class="paragraph">Build and run the native server for your platform:</p><div class="sample-container"><pre><code class="block lang-bash" theme="idea"># Linux<br>./gradlew :reaktiv-devtools:linkDebugExecutableLinuxX64<br>./reaktiv-devtools/build/bin/linuxX64/debugExecutable/reaktiv-devtools.kexe<br><br># macOS<br>./gradlew :reaktiv-devtools:linkDebugExecutableMacosX64<br><br># Windows<br>./gradlew :reaktiv-devtools:linkDebugExecutableMingwX64</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Build the WASM browser UI, then serve it with any static file server:</p><div class="sample-container"><pre><code class="block lang-bash" theme="idea">./gradlew :reaktiv-devtools:wasmJsBrowserDevelopmentExecutableDistribution<br># Output: reaktiv-devtools/build/dist/wasmJs/developmentExecutable/</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">WebSocket URL by Target</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">serverUrl = "ws://10.0.2.2:8080/ws"       // Android Emulator → host machine<br>serverUrl = "ws://192.168.1.100:8080/ws"   // Real device on same WiFi<br>serverUrl = "ws://localhost:8080/ws"        // iOS Simulator</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Runtime Connection Control</h2><p class="paragraph">Connect, disconnect, or reconnect without rebuilding:</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">store.dispatch(DevToolsAction.Connect("ws://192.168.1.100:8080/ws"))<br>store.dispatch(DevToolsAction.Disconnect)<br>store.dispatch(DevToolsAction.Reconnect)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Ghost Sessions and Crash Capture</h2><p class="paragraph">Export a recorded session from the DevTools UI and import it later for offline debugging or post-mortem analysis.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// Install crash handler so sessions are saved on crash<br>val store = createStore {<br>    module(IntrospectionModule(config, sessionCapture, platformContext))<br>    module(CrashModule(platformContext, sessionCapture))<br>}<br><br>// Export a session manually (e.g. from a debug menu)<br>val devToolsMiddleware = store.getMiddleware&lt;DevToolsMiddleware&gt;()<br>val json = devToolsMiddleware.exportSessionJson()<br>// Save or share `json` however is appropriate for your platform</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Crash sessions are saved to the device's Downloads (Android) or Documents (iOS) folder. Import them in the DevTools UI as <i>ghost sessions</i> and use time travel to replay events.</p><h2 class="">Tracing Integration</h2><p class="paragraph">Add the tracing Gradle plugin to automatically instrument all <code class="lang-kotlin">ModuleLogic</code> methods. The DevTools UI shows method names, parameters, execution duration, and return values.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>plugins {<br>    id("io.github.syrou.reaktiv.tracing") version "&lt;version&gt;"<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">Use <code class="lang-kotlin">@NoTrace</code> to exclude helpers, and <code class="lang-kotlin">@Sensitive</code> / <code class="lang-kotlin">@PII</code> to obfuscate parameter values in the trace output — see <code class="lang-kotlin">reaktiv-tracing-annotations</code> for details.</p><h2 class="">Key Types</h2><ul><li><p class="paragraph"><code class="lang-kotlin">DevToolsModule</code> — the Reaktiv module that connects your app to the server</p></li><li><p class="paragraph"><code class="lang-kotlin">DevToolsConfig</code> — configuration (server URL, role, capture flags)</p></li><li><p class="paragraph"><code class="lang-kotlin">IntrospectionConfig</code> — shared identity used by both DevTools and Introspection modules</p></li><li><p class="paragraph"><code class="lang-kotlin">SessionCapture</code> — records actions and logic events for export or crash reports</p></li><li><p class="paragraph"><code class="lang-kotlin">IntrospectionModule</code> — manages session recording and platform context</p></li><li><p class="paragraph"><code class="lang-kotlin">CrashModule</code> — installs a crash handler that saves the session to disk</p></li><li><p class="paragraph"><code class="lang-kotlin">DevToolsAction</code> — <code class="lang-kotlin">Connect</code>, <code class="lang-kotlin">Disconnect</code>, <code class="lang-kotlin">Reconnect</code> dispatch targets</p></li><li><p class="paragraph"><code class="lang-kotlin">ClientRole</code> — <code class="lang-kotlin">PUBLISHER</code>, <code class="lang-kotlin">LISTENER</code>, <code class="lang-kotlin">ORCHESTRATOR</code></p></li></ul></div>    </div>
+  </div>
+  <h2 class="">Packages</h2>
+  <div class="table"><a data-name="-649601999%2FPackages%2F-1572936177" anchor-label="io.github.syrou.reaktiv.devtools" id="-649601999%2FPackages%2F-1572936177" data-filterable-set=":reaktiv-devtools/commonMain,:reaktiv-devtools/wasmJsMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain,:reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/commonMain,:reaktiv-devtools/wasmJsMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.devtools/index.html">io.github.syrou.reaktiv.devtools</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-649601999%2FPackages%2F-1572936177"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+              <div class="platform-tag wasm-like">wasmJs</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="825889516%2FPackages%2F-1790201199" anchor-label="io.github.syrou.reaktiv.devtools.client" id="825889516%2FPackages%2F-1790201199" data-filterable-set=":reaktiv-devtools/androidMain,:reaktiv-devtools/commonMain,:reaktiv-devtools/nativeMain,:reaktiv-devtools/wasmJsMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-devtools/androidMain,:reaktiv-devtools/commonMain,:reaktiv-devtools/nativeMain,:reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/androidMain,:reaktiv-devtools/commonMain,:reaktiv-devtools/nativeMain,:reaktiv-devtools/wasmJsMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.devtools.client/index.html">io.github.syrou.reaktiv.devtools.client</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="825889516%2FPackages%2F-1790201199"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag jvm-like">android</div>
+              <div class="platform-tag common-like">common</div>
+              <div class="platform-tag common-like">native</div>
+              <div class="platform-tag wasm-like">wasmJs</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-1165531533%2FPackages%2F-190804614" anchor-label="io.github.syrou.reaktiv.devtools.middleware" id="-1165531533%2FPackages%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.devtools.middleware/index.html">io.github.syrou.reaktiv.devtools.middleware</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1165531533%2FPackages%2F-190804614"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="275256249%2FPackages%2F-190804614" anchor-label="io.github.syrou.reaktiv.devtools.protocol" id="275256249%2FPackages%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.devtools.protocol/index.html">io.github.syrou.reaktiv.devtools.protocol</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="275256249%2FPackages%2F-190804614"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-62560156%2FPackages%2F1358857722" anchor-label="io.github.syrou.reaktiv.devtools.server" id="-62560156%2FPackages%2F1358857722" data-filterable-set=":reaktiv-devtools/nativeMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-devtools/nativeMain" data-filterable-set=":reaktiv-devtools/nativeMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.devtools.server/index.html">io.github.syrou.reaktiv.devtools.server</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-62560156%2FPackages%2F1358857722"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">native</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="1838406917%2FPackages%2F-190804614" anchor-label="io.github.syrou.reaktiv.devtools.tracing" id="1838406917%2FPackages%2F-190804614" data-filterable-set=":reaktiv-devtools/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-devtools/commonMain" data-filterable-set=":reaktiv-devtools/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.devtools.tracing/index.html">io.github.syrou.reaktiv.devtools.tracing</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1838406917%2FPackages%2F-190804614"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="1840622581%2FPackages%2F-1635886175" anchor-label="io.github.syrou.reaktiv.devtools.ui" id="1840622581%2FPackages%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.devtools.ui/index.html">io.github.syrou.reaktiv.devtools.ui</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1840622581%2FPackages%2F-1635886175"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag wasm-like">wasmJs</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-381214541%2FPackages%2F-1635886175" anchor-label="io.github.syrou.reaktiv.devtools.ui.components" id="-381214541%2FPackages%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.devtools.ui.components/index.html">io.github.syrou.reaktiv.devtools.ui.components</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-381214541%2FPackages%2F-1635886175"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag wasm-like">wasmJs</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

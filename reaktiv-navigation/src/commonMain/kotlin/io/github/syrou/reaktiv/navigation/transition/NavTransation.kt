@@ -3,43 +3,106 @@ package io.github.syrou.reaktiv.navigation.transition
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
+/**
+ * Describes the animation style used when a screen enters or exits the composition.
+ *
+ * Assign these to a [Screen] or [Modal]'s `enterTransition` / `exitTransition` properties.
+ * Call [resolve] to obtain a [ResolvedNavTransition] with concrete animation lambdas.
+ *
+ * ```kotlin
+ * object HomeScreen : Screen {
+ *     override val route = "home"
+ *     override val enterTransition = NavTransition.SlideInRight
+ *     override val exitTransition = NavTransition.SlideOutLeft
+ * }
+ * ```
+ */
 @Serializable
 sealed class NavTransition(@Transient open val durationMillis: Int = DEFAULT_ANIMATION_DURATION) {
+
+    /** No animation; the screen appears or disappears instantly. */
     @Serializable
     data object None : NavTransition(0)
+
+    /** Cross-fade in — opacity goes from 0 to 1. */
     @Serializable
     data object Fade : NavTransition()
+
+    /** Cross-fade out — opacity goes from 1 to 0. */
     @Serializable
     data object FadeOut : NavTransition()
+
+    /** Screen slides in from the right edge. */
     @Serializable
     data object SlideInRight : NavTransition()
+
+    /** Screen slides out toward the right edge. */
     @Serializable
     data object SlideOutRight : NavTransition()
+
+    /** Screen slides in from the left edge. */
     @Serializable
     data object SlideInLeft : NavTransition()
+
+    /** Screen slides out toward the left edge. */
     @Serializable
     data object SlideOutLeft : NavTransition()
+
+    /** Screen slides up from the bottom edge. */
     @Serializable
     data object SlideUpBottom : NavTransition()
+
+    /** Screen slides down and exits through the bottom edge. */
     @Serializable
     data object SlideOutBottom : NavTransition()
 
+    /** Screen scales up (80 % → 100 %) while fading in. */
     @Serializable
     class Scale(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
+
+    /** Screen scales down (100 % → 80 %) while fading out. */
     @Serializable
     class ScaleOut(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
+
+    /** iOS-style push: new screen slides in from the right edge. */
     @Serializable
     data object IOSSlideIn : NavTransition()
+
+    /** iOS-style pop: outgoing screen slides left with a parallax scale-down effect. */
     @Serializable
     data object IOSSlideOut : NavTransition()
+
+    /** Material Design 3 forward enter: slide in from right with subtle scale and fade. */
     @Serializable
     data object MaterialSlideIn : NavTransition()
+
+    /** Material Design 3 forward exit: slide out to the left with a trailing fade. */
     @Serializable
     data object MaterialSlideOut : NavTransition()
+
+    /** Card-stack push: new screen rises from the bottom with a scale-up and fade. */
     @Serializable
     data object StackPush : NavTransition()
+
+    /** Card-stack pop: outgoing screen falls down and fades out. */
     @Serializable
     data object StackPop : NavTransition()
+
+    /**
+     * Fully custom transition using per-frame transform lambdas.
+     *
+     * Each lambda receives the animation progress value in `[0, 1]` and returns
+     * the corresponding transform value. Functions that are not overridden use
+     * identity defaults (no-op).
+     *
+     * @param durationMillis Total duration of the animation in milliseconds.
+     * @param alpha Maps progress → opacity.
+     * @param scaleX Maps progress → horizontal scale factor.
+     * @param scaleY Maps progress → vertical scale factor.
+     * @param translationX Maps progress → horizontal translation in pixels.
+     * @param translationY Maps progress → vertical translation in pixels.
+     * @param rotationZ Maps progress → rotation around the Z-axis in degrees.
+     */
     @Serializable
     class Custom(
         override val durationMillis: Int = DEFAULT_ANIMATION_DURATION,
@@ -55,6 +118,20 @@ sealed class NavTransition(@Transient open val durationMillis: Int = DEFAULT_ANI
         const val DEFAULT_ANIMATION_DURATION = 200
     }
 }
+/**
+ * The concrete, renderer-ready form of a [NavTransition].
+ *
+ * Produced by [NavTransition.resolve]; consumed by the animation layer in [NavigationRender].
+ * All transform lambdas accept a normalised progress value in `[0, 1]`.
+ *
+ * @property durationMillis Total animation duration in milliseconds.
+ * @property alpha Progress → opacity mapping.
+ * @property scaleX Progress → horizontal scale factor mapping.
+ * @property scaleY Progress → vertical scale factor mapping.
+ * @property translationX Progress → horizontal pixel offset mapping.
+ * @property translationY Progress → vertical pixel offset mapping.
+ * @property rotationZ Progress → Z-axis rotation in degrees mapping.
+ */
 data class ResolvedNavTransition(
     val durationMillis: Int,
     val alpha: (Float) -> Float = { 1f },
@@ -64,6 +141,15 @@ data class ResolvedNavTransition(
     val translationY: (Float) -> Float = { 0f },
     val rotationZ: (Float) -> Float = { 0f }
 )
+
+/**
+ * Resolves this [NavTransition] into a [ResolvedNavTransition] with concrete per-frame lambdas.
+ *
+ * @param screenWidth Width of the screen in pixels; used for horizontal slide transitions.
+ * @param screenHeight Height of the screen in pixels; used for vertical slide transitions.
+ * @param isForward `true` when navigating forward (push); `false` when navigating backward (pop).
+ * @return A [ResolvedNavTransition] ready for consumption by the animation system.
+ */
 fun NavTransition.resolve(
     screenWidth: Float,
     screenHeight: Float,

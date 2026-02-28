@@ -1,0 +1,426 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>io.github.syrou.reaktiv.core</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-core/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-core/commonMain" data-filter=":reaktiv-core/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="package" id="content" pageids="reaktiv-core::io.github.syrou.reaktiv.core////PointingToDeclaration//-1233518157">
+  <div class="breadcrumbs"><a href="../index.html">reaktiv-core</a><span class="delimiter">/</span><span class="current">io.github.syrou.reaktiv.core</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="">Types</h2>
+        <div class="table"><a data-name="-1575356451%2FClasslikes%2F-1233518157" anchor-label="CrashListener" id="-1575356451%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-crash-listener/index.html"><span>Crash</span><wbr><span><span>Listener</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1575356451%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-crash-listener/index.html">CrashListener</a></div><div class="brief "><p class="paragraph">Listener for crashes that occur during logic execution in the Store.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1602194460%2FClasslikes%2F-1233518157" anchor-label="CrashRecovery" id="1602194460%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-crash-recovery/index.html"><span>Crash</span><wbr><span><span>Recovery</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1602194460%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">enum </span><a href="-crash-recovery/index.html">CrashRecovery</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-enum/index.html">Enum</a><span class="token operator">&lt;</span><a href="-crash-recovery/index.html">CrashRecovery</a><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">Determines how the Store should handle a crash after listeners are notified.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1487288368%2FClasslikes%2F-1233518157" anchor-label="Dispatch" id="-1487288368%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dispatch/index.html"><span><span>Dispatch</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1487288368%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">typealias </span><a href="-dispatch/index.html">Dispatch</a><span class="token operator"> = </span><span class="token punctuation">(</span><a href="-module-action/index.html">ModuleAction</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1391956237%2FClasslikes%2F-1233518157" anchor-label="DispatchResult" id="-1391956237%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dispatch-result/index.html"><span>Dispatch</span><wbr><span><span>Result</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1391956237%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">sealed </span><span class="token keyword">class </span><a href="-dispatch-result/index.html">DispatchResult</a></div><div class="brief "><p class="paragraph">Result of a dispatch operation, indicating whether the action was processed.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-301759722%2FClasslikes%2F-1233518157" anchor-label="DispatchSuspend" id="-301759722%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dispatch-suspend/index.html"><span>Dispatch</span><wbr><span><span>Suspend</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-301759722%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">typealias </span><a href="-dispatch-suspend/index.html">DispatchSuspend</a><span class="token operator"> = </span><span class="token keyword">suspend </span><span class="token punctuation">(</span><a href="-module-action/index.html">ModuleAction</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1956170644%2FClasslikes%2F-1233518157" anchor-label="ExperimentalReaktivApi" id="-1956170644%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-experimental-reaktiv-api/index.html"><span>Experimental</span><wbr><span>Reaktiv</span><wbr><span><span>Api</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1956170644%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y/index.html">AnnotationTarget.PROPERTY</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">annotation class </span><a href="-experimental-reaktiv-api/index.html">ExperimentalReaktivApi</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="445157390%2FClasslikes%2F-1233518157" anchor-label="HighPriorityAction" id="445157390%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-high-priority-action/index.html"><span>High</span><wbr><span>Priority</span><wbr><span><span>Action</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="445157390%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-high-priority-action/index.html">HighPriorityAction</a></div><div class="brief "><p class="paragraph">Marker interface for high-priority actions.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-96436472%2FClasslikes%2F-1233518157" anchor-label="InternalStoreOperations" id="-96436472%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-internal-store-operations/index.html"><span>Internal</span><wbr><span>Store</span><wbr><span><span>Operations</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-96436472%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-internal-store-operations/index.html">InternalStoreOperations</a></div><div class="brief "><p class="paragraph">Internal operations for specialized use cases like DevTools and testing.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="338594394%2FClasslikes%2F-1233518157" anchor-label="Logic" id="338594394%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-logic/index.html"><span><span>Logic</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="338594394%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-logic/index.html">Logic</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1506014344%2FClasslikes%2F-1233518157" anchor-label="Middleware" id="-1506014344%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-middleware/index.html"><span><span>Middleware</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1506014344%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">typealias </span><a href="-middleware/index.html">Middleware</a><span class="token operator"> = </span><span class="token keyword">suspend </span><span class="token punctuation">(</span>action<span class="token operator">: </span><a href="-module-action/index.html">ModuleAction</a><span class="token punctuation">, </span>getAllStates<span class="token operator">: </span><span class="token keyword">suspend </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="-module-state/index.html">ModuleState</a><span class="token operator">&gt;</span><span class="token punctuation">, </span>storeAccessor<span class="token operator">: </span><a href="-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">, </span>updatedState<span class="token operator">: </span><span class="token keyword">suspend </span><span class="token punctuation">(</span><a href="-module-action/index.html">ModuleAction</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="-module-state/index.html">ModuleState</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></div><div class="brief "><p class="paragraph">Type alias for middleware functions.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="965311582%2FClasslikes%2F-1233518157" anchor-label="Module" id="965311582%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-module/index.html"><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="965311582%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-module/index.html">Module</a><span class="token operator">&lt;</span><a href="-module/index.html">S</a><span class="token operator"> : </span><a href="-module-state/index.html">ModuleState</a><span class="token punctuation">, </span><a href="-module/index.html">A</a><span class="token operator"> : </span><a href="-module-action/index.html">ModuleAction</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Interface for defining modules in the MVLI architecture.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-186242808%2FClasslikes%2F-1233518157" anchor-label="ModuleAction" id="-186242808%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-module-action/index.html"><span>Module</span><wbr><span><span>Action</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-186242808%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">abstract </span><span class="token keyword">class </span><a href="-module-action/index.html">ModuleAction</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">moduleTag<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator"> = </span>KClass::class</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Base class for module actions.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1961428646%2FClasslikes%2F-1233518157" anchor-label="ModuleLogic" id="1961428646%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-module-logic/index.html"><span>Module</span><wbr><span><span>Logic</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1961428646%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-module-logic/index.html">ModuleLogic</a> : <a href="-logic/index.html">Logic</a></div><div class="brief "><p class="paragraph">Base class for module logic implementations.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="494493907%2FClasslikes%2F-1233518157" anchor-label="ModuleState" id="494493907%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-module-state/index.html"><span>Module</span><wbr><span><span>State</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="494493907%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-module-state/index.html">ModuleState</a></div><div class="brief "><p class="paragraph">Marker interface for module state classes.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-153033844%2FClasslikes%2F-1233518157" anchor-label="ModuleWithLogic" id="-153033844%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-module-with-logic/index.html"><span>Module</span><wbr><span>With</span><wbr><span><span>Logic</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-153033844%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-module-with-logic/index.html">ModuleWithLogic</a><span class="token operator">&lt;</span><a href="-module-with-logic/index.html">S</a><span class="token operator"> : </span><a href="-module-state/index.html">ModuleState</a><span class="token punctuation">, </span><a href="-module-with-logic/index.html">A</a><span class="token operator"> : </span><a href="-module-action/index.html">ModuleAction</a><span class="token punctuation">, </span><a href="-module-with-logic/index.html">L</a><span class="token operator"> : </span><a href="-module-logic/index.html">ModuleLogic</a><span class="token operator">&gt;</span> : <a href="-module/index.html">Module</a><span class="token operator">&lt;</span><a href="-module-with-logic/index.html">S</a><span class="token punctuation">, </span><a href="-module-with-logic/index.html">A</a><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">The recommended interface for defining modules with type-safe logic access.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-785939608%2FClasslikes%2F-1233518157" anchor-label="StateSelector" id="-785939608%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-state-selector/index.html"><span>State</span><wbr><span><span>Selector</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-785939608%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.native/-obj-c-name/index.html"><span class="token annotation builtin">ObjCName</span></a><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"StateSelector"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">open </span><span class="token keyword">class </span><a href="-state-selector/index.html">StateSelector</a><span class="token operator">&lt;</span><a href="-state-selector/index.html">S</a><span class="token operator"> : </span><a href="-module-state/index.html">ModuleState</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Generic state selector for Swift/iOS. Wraps KClass internally so Swift doesn't need to deal with it.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1972054583%2FClasslikes%2F-1233518157" anchor-label="Store" id="1972054583%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-store/index.html"><span><span>Store</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1972054583%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-store/index.html">Store</a> : <a href="-store-accessor/index.html">StoreAccessor</a>, <a href="-internal-store-operations/index.html">InternalStoreOperations</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1566414768%2FClasslikes%2F-1233518157" anchor-label="StoreAccessor" id="1566414768%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-store-accessor/index.html"><span>Store</span><wbr><span><span>Accessor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1566414768%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">class </span><a href="-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">scope<span class="token operator">: </span><span data-unresolved-link="kotlinx.coroutines/CoroutineScope///PointingToDeclaration/">CoroutineScope</span></span></span><span class="token punctuation">)</span> : <span data-unresolved-link="kotlinx.coroutines/CoroutineScope///PointingToDeclaration/">CoroutineScope</span></div><div class="brief "><p class="paragraph">Provides access to dispatch, state selection, and logic selection.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1140772206%2FClasslikes%2F-1233518157" anchor-label="StoreDSL" id="1140772206%2FClasslikes%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-store-d-s-l/index.html"><span>Store</span><wbr><span><span>DSL</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1140772206%2FClasslikes%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-store-d-s-l/index.html">StoreDSL</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="-1056582403%2FFunctions%2F-1233518157" anchor-label="createStore" id="-1056582403%2FFunctions%2F-1233518157" data-filterable-set=":reaktiv-core/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-core/commonMain" data-filterable-set=":reaktiv-core/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="create-store.html"><span>create</span><wbr><span><span>Store</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1056582403%2FFunctions%2F-1233518157"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-core/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="create-store.html"><span class="token function">createStore</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="-store-d-s-l/index.html">StoreDSL</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-store/index.html">Store</a></div><div class="brief "><p class="paragraph">Creates a new Store instance using the DSL builder.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

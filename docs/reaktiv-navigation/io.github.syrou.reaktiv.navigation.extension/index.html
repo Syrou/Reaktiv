@@ -1,0 +1,257 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>io.github.syrou.reaktiv.navigation.extension</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-navigation/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-navigation/commonMain" data-filter=":reaktiv-navigation/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="package" id="content" pageids="reaktiv-navigation::io.github.syrou.reaktiv.navigation.extension////PointingToDeclaration//-1582837976">
+  <div class="breadcrumbs"><a href="../index.html">reaktiv-navigation</a><span class="delimiter">/</span><span class="current">io.github.syrou.reaktiv.navigation.extension</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="EXTENSION_FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="-403162504%2FFunctions%2F-1582837976" anchor-label="applyIf" id="-403162504%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="apply-if.html"><span>apply</span><wbr><span><span>If</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-403162504%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">inline </span><span class="token keyword">fun </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/Modifier.html">Modifier</a><span class="token punctuation">.</span><a href="apply-if.html"><span class="token function">applyIf</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token punctuation">, </span></span><span class="parameter ">modifier<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/Modifier.html">Modifier</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/Modifier.html">Modifier</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/Modifier.html">Modifier</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1804739319%2FFunctions%2F-1582837976" anchor-label="clearAllModals" id="1804739319%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clear-all-modals.html"><span>clear</span><wbr><span>All</span><wbr><span><span>Modals</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1804739319%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="clear-all-modals.html"><span class="token function">clearAllModals</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1363333028%2FFunctions%2F-1582837976" anchor-label="dismissModal" id="1363333028%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="dismiss-modal.html"><span>dismiss</span><wbr><span><span>Modal</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1363333028%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="dismiss-modal.html"><span class="token function">dismissModal</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="dismiss-modal.html"><span class="token function">dismissModal</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">modalEntry<span class="token operator">: </span><a href="../io.github.syrou.reaktiv.navigation.model/-navigation-entry/index.html">NavigationEntry</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1238442457%2FFunctions%2F-1582837976" anchor-label="navigate" id="-1238442457%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="navigate.html"><span><span>navigate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1238442457%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">inline suspend </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="navigate.html">T</a><span class="token operator"> : </span><a href="../io.github.syrou.reaktiv.navigation.definition/-navigatable/index.html">Navigatable</a><span class="token operator">&gt; </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="navigate.html"><span class="token function">navigate</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">params<span class="token operator">: </span><a href="../io.github.syrou.reaktiv.navigation.param/-params/index.html">Params</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="navigate.html"><span class="token function">navigate</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">route<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">params<span class="token operator">: </span><a href="../io.github.syrou.reaktiv.navigation.param/-params/index.html">Params</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-150777511%2FFunctions%2F-1582837976" anchor-label="navigateBack" id="-150777511%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="navigate-back.html"><span>navigate</span><wbr><span><span>Back</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-150777511%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="navigate-back.html"><span class="token function">navigateBack</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-9191851%2FFunctions%2F-1582837976" anchor-label="navigateDeepLink" id="-9191851%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="navigate-deep-link.html"><span>navigate</span><wbr><span>Deep</span><wbr><span><span>Link</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-9191851%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="navigate-deep-link.html"><span class="token function">navigateDeepLink</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">route<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">params<span class="token operator">: </span><a href="../io.github.syrou.reaktiv.navigation.param/-params/index.html">Params</a><span class="token operator"> = </span>Params.empty()</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Navigate to a deep link route, resolving any registered aliases first.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1559562178%2FFunctions%2F-1582837976" anchor-label="navigation" id="1559562178%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="navigation.html"><span><span>navigation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1559562178%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="navigation.html"><span class="token function">navigation</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><span class="token keyword">suspend </span><a href="../io.github.syrou.reaktiv.navigation.dsl/-navigation-builder/index.html">NavigationBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1989373057%2FFunctions%2F-1582837976" anchor-label="presentModal" id="-1989373057%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="present-modal.html"><span>present</span><wbr><span><span>Modal</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1989373057%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">inline suspend </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="present-modal.html">T</a><span class="token operator"> : </span><a href="../io.github.syrou.reaktiv.navigation.definition/-modal/index.html">Modal</a><span class="token operator">&gt; </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="present-modal.html"><span class="token function">presentModal</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">noinline </span>config<span class="token operator">: </span><span class="token keyword">suspend </span><a href="../io.github.syrou.reaktiv.navigation.dsl/-navigation-builder/index.html">NavigationBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1843152561%2FFunctions%2F-1582837976" anchor-label="resumePendingNavigation" id="-1843152561%2FFunctions%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="resume-pending-navigation.html"><span>resume</span><wbr><span>Pending</span><wbr><span><span>Navigation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1843152561%2FFunctions%2F-1582837976"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a><span class="token punctuation">.</span><a href="resume-pending-navigation.html"><span class="token function">resumePendingNavigation</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Resume a pending navigation stored by GuardResult.PendAndRedirectTo.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>io.github.syrou.reaktiv.devtools.ui</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector wasm-like" data-active="" data-filter=":reaktiv-devtools/wasmJsMain">wasmJs</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option wasm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/wasmJsMain" data-filter=":reaktiv-devtools/wasmJsMain">
+                                <span class="checkbox--icon"></span>
+                                wasmJs
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="package" id="content" pageids="reaktiv-devtools::io.github.syrou.reaktiv.devtools.ui////PointingToDeclaration//-1635886175">
+  <div class="breadcrumbs"><a href="../index.html">reaktiv-devtools</a><span class="delimiter">/</span><span class="current">io.github.syrou.reaktiv.devtools.ui</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="">Types</h2>
+        <div class="table"><a data-name="-532972202%2FClasslikes%2F-1635886175" anchor-label="ActionStateEvent" id="-532972202%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-action-state-event/index.html"><span>Action</span><wbr><span>State</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-532972202%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-action-state-event/index.html">ActionStateEvent</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timestamp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>actionType<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>actionData<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>stateDeltaJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>moduleName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Represents an action dispatched by a client with its resulting state.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-549541516%2FClasslikes%2F-1635886175" anchor-label="CrashEventInfo" id="-549541516%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-crash-event-info/index.html"><span>Crash</span><wbr><span>Event</span><wbr><span><span>Info</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-549541516%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-crash-event-info/index.html">CrashEventInfo</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>timestamp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>exception<span class="token operator">: </span><a href="../../reaktiv-introspection/io.github.syrou.reaktiv.introspection.protocol/-crash-exception/index.html">CrashException</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Represents crash information displayed in the timeline.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="628599737%2FClasslikes%2F-1635886175" anchor-label="DevToolsAction" id="628599737%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dev-tools-action/index.html"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>Action</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="628599737%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">sealed </span><span class="token keyword">class </span><a href="-dev-tools-action/index.html">DevToolsAction</a> : <a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-module-action/index.html">ModuleAction</a></div><div class="brief "><p class="paragraph">Actions for the DevTools UI.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1727668671%2FClasslikes%2F-1635886175" anchor-label="DevToolsColors" id="1727668671%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dev-tools-colors/index.html"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>Colors</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1727668671%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-dev-tools-colors/index.html">DevToolsColors</a></div><div class="brief "><p class="paragraph">DevTools color scheme optimized for debugging and state inspection.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1572071893%2FClasslikes%2F-1635886175" anchor-label="DevToolsLogic" id="1572071893%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dev-tools-logic/index.html"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>Logic</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1572071893%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-dev-tools-logic/index.html">DevToolsLogic</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">storeAccessor<span class="token operator">: </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store-accessor/index.html">StoreAccessor</a></span></span><span class="token punctuation">)</span> : <a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-module-logic/index.html">ModuleLogic</a></div><div class="brief "><p class="paragraph">Logic for handling DevTools UI side effects.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="548408387%2FClasslikes%2F-1635886175" anchor-label="DevToolsModule" id="548408387%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dev-tools-module/index.html"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="548408387%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-dev-tools-module/index.html">DevToolsModule</a> : <a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-module-with-logic/index.html">ModuleWithLogic</a><span class="token operator">&lt;</span><a href="-dev-tools-state/index.html">DevToolsState</a><span class="token punctuation">, </span><a href="-dev-tools-action/index.html">DevToolsAction</a><span class="token punctuation">, </span><a href="-dev-tools-logic/index.html">DevToolsLogic</a><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">Reaktiv module for DevTools UI state management.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="105137154%2FClasslikes%2F-1635886175" anchor-label="DevToolsState" id="105137154%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dev-tools-state/index.html"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>State</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="105137154%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-dev-tools-state/index.html">DevToolsState</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>connectionState<span class="token operator">: </span><a href="../io.github.syrou.reaktiv.devtools.client/-connection-state/index.html">ConnectionState</a><span class="token operator"> = </span>ConnectionState.DISCONNECTED<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>connectedClients<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../io.github.syrou.reaktiv.devtools.protocol/-client-info/index.html">ClientInfo</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyList()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>actionStateHistory<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-action-state-event/index.html">ActionStateEvent</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyList()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>logicMethodEvents<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-logic-method-event/index.html">LogicMethodEvent</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyList()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>selectedPublisher<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>selectedListener<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>showStateAsDiff<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>selectedActionIndex<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>devicePanelExpanded<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>autoSelectLatest<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>excludedActionTypes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptySet()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timeTravelEnabled<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>timeTravelPosition<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>showActions<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>showLogicMethods<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>selectedLogicMethodCallId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>excludedLogicMethods<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptySet()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>callIdToMethodIdentifier<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyMap()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>showImportGhostDialog<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>crashEvent<span class="token operator">: </span><a href="-crash-event-info/index.html">CrashEventInfo</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>crashSelected<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>publisherSessionStart<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>canExportSession<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>activeGhostId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>initialStateJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">"{}"</span></span></span><span class="token punctuation">)</span> : <a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-module-state/index.html">ModuleState</a></div><div class="brief "><p class="paragraph">State for the DevTools WASM UI.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="470563488%2FClasslikes%2F-1635886175" anchor-label="DiffColors" id="470563488%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-diff-colors/index.html"><span>Diff</span><wbr><span><span>Colors</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="470563488%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-diff-colors/index.html">DiffColors</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>added<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>Color(0xFF4EC9B0)<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>addedContainer<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>Color(0xFF1E4D40)<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>onAddedContainer<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>Color(0xFF4EC9B0)<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>modified<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>Color(0xFFDCDCAA)<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>modifiedContainer<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>Color(0xFF4D4D1E)<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>onModifiedContainer<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>Color(0xFFDCDCAA)<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>removed<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.error<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>removedContainer<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.errorContainer<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>onRemovedContainer<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.onErrorContainer</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Extended colors for diff visualization that don't fit Material 3's standard scheme. These provide clear semantic meaning for state changes in debugging.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-776111046%2FClasslikes%2F-1635886175" anchor-label="LogicMethodEvent" id="-776111046%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-logic-method-event/index.html"><span>Logic</span><wbr><span>Method</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-776111046%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">sealed </span><span class="token keyword">class </span><a href="-logic-method-event/index.html">LogicMethodEvent</a></div><div class="brief "><p class="paragraph">Represents a logic method tracing event from a client.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-474413566%2FClasslikes%2F-1635886175" anchor-label="SyntaxColors" id="-474413566%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-syntax-colors/index.html"><span>Syntax</span><wbr><span><span>Colors</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-474413566%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-syntax-colors/index.html">SyntaxColors</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>key<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.primary<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>string<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.secondary<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>boolean<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.tertiary<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>number<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>Color(0xFFB5CEA8)<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>nullValue<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.onSurfaceVariant<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>bracket<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.onSurfaceVariant<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>oldValue<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/Color.html">Color</a><span class="token operator"> = </span>DevToolsColors.error</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Syntax highlighting colors for JSON/code visualization.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="">Properties</h2>
+        <div class="table"><a data-name="-2013855952%2FProperties%2F-1635886175" anchor-label="LocalDiffColors" id="-2013855952%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-local-diff-colors.html"><span>Local</span><wbr><span>Diff</span><wbr><span><span>Colors</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2013855952%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-local-diff-colors.html">LocalDiffColors</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/ProvidableCompositionLocal.html">ProvidableCompositionLocal</a><span class="token operator">&lt;</span><a href="-diff-colors/index.html">DiffColors</a><span class="token operator">&gt;</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1176639890%2FProperties%2F-1635886175" anchor-label="LocalSyntaxColors" id="1176639890%2FProperties%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-local-syntax-colors.html"><span>Local</span><wbr><span>Syntax</span><wbr><span><span>Colors</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1176639890%2FProperties%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-local-syntax-colors.html">LocalSyntaxColors</a><span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/ProvidableCompositionLocal.html">ProvidableCompositionLocal</a><span class="token operator">&lt;</span><a href="-syntax-colors/index.html">SyntaxColors</a><span class="token operator">&gt;</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="-734083425%2FFunctions%2F-1635886175" anchor-label="DevToolsApp" id="-734083425%2FFunctions%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dev-tools-app.html"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>App</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-734083425%2FFunctions%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a></div></div><span class="token keyword">fun </span><a href="-dev-tools-app.html"><span class="token function">DevToolsApp</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">store<span class="token operator">: </span><a href="../../reaktiv-core/io.github.syrou.reaktiv.core/-store/index.html">Store</a><span class="token punctuation">, </span></span><span class="parameter ">serverUrl<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">"ws://localhost:8080/ws"</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Main DevTools WASM application.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1495646361%2FFunctions%2F-1635886175" anchor-label="DevToolsTheme" id="1495646361%2FFunctions%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-dev-tools-theme.html"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>Theme</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1495646361%2FFunctions%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a></div></div><span class="token keyword">fun </span><a href="-dev-tools-theme.html"><span class="token function">DevToolsTheme</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">content<span class="token operator">: </span><span><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a>&nbsp;</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">DevTools theme wrapper that applies the debugging-optimized color scheme.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1428677879%2FFunctions%2F-1635886175" anchor-label="toCaptured" id="1428677879%2FFunctions%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-captured.html"><span>to</span><wbr><span><span>Captured</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1428677879%2FFunctions%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="-action-state-event/index.html">ActionStateEvent</a><span class="token punctuation">.</span><a href="to-captured.html"><span class="token function">toCaptured</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../reaktiv-introspection/io.github.syrou.reaktiv.introspection.protocol/-captured-action/index.html">CapturedAction</a></div><div class="brief "><p class="paragraph">Converts ActionStateEvent to CapturedAction. Eliminates the intermediate DevToolsMessage.ActionDispatched conversion step.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-logic-method-event/-completed/index.html">LogicMethodEvent.Completed</a><span class="token punctuation">.</span><a href="to-captured.html"><span class="token function">toCaptured</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../reaktiv-introspection/io.github.syrou.reaktiv.introspection.protocol/-captured-logic-complete/index.html">CapturedLogicComplete</a></div><div class="brief "><p class="paragraph">Converts LogicMethodEvent.Completed to CapturedLogicComplete. Eliminates the intermediate DevToolsMessage.LogicMethodCompleted conversion step.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-logic-method-event/-failed/index.html">LogicMethodEvent.Failed</a><span class="token punctuation">.</span><a href="to-captured.html"><span class="token function">toCaptured</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../reaktiv-introspection/io.github.syrou.reaktiv.introspection.protocol/-captured-logic-failed/index.html">CapturedLogicFailed</a></div><div class="brief "><p class="paragraph">Converts LogicMethodEvent.Failed to CapturedLogicFailed. Eliminates the intermediate DevToolsMessage.LogicMethodFailed conversion step.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-logic-method-event/-started/index.html">LogicMethodEvent.Started</a><span class="token punctuation">.</span><a href="to-captured.html"><span class="token function">toCaptured</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../reaktiv-introspection/io.github.syrou.reaktiv.introspection.protocol/-captured-logic-start/index.html">CapturedLogicStart</a></div><div class="brief "><p class="paragraph">Converts LogicMethodEvent.Started to CapturedLogicStart. Eliminates the intermediate DevToolsMessage.LogicMethodStarted conversion step.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

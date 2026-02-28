@@ -1,5 +1,7 @@
 # Reaktiv
 
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://syrou.github.io/Reaktiv/)
+
 Reaktiv is a powerful MVLI (Model-View-Logic-Intent) library for Kotlin Multiplatform, designed to simplify state management and navigation in modern applications. It provides a robust architecture for building scalable and maintainable applications across various platforms.
 
 ## Features

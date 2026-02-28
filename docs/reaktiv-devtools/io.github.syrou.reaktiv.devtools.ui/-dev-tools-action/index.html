@@ -1,0 +1,686 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>DevToolsAction</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector wasm-like" data-active="" data-filter=":reaktiv-devtools/wasmJsMain">wasmJs</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option wasm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-devtools/wasmJsMain" data-filter=":reaktiv-devtools/wasmJsMain">
+                                <span class="checkbox--icon"></span>
+                                wasmJs
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="reaktiv-devtools::io.github.syrou.reaktiv.devtools.ui/DevToolsAction///PointingToDeclaration//-1635886175">
+  <div class="breadcrumbs"><a href="../../index.html">reaktiv-devtools</a><span class="delimiter">/</span><a href="../index.html">io.github.syrou.reaktiv.devtools.ui</a><span class="delimiter">/</span><span class="current">DevToolsAction</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Dev</span><wbr><span>Tools</span><wbr><span><span>Action</span></span></h1>
+    <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+      <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">sealed </span><span class="token keyword">class </span><a href="index.html">DevToolsAction</a> : <a href="../../../reaktiv-core/io.github.syrou.reaktiv.core/-module-action/index.html">ModuleAction</a><span class="clearfix"><span class="floating-right">(<a href="https://github.com/Syrou/Reaktiv/blob/main/reaktiv-devtools/src/wasmJsMain/kotlin/io/github/syrou/reaktiv/devtools/ui/DevToolsState.kt#L55">source</a>)</span></span></div><p class="paragraph">Actions for the DevTools UI.</p><h4 class="">Inheritors</h4><div class="table"><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-update-connection-state/index.html">UpdateConnectionState</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-update-client-list/index.html">UpdateClientList</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-add-action-state-event/index.html">AddActionStateEvent</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-add-logic-method-event/index.html">AddLogicMethodEvent</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-select-publisher/index.html">SelectPublisher</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-select-listener/index.html">SelectListener</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-toggle-state-view-mode/index.html">ToggleStateViewMode</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-select-action/index.html">SelectAction</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-toggle-device-panel/index.html">ToggleDevicePanel</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-toggle-auto-select-latest/index.html">ToggleAutoSelectLatest</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-clear-history/index.html">ClearHistory</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-add-action-exclusion/index.html">AddActionExclusion</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-remove-action-exclusion/index.html">RemoveActionExclusion</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-set-action-exclusions/index.html">SetActionExclusions</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-toggle-time-travel/index.html">ToggleTimeTravel</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-set-time-travel-position/index.html">SetTimeTravelPosition</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-toggle-show-actions/index.html">ToggleShowActions</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-toggle-show-logic-methods/index.html">ToggleShowLogicMethods</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-select-logic-method-event/index.html">SelectLogicMethodEvent</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-add-logic-method-exclusion/index.html">AddLogicMethodExclusion</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-remove-logic-method-exclusion/index.html">RemoveLogicMethodExclusion</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-set-logic-method-exclusions/index.html">SetLogicMethodExclusions</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-show-import-ghost-dialog/index.html">ShowImportGhostDialog</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-hide-import-ghost-dialog/index.html">HideImportGhostDialog</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-set-crash-event/index.html">SetCrashEvent</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-select-crash/index.html">SelectCrash</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-set-publisher-session-start/index.html">SetPublisherSessionStart</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-set-can-export-session/index.html">SetCanExportSession</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-bulk-add-action-state-events/index.html">BulkAddActionStateEvents</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-bulk-add-logic-method-events/index.html">BulkAddLogicMethodEvents</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-set-active-ghost-id/index.html">SetActiveGhostId</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-enable-time-travel-with-ghost/index.html">EnableTimeTravelWithGhost</a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="-set-initial-state/index.html">SetInitialState</a></div></span></div><div></div></div></div></div></div>    </div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="">Types</h2>
+        <div class="table"><a data-name="570422564%2FClasslikes%2F-1635886175" anchor-label="AddActionExclusion" id="570422564%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-add-action-exclusion/index.html"><span>Add</span><wbr><span>Action</span><wbr><span><span>Exclusion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="570422564%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-add-action-exclusion/index.html">AddActionExclusion</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>actionType<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1333864679%2FClasslikes%2F-1635886175" anchor-label="AddActionStateEvent" id="1333864679%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-add-action-state-event/index.html"><span>Add</span><wbr><span>Action</span><wbr><span>State</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1333864679%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-add-action-state-event/index.html">AddActionStateEvent</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>event<span class="token operator">: </span><a href="../-action-state-event/index.html">ActionStateEvent</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1090725835%2FClasslikes%2F-1635886175" anchor-label="AddLogicMethodEvent" id="1090725835%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-add-logic-method-event/index.html"><span>Add</span><wbr><span>Logic</span><wbr><span>Method</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1090725835%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-add-logic-method-event/index.html">AddLogicMethodEvent</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>event<span class="token operator">: </span><a href="../-logic-method-event/index.html">LogicMethodEvent</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="989758743%2FClasslikes%2F-1635886175" anchor-label="AddLogicMethodExclusion" id="989758743%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-add-logic-method-exclusion/index.html"><span>Add</span><wbr><span>Logic</span><wbr><span>Method</span><wbr><span><span>Exclusion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="989758743%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-add-logic-method-exclusion/index.html">AddLogicMethodExclusion</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>methodIdentifier<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-655351754%2FClasslikes%2F-1635886175" anchor-label="BulkAddActionStateEvents" id="-655351754%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-bulk-add-action-state-events/index.html"><span>Bulk</span><wbr><span>Add</span><wbr><span>Action</span><wbr><span>State</span><wbr><span><span>Events</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-655351754%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-bulk-add-action-state-events/index.html">BulkAddActionStateEvents</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>events<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-action-state-event/index.html">ActionStateEvent</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="397278674%2FClasslikes%2F-1635886175" anchor-label="BulkAddLogicMethodEvents" id="397278674%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-bulk-add-logic-method-events/index.html"><span>Bulk</span><wbr><span>Add</span><wbr><span>Logic</span><wbr><span>Method</span><wbr><span><span>Events</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="397278674%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-bulk-add-logic-method-events/index.html">BulkAddLogicMethodEvents</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>events<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-logic-method-event/index.html">LogicMethodEvent</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-141172108%2FClasslikes%2F-1635886175" anchor-label="ClearHistory" id="-141172108%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-clear-history/index.html"><span>Clear</span><wbr><span><span>History</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-141172108%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-clear-history/index.html">ClearHistory</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1515543288%2FClasslikes%2F-1635886175" anchor-label="EnableTimeTravelWithGhost" id="-1515543288%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-enable-time-travel-with-ghost/index.html"><span>Enable</span><wbr><span>Time</span><wbr><span>Travel</span><wbr><span>With</span><wbr><span><span>Ghost</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1515543288%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-enable-time-travel-with-ghost/index.html">EnableTimeTravelWithGhost</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>ghostId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1759396055%2FClasslikes%2F-1635886175" anchor-label="HideImportGhostDialog" id="1759396055%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-hide-import-ghost-dialog/index.html"><span>Hide</span><wbr><span>Import</span><wbr><span>Ghost</span><wbr><span><span>Dialog</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1759396055%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-hide-import-ghost-dialog/index.html">HideImportGhostDialog</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-672711437%2FClasslikes%2F-1635886175" anchor-label="RemoveActionExclusion" id="-672711437%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-remove-action-exclusion/index.html"><span>Remove</span><wbr><span>Action</span><wbr><span><span>Exclusion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-672711437%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-remove-action-exclusion/index.html">RemoveActionExclusion</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>actionType<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1496922456%2FClasslikes%2F-1635886175" anchor-label="RemoveLogicMethodExclusion" id="-1496922456%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-remove-logic-method-exclusion/index.html"><span>Remove</span><wbr><span>Logic</span><wbr><span>Method</span><wbr><span><span>Exclusion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1496922456%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-remove-logic-method-exclusion/index.html">RemoveLogicMethodExclusion</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>methodIdentifier<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="487710729%2FClasslikes%2F-1635886175" anchor-label="SelectAction" id="487710729%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-select-action/index.html"><span>Select</span><wbr><span><span>Action</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="487710729%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-select-action/index.html">SelectAction</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>index<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="574270300%2FClasslikes%2F-1635886175" anchor-label="SelectCrash" id="574270300%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-select-crash/index.html"><span>Select</span><wbr><span><span>Crash</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="574270300%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-select-crash/index.html">SelectCrash</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>selected<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1340319691%2FClasslikes%2F-1635886175" anchor-label="SelectListener" id="1340319691%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-select-listener/index.html"><span>Select</span><wbr><span><span>Listener</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1340319691%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-select-listener/index.html">SelectListener</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-256572316%2FClasslikes%2F-1635886175" anchor-label="SelectLogicMethodEvent" id="-256572316%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-select-logic-method-event/index.html"><span>Select</span><wbr><span>Logic</span><wbr><span>Method</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-256572316%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-select-logic-method-event/index.html">SelectLogicMethodEvent</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>callId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2003108441%2FClasslikes%2F-1635886175" anchor-label="SelectPublisher" id="-2003108441%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-select-publisher/index.html"><span>Select</span><wbr><span><span>Publisher</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2003108441%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-select-publisher/index.html">SelectPublisher</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="693966314%2FClasslikes%2F-1635886175" anchor-label="SetActionExclusions" id="693966314%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-set-action-exclusions/index.html"><span>Set</span><wbr><span>Action</span><wbr><span><span>Exclusions</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="693966314%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-set-action-exclusions/index.html">SetActionExclusions</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>actionTypes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1299424647%2FClasslikes%2F-1635886175" anchor-label="SetActiveGhostId" id="-1299424647%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-set-active-ghost-id/index.html"><span>Set</span><wbr><span>Active</span><wbr><span>Ghost</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1299424647%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-set-active-ghost-id/index.html">SetActiveGhostId</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>ghostId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="558850739%2FClasslikes%2F-1635886175" anchor-label="SetCanExportSession" id="558850739%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-set-can-export-session/index.html"><span>Set</span><wbr><span>Can</span><wbr><span>Export</span><wbr><span><span>Session</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="558850739%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-set-can-export-session/index.html">SetCanExportSession</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>canExport<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1281406962%2FClasslikes%2F-1635886175" anchor-label="SetCrashEvent" id="1281406962%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-set-crash-event/index.html"><span>Set</span><wbr><span>Crash</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1281406962%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-set-crash-event/index.html">SetCrashEvent</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>crashEvent<span class="token operator">: </span><a href="../-crash-event-info/index.html">CrashEventInfo</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-220256328%2FClasslikes%2F-1635886175" anchor-label="SetInitialState" id="-220256328%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-set-initial-state/index.html"><span>Set</span><wbr><span>Initial</span><wbr><span><span>State</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-220256328%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-set-initial-state/index.html">SetInitialState</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>json<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1458162439%2FClasslikes%2F-1635886175" anchor-label="SetLogicMethodExclusions" id="-1458162439%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-set-logic-method-exclusions/index.html"><span>Set</span><wbr><span>Logic</span><wbr><span>Method</span><wbr><span><span>Exclusions</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1458162439%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-set-logic-method-exclusions/index.html">SetLogicMethodExclusions</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>methodIdentifiers<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="613170581%2FClasslikes%2F-1635886175" anchor-label="SetPublisherSessionStart" id="613170581%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-set-publisher-session-start/index.html"><span>Set</span><wbr><span>Publisher</span><wbr><span>Session</span><wbr><span><span>Start</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="613170581%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-set-publisher-session-start/index.html">SetPublisherSessionStart</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>startTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="572903221%2FClasslikes%2F-1635886175" anchor-label="SetTimeTravelPosition" id="572903221%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-set-time-travel-position/index.html"><span>Set</span><wbr><span>Time</span><wbr><span>Travel</span><wbr><span><span>Position</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="572903221%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-set-time-travel-position/index.html">SetTimeTravelPosition</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>position<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1159914706%2FClasslikes%2F-1635886175" anchor-label="ShowImportGhostDialog" id="1159914706%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-show-import-ghost-dialog/index.html"><span>Show</span><wbr><span>Import</span><wbr><span>Ghost</span><wbr><span><span>Dialog</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1159914706%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-show-import-ghost-dialog/index.html">ShowImportGhostDialog</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1174238709%2FClasslikes%2F-1635886175" anchor-label="ToggleAutoSelectLatest" id="1174238709%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-toggle-auto-select-latest/index.html"><span>Toggle</span><wbr><span>Auto</span><wbr><span>Select</span><wbr><span><span>Latest</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1174238709%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-toggle-auto-select-latest/index.html">ToggleAutoSelectLatest</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1254106221%2FClasslikes%2F-1635886175" anchor-label="ToggleDevicePanel" id="1254106221%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-toggle-device-panel/index.html"><span>Toggle</span><wbr><span>Device</span><wbr><span><span>Panel</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1254106221%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-toggle-device-panel/index.html">ToggleDevicePanel</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1458193733%2FClasslikes%2F-1635886175" anchor-label="ToggleShowActions" id="-1458193733%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-toggle-show-actions/index.html"><span>Toggle</span><wbr><span>Show</span><wbr><span><span>Actions</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1458193733%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-toggle-show-actions/index.html">ToggleShowActions</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1081402294%2FClasslikes%2F-1635886175" anchor-label="ToggleShowLogicMethods" id="1081402294%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-toggle-show-logic-methods/index.html"><span>Toggle</span><wbr><span>Show</span><wbr><span>Logic</span><wbr><span><span>Methods</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1081402294%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-toggle-show-logic-methods/index.html">ToggleShowLogicMethods</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-71852030%2FClasslikes%2F-1635886175" anchor-label="ToggleStateViewMode" id="-71852030%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-toggle-state-view-mode/index.html"><span>Toggle</span><wbr><span>State</span><wbr><span>View</span><wbr><span><span>Mode</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-71852030%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-toggle-state-view-mode/index.html">ToggleStateViewMode</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-867944768%2FClasslikes%2F-1635886175" anchor-label="ToggleTimeTravel" id="-867944768%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-toggle-time-travel/index.html"><span>Toggle</span><wbr><span>Time</span><wbr><span><span>Travel</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-867944768%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">object </span><a href="-toggle-time-travel/index.html">ToggleTimeTravel</a> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1240862889%2FClasslikes%2F-1635886175" anchor-label="UpdateClientList" id="1240862889%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-update-client-list/index.html"><span>Update</span><wbr><span>Client</span><wbr><span><span>List</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1240862889%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-update-client-list/index.html">UpdateClientList</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>clients<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../../io.github.syrou.reaktiv.devtools.protocol/-client-info/index.html">ClientInfo</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1953391741%2FClasslikes%2F-1635886175" anchor-label="UpdateConnectionState" id="1953391741%2FClasslikes%2F-1635886175" data-filterable-set=":reaktiv-devtools/wasmJsMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-update-connection-state/index.html"><span>Update</span><wbr><span>Connection</span><wbr><span><span>State</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1953391741%2FClasslikes%2F-1635886175"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":reaktiv-devtools/wasmJsMain" data-filterable-set=":reaktiv-devtools/wasmJsMain" data-active="" data-toggle=":reaktiv-devtools/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-devtools/wasmJsMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-update-connection-state/index.html">UpdateConnectionState</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>state<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.devtools.client/-connection-state/index.html">ConnectionState</a></span></span><span class="token punctuation">)</span> : <a href="index.html">DevToolsAction</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

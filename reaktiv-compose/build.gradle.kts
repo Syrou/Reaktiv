@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
+import java.net.URI
 
 plugins {
     kotlin("multiplatform")
@@ -12,6 +13,17 @@ plugins {
 
 group = "io.github.syrou"
 
+dokka {
+    moduleName.set("reaktiv-compose")
+    dokkaSourceSets.configureEach {
+        includes.from("module.md")
+        sourceLink {
+            localDirectory.set(file("src"))
+            remoteUrl.set(URI("https://github.com/Syrou/Reaktiv/blob/main/reaktiv-compose/src"))
+            remoteLineSuffix.set("#L")
+        }
+    }
+}
 
 centralPublisher {
     username = CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_TOKEN")

@@ -25,6 +25,35 @@ import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import kotlin.time.Duration
 
 
+/**
+ * The MVLI module that owns the navigation system.
+ *
+ * `NavigationModule` wires together the static graph definition, the mutable
+ * [NavigationState], the pure [reducer], and the side-effecting [NavigationLogic].
+ * It is the single source of truth for all navigation-related state in a Reaktiv store.
+ *
+ * Create an instance using the [createNavigationModule] top-level function or the
+ * companion [create] helper:
+ *
+ * ```kotlin
+ * val navModule = createNavigationModule {
+ *     graph("root") {
+ *         entry(HomeScreen)
+ *         screen(HomeScreen)
+ *         screen(ProfileScreen)
+ *         graph("auth") {
+ *             entry(LoginScreen)
+ *             screen(LoginScreen)
+ *         }
+ *     }
+ *     notFoundScreen(NotFoundScreen)
+ * }
+ * ```
+ *
+ * @see createNavigationModule
+ * @see NavigationLogic
+ * @see NavigationState
+ */
 class NavigationModule internal constructor(
     private val rootGraph: NavigationGraph,
     private val notFoundScreen: Screen? = null,
@@ -695,6 +724,29 @@ private fun findOriginalUnderlyingScreenForModal(
     }
 }
 
+/**
+ * DSL entry point for creating a [NavigationModule].
+ *
+ * Equivalent to `NavigationModule.create(block)`. Use this function at the call-site
+ * where you assemble your store:
+ *
+ * ```kotlin
+ * val store = createStore {
+ *     module(
+ *         createNavigationModule {
+ *             graph("root") {
+ *                 entry(HomeScreen)
+ *                 screen(HomeScreen)
+ *                 screen(SettingsScreen)
+ *             }
+ *         }
+ *     )
+ * }
+ * ```
+ *
+ * @param block Configuration lambda applied to a [GraphBasedBuilder].
+ * @return A fully configured [NavigationModule] ready to be registered with the store.
+ */
 fun createNavigationModule(block: GraphBasedBuilder.() -> Unit): NavigationModule {
     return NavigationModule.create {
         block.invoke(this)

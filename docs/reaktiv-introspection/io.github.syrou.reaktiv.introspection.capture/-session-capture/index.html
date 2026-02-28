@@ -1,0 +1,412 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>SessionCapture</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../../../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-introspection/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-introspection/commonMain" data-filter=":reaktiv-introspection/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="reaktiv-introspection::io.github.syrou.reaktiv.introspection.capture/SessionCapture///PointingToDeclaration//-1027401141">
+  <div class="breadcrumbs"><a href="../../index.html">reaktiv-introspection</a><span class="delimiter">/</span><a href="../index.html">io.github.syrou.reaktiv.introspection.capture</a><span class="delimiter">/</span><span class="current">SessionCapture</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Session</span><wbr><span><span>Capture</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">SessionCapture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">maxActions<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">1000</span><span class="token punctuation">, </span></span><span class="parameter ">maxLogicEvents<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">2000</span></span></span><span class="token punctuation">)</span></div><p class="paragraph">Captures session data for crash reports and manual export.</p><p class="paragraph">Events are stored in file-backed JSONL storage (when filesystem is available) to avoid holding large state snapshots in memory. Falls back to in-memory storage on platforms without filesystem access (e.g., wasmJs browser).</p><p class="paragraph">Usage:</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val capture = SessionCapture(maxActions = 500, maxLogicEvents = 1000)<br>capture.start("client-id", "MyApp", "Android")<br><br>// Capture events as they happen (typically called by middleware/observers)<br>capture.captureAction(actionEvent)<br>capture.captureLogicStarted(logicEvent)<br><br>// Manual export (no crash)<br>val json = capture.exportSession()<br><br>// Export with crash info<br>val crashJson = capture.exportCrashSession(exception)</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><p class="paragraph">The exported JSON format is compatible with DevTools ghost device import.</p><h4 class="">Parameters</h4><div class="table"><div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><u><span>max</span><wbr><span><span>Actions</span></span></u></div></span></div><div><div class="title"><p class="paragraph">Maximum number of actions to retain (older actions are dropped)</p></div></div></div></div><div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><u><span>max</span><wbr><span>Logic</span><wbr><span><span>Events</span></span></u></div></span></div><div><div class="title"><p class="paragraph">Maximum number of logic events to retain (older events are dropped)</p></div></div></div></div></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="">Constructors</h2>
+        <div class="table"><a data-name="1429832204%2FConstructors%2F-1027401141" anchor-label="SessionCapture" id="1429832204%2FConstructors%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-togglable="CONSTRUCTOR" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-session-capture.html"><span>Session</span><wbr><span><span>Capture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1429832204%2FConstructors%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">maxActions<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">1000</span><span class="token punctuation">, </span></span><span class="parameter ">maxLogicEvents<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">2000</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="1018908697%2FFunctions%2F-1027401141" anchor-label="captureAction" id="1018908697%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="capture-action.html"><span>capture</span><wbr><span><span>Action</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1018908697%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="capture-action.html"><span class="token function">captureAction</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">event<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.introspection.protocol/-captured-action/index.html">CapturedAction</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Captures an action dispatched event.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-370460023%2FFunctions%2F-1027401141" anchor-label="captureCrashFromLogicFailure" id="-370460023%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="capture-crash-from-logic-failure.html"><span>capture</span><wbr><span>Crash</span><wbr><span>From</span><wbr><span>Logic</span><wbr><span><span>Failure</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-370460023%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="capture-crash-from-logic-failure.html"><span class="token function">captureCrashFromLogicFailure</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">event<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.introspection.protocol/-captured-logic-failed/index.html">CapturedLogicFailed</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Captures crash information from a logic method failure. This should be called when a logic failure represents a fatal crash.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1616835727%2FFunctions%2F-1027401141" anchor-label="captureCrashFromThrowable" id="1616835727%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="capture-crash-from-throwable.html"><span>capture</span><wbr><span>Crash</span><wbr><span>From</span><wbr><span><span>Throwable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1616835727%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="capture-crash-from-throwable.html"><span class="token function">captureCrashFromThrowable</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">throwable<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Captures crash information from a throwable. This is typically called by the crash handler for uncaught exceptions.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-55968320%2FFunctions%2F-1027401141" anchor-label="captureInitialState" id="-55968320%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="capture-initial-state.html"><span>capture</span><wbr><span>Initial</span><wbr><span><span>State</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-55968320%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="capture-initial-state.html"><span class="token function">captureInitialState</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stateJson<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Captures the initial full state snapshot at session start.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-276149307%2FFunctions%2F-1027401141" anchor-label="captureLogicCompleted" id="-276149307%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="capture-logic-completed.html"><span>capture</span><wbr><span>Logic</span><wbr><span><span>Completed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-276149307%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="capture-logic-completed.html"><span class="token function">captureLogicCompleted</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">event<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.introspection.protocol/-captured-logic-complete/index.html">CapturedLogicComplete</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Captures a logic method completed event.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="229650539%2FFunctions%2F-1027401141" anchor-label="captureLogicFailed" id="229650539%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="capture-logic-failed.html"><span>capture</span><wbr><span>Logic</span><wbr><span><span>Failed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="229650539%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="capture-logic-failed.html"><span class="token function">captureLogicFailed</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">event<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.introspection.protocol/-captured-logic-failed/index.html">CapturedLogicFailed</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Captures a logic method failed event.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="946522552%2FFunctions%2F-1027401141" anchor-label="captureLogicStarted" id="946522552%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="capture-logic-started.html"><span>capture</span><wbr><span>Logic</span><wbr><span><span>Started</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="946522552%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="capture-logic-started.html"><span class="token function">captureLogicStarted</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">event<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.introspection.protocol/-captured-logic-start/index.html">CapturedLogicStart</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Captures a logic method started event.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1101076406%2FFunctions%2F-1027401141" anchor-label="clear" id="-1101076406%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clear.html"><span><span>clear</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1101076406%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="clear.html"><span class="token function">clear</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Clears all captured data but keeps the session active.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1822927501%2FFunctions%2F-1027401141" anchor-label="exportCrashSession" id="1822927501%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="export-crash-session.html"><span>export</span><wbr><span>Crash</span><wbr><span><span>Session</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1822927501%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="export-crash-session.html"><span class="token function">exportCrashSession</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">throwable<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Exports the current session with crash information as a JSON string. Captures the crash from the throwable before exporting.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="546749941%2FFunctions%2F-1027401141" anchor-label="exportSession" id="546749941%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="export-session.html"><span>export</span><wbr><span><span>Session</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="546749941%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="export-session.html"><span class="token function">exportSession</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Exports the current session as a JSON string. Automatically includes any captured crash information.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1270591913%2FFunctions%2F-1027401141" anchor-label="exportSessionWithCrash" id="1270591913%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="export-session-with-crash.html"><span>export</span><wbr><span>Session</span><wbr><span>With</span><wbr><span><span>Crash</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1270591913%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="export-session-with-crash.html"><span class="token function">exportSessionWithCrash</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">crashInfo<span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.introspection.protocol/-crash-info/index.html">CrashInfo</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Exports the current session as a JSON string, including crash info from parameters. This is kept for DevTools compatibility where crash info is created externally.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1329973264%2FFunctions%2F-1027401141" anchor-label="getCapturedCrash" id="-1329973264%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-captured-crash.html"><span>get</span><wbr><span>Captured</span><wbr><span><span>Crash</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1329973264%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-captured-crash.html"><span class="token function">getCapturedCrash</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../io.github.syrou.reaktiv.introspection.protocol/-crash-info/index.html">CrashInfo</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Gets the captured crash info if any.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1261125061%2FFunctions%2F-1027401141" anchor-label="getClientId" id="-1261125061%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-client-id.html"><span>get</span><wbr><span>Client</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1261125061%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-client-id.html"><span class="token function">getClientId</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Gets the client ID for this session.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="873563436%2FFunctions%2F-1027401141" anchor-label="getInitialStateJson" id="873563436%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-initial-state-json.html"><span>get</span><wbr><span>Initial</span><wbr><span>State</span><wbr><span><span>Json</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="873563436%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-initial-state-json.html"><span class="token function">getInitialStateJson</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Gets the captured initial state JSON.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1323778915%2FFunctions%2F-1027401141" anchor-label="getSessionHistory" id="1323778915%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-session-history.html"><span>get</span><wbr><span>Session</span><wbr><span><span>History</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1323778915%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-session-history.html"><span class="token function">getSessionHistory</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-session-history/index.html">SessionHistory</a></div><div class="brief "><p class="paragraph">Gets the current session history.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1860518688%2FFunctions%2F-1027401141" anchor-label="isStarted" id="-1860518688%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-started.html"><span>is</span><wbr><span><span>Started</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1860518688%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="is-started.html"><span class="token function">isStarted</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Checks if session capture has been started.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-392095783%2FFunctions%2F-1027401141" anchor-label="start" id="-392095783%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="start.html"><span><span>start</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-392095783%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="start.html"><span class="token function">start</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">clientId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">clientName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">platform<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Starts a new session capture.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1456875391%2FFunctions%2F-1027401141" anchor-label="stop" id="-1456875391%2FFunctions%2F-1027401141" data-filterable-set=":reaktiv-introspection/commonMain"></a>
+          <div class="table-row" data-filterable-current=":reaktiv-introspection/commonMain" data-filterable-set=":reaktiv-introspection/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="stop.html"><span><span>stop</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1456875391%2FFunctions%2F-1027401141"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-introspection/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="stop.html"><span class="token function">stop</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Stops the session capture.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

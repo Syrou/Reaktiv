@@ -20,10 +20,39 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
 import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 
+/**
+ * [CompositionLocal] that provides the active [NavigationModule] to the Compose tree.
+ *
+ * Populated automatically by [NavigationRender]. Use [LocalNavigationModule.current] inside
+ * a composable that is a descendant of [NavigationRender] to access the module directly.
+ * An error is thrown if accessed outside of a [NavigationRender] host.
+ */
 val LocalNavigationModule = compositionLocalOf<NavigationModule> {
     error("NavigationModule not provided. Wrap your content with NavigationRender.")
 }
 
+/**
+ * Root composable that drives the navigation UI.
+ *
+ * `NavigationRender` observes [NavigationState] from the store and renders the correct
+ * screen layers in response to state changes. It handles:
+ * - Content layer (regular screens)
+ * - Global overlay layer (overlays rendered above content)
+ * - System layer (loading modals and other system-level UI)
+ * - Bootstrap suppression (content layers are hidden until bootstrap completes)
+ * - Title resolution (resolves the current entry's title via `stringResource`)
+ *
+ * Place this composable at the root of your application's Compose hierarchy, inside a
+ * [StoreProvider]:
+ *
+ * ```kotlin
+ * StoreProvider(store) {
+ *     NavigationRender()
+ * }
+ * ```
+ *
+ * @param modifier Modifier applied to the root [Box] that wraps all rendered layers.
+ */
 @Composable
 fun NavigationRender(
     modifier: Modifier = Modifier

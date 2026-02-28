@@ -1,0 +1,350 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>reaktiv-navigation</title>
+<link href="../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../scripts/sourceset_dependencies.js" async></script>
+<link href="../styles/style.css" rel="Stylesheet">
+<link href="../styles/main.css" rel="Stylesheet">
+<link href="../styles/prism.css" rel="Stylesheet">
+<link href="../styles/logo-styles.css" rel="Stylesheet">
+<link href="../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<link href="../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../scripts/main.js" defer></script>
+<script type="text/javascript" src="../scripts/prism.js" async></script>
+<script type="text/javascript" src="../ui-kit/ui-kit.min.js" defer></script>
+<script type="text/javascript" src="../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+    <nav class="navigation theme-dark" id="navigation-wrapper">
+<a class="library-name--link" href="../index.html">
+                    Reaktiv
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <div class="filter-section filter-section_loading" id="filter-section">
+                <button class="platform-tag platform-selector common-like" data-active="" data-filter=":reaktiv-navigation/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox">
+                    <div class="dropdown--header"><span>Platform filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close platform filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":reaktiv-navigation/commonMain" data-filter=":reaktiv-navigation/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </div>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                    <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox">
+                        <div class="dropdown--header">
+                            <span>
+                                    Reaktiv
+                            </span>
+                            <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                                <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                            </button>
+                        </div>
+                        <div class="sidebar--inner" id="sideMenu"></div>
+                    </ul>
+                    <div class="dropdown--overlay"></div>
+                </div>
+            </div>
+            <div id="main">
+<div class="main-content" id="content" pageids="reaktiv-navigation::////PointingToDeclaration//-1582837976">
+  <div class="breadcrumbs"></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>reaktiv-navigation</span></span></h1>
+    <div class="platform-hinted UnderCoverText" data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":reaktiv-navigation/commonMain"><p class="paragraph">The Navigation module provides a type-safe, state-driven navigation system for Kotlin Multiplatform projects. It integrates with Reaktiv Core to manage screen transitions, back-stack, modals, deep linking, and navigation guards — all as pure state.</p><h2 class="">Setup</h2><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// build.gradle.kts<br>dependencies {<br>    implementation("io.github.syrou:reaktiv-navigation:&lt;version&gt;")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Defining Screens</h2><p class="paragraph">A Screen is a single destination with a route, optional transitions, and a Composable <code class="lang-kotlin">Content</code> function.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">object HomeScreen : Screen {<br>    override val route = "home"<br>    override val enterTransition = NavTransition.FadeIn<br>    override val exitTransition = NavTransition.FadeOut<br><br>    @Composable<br>    override fun Content(params: Params) {<br>        Text("Home")<br>    }<br>}<br><br>object ProfileScreen : Screen {<br>    override val route = "profile/{userId}"<br>    override val enterTransition = NavTransition.SlideInRight<br>    override val exitTransition = NavTransition.SlideOutLeft<br><br>    @Composable<br>    override fun Content(params: Params) {<br>        val userId = params.getString("userId")<br>        ProfileView(userId)<br>    }<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Building the Navigation Module</h2><p class="paragraph">Use <code class="lang-kotlin">createNavigationModule { rootGraph { ... } }</code> to wire all screens, graphs, and guards into a single NavigationModule ready to be registered in the store.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val navigationModule = createNavigationModule {<br>    rootGraph {<br>        entry(HomeScreen)<br>        screens(HomeScreen)<br><br>        graph("main") {<br>            entry(HomeScreen)<br>            screens(HomeScreen, ProfileScreen)<br>        }<br>    }<br><br>    notFoundScreen(NotFoundScreen)<br>}<br><br>val store = createStore {<br>    module(navigationModule)<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Navigation Guards with <code class="lang-kotlin">intercept</code></h2><p class="paragraph"><code class="lang-kotlin">intercept</code> wraps child graphs and screens inside a guard. The guard is evaluated before navigation is committed to any route inside the block. Return <code class="lang-kotlin">GuardResult.Allow</code> to permit the navigation, or <code class="lang-kotlin">GuardResult.RedirectTo(screen)</code> to redirect.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val navigationModule = createNavigationModule {<br>    rootGraph {<br>        entry(HomeScreen)<br>        screens(HomeScreen, LoginScreen)<br><br>        // Routes outside intercept are publicly accessible<br>        // Routes inside intercept require the guard to pass<br>        intercept(<br>            guard = { store -&gt;<br>                val authState = store.selectState&lt;AuthState&gt;().value<br>                if (authState.isLoggedIn) GuardResult.Allow<br>                else GuardResult.RedirectTo(LoginScreen)<br>            }<br>        ) {<br>            graph("workspace") {<br>                entry(DashboardScreen)<br>                screens(DashboardScreen, SettingsScreen)<br>            }<br>            graph("admin") {<br>                entry(AdminScreen)<br>                screens(AdminScreen)<br>            }<br>        }<br>    }<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Dynamic Entry Points</h2><p class="paragraph">Use <code class="lang-kotlin">entry(route = { store -&gt; ... })</code> instead of <code class="lang-kotlin">entry(screen)</code> when the start screen depends on runtime state (e.g. onboarding vs. dashboard).</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">graph("content") {<br>    entry(<br>        route = { store -&gt;<br>            val state = store.selectState&lt;ContentState&gt;().value<br>            if (state.hasContent) DashboardScreen else EmptyScreen<br>        }<br>    )<br>    screens(DashboardScreen, EmptyScreen)<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Navigating</h2><p class="paragraph">Use the <code class="lang-kotlin">navigation { }</code> DSL extension on StoreAccessor from within a coroutine scope.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">// Navigate to a screen with params<br>store.navigation {<br>    navigateTo(ProfileScreen.route, params = mapOf("userId" to "42"))<br>}<br><br>// Navigate back<br>store.navigation {<br>    navigateBack()<br>}<br><br>// Navigate and trim the back-stack<br>store.navigation {<br>    navigateTo("dashboard")<br>    popUpTo("home", inclusive = false)<br>}<br><br>// Navigate to a modal overlay<br>store.navigation {<br>    navigateTo(SettingsModal.route)<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Deep Links</h2><p class="paragraph">Register deep-link aliases in <code class="lang-kotlin">deepLinkAliases { }</code> and dispatch them from any entry point.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val navigationModule = createNavigationModule {<br>    rootGraph { /* ... */ }<br>    deepLinkAliases {<br>        alias(<br>            pattern = "artist/invite",<br>            targetRoute = "workspace/invite/{token}"<br>        ) { params -&gt;<br>            Params.of("token" to (params["token"] as? String ?: ""))<br>        }<br>    }<br>}<br><br>// Handle an incoming URI (e.g. from Activity.onCreate or a push notification handler)<br>store.navigation {<br>    navigateDeepLink("myapp://workspace/invite/abc123")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Reading Navigation State</h2><p class="paragraph">Observe NavigationState to react to the current screen, back-stack depth, or open modals.</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">store.selectState&lt;NavigationState&gt;().collect { navState -&gt;<br>    println("Current screen: ${navState.currentEntry.navigatable.route}")<br>    println("Back-stack depth: ${navState.backStack.size}")<br>    println("Modal open: ${navState.activeModalContexts.isNotEmpty()}")<br>}</code></pre><span class="top-right-position"><span class="copy-icon"></span><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div></span></div><h2 class="">Key Types</h2><ul><li><p class="paragraph">NavigationModule / <code class="lang-kotlin">createNavigationModule</code> — DSL entry point</p></li><li><p class="paragraph">NavigationLogic — <code class="lang-kotlin">navigate</code>, <code class="lang-kotlin">navigateBack</code>, <code class="lang-kotlin">popUpTo</code>, <code class="lang-kotlin">clearBackStack</code>, <code class="lang-kotlin">navigateDeepLink</code></p></li><li><p class="paragraph">NavigationState — full navigation state (currentEntry, backStack, modals)</p></li><li><p class="paragraph">Screen — destination with route, transitions, and Composable content</p></li><li><p class="paragraph">Modal — overlay destination rendered above the current screen</p></li><li><p class="paragraph">NavigationGraph — hierarchical grouping of screens with a start destination</p></li><li><p class="paragraph">NavigationEntry — a resolved position in the back-stack (navigatable + params)</p></li><li><p class="paragraph">NavTransition — sealed class with 18 named transition variants plus <code class="lang-kotlin">Custom</code> and <code class="lang-kotlin">None</code></p></li><li><p class="paragraph">ModalContext — tracks an open modal and its underlying screen</p></li></ul></div></div>
+  </div>
+  <h2 class="">Packages</h2>
+  <div class="table"><a data-name="752175007%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation" id="752175007%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation/index.html">io.github.syrou.reaktiv.navigation</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="752175007%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="1110397505%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.alias" id="1110397505%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.alias/index.html">io.github.syrou.reaktiv.navigation.alias</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1110397505%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="1191945926%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.definition" id="1191945926%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.definition/index.html">io.github.syrou.reaktiv.navigation.definition</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1191945926%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-947184850%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.dsl" id="-947184850%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.dsl/index.html">io.github.syrou.reaktiv.navigation.dsl</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-947184850%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-1814823162%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.encoding" id="-1814823162%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.encoding/index.html">io.github.syrou.reaktiv.navigation.encoding</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1814823162%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="1253563392%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.exception" id="1253563392%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.exception/index.html">io.github.syrou.reaktiv.navigation.exception</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1253563392%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="2072845296%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.extension" id="2072845296%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.extension/index.html">io.github.syrou.reaktiv.navigation.extension</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2072845296%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="1068884482%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.layer" id="1068884482%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.layer/index.html">io.github.syrou.reaktiv.navigation.layer</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1068884482%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-1566840358%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.model" id="-1566840358%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.model/index.html">io.github.syrou.reaktiv.navigation.model</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1566840358%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-1873784258%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.param" id="-1873784258%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.param/index.html">io.github.syrou.reaktiv.navigation.param</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1873784258%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-1333133240%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.transition" id="-1333133240%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.transition/index.html">io.github.syrou.reaktiv.navigation.transition</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1333133240%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-2082577977%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.ui" id="-2082577977%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.ui/index.html">io.github.syrou.reaktiv.navigation.ui</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2082577977%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+<a data-name="-1309825675%2FPackages%2F-1582837976" anchor-label="io.github.syrou.reaktiv.navigation.util" id="-1309825675%2FPackages%2F-1582837976" data-filterable-set=":reaktiv-navigation/commonMain"></a>
+    <div class="table-row" data-filterable-current=":reaktiv-navigation/commonMain" data-filterable-set=":reaktiv-navigation/commonMain">
+      <div>
+        <div class="main-subrow ">
+          <div class=""><span class="inline-flex">
+              <div><a href="io.github.syrou.reaktiv.navigation.util/index.html">io.github.syrou.reaktiv.navigation.util</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1309825675%2FPackages%2F-1582837976"></span>
+                <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+              </span></span></div>
+          <div class="pull-right">
+            <div class="platform-tags no-gutters">
+              <div class="platform-tag common-like">common</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+        <span>© 2026 Copyright</span>
+        <span class="pull-right">
+            <span>Generated by </span>
+            <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                <span>dokka</span>
+            </a>
+        </span>
+    </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
