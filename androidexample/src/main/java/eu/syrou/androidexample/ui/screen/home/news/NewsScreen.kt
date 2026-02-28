@@ -26,7 +26,6 @@ object NewsScreen : Screen {
     }
     override val enterTransition: NavTransition = NavTransition.None
     override val exitTransition: NavTransition = NavTransition.None
-    override val requiresAuth: Boolean = false
 
 
     @Composable

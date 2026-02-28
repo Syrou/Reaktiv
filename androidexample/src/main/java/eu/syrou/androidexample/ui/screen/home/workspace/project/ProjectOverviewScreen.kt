@@ -28,7 +28,6 @@ object ProjectOverviewScreen : Screen {
     override val route = "overview"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.SlideOutLeft
-    override val requiresAuth = true
 
     @Composable
     override fun Content(params: Params) {
@@ -43,7 +42,6 @@ object ProjectTasksScreen : Screen {
     override val route = "tasks"
     override val enterTransition = NavTransition.SlideInRight
     override val exitTransition = NavTransition.SlideOutLeft
-    override val requiresAuth = true
 
     @Composable
     override fun Content(params: Params) {
@@ -76,7 +74,6 @@ object ProjectFilesScreen : Screen {
     override val route = "files"
     override val enterTransition = NavTransition.SlideInRight
     override val exitTransition = NavTransition.SlideOutLeft
-    override val requiresAuth = true
 
     @Composable
     override fun Content(params: Params) {
@@ -88,7 +85,6 @@ object ProjectSettingsScreen : Screen {
     override val route = "settings"
     override val enterTransition = NavTransition.SlideInRight
     override val exitTransition = NavTransition.SlideOutLeft
-    override val requiresAuth = true
 
     @Composable
     override fun Content(params: Params) {

@@ -55,7 +55,6 @@ object SystemAlertModal : Modal {
     override val route = "system-alert"
     override val enterTransition = NavTransition.Fade
     override val exitTransition = NavTransition.FadeOut
-    override val requiresAuth = false
     override val titleResource: TitleResource? = null
 
     override val renderLayer: RenderLayer

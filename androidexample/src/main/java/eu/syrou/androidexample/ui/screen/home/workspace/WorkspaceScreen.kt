@@ -24,7 +24,6 @@ object WorkspaceScreen : Screen {
     override val route = "overview"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = true
 
     @Composable
     override fun Content(params: Params) {

@@ -57,7 +57,6 @@ object PlayerProfileScreen : Screen {
     override val titleResource: TitleResource = { "Player Profile" }
     override val enterTransition: NavTransition = NavTransition.SlideInRight
     override val exitTransition: NavTransition = NavTransition.SlideOutLeft
-    override val requiresAuth: Boolean = false
 
     @Composable
     override fun Content(params: Params) {

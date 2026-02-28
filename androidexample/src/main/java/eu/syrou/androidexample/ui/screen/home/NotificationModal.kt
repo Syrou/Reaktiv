@@ -41,7 +41,6 @@ object NotificationModal : Modal {
     override val route = "notification"
     override val enterTransition = NavTransition.SlideUpBottom
     override val exitTransition = NavTransition.SlideOutBottom
-    override val requiresAuth = true
     override val titleResource: TitleResource? = { "Modal?" }
 
     @Composable

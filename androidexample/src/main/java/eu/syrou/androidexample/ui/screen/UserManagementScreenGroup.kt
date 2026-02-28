@@ -39,7 +39,6 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override val exitTransition = NavTransition.SlideOutLeft
         override val popEnterTransition: NavTransition = NavTransition.None
         override val popExitTransition: NavTransition = NavTransition.None
-        override val requiresAuth = false
 
         @Composable
         override fun Content(params: Params) {
@@ -74,7 +73,6 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override val exitTransition = NavTransition.SlideOutLeft
         override val popEnterTransition: NavTransition = NavTransition.None
         override val popExitTransition: NavTransition = NavTransition.None
-        override val requiresAuth = false
 
         @Composable
         override fun Content(params: Params) {
@@ -117,7 +115,6 @@ object UserManagementScreens : ScreenGroup(ViewUser, EditUser, DeleteUser) {
         override val exitTransition = NavTransition.SlideOutBottom
         override val popEnterTransition: NavTransition = NavTransition.SlideUpBottom
         override val popExitTransition: NavTransition = NavTransition.SlideOutBottom
-        override val requiresAuth = false
 
         @Composable
         override fun Content(params: Params) {

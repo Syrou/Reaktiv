@@ -56,7 +56,6 @@ object SettingsScreen : Screen {
     }
     override val enterTransition: NavTransition = NavTransition.SlideInRight
     override val exitTransition: NavTransition = NavTransition.SlideOutLeft
-    override val requiresAuth: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Composable

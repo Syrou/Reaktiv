@@ -57,7 +57,6 @@ class AnimationDecisionTest {
         override val route = route
         override val enterTransition = enterTransition
         override val exitTransition = exitTransition
-        override val requiresAuth = false
 
         @Composable
         override fun Content(params: Params) { Text(route) }
@@ -70,7 +69,6 @@ class AnimationDecisionTest {
         override val route = route
         override val enterTransition = NavTransition.SlideUpBottom
         override val exitTransition = NavTransition.SlideOutBottom
-        override val requiresAuth = false
         override val elevation = customElevation
 
         @Composable

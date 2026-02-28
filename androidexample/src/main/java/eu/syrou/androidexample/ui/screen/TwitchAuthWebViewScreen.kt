@@ -27,7 +27,6 @@ object TwitchAuthWebViewScreen : Screen {
     override val route: String = "twitch_auth_webview"
     override val enterTransition: NavTransition = NavTransition.Fade
     override val exitTransition: NavTransition = NavTransition.Fade
-    override val requiresAuth: Boolean = false
 
     class TwitchAuthWebViewClient : WebViewClient() {
         var onAccessTokenReceived: ((String) -> Unit)? = null

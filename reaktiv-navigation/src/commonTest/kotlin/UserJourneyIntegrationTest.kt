@@ -52,7 +52,6 @@ class UserJourneyIntegrationTest {
         override val route = route
         override val enterTransition = NavTransition.None
         override val exitTransition = NavTransition.None
-        override val requiresAuth = false
 
         @Composable
         override fun Content(params: Params) { Text(route) }
@@ -62,7 +61,6 @@ class UserJourneyIntegrationTest {
         override val route = route
         override val enterTransition = NavTransition.None
         override val exitTransition = NavTransition.None
-        override val requiresAuth = false
 
         @Composable
         override fun Content(params: Params) { Text(route) }

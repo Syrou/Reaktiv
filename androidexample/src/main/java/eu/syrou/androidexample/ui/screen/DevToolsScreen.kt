@@ -60,7 +60,6 @@ object DevToolsScreen : Screen {
     override val titleResource: TitleResource = { "DevTools" }
     override val enterTransition: NavTransition = NavTransition.SlideInRight
     override val exitTransition: NavTransition = NavTransition.SlideOutLeft
-    override val requiresAuth: Boolean = false
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable

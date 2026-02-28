@@ -21,7 +21,6 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
  *     override val route = "auth-loading"
  *     override val enterTransition = NavTransition.Fade
  *     override val exitTransition = NavTransition.FadeOut
- *     override val requiresAuth = false
  *
  *     @Composable
  *     override fun Content(params: Params) { /* loading UI */ }

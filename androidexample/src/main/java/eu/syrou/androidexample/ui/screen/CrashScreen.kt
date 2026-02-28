@@ -40,7 +40,6 @@ object CrashScreen : Screen {
     override val route: String = "crash"
     override val enterTransition: NavTransition = NavTransition.None
     override val exitTransition: NavTransition = NavTransition.None
-    override val requiresAuth: Boolean = false
 
     @Composable
     override fun Content(params: Params) {

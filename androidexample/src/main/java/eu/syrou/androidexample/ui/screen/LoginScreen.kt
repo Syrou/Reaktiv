@@ -39,7 +39,6 @@ object LoginScreen : Screen {
     override val route = "login"
     override val enterTransition = NavTransition.Fade
     override val exitTransition = NavTransition.FadeOut
-    override val requiresAuth = false
 
     override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
         lifecycle.invokeOnRemoval { handler ->

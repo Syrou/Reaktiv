@@ -8,7 +8,6 @@ object SplashScreen : Screen {
     override val route = "splash"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -20,7 +19,6 @@ object HomeScreen : Screen {
     override val route = "home-overview"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -32,7 +30,6 @@ object SettingsScreen : Screen {
     override val route = "settings"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -45,7 +42,6 @@ object NewsScreen : Screen {
     override val route = "news"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -57,7 +53,6 @@ object NewsOverviewScreen : Screen {
     override val route = "news-overview"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -69,7 +64,6 @@ object NewsListScreen : Screen {
     override val route = "news-list"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -81,7 +75,6 @@ object ProfileScreen : Screen {
     override val route = "profile"
     override val enterTransition = NavTransition.SlideInRight
     override val exitTransition = NavTransition.SlideOutLeft
-    override val requiresAuth = true
 
     @Composable
     override fun Content(params: Params) {
@@ -94,7 +87,6 @@ object WorkspaceOverviewScreen : Screen {
     override val route = "workspace-overview"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -106,7 +98,6 @@ object ProjectOverviewScreen : Screen {
     override val route = "project-overview"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -118,7 +109,6 @@ object ProjectTaskScreen : Screen {
     override val route = "project-tasks"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -130,7 +120,6 @@ object StatsScreen : Screen {
     override val route = "stats/{type}"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
@@ -142,7 +131,6 @@ object MultiParamScreen : Screen {
     override val route = "company/{companyId}/user/{userId}/profile"
     override val enterTransition = NavTransition.None
     override val exitTransition = NavTransition.None
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {

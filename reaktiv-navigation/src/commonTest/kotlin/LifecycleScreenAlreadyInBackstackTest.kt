@@ -25,7 +25,6 @@ class LifecycleScreenAlreadyInBackstackTest {
         override val route = screenRoute
         override val enterTransition = NavTransition.None
         override val exitTransition = NavTransition.None
-        override val requiresAuth = false
 
         @Composable
         override fun Content(params: Params) {

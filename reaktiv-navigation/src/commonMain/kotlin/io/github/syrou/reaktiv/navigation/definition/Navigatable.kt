@@ -173,7 +173,6 @@ interface Navigatable : NavigationNode {
     val exitTransition: NavTransition
     val popEnterTransition: NavTransition?
     val popExitTransition: NavTransition?
-    val requiresAuth: Boolean
 
     /**
      * Which layer this navigatable should render in

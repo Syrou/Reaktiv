@@ -27,7 +27,6 @@ object NotFoundScreen : Screen {
     override val route: String = "not-found"
     override val enterTransition: NavTransition = NavTransition.None
     override val exitTransition: NavTransition = NavTransition.None
-    override val requiresAuth: Boolean = false
 
     @Composable
     override fun Content(

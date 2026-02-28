@@ -295,7 +295,6 @@ class UnifiedNavigationBuilderTest {
             override val route = "user/{userId}/profile"
             override val enterTransition = NavTransition.None
             override val exitTransition = NavTransition.None
-            override val requiresAuth = false
 
             @Composable
             override fun Content(params: Params) {
@@ -307,7 +306,6 @@ class UnifiedNavigationBuilderTest {
             override val route = "post/{postId}/comments/{commentId}"
             override val enterTransition = NavTransition.None
             override val exitTransition = NavTransition.None
-            override val requiresAuth = false
 
             @Composable
             override fun Content(params: Params) {
@@ -484,7 +482,6 @@ class UnifiedNavigationBuilderTest {
             override val route = "nonexistant"
             override val enterTransition = NavTransition.None
             override val exitTransition = NavTransition.None
-            override val requiresAuth = false
 
             @Composable
             override fun Content(params: Params) {

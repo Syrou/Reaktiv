@@ -35,7 +35,6 @@ object LeaderboardListScreen : Screen {
     override val titleResource: TitleResource = { "Leaderboard" }
     override val enterTransition: NavTransition = NavTransition.None
     override val exitTransition: NavTransition = NavTransition.None
-    override val requiresAuth: Boolean = false
 
     @Composable
     override fun Content(params: Params) {

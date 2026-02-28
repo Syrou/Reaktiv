@@ -51,7 +51,6 @@ object NewsListScreen : Screen {
     }
     override val enterTransition: NavTransition = NavTransition.SlideUpBottom
     override val exitTransition: NavTransition = NavTransition.SlideOutBottom
-    override val requiresAuth: Boolean = false
 
     @Composable
     override fun Content(

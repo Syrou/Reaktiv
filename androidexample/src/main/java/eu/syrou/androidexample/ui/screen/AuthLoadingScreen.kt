@@ -29,7 +29,6 @@ object AuthLoadingScreen : LoadingModal {
     override val route = "auth-loading"
     override val enterTransition = NavTransition.Fade
     override val exitTransition = NavTransition.FadeOut
-    override val requiresAuth = false
 
     @Composable
     override fun Content(params: Params) {
