@@ -537,7 +537,9 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     /**
      * Get a module instance by its class.
      *
-     * Use this method from [StoreAccessor] references (e.g. inside Logic classes).
+     * Use this when the module type is only known at runtime (e.g. dynamic plugin systems,
+     * middleware, debug tooling). When the type is known at compile time, prefer the reified
+     * overload [getModule] or [getRegisteredModules] for Swift/Obj-C interop.
      *
      * Example usage:
      * ```kotlin
@@ -545,12 +547,17 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      *     ?: error("NavigationModule not registered")
      * ```
      *
-     * @return The module instance if found, null otherwise
+     * @param moduleClass The [KClass] of the module to retrieve
+     * @return The module instance if registered, null otherwise
+     * @see getModule reified overload for compile-time known types
+     * @see getRegisteredModules for Swift/Obj-C interop
      */
     abstract fun <M : Any> getModule(moduleClass: KClass<M>): M?
 
     /**
      * Convenience reified overload for [getModule].
+     *
+     * Preferred way to retrieve a module from Kotlin when the type is known at compile time.
      *
      * Example usage:
      * ```kotlin
@@ -558,9 +565,33 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      *     ?: error("NavigationModule not registered")
      * ```
      *
-     * @return The module instance if found, null otherwise
+     * @return The module instance if registered, null otherwise
+     * @see getRegisteredModules for Swift/Obj-C interop
      */
     inline fun <reified M : Any> getModule(): M? = getModule(M::class)
+
+    /**
+     * Returns all modules registered in this store.
+     *
+     * This is the Swift/Obj-C-friendly way to retrieve a specific module instance.
+     * Swift cannot construct a [KClass] to pass to [getModule], so this method allows
+     * Swift to use its own type system instead:
+     *
+     * ```swift
+     * let navModule = store.getRegisteredModules()
+     *     .first { $0 is NavigationModule } as? NavigationModule
+     * ```
+     *
+     * The recommended primary approach for Swift interop is to expose module instances
+     * as typed properties on your SDK class, and use this method only as a fallback
+     * when a direct reference is not available.
+     *
+     * From Kotlin, prefer [getModule] with a reified type parameter instead.
+     *
+     * @return Snapshot list of all registered module instances
+     * @see getModule for Kotlin callers
+     */
+    abstract fun getRegisteredModules(): List<Module<*, *>>
 
     /**
      * Returns the [StateFlow] for the given module's state, or null if the module
@@ -924,6 +955,8 @@ class Store private constructor(
         @Suppress("UNCHECKED_CAST")
         return modules.firstOrNull { moduleClass.isInstance(it) } as M?
     }
+
+    override fun getRegisteredModules(): List<Module<*, *>> = modules.toList()
 
     override fun getStateFlowForModule(module: Module<*, *>): StateFlow<ModuleState>? =
         infoByModule(module)?.state?.asStateFlow()

@@ -214,6 +214,44 @@ fun CounterScreen() {
 }
 ```
 
+### Use in Swift (iOS)
+
+Reaktiv integrates with Swift via [SKIE](https://skie.touchlab.co/). The recommended pattern
+is to expose module instances as typed properties on your SDK class so Swift has direct,
+typed access to them:
+
+```kotlin
+// Kotlin — retain module instances on your SDK class
+class AppSDK {
+    val navigationModule = createNavigationModule { ... }
+    val counterModule = CounterModule
+
+    val store = createStore {
+        module(navigationModule)
+        module(counterModule)
+    }
+}
+```
+
+Swift can then use the module's built-in interop methods to observe state and access logic:
+
+```swift
+// Observe state (non-suspend, works directly in Swift)
+let stateFlow = SDKManager.shared.sdk.counterModule
+    .selectStateFlowNonSuspend(store: store)
+
+// Access logic (suspend — SKIE bridges this as async)
+let logic = try await SDKManager.shared.sdk.counterModule
+    .selectLogicTyped(store: store)
+```
+
+If a direct module reference is not available, use `getRegisteredModules()` as a fallback:
+
+```swift
+let counterModule = store.getRegisteredModules()
+    .first { $0 is CounterModule } as? CounterModule
+```
+
 ### Navigate
 
 ```kotlin

@@ -407,12 +407,21 @@ class Store {
 abstract class StoreAccessor {
     abstract val dispatch: Dispatch
     abstract suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
-    abstract suspend fun <L : ModuleLogic<*>> selectLogic(logicClass: KClass<L>): L
+    abstract suspend fun <L : ModuleLogic> selectLogic(logicClass: KClass<L>): L
+
+    // Module retrieval — Kotlin
+    abstract fun <M : Any> getModule(moduleClass: KClass<M>): M?
+    inline fun <reified M : Any> getModule(): M?
+
+    // Module retrieval — Swift/Obj-C interop
+    // KClass cannot be constructed from Swift; use getRegisteredModules() instead:
+    //   store.getRegisteredModules().first { $0 is MyModule } as? MyModule
+    abstract fun getRegisteredModules(): List<Module<*, *>>
 }
 
 // Extension functions
 suspend inline fun <reified S : ModuleState> StoreAccessor.selectState(): StateFlow<S>
-suspend inline fun <reified L : ModuleLogic<*>> StoreAccessor.selectLogic(): L
+suspend inline fun <reified L : ModuleLogic> StoreAccessor.selectLogic(): L
 ```
 
 ### Middleware

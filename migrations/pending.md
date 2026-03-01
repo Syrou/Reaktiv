@@ -146,3 +146,30 @@ side effects — keep reducers as pure state transformations. See BC-01 and BC-0
 removal of the old `invoke()` pattern.
 
 ---
+
+### [AD-02] StoreAccessor.getRegisteredModules() for Swift/Obj-C interop
+
+**Type:** Addition
+
+**Grep:** `getRegisteredModules`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// Kotlin — prefer the reified overload instead
+val navModule = storeAccessor.getModule<NavigationModule>()
+```
+
+```swift
+// Swift — KClass cannot be constructed from Swift, use getRegisteredModules() instead
+let navModule = store.getRegisteredModules()
+    .first { $0 is NavigationModule } as? NavigationModule
+```
+
+**Notes:** The recommended primary approach for Swift interop is to expose module instances
+as typed properties on your SDK class and pass them directly to `ReaktivState` /
+`ReaktivLogic` property wrappers. `getRegisteredModules()` is a fallback for cases where a
+direct reference is not available. From Kotlin, always prefer `getModule<M>()` or
+`getModule(moduleClass: KClass<M>)`.
+
+---

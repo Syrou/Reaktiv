@@ -179,6 +179,46 @@ object SettingsModule : ModuleWithLogic<SettingsState, SettingsAction, SettingsL
 
 ---
 
+### Swift / iOS Interop
+
+Reaktiv works with Swift via SKIE. Due to Kotlin type erasure across the ObjC/Swift boundary,
+`getModule<M>()` is not callable from Swift. Use one of these patterns instead.
+
+**Recommended: expose module instances as typed properties on your SDK class.**
+This gives Swift a direct, typed reference with no store lookup required.
+
+```kotlin
+class AppSDK {
+    val navigationModule = createNavigationModule { ... }
+    val userModule = UserModule()
+
+    val store = createStore {
+        module(navigationModule)
+        module(userModule)
+    }
+}
+```
+
+Swift can then use the module's built-in interop methods:
+
+```swift
+// Observe state — non-suspend, callable directly from Swift
+let stateFlow = sdk.navigationModule.selectStateFlowNonSuspend(store: store)
+
+// Access logic — suspend, SKIE bridges this as async
+let logic = try await sdk.navigationModule.selectLogicTyped(store: store)
+```
+
+**Fallback: `getRegisteredModules()`** when a direct reference is not available.
+Swift can iterate the list and cast using its own type system:
+
+```swift
+let navModule = store.getRegisteredModules()
+    .first { $0 is NavigationModule } as? NavigationModule
+```
+
+---
+
 ## Key Types
 
 - [Store] — central coordinator; created via `createStore { }`
@@ -186,7 +226,7 @@ object SettingsModule : ModuleWithLogic<SettingsState, SettingsAction, SettingsL
 - [ModuleState] — immutable state marker interface
 - [ModuleAction] — action marker base class
 - [ModuleLogic] — side-effect and business logic base class
-- [StoreAccessor] — access point for `dispatch`, `selectState`, `selectLogic`, `launch`
+- [StoreAccessor] — access point for `dispatch`, `selectState`, `selectLogic`, `launch`, `getModule`, `getRegisteredModules`
 - [Middleware] — action interception
 - [PersistenceStrategy] — save/restore state across sessions
 - [CustomTypeRegistrar] — register additional serializers for polymorphic state types
