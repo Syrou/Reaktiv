@@ -129,7 +129,15 @@ class NavigationGraphBuilder(
      * If guard evaluation exceeds [loadingThreshold], the global loading modal configured via
      * `loadingModal()` at the module level is shown as a [RenderLayer.SYSTEM] overlay.
      *
-     * Example:
+     * **Guard chaining**: `intercept` blocks may be nested to arbitrary depth. Guards run in
+     * declaration order — outermost first. Navigation proceeds only when every guard in the chain
+     * returns [GuardResult.Allow]. The first non-Allow result stops evaluation immediately;
+     * inner guards are never called.
+     *
+     * Multiple `intercept` blocks at the same level are independent — each wrapped graph
+     * accumulates only the guards that apply to it.
+     *
+     * Example — single guard:
      * ```kotlin
      * rootGraph {
      *     entry(startScreen)
@@ -142,7 +150,33 @@ class NavigationGraphBuilder(
      *     ) {
      *         graph("workspace") {
      *             entry(workspaceHome)
-     *             screens(workspaceHome, inviteScreen)
+     *             screens(workspaceHome, profileScreen)
+     *         }
+     *     }
+     * }
+     * ```
+     *
+     * Example — chained guards (startup check → auth check):
+     * ```kotlin
+     * rootGraph {
+     *     entry(startScreen)
+     *     screens(startScreen, loginScreen)
+     *     intercept(
+     *         guard = { store ->
+     *             if (store.selectState<AppState>().value.startupReady) GuardResult.Allow
+     *             else GuardResult.Reject
+     *         }
+     *     ) {
+     *         intercept(
+     *             guard = { store ->
+     *                 if (store.selectState<AuthState>().value.isLoggedIn) GuardResult.Allow
+     *                 else GuardResult.RedirectTo(loginScreen)
+     *             }
+     *         ) {
+     *             graph("workspace") {
+     *                 entry(workspaceHome)
+     *                 screens(workspaceHome, profileScreen)
+     *             }
      *         }
      *     }
      * }
@@ -150,7 +184,10 @@ class NavigationGraphBuilder(
      *
      * @param guard Guard evaluated before navigation; returns [GuardResult] decision
      * @param loadingThreshold How long to wait before showing the global loading modal (default 200ms)
-     * @param block Builder block containing the graphs and screens to intercept
+     * @param block Builder block containing the graphs and screens to protect
+     *
+     * @see InterceptDefinition
+     * @see GuardResult
      */
     fun intercept(
         guard: NavigationGuard,
@@ -164,7 +201,9 @@ class NavigationGraphBuilder(
         navigatables.addAll(innerBuilder.navigatables.filterNot(navigatables::contains))
 
         for (nestedGraph in innerBuilder.nestedGraphs) {
-            val interceptedGraph = (nestedGraph as MutableNavigationGraph).copy(interceptDefinition = interceptDef)
+            val existing = nestedGraph.interceptDefinition
+            val mergedIntercept = if (existing != null) existing.prependOuter(interceptDef) else interceptDef
+            val interceptedGraph = (nestedGraph as MutableNavigationGraph).copy(interceptDefinition = mergedIntercept)
             nestedGraphs.add(interceptedGraph)
         }
     }

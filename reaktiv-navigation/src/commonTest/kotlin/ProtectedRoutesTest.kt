@@ -64,21 +64,30 @@ class ProtectedRoutesTest {
     private val releasesScreen = screen("releases")
     private val artistScreen   = screen("artists")
     private val noArtistScreen = screen("no-artists")
+    private val premiumScreen  = screen("premium")
 
     @Serializable
-    data class AuthState(val isAuthenticated: Boolean = false) : ModuleState
+    data class AuthState(
+        val isAuthenticated: Boolean = false,
+        val startupReady: Boolean = false,
+        val premiumAccess: Boolean = false
+    ) : ModuleState
 
     sealed class AuthAction(tag: kotlin.reflect.KClass<*>) : ModuleAction(tag) {
-        data object Login  : AuthAction(AuthModule::class)
-        data object Logout : AuthAction(AuthModule::class)
+        data object Login          : AuthAction(AuthModule::class)
+        data object Logout         : AuthAction(AuthModule::class)
+        data object StartupReady   : AuthAction(AuthModule::class)
+        data object GrantPremium   : AuthAction(AuthModule::class)
     }
 
     object AuthModule : Module<AuthState, AuthAction> {
         override val initialState = AuthState()
         override val reducer: (AuthState, AuthAction) -> AuthState = { state, action ->
             when (action) {
-                AuthAction.Login  -> state.copy(isAuthenticated = true)
-                AuthAction.Logout -> state.copy(isAuthenticated = false)
+                AuthAction.Login        -> state.copy(isAuthenticated = true)
+                AuthAction.Logout       -> state.copy(isAuthenticated = false)
+                AuthAction.StartupReady -> state.copy(startupReady = true)
+                AuthAction.GrantPremium -> state.copy(premiumAccess = true)
             }
         }
         override val createLogic: (StoreAccessor) -> ModuleLogic =
@@ -873,6 +882,470 @@ class ProtectedRoutesTest {
 
             val state = store.selectState<NavigationState>().first()
             assertEquals("releases", state.currentEntry.route)
+        }
+
+    // ─── chained / wrapped intercepts ────────────────────────────────────────
+
+    @Test
+    fun `outer guard rejects inner guard never evaluated`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            var innerGuardCalled = false
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { store ->
+                            if (store.selectState<AuthState>().value.startupReady) GuardResult.Allow
+                            else GuardResult.Reject
+                        }
+                    ) {
+                        intercept(
+                            guard = { store ->
+                                innerGuardCalled = true
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.Reject
+                            }
+                        ) {
+                            graph("workspace") {
+                                entry(homeScreen)
+                                screens(homeScreen)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("start", state.currentEntry.route)
+            assertEquals(false, innerGuardCalled)
+        }
+
+    @Test
+    fun `outer guard allows inner guard rejects navigation dropped`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { store ->
+                            if (store.selectState<AuthState>().value.startupReady) GuardResult.Allow
+                            else GuardResult.Reject
+                        }
+                    ) {
+                        intercept(
+                            guard = { store ->
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.Reject
+                            }
+                        ) {
+                            graph("workspace") {
+                                entry(homeScreen)
+                                screens(homeScreen)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.dispatch(AuthAction.StartupReady)
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("start", state.currentEntry.route)
+            assertNull(state.pendingNavigation)
+        }
+
+    @Test
+    fun `outer guard allows inner guard redirects user lands at redirect target`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { store ->
+                            if (store.selectState<AuthState>().value.startupReady) GuardResult.Allow
+                            else GuardResult.Reject
+                        }
+                    ) {
+                        intercept(
+                            guard = { store ->
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.RedirectTo(loginScreen)
+                            }
+                        ) {
+                            graph("workspace") {
+                                entry(homeScreen)
+                                screens(homeScreen)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.dispatch(AuthAction.StartupReady)
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route)
+            assertNull(state.pendingNavigation)
+        }
+
+    @Test
+    fun `outer guard allows inner guard pends and redirects pending navigation stored`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { store ->
+                            if (store.selectState<AuthState>().value.startupReady) GuardResult.Allow
+                            else GuardResult.Reject
+                        }
+                    ) {
+                        intercept(
+                            guard = { store ->
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.PendAndRedirectTo(navigatable = loginScreen)
+                            }
+                        ) {
+                            graph("workspace") {
+                                entry(homeScreen)
+                                screens(homeScreen)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.dispatch(AuthAction.StartupReady)
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route)
+            assertNotNull(state.pendingNavigation)
+            assertEquals("workspace/home", state.pendingNavigation!!.route)
+        }
+
+    @Test
+    fun `both guards allow navigation succeeds`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { store ->
+                            if (store.selectState<AuthState>().value.startupReady) GuardResult.Allow
+                            else GuardResult.Reject
+                        }
+                    ) {
+                        intercept(
+                            guard = { store ->
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.Reject
+                            }
+                        ) {
+                            graph("workspace") {
+                                entry(homeScreen)
+                                screens(homeScreen)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.dispatch(AuthAction.StartupReady)
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("home", state.currentEntry.route)
+        }
+
+    @Test
+    fun `outer guard redirect takes priority inner guard never evaluated`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            var innerGuardCalled = false
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { _ ->
+                            GuardResult.RedirectTo(loginScreen)
+                        }
+                    ) {
+                        intercept(
+                            guard = { _ ->
+                                innerGuardCalled = true
+                                GuardResult.Allow
+                            }
+                        ) {
+                            graph("workspace") {
+                                entry(homeScreen)
+                                screens(homeScreen)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route)
+            assertEquals(false, innerGuardCalled)
+        }
+
+    @Test
+    fun `three level chain all allow navigation reaches target`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { store ->
+                            if (store.selectState<AuthState>().value.startupReady) GuardResult.Allow
+                            else GuardResult.Reject
+                        }
+                    ) {
+                        intercept(
+                            guard = { store ->
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.Reject
+                            }
+                        ) {
+                            intercept(
+                                guard = { store ->
+                                    if (store.selectState<AuthState>().value.premiumAccess) GuardResult.Allow
+                                    else GuardResult.RedirectTo(loginScreen)
+                                }
+                            ) {
+                                graph("premium") {
+                                    entry(premiumScreen)
+                                    screens(premiumScreen)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.dispatch(AuthAction.StartupReady)
+            store.dispatch(AuthAction.Login)
+            store.dispatch(AuthAction.GrantPremium)
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("premium/premium") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("premium", state.currentEntry.route)
+        }
+
+    @Test
+    fun `three level chain middle guard rejects deep guard never evaluated`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            var deepGuardCalled = false
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { store ->
+                            if (store.selectState<AuthState>().value.startupReady) GuardResult.Allow
+                            else GuardResult.Reject
+                        }
+                    ) {
+                        intercept(
+                            guard = { store ->
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.Reject
+                            }
+                        ) {
+                            intercept(
+                                guard = { _ ->
+                                    deepGuardCalled = true
+                                    GuardResult.Allow
+                                }
+                            ) {
+                                graph("premium") {
+                                    entry(premiumScreen)
+                                    screens(premiumScreen)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.dispatch(AuthAction.StartupReady)
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("premium/premium") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("start", state.currentEntry.route)
+            assertEquals(false, deepGuardCalled)
+        }
+
+    @Test
+    fun `side by side inner intercepts each produce independent chains`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+
+            val navModule = createNavigationModule {
+                rootGraph {
+                    entry(startScreen)
+                    screens(startScreen, loginScreen)
+                    intercept(
+                        guard = { store ->
+                            if (store.selectState<AuthState>().value.startupReady) GuardResult.Allow
+                            else GuardResult.Reject
+                        }
+                    ) {
+                        intercept(
+                            guard = { store ->
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.Reject
+                            }
+                        ) {
+                            graph("workspace") {
+                                entry(homeScreen)
+                                screens(homeScreen)
+                            }
+                        }
+                        intercept(
+                            guard = { store ->
+                                if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                                else GuardResult.Reject
+                            }
+                        ) {
+                            intercept(
+                                guard = { store ->
+                                    if (store.selectState<AuthState>().value.premiumAccess) GuardResult.Allow
+                                    else GuardResult.RedirectTo(loginScreen)
+                                }
+                            ) {
+                                graph("premium") {
+                                    entry(premiumScreen)
+                                    screens(premiumScreen)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+
+            store.dispatch(AuthAction.StartupReady)
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+            assertEquals("home", store.selectState<NavigationState>().first().currentEntry.route)
+
+            store.navigation { navigateTo("premium/premium") }
+            advanceUntilIdle()
+            assertEquals("login", store.selectState<NavigationState>().first().currentEntry.route)
+
+            store.dispatch(AuthAction.GrantPremium)
+            advanceUntilIdle()
+            store.navigation { navigateTo("premium/premium") }
+            advanceUntilIdle()
+            assertEquals("premium", store.selectState<NavigationState>().first().currentEntry.route)
         }
 }
 

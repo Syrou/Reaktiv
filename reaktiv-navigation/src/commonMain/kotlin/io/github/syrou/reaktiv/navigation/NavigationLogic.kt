@@ -257,32 +257,40 @@ class NavigationLogic(
             ?: targetActualGraphId?.let { precomputedData.interceptedRoutes[it] }
             ?: return null
 
-        return when (val result = evaluateWithThreshold(
-            loadingThreshold = interceptDef.loadingThreshold
-        ) { interceptDef.guard(storeAccessor) }) {
+        fun GuardResult.toGuardEvaluation(): GuardEvaluation = when (this) {
             is GuardResult.Allow -> GuardEvaluation.Allow
             is GuardResult.Reject -> GuardEvaluation.Reject
-            is GuardResult.RedirectTo -> GuardEvaluation.Redirect(result.route)
+            is GuardResult.RedirectTo -> GuardEvaluation.Redirect(route)
             is GuardResult.PendAndRedirectTo -> {
                 val pending = PendingNavigation(
                     route = targetRoute,
                     params = primaryStep.params,
-                    metadata = result.metadata,
-                    displayHint = result.displayHint
+                    metadata = metadata,
+                    displayHint = displayHint
                 )
                 val redirectResolution = precomputedData.routeResolver.resolve(
-                    result.route, precomputedData.availableNavigatables
+                    route, precomputedData.availableNavigatables
                 )
                 val redirectPath = redirectResolution?.targetNavigatable?.let {
                     precomputedData.navigatableToFullPath[it]
                 }
                 GuardEvaluation.PendAndRedirect(
                     pending = pending,
-                    redirectRoute = result.route,
+                    redirectRoute = route,
                     alreadyAtRedirect = redirectPath == currentState.currentEntry.path
                 )
             }
         }
+
+        for ((outerGuard, outerThreshold) in interceptDef.outerGuards) {
+            val result = evaluateWithThreshold(outerThreshold) { outerGuard(storeAccessor) }
+            val evaluation = result.toGuardEvaluation()
+            if (evaluation != GuardEvaluation.Allow) return evaluation
+        }
+
+        return evaluateWithThreshold(interceptDef.loadingThreshold) {
+            interceptDef.guard(storeAccessor)
+        }.toGuardEvaluation()
     }
 
     private suspend fun resolveEntryNavigatable(targetRoute: String): NavigationNode? {

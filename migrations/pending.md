@@ -173,3 +173,70 @@ direct reference is not available. From Kotlin, always prefer `getModule<M>()` o
 `getModule(moduleClass: KClass<M>)`.
 
 ---
+
+### [AD-03] Nested `intercept {}` blocks now chain guards (outer-first)
+
+**Type:** Addition
+
+**Grep:** `intercept(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// Three-level chain: startup → auth → premium.
+// Guards run outermost-first. Navigation proceeds only when every guard returns Allow.
+// The first non-Allow result stops evaluation; inner guards are never called.
+createNavigationModule {
+    rootGraph {
+        entry(startScreen)
+        screens(startScreen, loginScreen)
+        intercept(
+            guard = { store ->
+                if (store.selectState<AppState>().value.startupReady) GuardResult.Allow
+                else GuardResult.Reject
+            }
+        ) {
+            intercept(
+                guard = { store ->
+                    if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                    else GuardResult.RedirectTo(loginScreen)
+                }
+            ) {
+                // Free workspace — auth only
+                graph("workspace") {
+                    entry(homeScreen)
+                    screens(homeScreen)
+                }
+
+                // Premium workspace — auth + premium check (independent chain)
+                intercept(
+                    guard = { store ->
+                        if (store.selectState<AuthState>().value.hasPremium) GuardResult.Allow
+                        else GuardResult.RedirectTo(upgradeScreen)
+                    }
+                ) {
+                    graph("premium") {
+                        entry(premiumHome)
+                        screens(premiumHome)
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+**Notes:** Previously, nesting two `intercept {}` blocks caused the outer guard to silently
+overwrite the inner one — only the outermost guard ever ran. Now guards are chained in
+declaration order (outermost first) at any nesting depth. Each wrapped graph accumulates
+only the guards that apply to it, so side-by-side `intercept {}` blocks at the same level
+are fully independent. The change is backwards-compatible: single-level intercepts behave
+identically to before.
+
+The chain is built in two places:
+- **`NavigationGraphBuilder.intercept()`** — uses `prependOuter` when stamping a guard onto
+  a graph that already carries an inner guard, preserving the full accumulated chain.
+- **`NavigationModule.collectGraphs()`** — uses `prependOuter` when propagating a parent
+  graph's guard down to nested child graphs.
+
+---

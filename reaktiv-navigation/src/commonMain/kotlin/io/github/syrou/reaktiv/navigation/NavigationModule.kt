@@ -451,7 +451,13 @@ data class PrecomputedNavigationData(
             val parentGraphLookup = mutableMapOf<String, String>()
 
             fun collectGraphs(graph: NavigationGraph, inheritedIntercept: InterceptDefinition? = null) {
-                val effectiveIntercept = graph.interceptDefinition ?: inheritedIntercept
+                val ownIntercept = graph.interceptDefinition
+                val effectiveIntercept = when {
+                    ownIntercept != null && inheritedIntercept != null ->
+                        ownIntercept.prependOuter(inheritedIntercept)
+                    ownIntercept != null -> ownIntercept
+                    else -> inheritedIntercept
+                }
 
                 graphDefinitions[graph.route] = graph
 
