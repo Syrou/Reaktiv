@@ -53,6 +53,7 @@ import coil.request.ImageRequest
 import coil.transform.CircleCropTransformation
 import eu.syrou.androidexample.reaktiv.news.NewsModule
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
+import eu.syrou.androidexample.reaktiv.twitchstreams.TwitchStreamsLogic
 import eu.syrou.androidexample.reaktiv.twitchstreams.TwitchStreamsModule
 import eu.syrou.androidexample.reaktiv.videos.VideosModule
 import eu.syrou.androidexample.ui.screen.SettingsScreen
@@ -60,6 +61,7 @@ import eu.syrou.androidexample.ui.screen.StreamsListScreen
 import eu.syrou.androidexample.ui.util.BorderRemoverTransformation
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
+import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import kotlinx.coroutines.launch
 
@@ -188,7 +190,7 @@ fun LiveStreamsSection() {
     val urlHandler = LocalUriHandler.current
     LaunchedEffect(settingsState.twitchAccessToken) {
         settingsState.twitchAccessToken?.let {
-            store.dispatch(TwitchStreamsModule.TwitchStreamsAction.AccessToken(it))
+            store.selectLogic<TwitchStreamsLogic>().loadStreams(it)
         }
     }
     Box {

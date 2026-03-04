@@ -807,8 +807,6 @@ class ProtectedRoutesTest {
             assertEquals("no-artists", state.currentEntry.route)
         }
 
-    // ─── intercept wrapping a single graph ───────────────────────────────────
-
     @Test
     fun `intercept on single graph blocks navigation when guard denies`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
@@ -883,8 +881,6 @@ class ProtectedRoutesTest {
             val state = store.selectState<NavigationState>().first()
             assertEquals("releases", state.currentEntry.route)
         }
-
-    // ─── chained / wrapped intercepts ────────────────────────────────────────
 
     @Test
     fun `outer guard rejects inner guard never evaluated`() =

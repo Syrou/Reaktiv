@@ -1,7 +1,6 @@
 package eu.syrou.androidexample.reaktiv.twitchstreams
 
 import eu.syrou.androidexample.domain.network.twitchstream.TwitchApiClient
-import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
@@ -17,7 +16,6 @@ object TwitchStreamsModule : Module<TwitchStreamsModule.TwitchStreamsState, Twit
     ) : ModuleState
 
     sealed class TwitchStreamsAction : ModuleAction(TwitchStreamsModule::class) {
-        data class AccessToken(val accessToken: String) : TwitchStreamsAction()
         data class SetTwitchStreamers(val twitchStreamers: List<TwitchApiClient.Stream>) : TwitchStreamsAction()
         data class NewsLoading(val loading: Boolean) : TwitchStreamsAction()
     }
@@ -27,7 +25,6 @@ object TwitchStreamsModule : Module<TwitchStreamsModule.TwitchStreamsState, Twit
         when (action) {
             is TwitchStreamsAction.SetTwitchStreamers -> state.copy(twitchStreamers = action.twitchStreamers)
             is TwitchStreamsAction.NewsLoading -> state.copy(loading = action.loading)
-            else -> state
         }
     }
 

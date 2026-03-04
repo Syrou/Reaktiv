@@ -28,15 +28,18 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.ui.LocalNavigationModule
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeNavigationScaffold(content: @Composable () -> Unit) {
     val store = rememberStore()
+    val navModule = LocalNavigationModule.current
     val navigationState by composeState<NavigationState>()
     val settingsState by composeState<SettingsModule.SettingsState>()
     val scope = rememberCoroutineScope()
+    val currentActionResource = navModule.resolveNavigatable(navigationState.currentEntry)?.actionResource
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -53,6 +56,7 @@ fun HomeNavigationScaffold(content: @Composable () -> Unit) {
                     }
                 },
                 actions = {
+                    currentActionResource?.invoke()
                     IconButton(onClick = {
                         scope.launch {
                             store.dispatch(TestNavigationAction.TriggerMultipleNavigation)

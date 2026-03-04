@@ -159,9 +159,8 @@ class CustomApplication : Application() {
                         screens(LeaderboardDetailScreen, PlayerProfileScreen, StatsDetailScreen)
                     }
                 }
+                screenGroup(UserManagementScreens)
             }
-
-            screenGroup(UserManagementScreens)
         }
 
         screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))

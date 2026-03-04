@@ -2,17 +2,13 @@ package eu.syrou.androidexample.reaktiv.videos
 
 import eu.syrou.androidexample.domain.network.video.VideosAggregator
 import eu.syrou.androidexample.domain.network.video.YouTubeRssSource
-import io.github.syrou.reaktiv.core.Dispatch
-import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 class VideosLogic(val storeAccessor: StoreAccessor) : ModuleLogic() {
@@ -71,7 +67,4 @@ class VideosLogic(val storeAccessor: StoreAccessor) : ModuleLogic() {
         }
     }
 
-    override suspend fun invoke(action: ModuleAction) {
-
-    }
 }

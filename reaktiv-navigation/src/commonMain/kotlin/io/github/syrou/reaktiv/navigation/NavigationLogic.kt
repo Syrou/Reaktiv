@@ -302,6 +302,31 @@ class NavigationLogic(
         ) { entryDef.route.invoke(storeAccessor) }
     }
 
+    private suspend fun resolveGraphEntryForSynthesis(graphPath: String): NavigationEntry? {
+        val static = precomputedData.routeResolver.resolveForBackstackSynthesis(graphPath)
+        if (static != null) {
+            val resPath = precomputedData.navigatableToFullPath[static.targetNavigatable]
+                ?: static.targetNavigatable.route
+            return static.targetNavigatable.toNavigationEntry(path = resPath, params = static.extractedParams)
+        }
+
+        val entryDef = precomputedData.graphEntries[graphPath] ?: return null
+        if (entryDef.route == null) return null
+        val node = evaluateWithThreshold(entryDef.loadingThreshold) { entryDef.route.invoke(storeAccessor) }
+        return when (node) {
+            is Navigatable -> {
+                val resPath = precomputedData.navigatableToFullPath[node] ?: node.route
+                node.toNavigationEntry(path = resPath, params = Params.empty())
+            }
+            else -> {
+                val resolution = precomputedData.routeResolver.resolve(node.route) ?: return null
+                val resPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
+                    ?: resolution.targetNavigatable.route
+                resolution.targetNavigatable.toNavigationEntry(path = resPath, params = resolution.extractedParams)
+            }
+        }
+    }
+
     private suspend fun navigateDirect(route: String) {
         val builder = NavigationBuilder(storeAccessor, parameterEncoder)
         builder.navigateTo(route)
@@ -583,22 +608,26 @@ class NavigationLogic(
                         val destinationPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
                             ?: resolution.targetNavigatable.route
                         val seenPaths = (simulatedBackStack.map { it.path } + destinationPath).toMutableSet()
-                        for (intermediatePath in pathHierarchy.dropLast(1)) {
-                            val res = precomputedData.routeResolver.resolveForBackstackSynthesis(intermediatePath)
-                            if (res == null) continue
-                            val resPath = precomputedData.navigatableToFullPath[res.targetNavigatable]
-                                ?: res.targetNavigatable.route
-                            if (resPath in seenPaths) continue
-                            seenPaths.add(resPath)
-                            val intermediate = res.targetNavigatable.toNavigationEntry(
-                                path = resPath,
-                                params = res.extractedParams
-                            )
-                            batchedActions.add(NavigationAction.Navigate(intermediate))
-                            simulatedBackStack = simulatedBackStack + intermediate
-                            simulatedCurrentEntry = intermediate
-                            lastNavigatedEntry = intermediate
+
+                        val rootEntry = resolveGraphEntryForSynthesis("root")
+                        if (rootEntry != null && rootEntry.path !in seenPaths) {
+                            seenPaths.add(rootEntry.path)
+                            batchedActions.add(NavigationAction.Navigate(rootEntry))
+                            simulatedBackStack = simulatedBackStack + rootEntry
+                            simulatedCurrentEntry = rootEntry
+                            lastNavigatedEntry = rootEntry
                         }
+
+                        for (intermediatePath in pathHierarchy.dropLast(1)) {
+                            val entry = resolveGraphEntryForSynthesis(intermediatePath) ?: continue
+                            if (entry.path in seenPaths) continue
+                            seenPaths.add(entry.path)
+                            batchedActions.add(NavigationAction.Navigate(entry))
+                            simulatedBackStack = simulatedBackStack + entry
+                            simulatedCurrentEntry = entry
+                            lastNavigatedEntry = entry
+                        }
+
                         val finalPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
                             ?: resolution.targetNavigatable.route
                         val finalEntry = createNavigationEntry(step, resolution, finalPath, 0)
