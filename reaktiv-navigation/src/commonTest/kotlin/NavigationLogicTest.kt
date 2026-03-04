@@ -3,6 +3,7 @@ import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.NavigationPath
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
@@ -587,6 +588,45 @@ class NavigationLogicTest {
             advanceUntilIdle()
 
             store.navigation { navigateTo("workspace") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("project-home", state.currentEntry.route)
+        }
+
+    @Test
+    fun `root entry returning NavigationPath to graph resolves chain during bootstrap`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+
+            val projectHomeScreen = createScreen("project-home", "ProjectHome")
+
+            val loadingModal = object : LoadingModal {
+                override val route = "loading"
+                override val enterTransition = NavTransition.None
+                override val exitTransition = NavTransition.None
+
+                @Composable
+                override fun Content(params: Params) { Text("Loading") }
+            }
+
+            val module = createNavigationModule {
+                loadingModal(loadingModal)
+                rootGraph {
+                    entry(route = { _ -> NavigationPath("workspace") })
+                    screens(homeScreen)
+                    graph("workspace") {
+                        entry(route = { _ -> projectHomeScreen })
+                        screens(projectHomeScreen)
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(module)
+                coroutineContext(testDispatcher)
+            }
+
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()

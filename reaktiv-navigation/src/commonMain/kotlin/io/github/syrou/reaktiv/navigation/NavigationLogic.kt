@@ -120,10 +120,11 @@ class NavigationLogic(
                 if (!deepLinkStartedBeforeBootstrap.value) {
                     val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
                     routeBuilder.clearBackStack()
-                    if (selectedNode is Navigatable) {
-                        routeBuilder.navigateTo(selectedNode)
+                    val resolvedBootstrapNode = resolveEntryChain(selectedNode, "root")
+                    if (resolvedBootstrapNode is Navigatable) {
+                        routeBuilder.navigateTo(resolvedBootstrapNode as Navigatable)
                     } else {
-                        routeBuilder.navigateTo(selectedNode.route)
+                        routeBuilder.navigateTo(resolvedBootstrapNode.route)
                     }
                     routeBuilder.validate()
                     executeNavigation(routeBuilder) { it + listOf(NavigationAction.BootstrapComplete) }
@@ -293,6 +294,18 @@ class NavigationLogic(
         }.toGuardEvaluation()
     }
 
+    private suspend fun resolveEntryChain(initialNode: NavigationNode, initialRoute: String): NavigationNode {
+        if (initialNode is Navigatable) return initialNode
+        var resolvedNode: NavigationNode = initialNode
+        val visitedRoutes = mutableSetOf(initialRoute)
+        while (resolvedNode !is Navigatable) {
+            val nextRoute = resolvedNode.route
+            if (!visitedRoutes.add(nextRoute)) break
+            resolvedNode = resolveEntryNavigatable(nextRoute) ?: break
+        }
+        return resolvedNode
+    }
+
     private suspend fun resolveEntryNavigatable(targetRoute: String): NavigationNode? {
         precomputedData.graphDefinitions[targetRoute] ?: return null
         val entryDef = precomputedData.graphEntries[targetRoute] ?: return null
@@ -389,17 +402,12 @@ class NavigationLogic(
                         is GuardEvaluation.Allow, null -> Unit
                     }
 
-                    var resolvedNode = resolveEntryNavigatable(targetRoute)
-                    if (resolvedNode != null) {
-                        val visitedRoutes = mutableSetOf(targetRoute)
-                        while (resolvedNode !is Navigatable) {
-                            val nextRoute = resolvedNode!!.route
-                            if (!visitedRoutes.add(nextRoute)) break
-                            resolvedNode = resolveEntryNavigatable(nextRoute) ?: break
-                        }
+                    val entryNode = resolveEntryNavigatable(targetRoute)
+                    if (entryNode != null) {
+                        val resolvedNode = resolveEntryChain(entryNode, targetRoute)
                         val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
                         if (resolvedNode is Navigatable) routeBuilder.navigateTo(resolvedNode as Navigatable)
-                        else routeBuilder.navigateTo(resolvedNode!!.route)
+                        else routeBuilder.navigateTo(resolvedNode.route)
                         routeBuilder.validate()
                         executeNavigation(routeBuilder)
                         return@withContext NavigationOutcome.Success
