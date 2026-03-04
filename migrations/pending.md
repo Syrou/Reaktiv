@@ -240,3 +240,119 @@ The chain is built in two places:
   graph's guard down to nested child graphs.
 
 ---
+
+### [AD-04] currentActionResource() composable for screen-defined toolbar actions
+
+**Type:** Addition
+
+**Grep:** `currentActionResource`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// On your Screen, define the action resource
+object EditScreen : Screen {
+    override val route = "edit"
+    override val actionResource: ActionResource = {
+        IconButton(onClick = { /* save */ }) {
+            Icon(Icons.Default.Check, contentDescription = "Save")
+        }
+    }
+
+    @Composable
+    override fun Content(params: Params) { ... }
+}
+
+// In your scaffold or top bar, consume it
+@Composable
+fun AppTopBar() {
+    val actionResource = currentActionResource()
+    TopAppBar(
+        actions = {
+            actionResource?.invoke()
+        }
+    )
+}
+```
+
+**Notes:** `currentActionResource()` must be called inside a composable that is a descendant
+of `NavigationRender`. It returns the `actionResource` of the currently visible screen, or
+`null` if the screen does not define one. Screens that define no `actionResource` leave the
+toolbar actions area empty. The value updates automatically whenever navigation changes.
+
+---
+
+### [AD-05] Deep link backstack synthesis anchors root graph entry
+
+**Type:** Addition
+
+**Grep:** `navigateDeepLink`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// Given a module with a root graph (static or dynamic entry) and nested graphs:
+createNavigationModule {
+    rootGraph {
+        entry(splashScreen)
+        screens(splashScreen)
+        graph("workspace") {
+            entry(workspaceHome)
+            screens(workspaceHome, workspaceDetail)
+        }
+    }
+}
+
+// Deep linking to a nested screen now synthesizes the full backstack:
+// [splashScreen → workspaceHome → workspaceDetail]
+store.navigation { navigateDeepLink("workspace/detail") }
+```
+
+**Notes:** `navigateDeepLink` now always places the root graph's entry screen at the bottom
+of the synthesized backstack before adding intermediate graph entries and the target
+destination. This ensures the user can always navigate back to the start of the application.
+
+Dynamic `entry { route = { ... } }` lambdas are evaluated during synthesis, so graphs with
+async entry conditions (e.g. feature flags, auth checks) are supported. A root graph that
+uses only a dynamic `entry` lambda (no static `startDestination`) requires a `loadingModal`
+at the module level to provide the initial app state before synthesis runs.
+
+---
+
+### [AD-06] Entry chain resolution for dynamic entry lambdas returning NavigationPath
+
+**Type:** Addition
+
+**Grep:** `entry(route =`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// A dynamic entry that delegates to another graph's entry
+createNavigationModule {
+    rootGraph {
+        entry(homeScreen)
+        screens(homeScreen)
+        graph("workspace") {
+            // Returns a NavigationPath — system follows the chain
+            entry(route = { _ -> NavigationPath("projects") })
+            screens(workspaceScreen)
+            graph("projects") {
+                entry(route = { _ -> projectHomeScreen })
+                screens(projectHomeScreen, projectDetail)
+            }
+        }
+    }
+}
+
+// Navigating to "workspace" resolves the full chain and lands on projectHomeScreen
+store.navigation { navigateTo("workspace") }
+```
+
+**Notes:** Previously, navigating to a graph whose dynamic `entry` lambda returned a
+`NavigationPath` pointing to another graph would stop at that path without evaluating the
+target graph's own entry. The system now follows the chain — evaluating each graph's dynamic
+entry in turn — until it reaches a concrete `Navigatable`. Cycle detection prevents infinite
+loops if graphs accidentally reference each other.
+
+---
