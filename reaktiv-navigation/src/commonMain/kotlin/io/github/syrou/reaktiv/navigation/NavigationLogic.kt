@@ -389,11 +389,17 @@ class NavigationLogic(
                         is GuardEvaluation.Allow, null -> Unit
                     }
 
-                    val entryNode = resolveEntryNavigatable(targetRoute)
-                    if (entryNode != null) {
+                    var resolvedNode = resolveEntryNavigatable(targetRoute)
+                    if (resolvedNode != null) {
+                        val visitedRoutes = mutableSetOf(targetRoute)
+                        while (resolvedNode !is Navigatable) {
+                            val nextRoute = resolvedNode!!.route
+                            if (!visitedRoutes.add(nextRoute)) break
+                            resolvedNode = resolveEntryNavigatable(nextRoute) ?: break
+                        }
                         val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
-                        if (entryNode is Navigatable) routeBuilder.navigateTo(entryNode)
-                        else routeBuilder.navigateTo(entryNode.route)
+                        if (resolvedNode is Navigatable) routeBuilder.navigateTo(resolvedNode as Navigatable)
+                        else routeBuilder.navigateTo(resolvedNode!!.route)
                         routeBuilder.validate()
                         executeNavigation(routeBuilder)
                         return@withContext NavigationOutcome.Success

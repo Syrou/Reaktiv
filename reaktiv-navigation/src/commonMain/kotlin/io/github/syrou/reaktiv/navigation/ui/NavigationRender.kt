@@ -15,6 +15,7 @@ import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
@@ -30,6 +31,26 @@ import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 val LocalNavigationModule = compositionLocalOf<NavigationModule> {
     error("NavigationModule not provided. Wrap your content with NavigationRender.")
 }
+
+/**
+ * Returns the [ActionResource] of the currently visible screen, or `null` if the screen
+ * does not define one.
+ *
+ * Must be called inside a composable that is a descendant of [NavigationRender].
+ *
+ * Example:
+ * ```kotlin
+ * TopAppBar(
+ *     actions = {
+ *         currentActionResource()?.invoke()
+ *     }
+ * )
+ * ```
+ */
+@Composable
+fun currentActionResource(): ActionResource? = LocalCurrentActionResource.current
+
+internal val LocalCurrentActionResource = compositionLocalOf<ActionResource?> { null }
 
 /**
  * Root composable that drives the navigation UI.
@@ -63,7 +84,9 @@ fun NavigationRender(
     val graphDefinitions = remember { navModule.getGraphDefinitions() }
 
     val currentEntryKey = navigationState.currentEntry.stableKey
-    val resolvedTitle = navModule.resolveNavigatable(navigationState.currentEntry)?.titleResource?.invoke()
+    val currentNavigatable = navModule.resolveNavigatable(navigationState.currentEntry)
+    val resolvedTitle = currentNavigatable?.titleResource?.invoke()
+    val resolvedActionResource = currentNavigatable?.actionResource
     LaunchedEffect(currentEntryKey) {
         store.dispatch(NavigationAction.SetCurrentTitle(resolvedTitle))
     }
@@ -72,7 +95,10 @@ fun NavigationRender(
         NavigationDebugger(navigationState, store)
     }
 
-    CompositionLocalProvider(LocalNavigationModule provides navModule) {
+    CompositionLocalProvider(
+        LocalNavigationModule provides navModule,
+        LocalCurrentActionResource provides resolvedActionResource
+    ) {
         Box(
             modifier = modifier.fillMaxSize()
         ) {

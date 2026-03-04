@@ -3,6 +3,7 @@ import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.NavigationPath
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
@@ -554,4 +555,41 @@ class NavigationLogicTest {
         assertFalse(state.backStack.any { it.route == "settings" })
         assertFalse(state.backStack.any { it.route == "about" })
     }
+
+    @Test
+    fun `entry chain resolves through NavigationPath to final screen`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+
+            val projectHomeScreen = createScreen("project-home", "ProjectHome")
+            val projectDetailScreen = createScreen("project-detail", "ProjectDetail")
+
+            val module = createNavigationModule {
+                rootGraph {
+                    startScreen(homeScreen)
+                    screens(homeScreen)
+                    graph("workspace") {
+                        entry(route = { _ -> NavigationPath("projects") })
+                        screens(workspaceScreen)
+                        graph("projects") {
+                            entry(route = { _ -> projectHomeScreen })
+                            screens(projectHomeScreen, projectDetailScreen)
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(module)
+                coroutineContext(testDispatcher)
+            }
+
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("project-home", state.currentEntry.route)
+        }
 }
