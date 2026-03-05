@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
+import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
@@ -105,7 +106,19 @@ class NavigationLogic(
 
     private fun bootstrapRootEntryIfNeeded() {
         val rootEntryDef = precomputedData.graphEntries["root"]
-        if (rootEntryDef?.route == null) {
+
+        val rootStartDest = precomputedData.graphDefinitions["root"]?.startDestination
+        val graphRefEntryDef = if (rootEntryDef == null && rootStartDest is StartDestination.GraphReference) {
+            precomputedData.graphEntries[rootStartDest.graphId]?.takeIf { it.route != null }
+        } else null
+        val graphRefId = if (graphRefEntryDef != null) {
+            (rootStartDest as StartDestination.GraphReference).graphId
+        } else null
+
+        val bootstrapEntry = rootEntryDef ?: graphRefEntryDef
+        val bootstrapGraphId = if (rootEntryDef != null) "root" else graphRefId
+
+        if (bootstrapEntry?.route == null) {
             storeAccessor.launch {
                 storeAccessor.dispatchAndAwait(NavigationAction.BootstrapComplete)
                 bootstrapCompleted.complete(Unit)
@@ -115,12 +128,12 @@ class NavigationLogic(
 
         storeAccessor.launch {
             try {
-                val selectedNode = rootEntryDef.route.invoke(storeAccessor)
+                val selectedNode = bootstrapEntry.route.invoke(storeAccessor)
 
                 if (!deepLinkStartedBeforeBootstrap.value) {
                     val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
                     routeBuilder.clearBackStack()
-                    val resolvedBootstrapNode = resolveEntryChain(selectedNode, "root")
+                    val resolvedBootstrapNode = resolveEntryChain(selectedNode, bootstrapGraphId ?: "root")
                     if (resolvedBootstrapNode is Navigatable) {
                         routeBuilder.navigateTo(resolvedBootstrapNode as Navigatable)
                     } else {
@@ -283,6 +296,11 @@ class NavigationLogic(
             }
         }
 
+        val isAlreadyInZone = currentState.backStack.any { entry ->
+            precomputedData.interceptedRoutes[entry.path] === interceptDef
+        }
+        if (isAlreadyInZone) return GuardEvaluation.Allow
+
         for ((outerGuard, outerThreshold) in interceptDef.outerGuards) {
             val result = evaluateWithThreshold(outerThreshold) { outerGuard(storeAccessor) }
             val evaluation = result.toGuardEvaluation()
@@ -325,6 +343,13 @@ class NavigationLogic(
 
         val entryDef = precomputedData.graphEntries[graphPath] ?: return null
         if (entryDef.route == null) return null
+
+        val currentState = getCurrentNavigationState()
+        val existingEntry = currentState.backStack.firstOrNull { entry ->
+            precomputedData.navigatableToGraph[precomputedData.allNavigatables[entry.path]] == graphPath
+        }
+        if (existingEntry != null) return existingEntry
+
         val node = evaluateWithThreshold(entryDef.loadingThreshold) { entryDef.route.invoke(storeAccessor) }
         return when (node) {
             is Navigatable -> {
@@ -402,6 +427,15 @@ class NavigationLogic(
                         is GuardEvaluation.Allow, null -> Unit
                     }
 
+                    val hasDynamicEntry = precomputedData.graphDefinitions.containsKey(targetRoute) &&
+                        precomputedData.graphEntries[targetRoute]?.route != null
+                    if (hasDynamicEntry) {
+                        val isAlreadyInGraph = currentState.backStack.any { entry ->
+                            precomputedData.navigatableToGraph[precomputedData.allNavigatables[entry.path]] == targetRoute
+                        }
+                        if (isAlreadyInGraph) return@withContext NavigationOutcome.Success
+                    }
+
                     val entryNode = resolveEntryNavigatable(targetRoute)
                     if (entryNode != null) {
                         val resolvedNode = resolveEntryChain(entryNode, targetRoute)
@@ -442,10 +476,11 @@ class NavigationLogic(
         evaluate: suspend () -> T
     ): T = coroutineScope {
         val deferred = async { evaluate() }
-        val quickResult = withTimeoutOrNull(loadingThreshold) { deferred.await() }
-        if (quickResult != null) {
-            quickResult
-        } else {
+        val completedInTime = withTimeoutOrNull(loadingThreshold) {
+            deferred.await()
+            true
+        } ?: false
+        if (!completedInTime) {
             val loadingModal = precomputedData.loadingModal
             if (loadingModal != null) {
                 val loadingPath = precomputedData.navigatableToFullPath[loadingModal] ?: loadingModal.route
@@ -455,8 +490,8 @@ class NavigationLogic(
                 )
                 storeAccessor.dispatchAndAwait(NavigationAction.Navigate(loadingEntry))
             }
-            deferred.await()
         }
+        deferred.await()
     }
 
     /**

@@ -96,6 +96,49 @@ and `.launch { }` so all previous capabilities are still available.
 
 ---
 
+### [BC-04] entry(screen), entry{lambda}, startGraph(), startScreen() deprecated in favour of start()
+
+**Type:** Deprecation-removal
+
+**Grep:** `entry(` `startGraph(` `startScreen(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+rootGraph {
+    entry(homeScreen)
+    screens(homeScreen)
+    graph("workspace") {
+        startGraph("workspace/home")
+    }
+    graph("content") {
+        entry(route = { store -> if (store.selectState<ContentState>().value.ready) homeScreen else loadingScreen })
+        screens(homeScreen, loadingScreen)
+    }
+}
+```
+
+**After:**
+```kotlin
+rootGraph {
+    start(homeScreen)
+    screens(homeScreen)
+    graph("workspace") {
+        start("workspace/home")
+    }
+    graph("content") {
+        start(route = { store -> if (store.selectState<ContentState>().value.ready) homeScreen else loadingScreen })
+        screens(homeScreen, loadingScreen)
+    }
+}
+```
+
+**Notes:** All four methods now delegate to the unified `start()` overloads and carry
+`@Deprecated` annotations with `ReplaceWith`. See AD-07 for the new API. The deprecated
+methods will be removed in a future release.
+
+---
+
 ## Additions
 
 <!-- Append AD-NN entries below, incrementing from the last AD ID in this section -->
@@ -316,6 +359,137 @@ Dynamic `entry { route = { ... } }` lambdas are evaluated during synthesis, so g
 async entry conditions (e.g. feature flags, auth checks) are supported. A root graph that
 uses only a dynamic `entry` lambda (no static `startDestination`) requires a `loadingModal`
 at the module level to provide the initial app state before synthesis runs.
+
+---
+
+### [AD-07] Unified start() DSL for graph entry configuration
+
+**Type:** Replaces-deprecated
+
+**Grep:** `start(`
+**File glob:** `**/*.kt`
+
+**Replaces:** `entry(screen)`, `entry { lambda }`, `startGraph()`, `startScreen()` — see BC-04
+
+**Example:**
+```kotlin
+createNavigationModule {
+    loadingModal(MyLoadingModal)
+    rootGraph {
+        // Static screen
+        start(homeScreen)
+        screens(homeScreen, loginScreen)
+
+        graph("workspace") {
+            // Static graph reference — forwards entry to the "dashboard" graph
+            start("dashboard")
+            graph("dashboard") {
+                start(dashboardScreen)
+                screens(dashboardScreen)
+            }
+        }
+
+        graph("content") {
+            // Dynamic — evaluated at navigation time; loadingModal shown if > 200ms
+            start(route = { store ->
+                val state = store.selectState<ContentState>().value
+                if (state.ready) contentScreen else emptyScreen
+            })
+            screens(contentScreen, emptyScreen)
+        }
+    }
+}
+```
+
+**Notes:** Three overloads replace the old API:
+- `start(screen: Screen)` — static screen, replaces `entry(screen)` and `startScreen(screen)`
+- `start(graphId: String)` — static graph reference, replaces `startGraph(graphId)`
+- `start(route: suspend (StoreAccessor) -> NavigationNode, loadingThreshold: Duration = 200ms)` — dynamic, replaces `entry { }`
+
+`start(graphId)` now correctly handles the case where the referenced graph itself uses a
+dynamic `start { }` lambda. A `loadingModal` at the module level is required in that case
+so there is a concrete screen to display while the entry condition is evaluated at startup.
+
+---
+
+### [AD-08] Dynamic graph entry lambdas run only on first entry, not on re-entry or synthesis
+
+**Type:** Addition
+
+**Grep:** `start(route =`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+graph(Route.Home) {
+    start(route = { store ->
+        // This lambda now runs ONCE — when the user first enters Home.
+        // Navigating between screens inside Home, deep linking into Home,
+        // or calling resumePendingNavigation() will NOT re-invoke it.
+        val hasArtist = store.selectState<ArtistState>().first().currentArtist != null
+        if (hasArtist) releasesScreen else artistOverviewScreen
+    })
+    screens(releasesScreen, artistOverviewScreen)
+}
+```
+
+**Notes:** Previously, dynamic `start { route = { ... } }` lambdas on nested graphs were
+re-invoked in three situations that should be no-ops:
+
+- **Synthesis** (`resumePendingNavigation`, `navigateDeepLink`): if the graph was already in
+  the backstack, the lambda ran again — causing loading screens to reappear and side effects
+  (network calls, state waits) to repeat.
+- **Re-navigation to the graph route**: calling `navigateTo("home")` while already inside
+  the home graph re-invoked the lambda instead of being a no-op.
+
+Both are now fixed. The lambda is invoked only when the backstack contains no entries
+belonging to the target graph (first visit). Subsequent navigations within the graph, or
+synthesis passes that encounter an already-visited graph, reuse the existing backstack entry.
+
+---
+
+### [AD-09] intercept guard is a gateway — evaluated once per zone entry, not per navigation
+
+**Type:** Addition
+
+**Grep:** `intercept(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+intercept(guard = { store ->
+    if (store.selectState<AuthState>().value.isLoggedIn) GuardResult.Allow
+    else GuardResult.PendAndRedirectTo(Route.Login)
+}) {
+    graph(Route.Home) { ... }
+    graph(Route.Settings) { ... }
+}
+```
+
+**Notes:** The `intercept` guard now runs **once** when the user first enters the protected
+zone (any graph or screen covered by the `intercept` block). Subsequent navigations between
+screens and graphs within the same zone skip the guard entirely — treating it as a gateway
+rather than a per-navigation validator.
+
+The guard re-arms in two ways:
+- The user navigates **out** of the zone (backstack no longer contains any zone entries),
+  then navigates back in — guard runs again.
+- `store.reset()` is called — all module states are cleared including the navigation
+  backstack, so the zone is considered unvisited.
+
+**Contract for state-change scenarios (e.g. logout):** If auth state changes while the user
+is still physically inside the protected zone, the application must navigate the user out
+of the zone to force the guard to re-evaluate on next entry:
+
+```kotlin
+// On logout: navigate out of the zone so the guard re-arms
+store.dispatch(AuthAction.Logout)
+store.navigation {
+    clearBackStack()
+    navigateTo(Route.Login)
+}
+// Next navigateTo(Route.Home) will run the guard again
+```
 
 ---
 

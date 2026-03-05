@@ -26,26 +26,42 @@ class NavigationGraphBuilder(
     private var graphLayout: (@Composable (@Composable () -> Unit) -> Unit)? = null
     private var pendingEntryDefinition: EntryDefinition? = null
 
+    private fun checkNoStartDestination() {
+        if (startDestination != null || pendingEntryDefinition != null) {
+            error("Start destination already set for graph '$route'.")
+        }
+    }
+
     /**
      * Set the start destination to a static screen.
      *
-     * Replaces the deprecated [startScreen] method.
-     *
      * @param screen The screen to navigate to when entering this graph directly
      */
-    fun entry(screen: Screen) {
-        if (startDestination != null) {
-            error("Start destination already set for graph '$route'.")
-        }
+    fun start(screen: Screen) {
+        checkNoStartDestination()
         startDestination = StartDestination.DirectScreen(screen)
         if (screen !in navigatables) navigatables.add(screen)
     }
 
     /**
-     * Define dynamic entry with a typed [NavigationNode] route selector.
+     * Set the start destination to another graph by its route ID.
+     *
+     * When this graph is entered directly, navigation is forwarded to [graphId].
+     * If [graphId] itself has a dynamic [start] lambda, a `loadingModal` must be
+     * configured at the module level.
+     *
+     * @param graphId The route of the graph to delegate entry to
+     */
+    fun start(graphId: String) {
+        checkNoStartDestination()
+        startDestination = StartDestination.GraphReference(graphId)
+    }
+
+    /**
+     * Define a dynamic start destination evaluated at navigation time.
      *
      * [route] is evaluated when navigating directly to this graph to determine the destination.
-     * Return any [NavigationNode] — a [Screen], [Navigatable], or [Graph] object.
+     * Return any [NavigationNode] — a [Screen], [Navigatable], or graph route.
      *
      * If evaluation exceeds [loadingThreshold], the global loading modal configured via
      * `loadingModal()` at the module level is shown as a [RenderLayer.SYSTEM] overlay.
@@ -56,7 +72,7 @@ class NavigationGraphBuilder(
      * Example:
      * ```kotlin
      * graph("content") {
-     *     entry(
+     *     start(
      *         route = { store ->
      *             val state = store.selectState<ContentState>().value
      *             if (state.releases.isNotEmpty()) ReleasesScreen else NoContentScreen
@@ -69,28 +85,31 @@ class NavigationGraphBuilder(
      * @param route Typed selector returning the [NavigationNode] to navigate to
      * @param loadingThreshold How long to wait before showing the global loading modal (default 200ms)
      */
-    fun entry(
+    fun start(
         route: suspend (StoreAccessor) -> NavigationNode,
         loadingThreshold: Duration = 200.milliseconds
     ) {
+        checkNoStartDestination()
         pendingEntryDefinition = EntryDefinition(
             route = route,
             loadingThreshold = loadingThreshold
         )
     }
 
-    @Deprecated("Use entry(screen) instead", ReplaceWith("entry(screen)"))
-    fun startScreen(screen: Screen) = entry(screen)
+    @Deprecated("Use start(screen) instead", ReplaceWith("start(screen)"))
+    fun entry(screen: Screen) = start(screen)
 
-    fun startGraph(graphId: String) {
-        if (startDestination != null) {
-            throw IllegalStateException(
-                "Start destination already set for graph '${this.route}'. " +
-                        "Use either entry(screen) or startGraph(), not both."
-            )
-        }
-        this.startDestination = StartDestination.GraphReference(graphId)
-    }
+    @Deprecated("Use start(route, loadingThreshold) instead", ReplaceWith("start(route, loadingThreshold)"))
+    fun entry(
+        route: suspend (StoreAccessor) -> NavigationNode,
+        loadingThreshold: Duration = 200.milliseconds
+    ) = start(route, loadingThreshold)
+
+    @Deprecated("Use start(screen) instead", ReplaceWith("start(screen)"))
+    fun startScreen(screen: Screen) = start(screen)
+
+    @Deprecated("Use start(graphId) instead", ReplaceWith("start(graphId)"))
+    fun startGraph(graphId: String) = start(graphId)
 
     fun screens(vararg screens: Screen) {
         this.navigatables.addAll(screens.filterNot(this.navigatables::contains))
@@ -140,7 +159,7 @@ class NavigationGraphBuilder(
      * Example — single guard:
      * ```kotlin
      * rootGraph {
-     *     entry(startScreen)
+     *     start(startScreen)
      *     screens(startScreen, loginScreen)
      *     intercept(
      *         guard = { store ->
@@ -149,7 +168,7 @@ class NavigationGraphBuilder(
      *         }
      *     ) {
      *         graph("workspace") {
-     *             entry(workspaceHome)
+     *             start(workspaceHome)
      *             screens(workspaceHome, profileScreen)
      *         }
      *     }
@@ -159,7 +178,7 @@ class NavigationGraphBuilder(
      * Example — chained guards (startup check → auth check):
      * ```kotlin
      * rootGraph {
-     *     entry(startScreen)
+     *     start(startScreen)
      *     screens(startScreen, loginScreen)
      *     intercept(
      *         guard = { store ->
@@ -174,7 +193,7 @@ class NavigationGraphBuilder(
      *             }
      *         ) {
      *             graph("workspace") {
-     *                 entry(workspaceHome)
+     *                 start(workspaceHome)
      *                 screens(workspaceHome, profileScreen)
      *             }
      *         }

@@ -129,18 +129,50 @@ class NavigationModule internal constructor(
 
             is StartDestination.GraphReference -> {
                 precomputedData.routeResolver.resolve(dest.graphId)
-                    ?: throw IllegalStateException("Could not resolve root graph reference to '${dest.graphId}'")
+                    ?: run {
+                        val referencedGraph = precomputedData.graphDefinitions[dest.graphId]
+                        val hasDynamicEntry = referencedGraph != null &&
+                            precomputedData.graphEntries[dest.graphId]?.route != null
+                        val fallback: Navigatable = loadingModal
+                            ?: notFoundScreen
+                            ?: if (hasDynamicEntry) {
+                                throw IllegalStateException(
+                                    "Root graph references '${dest.graphId}' which uses a dynamic start { } " +
+                                    "but no loadingModal is defined. Provide a loadingModal() so there is a " +
+                                    "screen to show while the entry condition is evaluated at startup."
+                                )
+                            } else {
+                                throw IllegalStateException(
+                                    "Could not resolve root graph reference to '${dest.graphId}'. " +
+                                    "Ensure the graph is defined as a nested graph with a start destination."
+                                )
+                            }
+                        RouteResolution(
+                            targetNavigatable = fallback,
+                            targetGraphId = rootGraph.route,
+                            extractedParams = Params.empty(),
+                            navigationGraphId = rootGraph.route
+                        )
+                    }
             }
 
             null -> {
                 val fallbackNavigatable: Navigatable = loadingModal
                     ?: notFoundScreen
-                    ?: throw IllegalStateException(
-                        "Root graph has no startScreen/startGraph defined. " +
-                        "Either define a static start destination via entry(screen), " +
-                        "provide a loadingModal() at the module level, " +
-                        "or configure a notFoundScreen."
-                    )
+                    ?: if (rootGraph.entryDefinition != null) {
+                        throw IllegalStateException(
+                            "Root graph uses a dynamic entry { } but no loadingModal is defined. " +
+                            "A loadingModal is required as the initial screen while the entry " +
+                            "condition is evaluated at startup."
+                        )
+                    } else {
+                        throw IllegalStateException(
+                            "Root graph has no startScreen/startGraph defined. " +
+                            "Either define a static start destination via entry(screen), " +
+                            "provide a loadingModal() at the module level, " +
+                            "or configure a notFoundScreen."
+                        )
+                    }
                 RouteResolution(
                     targetNavigatable = fallbackNavigatable,
                     targetGraphId = rootGraph.route,

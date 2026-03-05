@@ -1,9 +1,9 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
-import io.github.syrou.reaktiv.core.util.selectLogic
-import io.github.syrou.reaktiv.navigation.NavigationLogic
+import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationModule
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
@@ -15,6 +15,7 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.util.determineAnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -47,8 +48,6 @@ import kotlin.time.toDuration
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnimationDecisionTest {
 
-    // --- Screen / modal helpers ---
-
     private fun screen(
         route: String,
         enterTransition: NavTransition = NavTransition.None,
@@ -78,8 +77,6 @@ class AnimationDecisionTest {
     private fun entry(route: String, stackPosition: Int) =
         NavigationEntry(path = route, params = Params.empty(), stackPosition = stackPosition)
 
-    // Boots a store with standard screens/modals and calls block with the initialised NavigationModule.
-    // TestScope receiver gives access to advanceUntilIdle() and testScheduler.
     private suspend fun TestScope.navModule(
         block: suspend (NavigationModule) -> Unit
     ) {
@@ -105,8 +102,6 @@ class AnimationDecisionTest {
         block(nm!!)
     }
 
-    // --- determineAnimationDecision ---
-
     @Test
     fun `forward navigation isForward true and uses current screen enter transition`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
@@ -131,7 +126,6 @@ class AnimationDecisionTest {
 
                 val decision = determineAnimationDecision(homeEntry, profileEntry, nm)
 
-                // home has exitTransition=None so exit should not animate
                 assertFalse(decision.shouldAnimateExit)
                 assertEquals(NavTransition.None, decision.exitTransition)
             }
@@ -144,7 +138,6 @@ class AnimationDecisionTest {
                 val homeEntry    = entry("home",    stackPosition = 1)
                 val profileEntry = entry("profile", stackPosition = 2)
 
-                // previous=profile (was current), current=home (returning to)
                 val decision = determineAnimationDecision(profileEntry, homeEntry, nm)
 
                 assertFalse(decision.isForward)
@@ -160,7 +153,6 @@ class AnimationDecisionTest {
 
                 val decision = determineAnimationDecision(profileEntry, homeEntry, nm)
 
-                // profile.exitTransition = SlideOutLeft
                 assertEquals(NavTransition.SlideOutLeft, decision.exitTransition)
                 assertTrue(decision.shouldAnimateExit)
             }
@@ -170,7 +162,6 @@ class AnimationDecisionTest {
     fun `no animation when both transitions are None`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                // Two home entries at different positions — home has None for both transitions
                 val e1 = entry("home", stackPosition = 1)
                 val e2 = entry("home", stackPosition = 2)
 
@@ -195,11 +186,26 @@ class AnimationDecisionTest {
         }
 
     @Test
-    fun `both entries at stackPosition 0 produce no animation`() =
+    fun `different screens at stackPosition 0 animate with configured transitions`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
                 val e1 = entry("home",    stackPosition = 0)
                 val e2 = entry("profile", stackPosition = 0)
+
+                val decision = determineAnimationDecision(e1, e2, nm)
+
+                assertTrue(decision.isForward)
+                assertTrue(decision.shouldAnimateEnter)
+                assertEquals(NavTransition.SlideInRight, decision.enterTransition)
+            }
+        }
+
+    @Test
+    fun `screens with no configured transitions at stackPosition 0 produce no animation`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            navModule { nm ->
+                val e1 = entry("home", stackPosition = 0)
+                val e2 = entry("home", stackPosition = 0)
 
                 val decision = determineAnimationDecision(e1, e2, nm)
 
@@ -208,7 +214,66 @@ class AnimationDecisionTest {
             }
         }
 
-    // --- determineContentAnimationDecision ---
+    @Test
+    fun `clearBackStack navigation from higher position to 0 is treated as forward`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            navModule { nm ->
+                val e1 = entry("profile",  stackPosition = 1)
+                val e2 = entry("settings", stackPosition = 0)
+
+                val decision = determineAnimationDecision(e1, e2, nm)
+
+                assertTrue(decision.isForward)
+                assertEquals(NavTransition.Fade, decision.enterTransition)
+                assertTrue(decision.shouldAnimateEnter)
+            }
+        }
+
+    @Test
+    fun `cross-graph clearBackStack from artist-overview to wallet-overview uses enter transition`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val artistOverviewScreen = screen("artist-overview")
+            val walletOverviewScreen = screen("wallet-overview", NavTransition.SlideInRight, NavTransition.SlideOutLeft)
+
+            val store = createStore {
+                module(createNavigationModule {
+                    rootGraph {
+                        start("home")
+                        graph("home") {
+                            start("artist")
+                            graph("artist") {
+                                start(artistOverviewScreen)
+                                screens(artistOverviewScreen)
+                            }
+                        }
+                        graph("wallet") {
+                            start(walletOverviewScreen)
+                            screens(walletOverviewScreen)
+                        }
+                    }
+                })
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceUntilIdle()
+
+            val nm = store.getModule<NavigationModule>()!!
+            val previousEntry = store.selectState<NavigationState>().first().currentEntry
+
+            store.navigation {
+                clearBackStack()
+                navigateTo("wallet-overview")
+            }
+            advanceUntilIdle()
+
+            val currentEntry = store.selectState<NavigationState>().first().currentEntry
+            val decision = determineAnimationDecision(previousEntry, currentEntry, nm)
+
+            assertEquals("artist-overview", previousEntry.route)
+            assertEquals("wallet-overview", currentEntry.route)
+            assertTrue(decision.isForward)
+            assertTrue(decision.shouldAnimateEnter)
+            assertEquals(NavTransition.SlideInRight, decision.enterTransition)
+        }
 
     @Test
     fun `content decision skips animation when current entry is modal layer`() =
@@ -217,7 +282,6 @@ class AnimationDecisionTest {
                 val homeEntry         = entry("home",         stackPosition = 1)
                 val notificationEntry = entry("notification", stackPosition = 2)
 
-                // notification is Modal (GLOBAL_OVERLAY) → content layer should not animate
                 val decision = determineContentAnimationDecision(homeEntry, notificationEntry, nm)
 
                 assertFalse(decision.shouldAnimateEnter)
@@ -248,13 +312,10 @@ class AnimationDecisionTest {
 
                 val decision = determineContentAnimationDecision(homeEntry, profileEntry, nm)
 
-                // profile has SlideInRight → animation should proceed
                 assertTrue(decision.shouldAnimateEnter)
                 assertTrue(decision.isForward)
             }
         }
-
-    // --- zIndex selection formula ---
 
     @Test
     fun `forward navigation with active enter transition entering screen should be on top`() =
@@ -265,8 +326,6 @@ class AnimationDecisionTest {
 
                 val decision = determineAnimationDecision(homeEntry, profileEntry, nm)
 
-                // profile enters with SlideInRight (not None) → shouldExitBeOnTop = false
-                // → entering screen (current) is rendered at CONTENT_FRONT above exiting
                 val shouldExitBeOnTop = decision.enterTransition is NavTransition.None &&
                         decision.exitTransition !is NavTransition.None
                 assertFalse(shouldExitBeOnTop, "Entering screen must be on top when enter transition is active")
@@ -276,11 +335,6 @@ class AnimationDecisionTest {
     @Test
     fun `exit-only transition exiting screen should be on top`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            // For forward navigation (home → dest):
-            //   enterTransition = dest.enterTransition              = None
-            //   exitTransition  = dest.popExitTransition ?: home.exitTransition = SlideOutLeft
-            // → shouldExitBeOnTop = (enter==None && exit!=None) = true
-            // → home (exiting) renders in front so it can slide out over the destination
             val homeScreen = screen("home", exitTransition = NavTransition.SlideOutLeft)
             val destScreen = screen("dest", enterTransition = NavTransition.None)
 
@@ -311,8 +365,6 @@ class AnimationDecisionTest {
             assertEquals(NavTransition.None,         decision.enterTransition)
             assertEquals(NavTransition.SlideOutLeft, decision.exitTransition)
         }
-
-    // --- Layer and elevation ordering ---
 
     @Test
     fun `modal renderLayer is GLOBAL_OVERLAY`() {
@@ -348,13 +400,10 @@ class AnimationDecisionTest {
 
                 val decision = determineAnimationDecision(homeEntry, settingsEntry, nm)
 
-                // settings has Fade enter, home has None exit
                 assertTrue(decision.shouldAnimateEnter, "Fade enter should animate")
                 assertFalse(decision.shouldAnimateExit, "home has None exit — should not animate exit")
             }
         }
-
-    // --- Integration: verify decision from a real navigated store ---
 
     @Test
     fun `forward and backward decisions from real store entries have correct directions`() =

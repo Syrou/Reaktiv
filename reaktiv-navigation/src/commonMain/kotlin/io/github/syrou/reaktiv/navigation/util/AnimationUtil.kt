@@ -26,10 +26,6 @@ fun determineAnimationDecision(
     currentEntry: NavigationEntry,
     navModule: NavigationModule
 ): AnimationDecision {
-    if (previousEntry.stackPosition == 0 && currentEntry.stackPosition == 0) {
-        return AnimationDecision(false, false, true, NavTransition.None, NavTransition.None)
-    }
-
     val previousId = "${previousEntry.path}@${previousEntry.stackPosition}"
     val currentId = "${currentEntry.path}@${currentEntry.stackPosition}"
 
@@ -39,7 +35,7 @@ fun determineAnimationDecision(
 
     val isForward = when {
         currentEntry.stackPosition > previousEntry.stackPosition -> true
-        currentEntry.stackPosition < previousEntry.stackPosition -> false
+        currentEntry.stackPosition < previousEntry.stackPosition && currentEntry.stackPosition > 0 -> false
         else -> true
     }
 

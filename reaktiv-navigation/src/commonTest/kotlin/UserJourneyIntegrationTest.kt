@@ -449,6 +449,10 @@ class UserJourneyIntegrationTest {
             assertEquals("home", store.selectState<NavigationState>().first().currentEntry.route)
 
             store.dispatch(AuthAction.Logout)
+            store.navigation {
+                clearBackStack()
+                navigateTo("login")
+            }
             advanceUntilIdle()
 
             store.navigation { navigateTo("workspace/settings") }
@@ -466,6 +470,37 @@ class UserJourneyIntegrationTest {
             val afterReLogin = store.selectState<NavigationState>().first()
             assertEquals("settings", afterReLogin.currentEntry.route)
             assertNull(afterReLogin.pendingNavigation)
+        }
+
+    @Test
+    fun `store reset clears zone so guard fires again on next entry into protected zone`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(pendAndRedirectModule())
+                coroutineContext(dispatcher)
+            }
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+            assertEquals("home", store.selectState<NavigationState>().first().currentEntry.route)
+
+            store.navigation { navigateTo("workspace/settings") }
+            advanceUntilIdle()
+            assertEquals("settings", store.selectState<NavigationState>().first().currentEntry.route)
+
+            store.reset()
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace/settings") }
+            advanceUntilIdle()
+            val afterReset = store.selectState<NavigationState>().first()
+            assertEquals("login", afterReset.currentEntry.route)
+            assertNotNull(afterReset.pendingNavigation)
+            assertEquals("workspace/settings", afterReset.pendingNavigation!!.route)
         }
 
     @Test

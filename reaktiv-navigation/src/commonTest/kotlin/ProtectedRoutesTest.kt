@@ -456,6 +456,74 @@ class ProtectedRoutesTest {
         }
 
     @Test
+    fun `dynamic entry returning immediately does not show loading modal`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(createNavigationModule {
+                    loadingModal(loadingModal)
+                    rootGraph {
+                        entry(startScreen)
+                        screens(startScreen)
+                        graph("workspace") {
+                            entry(route = { homeScreen })
+                            screens(homeScreen)
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+
+            store.navigation { navigateTo("workspace") }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("home", state.currentEntry.route)
+            assert(state.backStack.none { it.route == "loading" }) {
+                "Loading modal should not be in backstack when entry resolved within threshold"
+            }
+        }
+
+    @Test
+    fun `dynamic entry exceeding threshold shows loading modal then navigates to resolved screen`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val entryGate = CompletableDeferred<Screen>()
+
+            val store = createStore {
+                module(AuthModule)
+                module(createNavigationModule {
+                    loadingModal(loadingModal)
+                    rootGraph {
+                        entry(startScreen)
+                        screens(startScreen)
+                        graph("workspace") {
+                            entry(route = { entryGate.await() })
+                            screens(homeScreen)
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+
+            launch { store.navigation { navigateTo("workspace") } }
+            advanceUntilIdle()
+
+            val duringEntry = store.selectState<NavigationState>().first()
+            assertEquals("loading", duringEntry.currentEntry.route)
+
+            entryGate.complete(homeScreen)
+            advanceUntilIdle()
+
+            val afterEntry = store.selectState<NavigationState>().first()
+            assertEquals("home", afterEntry.currentEntry.route)
+            assert(afterEntry.backStack.none { it.route == "loading" }) {
+                "Loading modal should be removed after entry resolves"
+            }
+        }
+
+    @Test
     fun `guard with loadingScreen loading screen NOT shown when guard resolves below threshold`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)

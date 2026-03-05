@@ -129,7 +129,7 @@ private fun ContentLayerRenderer(
                     animationState.copy(
                         aliveEntries = listOf(animationState.currentEntry),
                         previousEntry = null,
-                        animationDecision = null
+                        animationDecision = animationState.animationDecision
                     )
                 } else {
                     animationState

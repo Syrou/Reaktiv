@@ -104,7 +104,7 @@ class CustomApplication : Application() {
         )
         loadingModal(AuthLoadingScreen)
         rootGraph {
-            entry(
+            start(
                 route = { store ->
                     store.selectLogic<AuthLogic>().initializeSession()
                     val isAuthenticated = store.selectState<AuthModule.AuthState>()
@@ -127,21 +127,21 @@ class CustomApplication : Application() {
                 guard = requireAuth,
             ) {
                 graph("home") {
-                    startGraph("news")
+                    start("news")
                     layout { content ->
                         HomeNavigationScaffold(content)
                     }
 
                     graph("news") {
-                        entry(NewsScreen)
+                        start(NewsScreen)
                         screens(NewsListScreen)
                     }
 
                     graph("workspace") {
-                        entry(WorkspaceScreen)
+                        start(WorkspaceScreen)
 
                         graph("projects") {
-                            entry(ProjectOverviewScreen)
+                            start(ProjectOverviewScreen)
                             screens(
                                 ProjectOverviewScreen,
                                 ProjectTasksScreen,
@@ -155,7 +155,7 @@ class CustomApplication : Application() {
                     }
 
                     graph("leaderboard") {
-                        entry(LeaderboardListScreen)
+                        start(LeaderboardListScreen)
                         screens(LeaderboardDetailScreen, PlayerProfileScreen, StatsDetailScreen)
                     }
                 }
