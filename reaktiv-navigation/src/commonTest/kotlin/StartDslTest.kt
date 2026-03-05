@@ -22,6 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -52,7 +53,7 @@ class StartDslTest {
     private val detailScreen = screen("detail")
 
     @Test
-    fun `start(screen) sets static initial screen`() =
+    fun `start screen sets static initial screen`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -71,7 +72,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `start(screen) auto-registers screen in navigatables`() =
+    fun `start screen auto-registers screen in navigatables`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -91,7 +92,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `start(graphId) where target has static entry resolves to target start screen`() =
+    fun `start graphId where target has static entry resolves to target start screen`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -114,7 +115,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `start(graphId) chain — graph references another graph with static entry`() =
+    fun `start graphId chain — graph references another graph with static entry`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -141,7 +142,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `start(graphId) where target has dynamic entry — bootstrap resolves to correct screen`() =
+    fun `start graphId where target has dynamic entry — bootstrap resolves to correct screen`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -166,7 +167,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `start(graphId) where target has dynamic entry — loadingModal shown while bootstrap runs`() =
+    fun `start graphId where target has dynamic entry — loadingModal shown while bootstrap runs`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val gate = kotlinx.coroutines.CompletableDeferred<Screen>()
@@ -198,7 +199,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `start(graphId) where target has dynamic entry and no loadingModal throws informative error`() =
+    fun `start graphId where target has dynamic entry and no loadingModal throws informative error`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val error = assertFailsWith<IllegalStateException> {
@@ -217,12 +218,12 @@ class StartDslTest {
                 }
             }
             val message = error.message ?: ""
-            assert(message.contains("dynamic start")) { "Expected mention of dynamic start, got: $message" }
-            assert(message.contains("loadingModal")) { "Expected mention of loadingModal, got: $message" }
+            assertTrue(message.contains("dynamic start"), "Expected mention of dynamic start, got: $message")
+            assertTrue(message.contains("loadingModal"), "Expected mention of loadingModal, got: $message")
         }
 
     @Test
-    fun `start(lambda) on root requires loadingModal — throws informative error when absent`() =
+    fun `start lambda on root requires loadingModal — throws informative error when absent`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val error = assertFailsWith<IllegalStateException> {
@@ -237,12 +238,12 @@ class StartDslTest {
                 }
             }
             val message = error.message ?: ""
-            assert(message.contains("dynamic")) { "Expected mention of dynamic, got: $message" }
-            assert(message.contains("loadingModal")) { "Expected mention of loadingModal, got: $message" }
+            assertTrue(message.contains("dynamic"), "Expected mention of dynamic, got: $message")
+            assertTrue(message.contains("loadingModal"), "Expected mention of loadingModal, got: $message")
         }
 
     @Test
-    fun `start(lambda) on root with loadingModal — bootstrap resolves initial screen`() =
+    fun `start lambda on root with loadingModal — bootstrap resolves initial screen`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -263,7 +264,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `start(lambda) dynamic entry returning NavigationPath follows entry chain`() =
+    fun `start lambda dynamic entry returning NavigationPath follows entry chain`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -287,7 +288,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `calling start() twice on same graph throws error`() {
+    fun `calling start twice on same graph throws error`() {
         assertFailsWith<IllegalStateException> {
             createNavigationModule {
                 rootGraph {
@@ -300,7 +301,7 @@ class StartDslTest {
     }
 
     @Test
-    fun `calling start(screen) then start(lambda) on same graph throws error`() {
+    fun `calling start screen then start lambda on same graph throws error`() {
         assertFailsWith<IllegalStateException> {
             createNavigationModule {
                 rootGraph {
@@ -313,7 +314,7 @@ class StartDslTest {
     }
 
     @Test
-    fun `calling start(lambda) then start(screen) on same graph throws error`() {
+    fun `calling start lambda then start screen on same graph throws error`() {
         assertFailsWith<IllegalStateException> {
             createNavigationModule {
                 rootGraph {
@@ -326,7 +327,7 @@ class StartDslTest {
     }
 
     @Test
-    fun `deprecated entry(screen) delegates to start and works correctly`() =
+    fun `deprecated entry screen delegates to start and works correctly`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             @Suppress("DEPRECATION")
@@ -345,7 +346,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `deprecated startGraph() delegates to start and works correctly`() =
+    fun `deprecated startGraph delegates to start and works correctly`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             @Suppress("DEPRECATION")
@@ -368,7 +369,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `deprecated entry(lambda) delegates to start and works correctly`() =
+    fun `deprecated entry lambda delegates to start and works correctly`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             @Suppress("DEPRECATION")

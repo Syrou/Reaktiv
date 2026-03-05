@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.time.DurationUnit
@@ -480,9 +481,7 @@ class ProtectedRoutesTest {
 
             val state = store.selectState<NavigationState>().first()
             assertEquals("home", state.currentEntry.route)
-            assert(state.backStack.none { it.route == "loading" }) {
-                "Loading modal should not be in backstack when entry resolved within threshold"
-            }
+            assertTrue(state.backStack.none { it.route == "loading" }, "Loading modal should not be in backstack when entry resolved within threshold")
         }
 
     @Test
@@ -518,9 +517,7 @@ class ProtectedRoutesTest {
 
             val afterEntry = store.selectState<NavigationState>().first()
             assertEquals("home", afterEntry.currentEntry.route)
-            assert(afterEntry.backStack.none { it.route == "loading" }) {
-                "Loading modal should be removed after entry resolves"
-            }
+            assertTrue(afterEntry.backStack.none { it.route == "loading" }, "Loading modal should be removed after entry resolves")
         }
 
     @Test
