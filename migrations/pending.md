@@ -493,6 +493,40 @@ store.navigation {
 
 ---
 
+### [AD-10] Deep link alias patterns support path parameter extraction and full URL patterns
+
+**Type:** Addition
+
+**Grep:** `alias(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+deepLinkAliases {
+    alias(
+        pattern = "{scheme}://{host}/invitations/team/confirm/{token}",
+        targetRoute = "workspace/invite/{token}"
+    ) { params ->
+        Params.of("token" to (params["token"] as? String ?: ""))
+    }
+}
+
+store.navigateDeepLink("https://staging.example.com/invitations/team/confirm/eyJhbGci...")
+```
+
+**Notes:** Previously, alias pattern matching used exact string equality — patterns containing
+`{param}` placeholders would never match an incoming URL. Patterns are now compiled to regex
+using the same `createRouteRegex` / `extractRouteParameterNames` utilities that power
+`RouteResolver`'s parameterized route matching.
+
+Path parameters captured from the pattern (e.g. `{scheme}`, `{host}`, `{token}`) are
+extracted and merged with any query parameters before being passed to `paramsMapping`.
+Query parameters take precedence when the same key appears in both.
+
+Existing exact-string patterns (no placeholders) continue to work without changes.
+
+---
+
 ### [AD-06] Entry chain resolution for dynamic entry lambdas returning NavigationPath
 
 **Type:** Addition

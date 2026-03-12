@@ -559,13 +559,16 @@ class NavigationLogic(
     suspend fun navigateDeepLink(route: String, params: Params = Params.empty()) {
         val (cleanRoute, queryParams) = parseUrlWithQueryParams(route)
 
-        val alias = precomputedData.deepLinkAliases.find { it.pattern == cleanRoute }
+        var pathParams = Params.empty()
+        val alias = precomputedData.deepLinkAliases.firstOrNull { alias ->
+            alias.matchAndExtract(cleanRoute)?.also { pathParams = it } != null
+        }
 
         val targetRoute: String
         val targetParams: Params
         if (alias != null) {
             targetRoute = alias.targetRoute
-            targetParams = alias.paramsMapping(Params.fromMap(queryParams) + params)
+            targetParams = alias.paramsMapping(Params.fromMap(queryParams) + pathParams + params)
         } else {
             targetRoute = route
             targetParams = params

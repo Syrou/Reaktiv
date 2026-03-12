@@ -1,5 +1,39 @@
 package io.github.syrou.reaktiv.navigation.util
 
+private val routeParamRegex = Regex("\\{([^}]+)\\}")
+
+/**
+ * Extracts `{paramName}` placeholder names from a route template in declaration order.
+ *
+ * Example: `"user/{id}/posts/{postId}"` → `["id", "postId"]`
+ */
+internal fun extractRouteParameterNames(route: String): List<String> =
+    routeParamRegex.findAll(route).map { it.groupValues[1] }.toList()
+
+/**
+ * Compiles a route template into a [Regex] where each `{paramName}` placeholder becomes
+ * a `([^/]+)` capture group and all other regex-special characters are escaped.
+ *
+ * Works for plain paths (`"user/{id}"`) as well as full URL patterns
+ * (`"{scheme}://{host}/path/{token}"`).
+ */
+internal fun createRouteRegex(route: String): Regex {
+    val escapedRoute = route
+        .replace(".", "\\.")
+        .replace("+", "\\+")
+        .replace("*", "\\*")
+        .replace("?", "\\?")
+        .replace("^", "\\^")
+        .replace("$", "\\$")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("|", "\\|")
+    val pattern = escapedRoute.replace(Regex("\\{[^}]+\\}"), "([^/]+)")
+    return Regex("^$pattern$")
+}
+
 /**
  * Parse URL-style string with query parameters
  * Returns a Pair of (cleanPath, queryParams)

@@ -282,6 +282,96 @@ class ProtectedRoutesTest {
             assertEquals("home", state.currentEntry.route)
         }
 
+    private fun moduleWithUrlPatternAlias() = createNavigationModule {
+        rootGraph {
+            entry(startScreen)
+            screens(startScreen, loginScreen, checkEmail, registerScreen)
+            intercept(
+                guard = { store ->
+                    if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                    else GuardResult.PendAndRedirectTo(
+                        navigatable = loginScreen,
+                        displayHint = "You have a pending invite"
+                    )
+                }
+            ) {
+                graph("workspace") {
+                    entry(homeScreen)
+                    screens(homeScreen, inviteScreen)
+                }
+            }
+        }
+        deepLinkAliases {
+            alias(
+                pattern = "{scheme}://{host}/invitations/team/confirm/{token}",
+                targetRoute = "workspace/invite/{token}"
+            ) { params ->
+                Params.of("token" to (params["token"] as? String ?: ""))
+            }
+        }
+    }
+
+    @Test
+    fun `deep link alias with full URL pattern extracts path params`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithUrlPatternAlias())
+                coroutineContext(dispatcher)
+            }
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            store.navigateDeepLink("https://staging.example.com/invitations/team/confirm/mytoken123")
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("invite/{token}", state.currentEntry.route)
+            assertEquals("mytoken123", state.currentEntry.params["token"] as? String)
+        }
+
+    @Test
+    fun `deep link alias with full URL pattern extracts JWT token containing dots`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithUrlPatternAlias())
+                coroutineContext(dispatcher)
+            }
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            val jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+            store.navigateDeepLink("https://staging.example.com/invitations/team/confirm/$jwt")
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("invite/{token}", state.currentEntry.route)
+            assertEquals(jwt, state.currentEntry.params["token"] as? String)
+        }
+
+    @Test
+    fun `deep link URL pattern matches regardless of scheme or host`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithUrlPatternAlias())
+                coroutineContext(dispatcher)
+            }
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            store.navigateDeepLink("myapp://prod.example.com/invitations/team/confirm/abc999")
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("invite/{token}", state.currentEntry.route)
+            assertEquals("abc999", state.currentEntry.params["token"] as? String)
+        }
+
     @Test
     fun `guard allows authenticated user to reach protected route`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {

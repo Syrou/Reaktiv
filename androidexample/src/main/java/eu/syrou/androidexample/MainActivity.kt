@@ -68,17 +68,15 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent, source: String) {
         println("KASTRULL - ON NEW INTENT FROM: $source, intent: $intent")
         if (intent.action == Intent.ACTION_VIEW) {
-            val uri = intent.data
-            if (uri != null) {
-                // This will give you "/navigation/user/edit/456"
-                val path = uri.path
-                // This will give you a list: ["navigation", "user", "edit", "456"]
-                val segments = uri.pathSegments
-                val route = path?.replace("/navigation/", "") ?: ""
-                println("KASTRULL - DEEP LINK PATH: $path, route: $route")
-                lifecycleScope.launch {
-                    customApp.store.navigateDeepLink(route)
-                }
+            val uri = intent.data ?: return
+            val route = if (uri.scheme == "poedex") {
+                uri.path?.replace("/navigation/", "") ?: ""
+            } else {
+                uri.toString()
+            }
+            println("KASTRULL - DEEP LINK URI: $uri, route: $route")
+            lifecycleScope.launch {
+                customApp.store.navigateDeepLink(route)
             }
         }
     }

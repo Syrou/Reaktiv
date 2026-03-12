@@ -22,6 +22,7 @@ import eu.syrou.androidexample.reaktiv.videos.VideosModule
 import eu.syrou.androidexample.ui.scaffold.HomeNavigationScaffold
 import eu.syrou.androidexample.ui.screen.AuthLoadingScreen
 import eu.syrou.androidexample.ui.screen.CrashScreen
+import eu.syrou.androidexample.ui.screen.DeepLinkAliasTestScreen
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.LoginScreen
 import eu.syrou.androidexample.ui.screen.NotFoundScreen
@@ -61,6 +62,7 @@ import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.model.NavigationGuard
+import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -120,6 +122,7 @@ class CustomApplication : Application() {
                 VideosListScreen,
                 StreamsListScreen,
                 DevToolsScreen,
+                DeepLinkAliasTestScreen,
             )
             modals(NotificationModal, SystemAlertModal)
 
@@ -160,6 +163,15 @@ class CustomApplication : Application() {
                     }
                 }
                 screenGroup(UserManagementScreens)
+            }
+        }
+
+        deepLinkAliases {
+            alias(
+                pattern = "{scheme}://example.com/invitations/team/confirm/{token}",
+                targetRoute = "deep-link-test/{token}"
+            ) { params ->
+                Params.of("token" to (params["token"] as? String ?: ""))
             }
         }
 

@@ -81,7 +81,7 @@ class RouteResolver private constructor(
                             fullTemplate = fullPath,
                             navigatable = navigatable,
                             graphId = graphId,
-                            paramNames = extractParameterNames(navigatable.route),
+                            paramNames = extractRouteParameterNames(navigatable.route),
                             regex = createRouteRegex(fullPath)
                         )
                         val key = ParameterizedRouteKey.fromTemplate(fullPath)
@@ -171,29 +171,6 @@ class RouteResolver private constructor(
             }
         }
 
-        private fun extractParameterNames(route: String): List<String> {
-            val paramRegex = Regex("\\{([^}]+)\\}")
-            return paramRegex.findAll(route).map { it.groupValues[1] }.toList()
-        }
-
-        private fun createRouteRegex(route: String): Regex {
-            val escapedRoute = route
-                .replace(".", "\\.")
-                .replace("+", "\\+")
-                .replace("*", "\\*")
-                .replace("?", "\\?")
-                .replace("^", "\\^")
-                .replace("$", "\\$")
-                .replace("(", "\\(")
-                .replace(")", "\\)")
-                .replace("[", "\\[")
-                .replace("]", "\\]")
-                .replace("|", "\\|")
-            val pattern = escapedRoute.replace(Regex("\\{[^}]+\\}"), "([^/]+)")
-
-            ReaktivDebug.nav("📝 Created regex pattern: ^$pattern$ for route: $route")
-            return Regex("^$pattern$")
-        }
     }
 
     
