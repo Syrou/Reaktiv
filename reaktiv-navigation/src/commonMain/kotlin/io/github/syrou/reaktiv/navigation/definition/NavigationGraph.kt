@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation.definition
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
+import io.github.syrou.reaktiv.navigation.model.NavigatableInterceptMap
 
 /**
  * A named group of [Navigatable] destinations and optional nested sub-graphs.
@@ -38,6 +39,13 @@ interface NavigationGraph : NavigationNode {
 
     /** Dynamic entry-point resolver; overrides [startDestination] when present. */
     val entryDefinition: EntryDefinition? get() = null
+
+    /**
+     * Intercept definitions for navigatables registered directly inside an `intercept { }`
+     * block rather than inside a nested named graph. These navigatables land in the parent
+     * graph's [navigatables] list but must still be guarded by the intercept.
+     */
+    val navigatableIntercepts: NavigatableInterceptMap get() = emptyMap()
 
     /**
      * Returns a flat map of route → [Navigatable] for this graph and all nested graphs.

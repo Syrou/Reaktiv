@@ -23,6 +23,7 @@ import eu.syrou.androidexample.ui.scaffold.HomeNavigationScaffold
 import eu.syrou.androidexample.ui.screen.AuthLoadingScreen
 import eu.syrou.androidexample.ui.screen.CrashScreen
 import eu.syrou.androidexample.ui.screen.DeepLinkAliasTestScreen
+import eu.syrou.androidexample.ui.screen.InvitationModal
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.LoginScreen
 import eu.syrou.androidexample.ui.screen.NotFoundScreen
@@ -129,6 +130,7 @@ class CustomApplication : Application() {
             intercept(
                 guard = requireAuth,
             ) {
+                modals(InvitationModal)
                 graph("home") {
                     start("news")
                     layout { content ->
@@ -172,6 +174,12 @@ class CustomApplication : Application() {
                 targetRoute = "deep-link-test/{token}"
             ) { params ->
                 Params.of("token" to (params["token"] as? String ?: ""))
+            }
+            alias(
+                pattern = "{scheme}://example.com/invitation/{type}",
+                targetRoute = "invitation/{type}"
+            ) { params ->
+                Params.of("type" to (params["type"] as? String ?: ""))
             }
         }
 

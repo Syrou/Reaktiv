@@ -40,6 +40,15 @@
                       android:pathPrefix="/invitations/team/confirm/"
                 />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="reaktiv"
+                      android:host="example.com"
+                      android:pathPrefix="/invitation/"
+                />
+            </intent-filter>
         </activity>
         <!-- Disable WorkManager's default initialization -->
         <provider

@@ -1,7 +1,15 @@
 package io.github.syrou.reaktiv.navigation.model
 
+import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * Maps navigatables registered directly inside an `intercept { }` block to the guard that
+ * should protect them. Used to handle modals and screens that are promoted to the parent graph
+ * but must still be guarded.
+ */
+typealias NavigatableInterceptMap = Map<Navigatable, InterceptDefinition>
 
 /**
  * Defines an intercept guard that applies to all navigation into a group of graphs,

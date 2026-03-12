@@ -13,6 +13,7 @@ import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
+import io.github.syrou.reaktiv.navigation.model.NavigatableInterceptMap
 import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -25,6 +26,7 @@ class NavigationGraphBuilder(
     private val nestedGraphs = mutableListOf<NavigationGraph>()
     private var graphLayout: (@Composable (@Composable () -> Unit) -> Unit)? = null
     private var pendingEntryDefinition: EntryDefinition? = null
+    private val navigatableIntercepts: MutableMap<Navigatable, InterceptDefinition> = mutableMapOf()
 
     private fun checkNoStartDestination() {
         if (startDestination != null || pendingEntryDefinition != null) {
@@ -217,6 +219,11 @@ class NavigationGraphBuilder(
         val innerBuilder = NavigationGraphBuilder("_intercept_")
         innerBuilder.apply(block)
 
+        for (navigatable in innerBuilder.navigatables) {
+            val existing = innerBuilder.navigatableIntercepts[navigatable]
+            val merged = if (existing != null) existing.prependOuter(interceptDef) else interceptDef
+            navigatableIntercepts[navigatable] = merged
+        }
         navigatables.addAll(innerBuilder.navigatables.filterNot(navigatables::contains))
 
         for (nestedGraph in innerBuilder.nestedGraphs) {
@@ -234,7 +241,8 @@ class NavigationGraphBuilder(
             navigatables = this.navigatables.toList(),
             nestedGraphs = this.nestedGraphs.toList(),
             layout = this.graphLayout,
-            entryDefinition = this.pendingEntryDefinition
+            entryDefinition = this.pendingEntryDefinition,
+            navigatableIntercepts = this.navigatableIntercepts.toMap()
         )
     }
 }

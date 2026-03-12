@@ -539,6 +539,11 @@ data class PrecomputedNavigationData(
                     }
                 }
 
+                graph.navigatableIntercepts.forEach { (navigatable, interceptDef) ->
+                    val fullPath = navigatableToFullPath[navigatable] ?: return@forEach
+                    interceptedRoutes[fullPath] = interceptDef
+                }
+
                 graph.nestedGraphs.forEach { collectGraphs(it, effectiveIntercept) }
             }
 

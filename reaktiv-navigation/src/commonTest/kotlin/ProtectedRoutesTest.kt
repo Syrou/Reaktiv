@@ -11,7 +11,9 @@ import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.resumePendingNavigation
@@ -55,17 +57,28 @@ class ProtectedRoutesTest {
         override fun Content(params: Params) { Text(route) }
     }
 
-    private val startScreen    = screen("start")
-    private val homeScreen     = screen("home")
-    private val loginScreen    = screen("login")
-    private val loadingModal  = loadingModal("loading")
-    private val inviteScreen   = screen("invite/{token}")
-    private val checkEmail     = screen("check-email")
-    private val registerScreen = screen("register")
-    private val releasesScreen = screen("releases")
-    private val artistScreen   = screen("artists")
-    private val noArtistScreen = screen("no-artists")
-    private val premiumScreen  = screen("premium")
+    private fun modal(route: String) = object : Modal {
+        override val route = route
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val renderLayer = RenderLayer.SYSTEM
+
+        @Composable
+        override fun Content(params: Params) { Text(route) }
+    }
+
+    private val startScreen      = screen("start")
+    private val homeScreen       = screen("home")
+    private val loginScreen      = screen("login")
+    private val loadingModal     = loadingModal("loading")
+    private val inviteScreen     = screen("invite/{token}")
+    private val checkEmail       = screen("check-email")
+    private val registerScreen   = screen("register")
+    private val releasesScreen   = screen("releases")
+    private val artistScreen     = screen("artists")
+    private val noArtistScreen   = screen("no-artists")
+    private val premiumScreen    = screen("premium")
+    private val invitationModal  = modal("invitation/{type}")
 
     @Serializable
     data class AuthState(
@@ -370,6 +383,122 @@ class ProtectedRoutesTest {
             val state = store.selectState<NavigationState>().first()
             assertEquals("invite/{token}", state.currentEntry.route)
             assertEquals("abc999", state.currentEntry.params["token"] as? String)
+        }
+
+    private fun moduleWithProtectedModal() = createNavigationModule {
+        rootGraph {
+            entry(startScreen)
+            screens(startScreen, loginScreen)
+            intercept(
+                guard = { store ->
+                    if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+                    else GuardResult.PendAndRedirectTo(
+                        navigatable = loginScreen,
+                        displayHint = "Login required"
+                    )
+                }
+            ) {
+                modals(invitationModal)
+                graph("workspace") {
+                    entry(homeScreen)
+                    screens(homeScreen)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `modal directly inside intercept block is guarded when unauthenticated`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithProtectedModal())
+                coroutineContext(dispatcher)
+            }
+
+            store.navigation {
+                params(Params.of("type" to "team"))
+                navigateTo("invitation/{type}")
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route)
+            assertNotNull(state.pendingNavigation)
+            assertEquals("invitation/{type}", state.pendingNavigation!!.route)
+        }
+
+    @Test
+    fun `modal directly inside intercept block allows authenticated user`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithProtectedModal())
+                coroutineContext(dispatcher)
+            }
+
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            store.navigation {
+                params(Params.of("type" to "team"))
+                navigateTo("invitation/{type}")
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("invitation/{type}", state.currentEntry.route)
+            assertEquals("team", state.currentEntry.params["type"] as? String)
+        }
+
+    @Test
+    fun `modal directly inside intercept displayHint is preserved in pending navigation`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithProtectedModal())
+                coroutineContext(dispatcher)
+            }
+
+            store.navigation {
+                params(Params.of("type" to "team"))
+                navigateTo("invitation/{type}")
+            }
+            advanceUntilIdle()
+
+            val pending = store.selectState<NavigationState>().first().pendingNavigation
+            assertNotNull(pending)
+            assertEquals("Login required", pending!!.displayHint)
+        }
+
+    @Test
+    fun `modal directly inside intercept allows resume after login`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithProtectedModal())
+                coroutineContext(dispatcher)
+            }
+
+            store.navigation {
+                params(Params.of("type" to "team"))
+                navigateTo("invitation/{type}")
+            }
+            advanceUntilIdle()
+
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            store.resumePendingNavigation()
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("invitation/{type}", state.currentEntry.route)
+            assertNull(state.pendingNavigation)
         }
 
     @Test

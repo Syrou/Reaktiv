@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation.definition
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
+import io.github.syrou.reaktiv.navigation.model.NavigatableInterceptMap
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -16,5 +17,7 @@ data class MutableNavigationGraph(
     @kotlinx.serialization.Transient
     override val interceptDefinition: InterceptDefinition? = null,
     @kotlinx.serialization.Transient
-    override val entryDefinition: EntryDefinition? = null
+    override val entryDefinition: EntryDefinition? = null,
+    @kotlinx.serialization.Transient
+    override val navigatableIntercepts: NavigatableInterceptMap = emptyMap()
 ) : NavigationGraph

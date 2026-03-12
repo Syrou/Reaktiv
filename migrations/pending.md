@@ -564,3 +564,43 @@ entry in turn — until it reaches a concrete `Navigatable`. Cycle detection pre
 loops if graphs accidentally reference each other.
 
 ---
+
+### [AD-11] Modals and screens registered directly inside intercept { } are now guarded
+
+**Type:** Addition
+
+**Grep:** `intercept.*modals\|modals.*intercept`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+createNavigationModule {
+    rootGraph {
+        start(startScreen)
+        screens(startScreen, loginScreen)
+        intercept(
+            guard = { store ->
+                if (store.selectState<AuthState>().value.isLoggedIn) GuardResult.Allow
+                else GuardResult.PendAndRedirectTo(loginScreen)
+            }
+        ) {
+            // Modals placed here (not inside a named graph) are now guarded
+            modals(InvitationModal)
+            graph("workspace") {
+                start(homeScreen)
+                screens(homeScreen)
+            }
+        }
+    }
+}
+```
+
+**Notes:** Previously, navigatables (modals, screens) registered directly inside an
+`intercept { }` block — rather than inside a named nested `graph { }` block — were promoted
+to the parent graph without retaining their intercept context. Navigation to those routes
+would succeed without evaluating the guard. This is fixed via a new `navigatableIntercepts`
+carrier on `NavigationGraph` that associates directly-nested navigatables with their guard
+and is consumed during precomputation to register the correct `interceptedRoutes` entry.
+No API change is required — existing `intercept { modals(...) }` usage now behaves correctly.
+
+---
