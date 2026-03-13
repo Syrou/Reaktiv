@@ -251,6 +251,111 @@ class DeepLinkSynthesisTest {
         }
 
     @Test
+    fun `graph reference root - cross-graph deep link prepends resolved start screen`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(loadingScreen)
+                    rootGraph {
+                        start("main")
+                        graph("main") {
+                            entry(route = { _ -> splashScreen })
+                            screens(splashScreen, loginScreen)
+                        }
+                        graph("settings") {
+                            entry(settingsHome)
+                            screens(settingsHome, notificationsScreen)
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            store.navigateDeepLink("settings/notifications")
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("notifications", state.currentEntry.route)
+            assertEquals(3, state.backStack.size)
+            assertEquals("splash",        state.backStack[0].route)
+            assertEquals("settings-home", state.backStack[1].route)
+            assertEquals("notifications", state.backStack[2].route)
+        }
+
+    @Test
+    fun `graph reference root - second deep link to different graph still prepends resolved start screen`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(loadingScreen)
+                    rootGraph {
+                        start("main")
+                        graph("main") {
+                            entry(route = { _ -> splashScreen })
+                            screens(splashScreen, loginScreen)
+                        }
+                        graph("settings") {
+                            entry(settingsHome)
+                            screens(settingsHome, notificationsScreen)
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            store.navigateDeepLink("settings/notifications")
+            advanceUntilIdle()
+
+            store.navigateDeepLink("main/login")
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route)
+            assertEquals(2, state.backStack.size)
+            assertEquals("splash", state.backStack[0].route)
+            assertEquals("login",  state.backStack[1].route)
+        }
+
+    @Test
+    fun `graph reference root - lambda invoked exactly once even when referenced graph is intermediate path`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            var invokeCount = 0
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(loadingScreen)
+                    rootGraph {
+                        start("main")
+                        graph("main") {
+                            entry(route = { _ ->
+                                invokeCount++
+                                splashScreen
+                            })
+                            screens(splashScreen, loginScreen)
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+            assertEquals(1, invokeCount)
+
+            store.navigateDeepLink("main/login")
+            advanceUntilIdle()
+
+            assertEquals(1, invokeCount, "Lambda must not be called again during synthesis")
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route)
+            assertEquals(2, state.backStack.size)
+            assertEquals("splash", state.backStack[0].route)
+            assertEquals("login",  state.backStack[1].route)
+        }
+
+    @Test
     fun `dynamic workspace entry - deep link evaluates workspace lambda for intermediate entry`() =
         runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)

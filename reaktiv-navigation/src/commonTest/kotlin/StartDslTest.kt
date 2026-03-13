@@ -631,4 +631,40 @@ class StartDslTest {
             advanceUntilIdle()
             assertEquals(2, guardCount, "Guard must run again after re-entering from outside the zone")
         }
+
+    @Test
+    fun `params passed to graph route are forwarded to the resolved start screen`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(loadingModal())
+                    rootGraph {
+                        start(homeScreen)
+                        screens(homeScreen)
+                        graph("workspace") {
+                            start(route = { _ ->
+                                dashboardScreen
+                            })
+                            screens(dashboardScreen, detailScreen)
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            store.navigation {
+                navigateTo("workspace") {
+                    put("userId", "abc123")
+                    put("tab", "overview")
+                }
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("dashboard", state.currentEntry.route)
+            assertEquals("abc123", state.currentEntry.params.getTyped<String>("userId"))
+            assertEquals("overview", state.currentEntry.params.getTyped<String>("tab"))
+        }
 }

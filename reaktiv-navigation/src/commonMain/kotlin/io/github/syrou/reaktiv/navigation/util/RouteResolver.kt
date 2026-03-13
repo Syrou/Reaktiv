@@ -209,6 +209,9 @@ class RouteResolver private constructor(
 
         // Check if this is a graph without a startDestination - redirect to notFoundScreen
         if (graphDefinitions.containsKey(cleanRoute) && graphDefinitions[cleanRoute]?.startDestination == null) {
+            if (graphDefinitions[cleanRoute]?.entryDefinition != null) {
+                return null
+            }
             ReaktivDebug.nav("⚠️ Graph '$cleanRoute' has no startDestination defined")
             notFoundScreen?.let { screen ->
                 ReaktivDebug.nav("🔄 Redirecting to notFoundScreen for graph: $cleanRoute")

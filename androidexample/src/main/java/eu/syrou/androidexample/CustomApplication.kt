@@ -23,6 +23,8 @@ import eu.syrou.androidexample.ui.scaffold.HomeNavigationScaffold
 import eu.syrou.androidexample.ui.screen.AuthLoadingScreen
 import eu.syrou.androidexample.ui.screen.CrashScreen
 import eu.syrou.androidexample.ui.screen.DeepLinkAliasTestScreen
+import eu.syrou.androidexample.ui.screen.deeplink.DeeplinkDemoScreen
+import eu.syrou.androidexample.ui.screen.deeplink.DeeplinkDetailScreen
 import eu.syrou.androidexample.ui.screen.InvitationModal
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.LoginScreen
@@ -127,6 +129,11 @@ class CustomApplication : Application() {
             )
             modals(NotificationModal, SystemAlertModal)
 
+            graph("deeplink-demo") {
+                start(route = { _ -> DeeplinkDemoScreen })
+                screens(DeeplinkDemoScreen, DeeplinkDetailScreen)
+            }
+
             intercept(
                 guard = requireAuth,
             ) {
@@ -181,6 +188,14 @@ class CustomApplication : Application() {
             ) { params ->
                 Params.of("type" to (params["type"] as? String ?: ""))
             }
+            alias(
+                pattern = "{scheme}://example.com/deeplink-demo/detail",
+                targetRoute = "deeplink-demo/demo-detail"
+            ) { _ -> Params.empty() }
+            alias(
+                pattern = "{scheme}://example.com/deeplink-demo",
+                targetRoute = "deeplink-demo/demo-home"
+            ) { _ -> Params.empty() }
         }
 
         screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
