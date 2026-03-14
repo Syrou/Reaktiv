@@ -565,8 +565,8 @@ class NavigationLogic(
     /**
      * Navigate back in the navigation stack.
      *
-     * No-op if the current entry is a [Modal] with [Modal.dismissable] set to false —
-     * such modals cannot be dismissed by the user via back gesture or tap-outside.
+     * No-op if a [LoadingModal] is currently showing — back navigation during async guard
+     * evaluation would corrupt state since this call bypasses the navigation mutex.
      *
      * Dispatches [NavigationAction.Back] directly, bypassing the navigation mutex.
      * This is intentional: a back/dismiss requires no guard evaluation, and the mutex
@@ -576,8 +576,7 @@ class NavigationLogic(
     suspend fun navigateBack() {
         val currentState = getCurrentNavigationState()
         if (!currentState.canGoBack) return
-        val currentModal = precomputedData.allNavigatables[currentState.currentEntry.path] as? Modal
-        if (currentModal != null && !currentModal.dismissable) return
+        if (precomputedData.allNavigatables[currentState.currentEntry.path] is LoadingModal) return
         storeAccessor.dispatchAndAwait(NavigationAction.Back)
     }
 
@@ -654,27 +653,6 @@ class NavigationLogic(
             navigate {
                 clearBackStack()
             }
-        }
-    }
-
-    /**
-     * Resume a pending navigation stored by [GuardResult.PendAndRedirectTo].
-     *
-     * Navigates to the stored route with backstack synthesis, then clears the pending
-     * navigation from state. Bypasses guard evaluation for the resumed navigation.
-     *
-     * No-op if there is no pending navigation in state.
-     */
-    suspend fun resumePendingNavigation() {
-        withContext(NonCancellable) {
-            bootstrapCompleted.await()
-            val pending = getCurrentNavigationState().pendingNavigation ?: return@withContext
-            val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
-            routeBuilder.clearBackStack()
-            routeBuilder.params(pending.params)
-            routeBuilder.navigateTo(pending.route, synthesizeBackstack = true)
-            routeBuilder.validate()
-            executeNavigation(routeBuilder) { listOf(NavigationAction.ClearPendingNavigation) + it }
         }
     }
 
@@ -816,6 +794,51 @@ class NavigationLogic(
                     simulatedBackStack = emptyList()
                     simulatedModalContexts = emptyMap()
                     lastNavigatedEntry = null
+                }
+
+                NavigationOperation.ResumePending -> {
+                    val pending = initialState.pendingNavigation ?: continue
+                    batchedActions.add(NavigationAction.ClearPendingNavigation)
+
+                    val pendingResolution = precomputedData.routeResolver.resolve(
+                        pending.route, precomputedData.availableNavigatables
+                    ) ?: continue
+
+                    val pathHierarchy = precomputedData.routeResolver.buildPathHierarchy(pending.route)
+                    val destinationPath = precomputedData.navigatableToFullPath[pendingResolution.targetNavigatable]
+                        ?: pendingResolution.targetNavigatable.route
+                    val seenPaths = (simulatedBackStack.map { it.path } + destinationPath).toMutableSet()
+
+                    val rootEntry = resolveGraphEntryForSynthesis("root", simulatedBackStack)
+                    if (rootEntry != null && rootEntry.path !in seenPaths) {
+                        seenPaths.add(rootEntry.path)
+                        batchedActions.add(NavigationAction.Navigate(rootEntry))
+                        simulatedBackStack = simulatedBackStack + rootEntry
+                        simulatedCurrentEntry = rootEntry
+                        lastNavigatedEntry = rootEntry
+                    }
+
+                    for (intermediatePath in pathHierarchy.dropLast(1)) {
+                        val entry = resolveGraphEntryForSynthesis(intermediatePath, simulatedBackStack) ?: continue
+                        if (entry.path in seenPaths) continue
+                        seenPaths.add(entry.path)
+                        batchedActions.add(NavigationAction.Navigate(entry))
+                        simulatedBackStack = simulatedBackStack + entry
+                        simulatedCurrentEntry = entry
+                        lastNavigatedEntry = entry
+                    }
+
+                    val mergedParams = pendingResolution.extractedParams + pending.params
+                    val finalEntry = NavigationEntry(
+                        path = destinationPath,
+                        params = mergedParams,
+                        stackPosition = 0,
+                        navigatableRoute = pendingResolution.targetNavigatable.route
+                    )
+                    batchedActions.add(NavigationAction.Navigate(finalEntry))
+                    simulatedBackStack = simulatedBackStack + finalEntry
+                    simulatedCurrentEntry = finalEntry
+                    lastNavigatedEntry = finalEntry
                 }
 
                 NavigationOperation.PopUpTo -> {

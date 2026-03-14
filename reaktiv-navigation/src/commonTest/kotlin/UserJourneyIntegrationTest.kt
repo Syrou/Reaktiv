@@ -14,7 +14,6 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.extension.resumePendingNavigation
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -194,7 +193,7 @@ class UserJourneyIntegrationTest {
 
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
-            store.resumePendingNavigation()
+            store.navigation { clearBackStack(); resumePendingNavigation() }
             advanceUntilIdle()
 
             val afterResume = store.selectState<NavigationState>().first()
@@ -288,7 +287,7 @@ class UserJourneyIntegrationTest {
 
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
-            store.resumePendingNavigation()
+            store.navigation { clearBackStack(); resumePendingNavigation() }
             advanceUntilIdle()
 
             val afterResume = store.selectState<NavigationState>().first()
@@ -318,7 +317,7 @@ class UserJourneyIntegrationTest {
 
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
-            store.resumePendingNavigation()
+            store.navigation { clearBackStack(); resumePendingNavigation() }
             advanceUntilIdle()
 
             val afterResume = store.selectState<NavigationState>().first()
@@ -464,7 +463,7 @@ class UserJourneyIntegrationTest {
 
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
-            store.resumePendingNavigation()
+            store.navigation { clearBackStack(); resumePendingNavigation() }
             advanceUntilIdle()
 
             val afterReLogin = store.selectState<NavigationState>().first()
@@ -536,7 +535,7 @@ class UserJourneyIntegrationTest {
             // Phase 3: Auth completes, resume pending navigation
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
-            store.resumePendingNavigation()
+            store.navigation { clearBackStack(); resumePendingNavigation() }
             advanceUntilIdle()
 
             val atWorkspace = store.selectState<NavigationState>().first()

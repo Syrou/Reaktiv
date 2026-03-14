@@ -9,7 +9,6 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationPath
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.extension.resumePendingNavigation
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -415,7 +414,7 @@ class StartDslTest {
             }
             advanceUntilIdle()
 
-            store.resumePendingNavigation()
+            store.navigation { resumePendingNavigation() }
             advanceUntilIdle()
 
             assertEquals(1, invokeCount, "Entry lambda must not be re-invoked during synthesis")

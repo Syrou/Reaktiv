@@ -22,7 +22,8 @@ enum class NavigationOperation {
     Replace,
     Back,
     PopUpTo,
-    ClearBackStack
+    ClearBackStack,
+    ResumePending
 }
 
 @Serializable
@@ -314,6 +315,27 @@ class NavigationBuilder(
     }
 
     /**
+     * Resume the pending navigation stored by [GuardResult.PendAndRedirectTo], expanding it
+     * into a synthesized backstack at the point this operation appears in the chain.
+     *
+     * The synthesis runs on top of whatever the simulated backstack looks like at this point,
+     * so the order of operations in the `navigation { }` block controls the final stack shape.
+     * No-op if there is no pending navigation in state.
+     *
+     * Example usage:
+     * ```kotlin
+     * store.navigation {
+     *     clearBackStack()
+     *     resumePendingNavigation()
+     * }
+     * ```
+     */
+    fun resumePendingNavigation(): NavigationBuilder {
+        operations.add(NavigationStep(operation = NavigationOperation.ResumePending))
+        return this
+    }
+
+    /**
      * Dismiss any active modals as part of all navigation operations in this block
      */
     fun dismissModals(): NavigationBuilder {
@@ -397,6 +419,7 @@ class NavigationBuilder(
                     }
                 }
                 NavigationOperation.Back -> { /* Always valid */ }
+                NavigationOperation.ResumePending -> { /* Always valid */ }
             }
         }
 

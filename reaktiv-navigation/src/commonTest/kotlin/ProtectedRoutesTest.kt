@@ -16,7 +16,6 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.extension.resumePendingNavigation
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -493,7 +492,7 @@ class ProtectedRoutesTest {
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
 
-            store.resumePendingNavigation()
+            store.navigation { clearBackStack(); resumePendingNavigation() }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
@@ -650,7 +649,7 @@ class ProtectedRoutesTest {
 
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
-            store.resumePendingNavigation()
+            store.navigation { clearBackStack(); resumePendingNavigation() }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
@@ -668,7 +667,7 @@ class ProtectedRoutesTest {
                 coroutineContext(dispatcher)
             }
 
-            store.resumePendingNavigation()
+            store.navigation { resumePendingNavigation() }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()

@@ -13,7 +13,6 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.extension.resumePendingNavigation
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -281,7 +280,7 @@ class StoreResetNavigationTest {
             // Re-authenticate and resume
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
-            store.resumePendingNavigation()
+            store.navigation { clearBackStack(); resumePendingNavigation() }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()

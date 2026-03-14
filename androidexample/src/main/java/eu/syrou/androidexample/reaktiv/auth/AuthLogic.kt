@@ -7,7 +7,6 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.extension.resumePendingNavigation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
@@ -46,10 +45,11 @@ class AuthLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
         storeAccessor.dispatchAndAwait(AuthAction.SetAuthenticated(true))
         val hasPending = storeAccessor.selectState<NavigationState>().first().pendingNavigation != null
         if (hasPending) {
-            println("HERPADERPA - hasPending")
-            storeAccessor.resumePendingNavigation()
+            storeAccessor.navigation {
+                clearBackStack()
+                resumePendingNavigation()
+            }
         } else {
-            println("HERPADERPA - does not have pending")
             storeAccessor.navigation {
                 clearBackStack()
                 navigateTo("home")

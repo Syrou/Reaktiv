@@ -29,8 +29,6 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
  */
 interface LoadingModal : Modal {
     override val renderLayer get() = RenderLayer.SYSTEM
-    override val dismissable get() = false
-    override val tapOutsideToDismiss get() = false
     override val shouldDimBackground get() = false
     override val elevation get() = 0f
 }

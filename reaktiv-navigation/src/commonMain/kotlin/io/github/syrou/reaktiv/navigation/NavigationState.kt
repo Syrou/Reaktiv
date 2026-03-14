@@ -78,7 +78,7 @@ data class NavigationState(
 
     /**
      * Navigation that was stored when a guard returned [GuardResult.PendAndRedirectTo].
-     * Call [NavigationLogic.resumePendingNavigation] to resume it after the guard condition is met.
+     * Resume it after the guard condition is met via `navigation { clearBackStack(); resumePendingNavigation() }`.
      */
     val pendingNavigation: PendingNavigation? = null,
 

@@ -45,7 +45,7 @@ sealed class GuardResult {
      * Store the original navigation as a [PendingNavigation] in state, then redirect.
      *
      * The pending navigation can be resumed after authentication via
-     * [NavigationLogic.resumePendingNavigation].
+     * `navigation { clearBackStack(); resumePendingNavigation() }`.
      *
      * @param route The route to redirect to when guard denies access
      * @param metadata Arbitrary string key-value pairs stored with the pending navigation

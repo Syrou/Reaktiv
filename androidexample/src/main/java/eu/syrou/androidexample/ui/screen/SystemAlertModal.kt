@@ -60,8 +60,6 @@ object SystemAlertModal : Modal {
     override val renderLayer: RenderLayer
         get() = RenderLayer.SYSTEM
 
-    override val dismissable: Boolean = true
-
     @Composable
     override fun Content(params: Params) {
         val store = rememberStore()

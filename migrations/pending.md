@@ -139,6 +139,60 @@ methods will be removed in a future release.
 
 ---
 
+### [BC-05] `Modal.dismissable` and `Modal.tapOutsideToDismiss` removed
+
+**Type:** Breaking
+
+**Grep:** `dismissable\|tapOutsideToDismiss`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+object MandatoryModal : Modal {
+    override val dismissable = false
+    override val tapOutsideToDismiss = false
+}
+```
+
+**After:**
+```kotlin
+object MandatoryModal : Modal {
+    override val tapOutsideClick = null
+}
+```
+
+**Notes:** Both flags are replaced by a single `tapOutsideClick` lambda on `Modal`.
+`navigateBack()` is now always allowed (except during a `LoadingModal`). To dismiss on
+tap-outside, provide a lambda; to block it, set `null` (the default). See AD-12.
+
+---
+
+### [BC-06] `StoreAccessor.resumePendingNavigation()` removed
+
+**Type:** Breaking
+
+**Grep:** `resumePendingNavigation()`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.resumePendingNavigation()
+```
+
+**After:**
+```kotlin
+store.navigation {
+    clearBackStack()
+    resumePendingNavigation()
+}
+```
+
+**Notes:** The standalone extension is removed. Use `resumePendingNavigation()` inside a
+`navigation { }` block where order of operations (e.g. `clearBackStack()` before or after)
+is explicit. See AD-13.
+
+---
+
 ## Additions
 
 <!-- Append AD-NN entries below, incrementing from the last AD ID in this section -->
@@ -562,6 +616,79 @@ store.navigation { navigateTo("workspace") }
 target graph's own entry. The system now follows the chain — evaluating each graph's dynamic
 entry in turn — until it reaches a concrete `Navigatable`. Cycle detection prevents infinite
 loops if graphs accidentally reference each other.
+
+---
+
+### [AD-12] `Modal.tapOutsideClick` replaces `dismissable` + `tapOutsideToDismiss`
+
+**Type:** Replaces-deprecated
+
+**Grep:** `tapOutsideClick`
+**File glob:** `**/*.kt`
+
+**Replaces:** `Modal.dismissable` and `Modal.tapOutsideToDismiss` — see BC-05
+
+**Example:**
+```kotlin
+// Dismiss on tap-outside
+object InfoModal : Modal {
+    override val tapOutsideClick: (suspend StoreAccessor.() -> Unit) = { navigateBack() }
+}
+
+// No tap-outside dismiss (default)
+object MandatoryModal : Modal {
+    // tapOutsideClick is null by default — nothing happens on outside tap
+}
+
+// Custom behaviour on tap-outside
+object UnsavedChangesModal : Modal {
+    override val tapOutsideClick: (suspend StoreAccessor.() -> Unit) = {
+        navigation { navigateTo(DiscardWarningModal) }
+    }
+}
+```
+
+**Notes:** `navigateBack()` now always works for all modals (user back gesture, programmatic
+code). The only exception is `LoadingModal` — back is blocked while async guard evaluation
+is in progress to prevent state corruption. The tap-capturing layer is always present
+regardless of `shouldDimBackground`, so `tapOutsideClick` fires even on non-dimmed modals.
+
+---
+
+### [AD-13] `resumePendingNavigation()` chainable inside `navigation { }` DSL
+
+**Type:** Addition
+
+**Grep:** `resumePendingNavigation`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// Equivalent to old store.resumePendingNavigation()
+store.navigation {
+    clearBackStack()
+    resumePendingNavigation()
+}
+
+// Resume but keep existing backstack as base
+store.navigation {
+    navigateTo("home")
+    resumePendingNavigation()
+}
+
+// Post-login: dismiss modal then resume
+store.navigation {
+    navigateBack()
+    clearBackStack()
+    resumePendingNavigation()
+}
+```
+
+**Notes:** `resumePendingNavigation()` is now a `NavigationOperation.ResumePending` step
+that expands inline at execution time using the simulated backstack at that point in the
+chain. It synthesizes the pending route's full path hierarchy on top of whatever the
+simulated stack contains — order of preceding operations (e.g. `clearBackStack()`) directly
+determines the final stack shape. No-op when `NavigationState.pendingNavigation` is null.
 
 ---
 

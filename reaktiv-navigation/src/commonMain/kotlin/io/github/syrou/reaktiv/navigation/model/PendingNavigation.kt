@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
  * Stores intent to navigate to a protected route while the user is being redirected for authentication.
  *
  * Placed in [NavigationState.pendingNavigation] by [GuardResult.PendAndRedirectTo].
- * Consumed by [NavigationLogic.resumePendingNavigation] after authentication succeeds.
+ * Consumed by `navigation { clearBackStack(); resumePendingNavigation() }` after authentication succeeds.
  *
  * Example:
  * ```kotlin

@@ -91,14 +91,4 @@ suspend fun StoreAccessor.clearAllModals() {
     }
 }
 
-/**
- * Resume a pending navigation stored by [GuardResult.PendAndRedirectTo].
- *
- * Clears [NavigationState.pendingNavigation] and navigates to the stored route.
- * No-op if there is no pending navigation.
- */
-suspend fun StoreAccessor.resumePendingNavigation() {
-    selectLogic<NavigationLogic>().resumePendingNavigation()
-}
-
 

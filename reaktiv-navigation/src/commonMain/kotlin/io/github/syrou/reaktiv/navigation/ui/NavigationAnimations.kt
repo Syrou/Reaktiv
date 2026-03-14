@@ -222,24 +222,26 @@ object NavigationAnimations {
                 .fillMaxSize()
                 .zIndex(zIndex)
         ) {
-            // Dimmer background — always captures taps to prevent click pass-through.
-            // Only navigates back when tapOutsideToDismiss is true.
-            if (modal?.shouldDimBackground == true && dimmerAlpha > 0f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = dimmerAlpha))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            enabled = isEntering
-                        ) {
-                            if (modal.tapOutsideToDismiss) {
-                                scope.launch { store.navigateBack() }
-                            }
+            // Background layer — always captures taps to prevent click pass-through.
+            // Invokes tapOutsideClick when set; does nothing when null.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .let { mod ->
+                        if (modal?.shouldDimBackground == true && dimmerAlpha > 0f)
+                            mod.background(Color.Black.copy(alpha = dimmerAlpha))
+                        else mod
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = isEntering
+                    ) {
+                        modal?.tapOutsideClick?.let { handler ->
+                            scope.launch { handler(store) }
                         }
-                )
-            }
+                    }
+            )
             
             // Modal content
             Box(
