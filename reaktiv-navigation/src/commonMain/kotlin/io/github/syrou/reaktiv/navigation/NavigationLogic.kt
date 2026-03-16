@@ -135,11 +135,35 @@ class NavigationLogic(
                     val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
                     routeBuilder.clearBackStack()
                     val resolvedBootstrapNode = resolveEntryChain(selectedNode, bootstrapGraphId ?: "root")
-                    if (resolvedBootstrapNode is Navigatable) {
-                        routeBuilder.navigateTo(resolvedBootstrapNode as Navigatable)
-                    } else {
-                        routeBuilder.navigateTo(resolvedBootstrapNode.route)
+
+                    val resolvedPath = if (resolvedBootstrapNode is Navigatable)
+                        precomputedData.navigatableToFullPath[resolvedBootstrapNode as Navigatable]
+                            ?: (resolvedBootstrapNode as Navigatable).route
+                    else resolvedBootstrapNode.route
+                    val resolvedResolution = precomputedData.routeResolver.resolve(resolvedPath)
+                    val bootstrapStep = NavigationStep(NavigationOperation.Navigate)
+                    val currentState = getCurrentNavigationState()
+
+                    when (val guard = evaluateGuard(resolvedPath, resolvedResolution, bootstrapStep, currentState)) {
+                        is GuardEvaluation.PendAndRedirect -> {
+                            storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
+                            routeBuilder.navigateTo(guard.redirectRoute)
+                        }
+                        is GuardEvaluation.Redirect -> {
+                            routeBuilder.navigateTo(guard.route)
+                        }
+                        is GuardEvaluation.Reject -> {
+                            val fallback = precomputedData.notFoundScreen
+                            if (fallback != null) routeBuilder.navigateTo(fallback)
+                            else if (resolvedBootstrapNode is Navigatable) routeBuilder.navigateTo(resolvedBootstrapNode as Navigatable)
+                            else routeBuilder.navigateTo(resolvedBootstrapNode.route)
+                        }
+                        is GuardEvaluation.Allow, null -> {
+                            if (resolvedBootstrapNode is Navigatable) routeBuilder.navigateTo(resolvedBootstrapNode as Navigatable)
+                            else routeBuilder.navigateTo(resolvedBootstrapNode.route)
+                        }
                     }
+
                     routeBuilder.validate()
                     executeNavigation(routeBuilder) { it + listOf(NavigationAction.BootstrapComplete) }
                 }

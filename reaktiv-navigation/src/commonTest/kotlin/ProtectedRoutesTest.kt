@@ -1628,6 +1628,77 @@ class ProtectedRoutesTest {
         }
 
     @Test
+    fun `guard is evaluated when root start lambda resolves into protected graph`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            var guardInvokeCount = 0
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val login   = screen("login")
+            val home    = screen("home")
+            val loading = loadingModal("loading")
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(loading)
+                    rootGraph {
+                        start(route = { _ -> home })
+                        screens(login)
+                        intercept(guard = { _ ->
+                            guardInvokeCount++
+                            GuardResult.Allow
+                        }) {
+                            graph("workspace") {
+                                entry(home)
+                                screens(home)
+                            }
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            assertEquals(1, guardInvokeCount,
+                "Guard must be evaluated when bootstrap start lambda resolves into a protected graph")
+            assertEquals("home", store.selectState<NavigationState>().first().currentEntry.route)
+        }
+
+    @Test
+    fun `guard redirects during bootstrap when start lambda resolves into protected graph and guard denies`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val login   = screen("login")
+            val home    = screen("home")
+            val loading = loadingModal("loading")
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(loading)
+                    rootGraph {
+                        start(route = { _ -> home })
+                        screens(login)
+                        intercept(guard = { _ ->
+                            GuardResult.PendAndRedirectTo(
+                                navigatable = login,
+                                displayHint = "Not authenticated"
+                            )
+                        }) {
+                            graph("workspace") {
+                                entry(home)
+                                screens(home)
+                            }
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route,
+                "Guard PendAndRedirect during bootstrap must land on the redirect target")
+            assertNotNull(state.pendingNavigation,
+                "Pending navigation must be stored when guard redirects during bootstrap")
+        }
+
+    @Test
     fun `guard lambda is not invoked for navigation between screens inside protected scope`() =
         runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
             var guardInvokeCount = 0
