@@ -2,13 +2,16 @@ package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import io.github.syrou.reaktiv.compose.composeState
+import io.github.syrou.reaktiv.navigation.NavigationAction
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
 import kotlinx.coroutines.delay
-import androidx.compose.runtime.getValue
 
 /**
  * Animation state for content layer rendering
@@ -49,6 +52,8 @@ fun rememberLayerAnimationState(
     currentEntry: NavigationEntry
 ): LayerAnimationState {
     val navModule = LocalNavigationModule.current
+    val navigationState by composeState<NavigationState>()
+    val isExplicitBackNavigation = navigationState.lastNavigationAction is NavigationAction.Back
 
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
@@ -61,12 +66,10 @@ fun rememberLayerAnimationState(
     val previousEntry = previousEntryState.value
 
     val animationDecision = previousEntry?.let { prev ->
-        determineContentAnimationDecision(prev, currentEntry, navModule)
+        determineContentAnimationDecision(prev, currentEntry, navModule, isExplicitBackNavigation)
     }
 
-    val isBackNavigation = previousEntry?.let { prev ->
-        currentEntry.stackPosition < prev.stackPosition
-    } ?: false
+    val isBackNavigation = isExplicitBackNavigation && previousEntry != null
 
     LaunchedEffect(currentEntry.stableKey) {
         if (previousEntry != null && animationDecision != null) {

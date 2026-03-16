@@ -24,7 +24,8 @@ data class AnimationDecision(
 fun determineAnimationDecision(
     previousEntry: NavigationEntry,
     currentEntry: NavigationEntry,
-    navModule: NavigationModule
+    navModule: NavigationModule,
+    isExplicitBackNavigation: Boolean = false
 ): AnimationDecision {
     val previousId = "${previousEntry.path}@${previousEntry.stackPosition}"
     val currentId = "${currentEntry.path}@${currentEntry.stackPosition}"
@@ -34,6 +35,7 @@ fun determineAnimationDecision(
     }
 
     val isForward = when {
+        isExplicitBackNavigation -> false
         currentEntry.stackPosition > previousEntry.stackPosition -> true
         currentEntry.stackPosition < previousEntry.stackPosition && currentEntry.stackPosition > 0 -> false
         else -> true
@@ -68,7 +70,8 @@ fun determineAnimationDecision(
 fun determineContentAnimationDecision(
     previousEntry: NavigationEntry,
     currentEntry: NavigationEntry,
-    navModule: NavigationModule
+    navModule: NavigationModule,
+    isExplicitBackNavigation: Boolean = false
 ): AnimationDecision {
     val prevLayer = navModule.resolveNavigatable(previousEntry)?.renderLayer ?: RenderLayer.CONTENT
     val currLayer = navModule.resolveNavigatable(currentEntry)?.renderLayer ?: RenderLayer.CONTENT
@@ -81,5 +84,5 @@ fun determineContentAnimationDecision(
             exitTransition = NavTransition.None
         )
     }
-    return determineAnimationDecision(previousEntry, currentEntry, navModule)
+    return determineAnimationDecision(previousEntry, currentEntry, navModule, isExplicitBackNavigation)
 }

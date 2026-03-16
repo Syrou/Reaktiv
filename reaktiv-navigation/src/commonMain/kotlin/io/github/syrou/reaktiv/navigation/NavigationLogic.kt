@@ -346,8 +346,11 @@ class NavigationLogic(
 
     private suspend fun resolveGraphEntryForSynthesis(
         graphPath: String,
-        simulatedBackStack: List<NavigationEntry>
+        simulatedBackStack: List<NavigationEntry>,
+        visited: Set<String> = emptySet()
     ): NavigationEntry? {
+        if (graphPath in visited) return null
+
         val static = precomputedData.routeResolver.resolveForBackstackSynthesis(graphPath)
         if (static != null) {
             val resPath = precomputedData.navigatableToFullPath[static.targetNavigatable]
@@ -378,11 +381,13 @@ class NavigationLogic(
         }
         if (existingInSimulated != null) return existingInSimulated
 
-        val currentState = getCurrentNavigationState()
-        val existingEntry = currentState.backStack.firstOrNull { entry ->
-            precomputedData.navigatableToGraph[precomputedData.allNavigatables[entry.path]] == effectiveGraphPath
+        if (simulatedBackStack.isNotEmpty() || visited.isNotEmpty()) {
+            val currentState = getCurrentNavigationState()
+            val existingEntry = currentState.backStack.firstOrNull { entry ->
+                precomputedData.navigatableToGraph[precomputedData.allNavigatables[entry.path]] == effectiveGraphPath
+            }
+            if (existingEntry != null) return existingEntry
         }
-        if (existingEntry != null) return existingEntry
 
         val node = evaluateWithThreshold(entryDef.loadingThreshold) { entryDef.route.invoke(storeAccessor) }
         return when (node) {
@@ -391,10 +396,14 @@ class NavigationLogic(
                 node.toNavigationEntry(path = resPath, params = Params.empty())
             }
             else -> {
-                val resolution = precomputedData.routeResolver.resolve(node.route) ?: return null
-                val resPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                    ?: resolution.targetNavigatable.route
-                resolution.targetNavigatable.toNavigationEntry(path = resPath, params = resolution.extractedParams)
+                if (precomputedData.graphDefinitions.containsKey(node.route)) {
+                    resolveGraphEntryForSynthesis(node.route, simulatedBackStack, visited + graphPath)
+                } else {
+                    val resolution = precomputedData.routeResolver.resolve(node.route) ?: return null
+                    val resPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
+                        ?: resolution.targetNavigatable.route
+                    resolution.targetNavigatable.toNavigationEntry(path = resPath, params = resolution.extractedParams)
+                }
             }
         }
     }
@@ -448,22 +457,23 @@ class NavigationLogic(
 
                     val currentState = getCurrentNavigationState()
 
-                    when (val guard = evaluateGuard(targetRoute, targetResolution, primaryStep, currentState)) {
+                    val initialGuard = evaluateGuard(targetRoute, targetResolution, primaryStep, currentState)
+                    when (initialGuard) {
                         is GuardEvaluation.Reject -> return@withContext NavigationOutcome.Rejected
                         is GuardEvaluation.Redirect -> {
-                            navigateDirect(guard.route)
-                            return@withContext NavigationOutcome.Redirected(guard.route)
+                            navigateDirect(initialGuard.route)
+                            return@withContext NavigationOutcome.Redirected(initialGuard.route)
                         }
                         is GuardEvaluation.PendAndRedirect -> {
-                            storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
-                            if (!guard.alreadyAtRedirect) {
+                            storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(initialGuard.pending))
+                            if (!initialGuard.alreadyAtRedirect) {
                                 val redirectBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
                                 redirectBuilder.clearBackStack()
-                                redirectBuilder.navigateTo(guard.redirectRoute)
+                                redirectBuilder.navigateTo(initialGuard.redirectRoute)
                                 redirectBuilder.validate()
                                 executeNavigation(redirectBuilder)
                             }
-                            return@withContext NavigationOutcome.Redirected(guard.redirectRoute)
+                            return@withContext NavigationOutcome.Redirected(initialGuard.redirectRoute)
                         }
                         is GuardEvaluation.Allow, null -> Unit
                     }
@@ -483,6 +493,46 @@ class NavigationLogic(
                     }
                     if (entryNode != null) {
                         val resolvedNode = resolveEntryChain(entryNode, targetRoute)
+                        val resolvedResolution = if (resolvedNode is Navigatable) {
+                            RouteResolution(
+                                targetNavigatable = resolvedNode as Navigatable,
+                                targetGraphId = precomputedData.navigatableToGraph[resolvedNode as Navigatable]
+                                    ?: "root",
+                                extractedParams = Params.empty()
+                            )
+                        } else {
+                            precomputedData.routeResolver.resolve(
+                                resolvedNode.route, precomputedData.availableNavigatables
+                            )
+                        }
+
+                        if (initialGuard == null) {
+                            val resolvedRoute = if (resolvedNode is Navigatable)
+                                precomputedData.navigatableToFullPath[resolvedNode as Navigatable]
+                                    ?: (resolvedNode as Navigatable).route
+                            else resolvedNode.route
+                            val stateAfterResolution = getCurrentNavigationState()
+                            when (val resolvedGuard = evaluateGuard(resolvedRoute, resolvedResolution, primaryStep, stateAfterResolution)) {
+                                is GuardEvaluation.Reject -> return@withContext NavigationOutcome.Rejected
+                                is GuardEvaluation.Redirect -> {
+                                    navigateDirect(resolvedGuard.route)
+                                    return@withContext NavigationOutcome.Redirected(resolvedGuard.route)
+                                }
+                                is GuardEvaluation.PendAndRedirect -> {
+                                    storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(resolvedGuard.pending))
+                                    if (!resolvedGuard.alreadyAtRedirect) {
+                                        val redirectBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                                        redirectBuilder.clearBackStack()
+                                        redirectBuilder.navigateTo(resolvedGuard.redirectRoute)
+                                        redirectBuilder.validate()
+                                        executeNavigation(redirectBuilder)
+                                    }
+                                    return@withContext NavigationOutcome.Redirected(resolvedGuard.redirectRoute)
+                                }
+                                is GuardEvaluation.Allow, null -> Unit
+                            }
+                        }
+
                         val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
                         val primaryStepIndex = builder.operations.indexOf(primaryStep)
                         builder.operations.subList(0, primaryStepIndex)
@@ -498,18 +548,6 @@ class NavigationLogic(
                         builder.operations.subList(primaryStepIndex + 1, builder.operations.size)
                             .forEach { routeBuilder.operations.add(it) }
                         routeBuilder.validate()
-                        val resolvedResolution = if (resolvedNode is Navigatable) {
-                            RouteResolution(
-                                targetNavigatable = resolvedNode as Navigatable,
-                                targetGraphId = precomputedData.navigatableToGraph[resolvedNode as Navigatable]
-                                    ?: "root",
-                                extractedParams = Params.empty()
-                            )
-                        } else {
-                            precomputedData.routeResolver.resolve(
-                                resolvedNode.route, precomputedData.availableNavigatables
-                            )
-                        }
                         executeNavigation(routeBuilder, primaryResolution = resolvedResolution)
                         return@withContext NavigationOutcome.Success
                     }

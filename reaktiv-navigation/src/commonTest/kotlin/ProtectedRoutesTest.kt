@@ -1626,5 +1626,49 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
             assertEquals("premium", store.selectState<NavigationState>().first().currentEntry.route)
         }
+
+    @Test
+    fun `guard lambda is not invoked for navigation between screens inside protected scope`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            var guardInvokeCount = 0
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val login   = screen("login")
+            val home    = screen("home")
+            val detail  = screen("detail")
+            val profile = screen("profile")
+            val store = createStore {
+                module(createNavigationModule {
+                    rootGraph {
+                        entry(login)
+                        screens(login)
+                        intercept(guard = { _ ->
+                            guardInvokeCount++
+                            GuardResult.Allow
+                        }) {
+                            graph("workspace") {
+                                entry(home)
+                                screens(home, detail, profile)
+                            }
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace/home") }
+            advanceUntilIdle()
+            val countAfterEntry = guardInvokeCount
+
+            store.navigation { navigateTo("workspace/detail") }
+            advanceUntilIdle()
+            store.navigation { navigateTo("workspace/profile") }
+            advanceUntilIdle()
+            store.navigation { navigateTo("workspace/detail") }
+            advanceUntilIdle()
+
+            assertEquals(countAfterEntry, guardInvokeCount,
+                "Guard must not be invoked for navigation between screens inside the protected scope")
+        }
 }
 

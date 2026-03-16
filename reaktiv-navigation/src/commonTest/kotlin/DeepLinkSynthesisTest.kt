@@ -313,7 +313,7 @@ class DeepLinkSynthesisTest {
         }
 
     @Test
-    fun `graph reference root - lambda invoked exactly once even when referenced graph is intermediate path`() =
+    fun `graph reference root - lambda is re-invoked on deep link synthesis to allow fresh state checks`() =
         runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
             var invokeCount = 0
             val dispatcher = StandardTestDispatcher(testScheduler)
@@ -339,7 +339,7 @@ class DeepLinkSynthesisTest {
             store.navigateDeepLink("main/login")
             advanceUntilIdle()
 
-            assertEquals(1, invokeCount, "Lambda must not be called again during synthesis")
+            assertEquals(2, invokeCount, "Lambda must be re-invoked on deep link so side effects and state checks run fresh")
             val state = store.selectState<NavigationState>().first()
             assertEquals("login", state.currentEntry.route)
             assertEquals(2, state.backStack.size)
@@ -375,5 +375,77 @@ class DeepLinkSynthesisTest {
             assertEquals("splash", state.backStack[0].route)
             assertEquals("home",   state.backStack[1].route)
             assertEquals("detail", state.backStack[2].route)
+        }
+
+    @Test
+    fun `root lambda side effects re-run on deep link - condition change is reflected in synthesized backstack`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            var criticalErrorActive = false
+            val criticalErrorScreen = screen("critical-error")
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(loadingScreen)
+                    rootGraph {
+                        entry(route = { _ ->
+                            if (criticalErrorActive) criticalErrorScreen else splashScreen
+                        })
+                        screens(splashScreen, loginScreen, criticalErrorScreen)
+                        graph("workspace") {
+                            entry(workspaceHome)
+                            screens(workspaceHome, workspaceDetail)
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            val stateAfterInit = store.selectState<NavigationState>().first()
+            assertEquals("splash", stateAfterInit.currentEntry.route)
+
+            criticalErrorActive = true
+
+            store.navigateDeepLink("workspace/detail")
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("detail", state.currentEntry.route)
+            assertEquals("critical-error", state.backStack[0].route,
+                "Root lambda must re-run on deep link so the critical-error path is picked up")
+        }
+
+    @Test
+    fun `chained dynamic graphs - root async lambda resolving to another dynamic graph chains resolution`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(loadingScreen)
+                    rootGraph {
+                        entry(route = { _ -> NavigationPath("home") })
+                        graph("home") {
+                            entry(route = { _ -> workspaceHome })
+                            screens(workspaceHome, workspaceDetail)
+                        }
+                        graph("settings") {
+                            entry(settingsHome)
+                            screens(settingsHome, notificationsScreen)
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            store.navigateDeepLink("settings/notifications")
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("notifications", state.currentEntry.route)
+            assertEquals(3, state.backStack.size)
+            assertEquals("home",          state.backStack[0].route)
+            assertEquals("settings-home", state.backStack[1].route)
+            assertEquals("notifications", state.backStack[2].route)
         }
 }

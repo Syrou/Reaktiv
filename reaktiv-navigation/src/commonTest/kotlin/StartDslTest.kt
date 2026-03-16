@@ -448,7 +448,7 @@ class StartDslTest {
             store.navigateDeepLink("sub/dashboard")
             advanceUntilIdle()
 
-            assertEquals(1, invokeCount, "Entry lambda must not be re-invoked during deep link synthesis")
+            assertEquals(2, invokeCount, "Entry lambda must be re-invoked during deep link synthesis so side effects run fresh")
             assertEquals("dashboard", store.selectState<NavigationState>().first().currentEntry.route)
         }
 
