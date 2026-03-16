@@ -692,6 +692,71 @@ determines the final stack shape. No-op when `NavigationState.pendingNavigation`
 
 ---
 
+### [AD-14] All navigation DSL operations now preserved when navigateTo targets a dynamic graph
+
+**Type:** Addition
+
+**Grep:** `navigateTo.*workspace\|clearBackStack.*navigateTo\|navigateTo.*resumePending`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+store.navigation {
+    clearBackStack()
+    navigateTo(Route.Home) {
+        param("ref", SubscriptionReferenceType.Signup.name)
+    }
+    resumePendingNavigation()
+}
+```
+
+**Notes:** Previously, when a `navigation { }` block targeted a dynamic graph (one whose
+`start` is an async lambda), only the resolved `navigateTo` step was executed — all
+surrounding operations (`clearBackStack`, `navigateBack`, `popUpTo`,
+`resumePendingNavigation`, secondary `navigateTo`) were silently dropped.
+
+The root cause was that the dynamic-graph resolution path constructed a brand-new
+`NavigationBuilder` containing only the resolved Navigate step instead of preserving the
+original operation sequence. The fix rebuilds the full sequence around the resolved step:
+operations before the primary Navigate are copied verbatim, the graph navigation is
+replaced with its resolved screen, and all operations after are appended unchanged.
+
+Any combination of DSL operations may now appear before or after a `navigateTo(dynamicGraph)`
+call in the same block.
+
+---
+
+### [AD-15] `resumePendingNavigation()` no longer injects root graph entry into non-empty backStack
+
+**Type:** Addition
+
+**Grep:** `resumePendingNavigation`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+store.navigation {
+    clearBackStack()
+    navigateTo(Route.Workspace)
+    resumePendingNavigation()
+}
+```
+
+**Notes:** Previously, `resumePendingNavigation()` always added the root graph's resolved
+start entry at the bottom of the synthesized backStack, even when the backStack already
+contained entries. This caused the root start screen (e.g. a splash or loading screen) to
+be re-injected after the user had intentionally navigated past it.
+
+The root entry is now only synthesized when `simulatedBackStack` is empty at the point
+`resumePendingNavigation()` executes. If the backStack already has entries — whether from a
+preceding `navigateTo`, a `popUpTo` that kept some history, or entries from before the block
+— those serve as the anchor and the root start is not added.
+
+`navigateDeepLink` is unaffected: it always clears the backStack first, so synthesis starts
+from empty and the root entry is still anchored at the bottom as documented in AD-05.
+
+---
+
 ### [AD-11] Modals and screens registered directly inside intercept { } are now guarded
 
 **Type:** Addition

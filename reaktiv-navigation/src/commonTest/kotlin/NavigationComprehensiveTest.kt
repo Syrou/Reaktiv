@@ -300,7 +300,7 @@ class NavigationComprehensiveTest {
         val state = store.selectState<NavigationState>().first()
         assertEquals("leaderboard", state.currentEntry.route)
         assertFalse(state.backStack.any { it.route == "splash" })
-        assertEquals(1, state.backStack.size) // Only leaderboard should remain
+        assertEquals(1, state.backStack.size)
     }
 
     @Test

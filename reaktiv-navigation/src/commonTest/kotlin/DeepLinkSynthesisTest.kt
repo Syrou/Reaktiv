@@ -21,17 +21,9 @@ import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 /**
- * Tests for deep link backstack synthesis behaviour:
+ * Tests for deep link backstack synthesis behaviour.
  *
- * - The root graph entry is always anchored at the bottom of the synthesized backstack.
- * - Dynamic `entry { route = { ... } }` lambdas are evaluated during synthesis for both
- *   the root graph and intermediate nested graphs.
- * - Cross-graph deep links get the root entry prepended before the target path hierarchy.
- * - Entries already present in the backstack are never duplicated.
- *
- * A root graph with only a dynamic entry (no static startScreen) requires a `loadingModal`
- * at the module level so that the module can produce an initial state before the dynamic
- * lambda is first evaluated.
+ * The root graph entry is always anchored at the bottom of the synthesized backstack.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeepLinkSynthesisTest {
