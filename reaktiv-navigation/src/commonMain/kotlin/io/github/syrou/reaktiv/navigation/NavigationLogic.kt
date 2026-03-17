@@ -169,6 +169,9 @@ class NavigationLogic(
                 }
             } finally {
                 bootstrapCompleted.complete(Unit)
+                if (getCurrentNavigationState().isEvaluatingNavigation) {
+                    storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+                }
             }
         }
     }
@@ -264,7 +267,7 @@ class NavigationLogic(
         if (!isSystemLayer) {
             bootstrapCompleted.await()
         }
-        return evaluateAndExecute(builder, isSystemLayer, targetRoute, targetResolution)
+        return evaluateAndExecute(builder, targetRoute, targetResolution)
     }
 
     private fun isSystemLayerNavigation(builder: NavigationBuilder): Boolean {
@@ -448,7 +451,6 @@ class NavigationLogic(
      */
     private suspend fun evaluateAndExecute(
         builder: NavigationBuilder,
-        isSystemLayer: Boolean = false,
         precomputedTargetRoute: String? = null,
         precomputedTargetResolution: RouteResolution? = null
     ): NavigationOutcome {
@@ -579,11 +581,8 @@ class NavigationLogic(
                     executeNavigation(builder, primaryResolution = targetResolution)
                     NavigationOutcome.Success
                 } finally {
-                    if (!isSystemLayer) {
-                        val stateAfter = getCurrentNavigationState()
-                        if (stateAfter.backStack.any { precomputedData.allNavigatables[it.path] is LoadingModal }) {
-                            storeAccessor.dispatchAndAwait(NavigationAction.RemoveLoadingModals)
-                        }
+                    if (getCurrentNavigationState().isEvaluatingNavigation) {
+                        storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
                     }
                 }
             }
@@ -593,12 +592,12 @@ class NavigationLogic(
     }
 
     /**
-     * Evaluate a suspend block, showing the global [LoadingModal] as a SYSTEM overlay if
+     * Evaluate a suspend block, showing the global [LoadingModal] as a boolean overlay if
      * evaluation takes longer than [loadingThreshold].
      *
-     * The modal is dispatched directly as [NavigationAction.Navigate] so it bypasses
-     * [evaluateAndExecute] and the navigation mutex. Cleanup is handled by the
-     * [evaluateAndExecute] finally block via [NavigationAction.RemoveLoadingModals].
+     * Sets [NavigationState.isEvaluatingNavigation] to `true` rather than pushing a
+     * backstack entry. Cleanup is handled by the [evaluateAndExecute] finally block via
+     * [NavigationAction.SetEvaluating].
      */
     private suspend fun <T> evaluateWithThreshold(
         loadingThreshold: Duration,
@@ -610,14 +609,8 @@ class NavigationLogic(
             true
         } ?: false
         if (!completedInTime) {
-            val loadingModal = precomputedData.loadingModal
-            if (loadingModal != null) {
-                val loadingPath = precomputedData.navigatableToFullPath[loadingModal] ?: loadingModal.route
-                val loadingEntry = loadingModal.toNavigationEntry(
-                    path = loadingPath,
-                    params = Params.empty()
-                )
-                storeAccessor.dispatchAndAwait(NavigationAction.Navigate(loadingEntry))
+            if (precomputedData.loadingModal != null) {
+                storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(true))
             }
         }
         deferred.await()
@@ -713,7 +706,7 @@ class NavigationLogic(
         builder.params(targetParams)
         builder.navigateTo(targetRoute, synthesizeBackstack = true)
         builder.validate()
-        evaluateAndExecute(builder, isSystemLayer = false)
+        evaluateAndExecute(builder)
 
         if (!bootstrapWasComplete) {
             storeAccessor.dispatchAndAwait(NavigationAction.BootstrapComplete)
@@ -994,16 +987,7 @@ class NavigationLogic(
             }
         }
 
-        val stateBeforeDispatch = getCurrentNavigationState()
-        val baseActions = wrapActions(batchedActions)
-        val hasNonSystemNavigate = batchedActions
-            .filterIsInstance<NavigationAction.Navigate>()
-            .any { precomputedData.allNavigatables[it.entry.path]?.renderLayer != RenderLayer.SYSTEM }
-        val allActions = if (hasNonSystemNavigate && stateBeforeDispatch.backStack.any { precomputedData.allNavigatables[it.path] is LoadingModal }) {
-            listOf(NavigationAction.RemoveLoadingModals) + baseActions
-        } else {
-            baseActions
-        }
+        val allActions = wrapActions(batchedActions)
         when {
             allActions.isEmpty() -> return
             allActions.size == 1 -> storeAccessor.dispatchAndAwait(allActions[0])

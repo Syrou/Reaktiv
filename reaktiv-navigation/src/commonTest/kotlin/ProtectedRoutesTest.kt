@@ -29,6 +29,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -728,14 +729,14 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val duringEntry = store.selectState<NavigationState>().first()
-            assertEquals("loading", duringEntry.currentEntry.route)
+            assertTrue(duringEntry.isEvaluatingNavigation, "Loading overlay must be shown while entry resolves")
 
             entryGate.complete(homeScreen)
             advanceUntilIdle()
 
             val afterEntry = store.selectState<NavigationState>().first()
             assertEquals("home", afterEntry.currentEntry.route)
-            assertTrue(afterEntry.backStack.none { it.route == "loading" }, "Loading modal should be removed after entry resolves")
+            assertFalse(afterEntry.isEvaluatingNavigation, "Loading overlay must be cleared after entry resolves")
         }
 
     @Test
@@ -808,13 +809,81 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val duringGuard = store.selectState<NavigationState>().first()
-            assertEquals("loading", duringGuard.currentEntry.route)
+            assertTrue(duringGuard.isEvaluatingNavigation, "Loading overlay must be shown while guard suspends")
 
             guardGate.complete(GuardResult.Allow)
             advanceUntilIdle()
 
             val afterGuard = store.selectState<NavigationState>().first()
             assertEquals("home", afterGuard.currentEntry.route)
+        }
+
+    @Test
+    fun `protected navigation from OTP — loading overlays OTP then destination appears with no OTP flash`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val guardGate = CompletableDeferred<GuardResult>()
+
+            val otpScreen = screen("otp")
+
+            val navModule = createNavigationModule {
+                loadingModal(loadingModal)
+                rootGraph {
+                    entry(loginScreen)
+                    screens(loginScreen, otpScreen)
+                    intercept(guard = { guardGate.await() }) {
+                        graph("workspace") {
+                            entry(homeScreen)
+                            screens(homeScreen)
+                        }
+                    }
+                }
+            }
+
+            val store = createStore {
+                module(AuthModule)
+                module(navModule)
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("otp") }
+            advanceUntilIdle()
+
+            launch { store.navigation { navigateTo("workspace/home") } }
+            advanceUntilIdle()
+
+            val duringGuard = store.selectState<NavigationState>().first()
+            assertTrue(
+                duringGuard.isEvaluatingNavigation,
+                "Loading overlay must be active while the async guard runs"
+            )
+            assertEquals(
+                "otp", duringGuard.currentEntry.route,
+                "OTP must remain the current content screen — the loading is a pure overlay, " +
+                    "not a screen replacement. If OTP were displaced here, the Compose layer " +
+                    "would record it as a previous-entry and animate it out when the " +
+                    "destination arrives, producing a visible flash."
+            )
+            assertFalse(
+                duringGuard.contentLayerEntries.any { it.route == "loading" },
+                "Loading modal must never enter the content layer — it is an overlay only"
+            )
+
+            guardGate.complete(GuardResult.Allow)
+            advanceUntilIdle()
+
+            val afterGuard = store.selectState<NavigationState>().first()
+            assertFalse(afterGuard.isEvaluatingNavigation, "Loading overlay must be gone")
+            assertEquals(
+                "home", afterGuard.currentEntry.route,
+                "Destination must be shown directly — OTP must not be visible as a " +
+                    "transition artifact between loading disappearing and destination appearing"
+            )
+            assertFalse(
+                afterGuard.contentLayerEntries.any { it.route == "loading" },
+                "Loading modal must not be in the content layer after navigation"
+            )
         }
 
     @Test
@@ -849,7 +918,7 @@ class ProtectedRoutesTest {
             advanceUntilIdle()
 
             val duringGuard = store.selectState<NavigationState>().first()
-            assertEquals("loading", duringGuard.currentEntry.route)
+            assertTrue(duringGuard.isEvaluatingNavigation, "Loading overlay must be shown while guard suspends")
 
             guardGate.complete(GuardResult.RedirectTo(loginScreen))
             advanceUntilIdle()

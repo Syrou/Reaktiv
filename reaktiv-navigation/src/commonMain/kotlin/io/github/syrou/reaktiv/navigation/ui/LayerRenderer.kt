@@ -15,7 +15,7 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
 
-private object NavigationZIndex {
+internal object NavigationZIndex {
     const val CONTENT_BACK = 2f
     const val CONTENT_FRONT = 3f
     const val CONTENT_LIFTED_EXIT = 100f

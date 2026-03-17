@@ -796,3 +796,49 @@ and is consumed during precomputation to register the correct `interceptedRoutes
 No API change is required — existing `intercept { modals(...) }` usage now behaves correctly.
 
 ---
+
+### [BC-07] Remove NavigationAction.RemoveLoadingModals
+
+**Type:** Breaking
+
+**Grep:** `RemoveLoadingModals`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+storeAccessor.dispatchAndAwait(NavigationAction.RemoveLoadingModals)
+```
+
+**After:**
+```kotlin
+storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+```
+
+**Notes:** Loading modals are no longer pushed to the navigation backstack during guard/entry
+evaluation. The evaluation overlay is now controlled by `NavigationState.isEvaluatingNavigation`.
+Direct dispatch of `RemoveLoadingModals` is no longer needed. See AD-16 for the new API.
+
+---
+
+### [AD-16] NavigationState.isEvaluatingNavigation and NavigationAction.SetEvaluating
+
+**Type:** Addition
+
+**Grep:** `isEvaluatingNavigation`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val state by selectState<NavigationState>().collectAsState()
+if (state.isEvaluatingNavigation) {
+    // guard or entry-definition is being evaluated; loading overlay is visible
+}
+```
+
+**Notes:** The evaluation overlay (loading modal shown during guard/entry-definition evaluation)
+is now a pure boolean flag rather than a backstack entry. This eliminates the flash of the
+previous screen when navigating through a guarded route. `NavigationRender` renders the
+`LoadingModal` directly as a `zIndex(9001f)` overlay when `isEvaluatingNavigation` is `true`.
+See BC-07 for the removed `RemoveLoadingModals` action.
+
+---

@@ -112,6 +112,14 @@ class NavigationModule internal constructor(
         return resolveNavigatable(entry)?.let { precomputedData.navigatableToGraph[it] }
     }
 
+    /**
+     * Returns the [LoadingModal] configured for this module, or `null` if none was provided.
+     *
+     * Used by [io.github.syrou.reaktiv.navigation.ui.NavigationRender] to render the
+     * evaluation overlay directly when [NavigationState.isEvaluatingNavigation] is `true`.
+     */
+    fun getLoadingModal(): LoadingModal? = loadingModal
+
     override val initialState: NavigationState by lazy {
         createInitialState()
     }
@@ -268,7 +276,8 @@ class NavigationModule internal constructor(
             modalsInStack = computedState.modalsInStack,
             underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
             activeModalContexts = newModalContexts,
-            pendingNavigation = newPendingNavigation
+            pendingNavigation = newPendingNavigation,
+            isEvaluatingNavigation = state.isEvaluatingNavigation
         )
     }
 
@@ -366,12 +375,7 @@ class NavigationModule internal constructor(
         }
 
         is NavigationAction.ClearBackstack -> {
-            val systemEntries = state.backStack.filter {
-                it.renderLayer() == RenderLayer.SYSTEM
-            }
-            val effectiveCurrent = if (systemEntries.isNotEmpty()) systemEntries.last()
-                                   else state.currentEntry
-            reduceNavigationStateUpdate(state, effectiveCurrent, systemEntries, emptyMap(), action)
+            reduceNavigationStateUpdate(state, state.currentEntry, emptyList(), emptyMap(), action)
         }
 
         is NavigationAction.PopUpTo -> {
@@ -417,17 +421,7 @@ class NavigationModule internal constructor(
 
         is NavigationAction.SetCurrentTitle -> state.copy(currentTitle = action.title)
 
-        is NavigationAction.RemoveLoadingModals -> {
-            val newBackStack = state.backStack.filter { precomputedData.allNavigatables[it.path] !is LoadingModal }
-            if (newBackStack == state.backStack) {
-                state
-            } else {
-                val newCurrentEntry = if (precomputedData.allNavigatables[state.currentEntry.path] is LoadingModal) {
-                    newBackStack.lastOrNull() ?: state.currentEntry
-                } else state.currentEntry
-                reduceNavigationStateUpdate(state, newCurrentEntry, newBackStack, state.activeModalContexts, action)
-            }
-        }
+        is NavigationAction.SetEvaluating -> state.copy(isEvaluatingNavigation = action.isEvaluating)
     }
 
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = ::reduceAction

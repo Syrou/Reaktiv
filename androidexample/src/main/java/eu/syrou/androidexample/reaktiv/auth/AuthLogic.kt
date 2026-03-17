@@ -20,9 +20,9 @@ class AuthLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
      * where the startup delay would live.
      */
     suspend fun initializeSession() {
-        //delay(5000)
-        storeAccessor.dispatch(AuthAction.SetAuthenticated(Random.nextBoolean()))
-        //storeAccessor.dispatch(AuthAction.SetAuthenticated(false))
+        delay(2000)
+        //storeAccessor.dispatch(AuthAction.SetAuthenticated(Random.nextBoolean()))
+        storeAccessor.dispatch(AuthAction.SetAuthenticated(true))
     }
 
     /**

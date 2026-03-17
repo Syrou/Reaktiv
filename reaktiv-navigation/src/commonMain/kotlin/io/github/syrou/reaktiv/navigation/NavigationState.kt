@@ -90,6 +90,14 @@ data class NavigationState(
     val isBootstrapping: Boolean = true,
 
     /**
+     * `true` while a guard or entry-definition lambda is being evaluated and the
+     * evaluation has exceeded its loading threshold. [NavigationRender] renders the
+     * [io.github.syrou.reaktiv.navigation.definition.LoadingModal] directly as a
+     * boolean-controlled overlay rather than a backstack entry while this is `true`.
+     */
+    val isEvaluatingNavigation: Boolean = false,
+
+    /**
      * Resolved title string for [currentEntry], populated by [NavigationRender] after
      * invoking the navigatable's `titleResource` inside the Compose tree.
      */

@@ -57,11 +57,16 @@ fun rememberLayerAnimationState(
 
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
+    val previousRenderWasEvaluating = remember { mutableStateOf(false) }
+    val isCurrentlyEvaluating = navigationState.isEvaluatingNavigation
 
     if (currentEntryState.value.stableKey != currentEntry.stableKey) {
-        previousEntryState.value = currentEntryState.value
+        if (!previousRenderWasEvaluating.value) {
+            previousEntryState.value = currentEntryState.value
+        }
         currentEntryState.value = currentEntry
     }
+    previousRenderWasEvaluating.value = isCurrentlyEvaluating
 
     val previousEntry = previousEntryState.value
 

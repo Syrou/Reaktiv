@@ -9,6 +9,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
@@ -18,6 +19,7 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
 import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 
@@ -61,6 +63,7 @@ internal val LocalCurrentActionResource = compositionLocalOf<ActionResource?> { 
  * - Global overlay layer (overlays rendered above content)
  * - System layer (loading modals and other system-level UI)
  * - Bootstrap suppression (content layers are hidden until bootstrap completes)
+ * - Evaluation overlay (loading modal rendered directly when isEvaluatingNavigation is true)
  * - Title resolution (resolves the current entry's title via `stringResource`)
  *
  * Place this composable at the root of your application's Compose hierarchy, inside a
@@ -102,10 +105,9 @@ fun NavigationRender(
         Box(
             modifier = modifier.fillMaxSize()
         ) {
-            val hasActiveLoadingModal = navigationState.systemLayerEntries.any {
-                navModule.resolveNavigatable(it) is LoadingModal
-            }
-            val showContentLayers = !navigationState.isBootstrapping || !hasActiveLoadingModal
+            val hasActiveLoadingOverlay = navigationState.isEvaluatingNavigation ||
+                navigationState.systemLayerEntries.any { navModule.resolveNavigatable(it) is LoadingModal }
+            val showContentLayers = !navigationState.isBootstrapping || !hasActiveLoadingOverlay
             if (showContentLayers) {
                 UnifiedLayerRenderer(
                     layerType = RenderLayer.CONTENT,
@@ -125,6 +127,20 @@ fun NavigationRender(
                 entries = navigationState.systemLayerEntries,
                 graphDefinitions = graphDefinitions
             )
+
+            val isEvaluating = navigationState.isEvaluatingNavigation
+            if (isEvaluating) {
+                val loadingModal = navModule.getLoadingModal()
+                if (loadingModal != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(NavigationZIndex.SYSTEM_BASE + loadingModal.elevation)
+                    ) {
+                        loadingModal.Content(Params.empty())
+                    }
+                }
+            }
         }
     }
 }

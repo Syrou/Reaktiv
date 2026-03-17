@@ -69,6 +69,7 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import java.util.concurrent.TimeUnit
@@ -91,6 +92,10 @@ class CustomApplication : Application() {
 
     private val requireAuth: NavigationGuard = { store ->
         val authLogic = store.selectLogic<AuthLogic>()
+        store.selectState<AuthModule.AuthState>()
+            .mapNotNull { it.isAuthenticated }
+            .first()
+        delay(2000)
         if (authLogic.checkSession()) GuardResult.Allow
         else GuardResult.PendAndRedirectTo(
             navigatable = LoginScreen,

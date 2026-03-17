@@ -80,13 +80,17 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     object BootstrapComplete : NavigationAction(), HighPriorityAction
 
     /**
-     * Removes all [io.github.syrou.reaktiv.navigation.definition.LoadingModal] entries from
-     * the backStack. Dispatched atomically with the navigation batch that follows guard or
-     * entry-definition evaluation, so the loading overlay and the destination appear/disappear
-     * in a single state emission with no intermediate flash.
+     * Sets [NavigationState.isEvaluatingNavigation] to [isEvaluating].
+     *
+     * Dispatched with `true` when a guard or entry-definition evaluation starts and
+     * takes longer than the configured loading threshold. Dispatched with `false` in
+     * the finally block of [io.github.syrou.reaktiv.navigation.NavigationLogic] when
+     * evaluation completes.
+     *
+     * @param isEvaluating `true` to show the evaluation overlay; `false` to hide it.
      */
     @Serializable
-    object RemoveLoadingModals : NavigationAction(), HighPriorityAction
+    data class SetEvaluating(val isEvaluating: Boolean) : NavigationAction(), HighPriorityAction
 
     /**
      * Sets [NavigationState.currentTitle] to the resolved title string for the current entry.
