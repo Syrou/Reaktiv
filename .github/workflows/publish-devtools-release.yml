@@ -56,7 +56,7 @@ jobs:
           mkdir -p release-packages
 
           # Create packages for each platform
-          for platform in "linuxX64:linux-x64" "linuxArm64:linux-arm64" "macosX64:macos-x64" "macosArm64:macos-arm64" "mingwX64:windows-x64"; do
+          for platform in "linuxX64:linux-x64" "linuxArm64:linux-arm64" "macosArm64:macos-arm64" "mingwX64:windows-x64"; do
             IFS=: read -r gradle_platform package_name <<< "$platform"
 
             # Create package directory
@@ -127,7 +127,6 @@ jobs:
 
             - **Linux x64**: `reaktiv-devtools-linux-x64-${{ github.ref_name }}.zip`
             - **Linux ARM64**: `reaktiv-devtools-linux-arm64-${{ github.ref_name }}.zip`
-            - **macOS x64** (Intel): `reaktiv-devtools-macos-x64-${{ github.ref_name }}.zip`
             - **macOS ARM64** (Apple Silicon): `reaktiv-devtools-macos-arm64-${{ github.ref_name }}.zip`
             - **Windows x64**: `reaktiv-devtools-windows-x64-${{ github.ref_name }}.zip`
 
@@ -201,7 +200,6 @@ jobs:
           echo "### 📦 Published Packages:" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Linux x64 (with UI)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Linux ARM64 (with UI)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ macOS x64 (with UI)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ macOS ARM64 (with UI)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Windows x64 (with UI)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

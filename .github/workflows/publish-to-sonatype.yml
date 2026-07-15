@@ -45,7 +45,7 @@ jobs:
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Build and test (excluding androidexample)
-        run: ./gradlew build -x :androidexample:build -x :androidexample:testDebugUnitTest -x :androidexample:testReleaseUnitTest
+        run: ./gradlew build -x :androidexample:build -x :androidexample:testDebugUnitTest
 
       - name: Build tracing-compiler
         run: ./gradlew -p reaktiv-tracing-compiler build
