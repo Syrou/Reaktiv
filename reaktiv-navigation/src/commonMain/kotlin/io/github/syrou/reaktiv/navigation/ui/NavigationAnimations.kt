@@ -6,6 +6,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,15 +25,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.rememberStore
+import io.github.syrou.reaktiv.core.Store
+import io.github.syrou.reaktiv.core.util.selectState
+import io.github.syrou.reaktiv.navigation.NavigationModule
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.transition.ResolvedNavTransition
 import io.github.syrou.reaktiv.navigation.transition.resolve
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -48,7 +60,7 @@ object NavigationAnimations {
      * Animated content wrapper that handles all types of navigation animations
      */
     @Composable
-    fun AnimatedEntry(
+    internal fun AnimatedEntry(
         entry: NavigationEntry,
         animationType: AnimationType,
         animationDecision: AnimationDecision?,
@@ -56,6 +68,7 @@ object NavigationAnimations {
         screenHeight: Float,
         zIndex: Float = 0f,
         onAnimationComplete: (() -> Unit)? = null,
+        progressDriver: TransitionProgressDriver = TransitionProgressDriver.Timed,
         content: @Composable () -> Unit
     ) {
         when (animationType) {
@@ -68,6 +81,7 @@ object NavigationAnimations {
                     screenHeight = screenHeight,
                     zIndex = zIndex,
                     onAnimationComplete = onAnimationComplete,
+                    progressDriver = progressDriver,
                     content = content
                 )
             }
@@ -97,6 +111,7 @@ object NavigationAnimations {
         screenHeight: Float,
         zIndex: Float,
         onAnimationComplete: (() -> Unit)? = null,
+        progressDriver: TransitionProgressDriver = TransitionProgressDriver.Timed,
         content: @Composable () -> Unit
     ) {
         val transition = if (isEntering) {
@@ -116,7 +131,8 @@ object NavigationAnimations {
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
                     entryKey = entry.stableKey,
-                    onAnimationComplete = onAnimationComplete
+                    onAnimationComplete = onAnimationComplete,
+                    progressDriver = progressDriver
                 )
                 .let { modifier ->
                     // Block interactions for exit animations
@@ -162,22 +178,23 @@ object NavigationAnimations {
         val modal = navigatable as? Modal
         val scope = rememberCoroutineScope()
         val store = rememberStore()
+        val controller = LocalInteractiveTransitionController.current
 
         val transition = when {
             isEntering -> navigatable?.popEnterTransition ?: navigatable?.enterTransition ?: NavTransition.None
             else -> navigatable?.popExitTransition ?: navigatable?.exitTransition ?: NavTransition.None
         }
-        
+
         val shouldAnimate = transition != NavTransition.None
-        
+
         val resolved = remember(transition, screenWidth, screenHeight, shouldAnimate) {
             if (shouldAnimate) {
                 transition.resolve(screenWidth, screenHeight, isForward = isEntering)
             } else null
         }
-        
+
         val animationTrigger = remember(entry.stableKey) { mutableStateOf(false) }
-        
+
         LaunchedEffect(entry.stableKey) {
             if (shouldAnimate) {
                 animationTrigger.value = true
@@ -185,15 +202,15 @@ object NavigationAnimations {
                 onAnimationComplete?.invoke()
             }
         }
-        
+
         val targetValue = when {
             !shouldAnimate -> if (!isEntering) 0f else 1f
             !isEntering -> 0f
             animationTrigger.value -> 1f
             else -> 0f
         }
-        
-        val animationProgress by animateFloatAsState(
+
+        val timedProgress by animateFloatAsState(
             targetValue = targetValue,
             animationSpec = if (shouldAnimate && resolved != null) {
                 tween(
@@ -210,7 +227,16 @@ object NavigationAnimations {
             },
             label = "modal_${entry.stableKey}"
         )
-        
+
+        val activeModalScrub = controller?.scrubKind
+            ?.let { it as? InteractiveTransitionController.ScrubKind.ModalDismiss }
+            ?.takeIf {
+                controller.phase != InteractiveTransitionController.Phase.Idle &&
+                    it.modalEntry.stableKey == entry.stableKey
+            }
+        val scrubProgress = if (activeModalScrub != null) controller.progress else 0f
+        val animationProgress = timedProgress * (1f - scrubProgress)
+
         val dimmerAlpha = if (modal?.shouldDimBackground == true) {
             modal.backgroundDimAlpha * animationProgress
         } else {
@@ -221,6 +247,58 @@ object NavigationAnimations {
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(zIndex)
+                .let { modifier ->
+                    if (modal?.swipeToDismiss == true && isEntering && controller != null) {
+                        modifier.pointerInput(entry.stableKey) {
+                            val velocityThresholdPx =
+                                InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val height = size.height.toFloat()
+                                if (height <= 0f) return@awaitEachGesture
+                                val slopChange = awaitVerticalTouchSlopOrCancellation(down.id) { change, overSlop ->
+                                    if (overSlop > 0f) {
+                                        change.consume()
+                                    }
+                                } ?: return@awaitEachGesture
+                                val kind = InteractiveTransitionController.ScrubKind.ModalDismiss(entry)
+                                if (!controller.beginScrub(kind)) return@awaitEachGesture
+
+                                val velocityTracker = VelocityTracker()
+                                velocityTracker.addPosition(down.uptimeMillis, down.position)
+                                velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
+
+                                fun progressOf(y: Float): Float = (y - down.position.y) / height
+
+                                controller.scrubTo(progressOf(slopChange.position.y))
+                                verticalDrag(down.id) { change ->
+                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                    controller.scrubTo(progressOf(change.position.y))
+                                    change.consume()
+                                }
+
+                                val downVelocity = velocityTracker.calculateVelocity().y
+                                val commit = InteractiveTransitionController.shouldCommit(
+                                    progress = controller.progress,
+                                    velocity = downVelocity,
+                                    velocityThreshold = velocityThresholdPx
+                                )
+                                scope.launch {
+                                    completeModalDismiss(
+                                        commit = commit,
+                                        progressVelocity = downVelocity / height,
+                                        controller = controller,
+                                        store = store,
+                                        navModule = navModule,
+                                        entry = entry
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        modifier
+                    }
+                }
         ) {
             // Background layer — always captures taps to prevent click pass-through.
             // Invokes tapOutsideClick when set; does nothing when null.
@@ -237,13 +315,12 @@ object NavigationAnimations {
                         indication = null,
                         enabled = isEntering
                     ) {
-                        modal?.tapOutsideClick?.let { handler ->
-                            scope.launch { handler(store) }
-                        }
+                        @Suppress("DEPRECATION")
+                        val handler = modal?.onDismissRequest ?: modal?.tapOutsideClick
+                        handler?.let { scope.launch { it(store) } }
                     }
             )
-            
-            // Modal content
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -271,6 +348,56 @@ object NavigationAnimations {
 }
 
 
+internal fun Modifier.navTransitionGraphics(
+    resolved: ResolvedNavTransition,
+    progress: () -> Float
+): Modifier = graphicsLayer {
+    val value = progress()
+    alpha = resolved.alpha(value)
+    scaleX = resolved.scaleX(value)
+    scaleY = resolved.scaleY(value)
+    translationX = resolved.translationX(value)
+    translationY = resolved.translationY(value)
+    rotationZ = resolved.rotationZ(value)
+    transformOrigin = TransformOrigin.Center
+}
+
+internal suspend fun completeModalDismiss(
+    commit: Boolean,
+    progressVelocity: Float,
+    controller: InteractiveTransitionController,
+    store: Store,
+    navModule: NavigationModule,
+    entry: NavigationEntry
+) {
+    try {
+        controller.settle(commit = commit, initialVelocity = progressVelocity)
+        if (!commit) {
+            return
+        }
+        val state = store.selectState<NavigationState>().first()
+        val stillValid = state.currentEntry.stableKey == entry.stableKey &&
+            state.canGoBack &&
+            !state.isEvaluatingNavigation
+        if (!stillValid) {
+            return
+        }
+        controller.armModalHandoff(entry.stableKey)
+        val dismissHandler = navModule.resolveNavigatable(entry)?.onDismissRequest
+        if (dismissHandler != null) {
+            dismissHandler.invoke(store)
+        } else {
+            store.navigateBack()
+        }
+        val after = store.selectState<NavigationState>().first()
+        if (after.currentEntry.stableKey == entry.stableKey) {
+            controller.settle(commit = false)
+        }
+    } finally {
+        controller.reset()
+    }
+}
+
 /**
  * Modifier extension for screen transition animations
  */
@@ -282,8 +409,15 @@ private fun Modifier.animateNavTransition(
     screenWidth: Float,
     screenHeight: Float,
     entryKey: String,
-    onAnimationComplete: (() -> Unit)? = null
+    onAnimationComplete: (() -> Unit)? = null,
+    progressDriver: TransitionProgressDriver = TransitionProgressDriver.Timed
 ): Modifier {
+    if (progressDriver is TransitionProgressDriver.External) {
+        return navTransitionGraphics(progressDriver.resolved) {
+            progressDriver.transformProgress()
+        }
+    }
+
     if (transition == NavTransition.None || animationDecision == null) {
         LaunchedEffect(entryKey, isEntering) {
             onAnimationComplete?.invoke()
@@ -320,18 +454,9 @@ private fun Modifier.animateNavTransition(
         onAnimationComplete?.invoke()
     }
 
-    val progress = animatable.value
     val resolvedTransition = remember(transition, screenWidth, screenHeight, animationDecision.isForward) {
         transition.resolve(screenWidth, screenHeight, animationDecision.isForward)
     }
 
-    return graphicsLayer {
-        alpha = resolvedTransition.alpha(progress)
-        scaleX = resolvedTransition.scaleX(progress)
-        scaleY = resolvedTransition.scaleY(progress)
-        translationX = resolvedTransition.translationX(progress)
-        translationY = resolvedTransition.translationY(progress)
-        rotationZ = resolvedTransition.rotationZ(progress)
-        transformOrigin = TransformOrigin.Center
-    }
+    return navTransitionGraphics(resolvedTransition) { animatable.value }
 }

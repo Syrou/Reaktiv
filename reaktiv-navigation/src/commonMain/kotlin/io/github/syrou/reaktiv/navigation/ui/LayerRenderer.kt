@@ -13,7 +13,15 @@ import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.transition.computeBackGesturePlan
+import io.github.syrou.reaktiv.navigation.transition.computeDismissGesturePlan
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
+
+internal class ContentScrubPreview(
+    val revealedEntry: NavigationEntry?,
+    val topDriver: TransitionProgressDriver.External,
+    val revealedDriver: TransitionProgressDriver.External
+)
 
 internal object NavigationZIndex {
     const val CONTENT_BACK = 2f
@@ -68,6 +76,83 @@ private fun ContentLayerRenderer(
 
     val animationState = rememberLayerAnimationState(currentEntry)
 
+    val interactiveController = LocalInteractiveTransitionController.current
+    val activeKind = interactiveController?.scrubKind
+    val windowInfoForScrub = LocalWindowInfo.current
+    val scrubPreview: ContentScrubPreview? = if (
+        interactiveController != null &&
+        interactiveController.phase != InteractiveTransitionController.Phase.Idle
+    ) {
+        when (activeKind) {
+            is InteractiveTransitionController.ScrubKind.ContentBack -> {
+                if (activeKind.topEntry.stableKey == currentEntry.stableKey) {
+                    val topNavigatable = navModule.resolveNavigatable(activeKind.topEntry)
+                    val revealedNavigatable = navModule.resolveNavigatable(activeKind.revealedEntry)
+                    if (topNavigatable != null && revealedNavigatable != null) {
+                        val width = windowInfoForScrub.containerSize.width.toFloat()
+                        val height = windowInfoForScrub.containerSize.height.toFloat()
+                        val plan = remember(
+                            activeKind.topEntry.stableKey,
+                            activeKind.revealedEntry.stableKey,
+                            width,
+                            height
+                        ) {
+                            computeBackGesturePlan(topNavigatable, revealedNavigatable, width, height)
+                        }
+                        ContentScrubPreview(
+                            revealedEntry = activeKind.revealedEntry,
+                            topDriver = TransitionProgressDriver.External(
+                                progress = { interactiveController.progress },
+                                resolved = plan.top.resolved,
+                                reversedProgress = plan.top.reversedProgress
+                            ),
+                            revealedDriver = TransitionProgressDriver.External(
+                                progress = { interactiveController.progress },
+                                resolved = plan.revealed.resolved,
+                                reversedProgress = plan.revealed.reversedProgress
+                            )
+                        )
+                    } else null
+                } else null
+            }
+
+            is InteractiveTransitionController.ScrubKind.ContentDismiss -> {
+                if (activeKind.topEntry.stableKey == currentEntry.stableKey) {
+                    val topNavigatable = navModule.resolveNavigatable(activeKind.topEntry)
+                    if (topNavigatable != null) {
+                        val width = windowInfoForScrub.containerSize.width.toFloat()
+                        val height = windowInfoForScrub.containerSize.height.toFloat()
+                        val revealedNavigatable = activeKind.revealedEntry
+                            ?.let { navModule.resolveNavigatable(it) }
+                        val plan = remember(
+                            activeKind.topEntry.stableKey,
+                            activeKind.revealedEntry?.stableKey,
+                            width,
+                            height
+                        ) {
+                            computeDismissGesturePlan(topNavigatable, revealedNavigatable, width, height)
+                        }
+                        ContentScrubPreview(
+                            revealedEntry = activeKind.revealedEntry,
+                            topDriver = TransitionProgressDriver.External(
+                                progress = { interactiveController.progress },
+                                resolved = plan.top.resolved,
+                                reversedProgress = plan.top.reversedProgress
+                            ),
+                            revealedDriver = TransitionProgressDriver.External(
+                                progress = { interactiveController.progress },
+                                resolved = plan.revealed.resolved,
+                                reversedProgress = plan.revealed.reversedProgress
+                            )
+                        )
+                    } else null
+                } else null
+            }
+
+            else -> null
+        }
+    } else null
+
     val currentGraphId = navModule.getGraphId(currentEntry) ?: currentEntry.route
     val layoutGraphs = findLayoutGraphsInHierarchy(currentGraphId, graphDefinitions)
     val prevEntry = animationState.previousEntry
@@ -92,8 +177,63 @@ private fun ContentLayerRenderer(
 
     val windowInfo = LocalWindowInfo.current
 
+    val previewRevealedEntry = scrubPreview?.revealedEntry
+    val previewRevealedLayouts = previewRevealedEntry?.let {
+        val revealedGraphId = navModule.getGraphId(it) ?: it.route
+        findLayoutGraphsInHierarchy(revealedGraphId, graphDefinitions)
+    }
+    val crossHierarchyPreview = scrubPreview != null &&
+        previewRevealedEntry != null &&
+        previewRevealedLayouts != null &&
+        previewRevealedLayouts.map { it.route } != layoutGraphs.map { it.route }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        if (useInsideStrategy && prevEntry != null) {
+        if (crossHierarchyPreview && previewRevealedEntry != null && previewRevealedLayouts != null) {
+            val previewSharedRoutes = layoutGraphs.map { it.route }.toSet()
+                .intersect(previewRevealedLayouts.map { it.route }.toSet())
+            val previewShared = layoutGraphs.filter { it.route in previewSharedRoutes }
+            val previewTopUnique = layoutGraphs.filter { it.route !in previewSharedRoutes }
+            val previewRevealedUnique = previewRevealedLayouts.filter { it.route !in previewSharedRoutes }
+
+            ApplyLayoutsHierarchy(previewShared) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    key(previewRevealedEntry.stableKey) {
+                        val revealedNavigatable = navModule.resolveNavigatable(previewRevealedEntry)
+                        NavigationAnimations.AnimatedEntry(
+                            entry = previewRevealedEntry,
+                            animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
+                            animationDecision = null,
+                            screenWidth = windowInfo.containerSize.width.toFloat(),
+                            screenHeight = windowInfo.containerSize.height.toFloat(),
+                            zIndex = NavigationZIndex.CONTENT_BACK,
+                            onAnimationComplete = null,
+                            progressDriver = scrubPreview!!.revealedDriver
+                        ) {
+                            ApplyLayoutsHierarchy(previewRevealedUnique) {
+                                revealedNavigatable?.Content(previewRevealedEntry.params)
+                            }
+                        }
+                    }
+                    key(currentEntry.stableKey) {
+                        val topNavigatable = navModule.resolveNavigatable(currentEntry)
+                        NavigationAnimations.AnimatedEntry(
+                            entry = currentEntry,
+                            animationType = NavigationAnimations.AnimationType.SCREEN_EXIT,
+                            animationDecision = null,
+                            screenWidth = windowInfo.containerSize.width.toFloat(),
+                            screenHeight = windowInfo.containerSize.height.toFloat(),
+                            zIndex = NavigationZIndex.CONTENT_FRONT,
+                            onAnimationComplete = null,
+                            progressDriver = scrubPreview.topDriver
+                        ) {
+                            ApplyLayoutsHierarchy(previewTopUnique) {
+                                topNavigatable?.Content(currentEntry.params)
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (useInsideStrategy && prevEntry != null) {
             ApplyLayoutsHierarchy(sharedLayouts) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     ApplyLayoutsHierarchy(currentUniqueLayouts) {
@@ -134,7 +274,7 @@ private fun ContentLayerRenderer(
                 } else {
                     animationState
                 }
-                ContentRenderer(innerState)
+                ContentRenderer(innerState, scrubPreview)
             }
             if (useOutsideStrategy && prevEntry != null) {
                 key(prevEntry.stableKey) {
@@ -260,7 +400,10 @@ private fun SystemLayerRenderer(
  * Animation timing is managed by NavigationLogic, not by animation completion callbacks.
  */
 @Composable
-private fun ContentRenderer(animationState: LayerAnimationState) {
+private fun ContentRenderer(
+    animationState: LayerAnimationState,
+    scrubPreview: ContentScrubPreview? = null
+) {
     val navModule = LocalNavigationModule.current
 
     val windowInfo = LocalWindowInfo.current
@@ -272,17 +415,35 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
                 decision.exitTransition !is io.github.syrou.reaktiv.navigation.transition.NavTransition.None
     } ?: false
 
+    val revealedPreviewEntry = scrubPreview?.revealedEntry
+    val renderedEntries = if (
+        revealedPreviewEntry != null &&
+        animationState.aliveEntries.none { it.stableKey == revealedPreviewEntry.stableKey }
+    ) {
+        animationState.aliveEntries + revealedPreviewEntry
+    } else {
+        animationState.aliveEntries
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        animationState.aliveEntries.forEach { entry ->
+        renderedEntries.forEach { entry ->
             val isCurrentScreen = entry.stableKey == animationState.currentEntry.stableKey
             val isPreviousScreen = entry.stableKey == animationState.previousEntry?.stableKey
+            val isRevealedPreview = entry.stableKey == revealedPreviewEntry?.stableKey
             val navigatable = navModule.resolveNavigatable(entry)
 
             key(entry.stableKey) {
                 val zIndex = when {
                     isCurrentScreen -> if (shouldExitBeOnTop) NavigationZIndex.CONTENT_BACK else NavigationZIndex.CONTENT_FRONT
+                    isRevealedPreview -> NavigationZIndex.CONTENT_BACK
                     isPreviousScreen -> if (shouldExitBeOnTop) NavigationZIndex.CONTENT_FRONT else NavigationZIndex.CONTENT_BACK
                     else -> 1f
+                }
+
+                val progressDriver = when {
+                    scrubPreview != null && isCurrentScreen -> scrubPreview.topDriver
+                    scrubPreview != null && isRevealedPreview -> scrubPreview.revealedDriver
+                    else -> TransitionProgressDriver.Timed
                 }
 
                 NavigationAnimations.AnimatedEntry(
@@ -295,7 +456,8 @@ private fun ContentRenderer(animationState: LayerAnimationState) {
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
                     zIndex = zIndex,
-                    onAnimationComplete = null
+                    onAnimationComplete = null,
+                    progressDriver = progressDriver
                 ) {
                     navigatable?.Content(entry.params)
                 }

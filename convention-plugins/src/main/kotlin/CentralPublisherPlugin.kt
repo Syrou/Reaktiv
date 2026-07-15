@@ -790,7 +790,7 @@ class CentralPublisherPlugin : Plugin<Project> {
             project.tasks.register<Jar>("javadocJar") {
                 group = "documentation"
                 archiveClassifier.set("javadoc")
-                from(project.tasks.named("dokkaHtml"))
+                from(project.tasks.named("dokkaGeneratePublicationHtml"))
                 archiveBaseName.set(project.name)
             }
         } else {
@@ -868,7 +868,7 @@ class CentralPublisherPlugin : Plugin<Project> {
             project.tasks.register<Jar>("javadocJar") {
                 group = "documentation"
                 archiveClassifier.set("javadoc")
-                from(project.tasks.named("dokkaHtml"))
+                from(project.tasks.named("dokkaGeneratePublicationHtml"))
                 archiveBaseName.set("${project.name}")
             }
         } else {

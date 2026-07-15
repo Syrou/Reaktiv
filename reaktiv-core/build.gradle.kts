@@ -1,10 +1,9 @@
-import org.gradle.kotlin.dsl.support.kotlinCompilerOptions
-import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import java.net.URI
 
 plugins {
     kotlin("multiplatform")
-    id("com.android.library")
+    id("com.android.kotlin.multiplatform.library")
     kotlin("plugin.serialization")
     id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
@@ -56,8 +55,10 @@ repositories {
 
 kotlin {
     jvm()
-    androidTarget {
-        publishLibraryVariants("release")
+    android {
+        namespace = "io.github.syrou.reaktiv.core"
+        compileSdk = 36
+        minSdk = 23
     }
     macosArm64()
     macosX64()
@@ -77,14 +78,14 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
             }
         }
     }
@@ -94,24 +95,4 @@ kotlin {
     }
 
     jvmToolchain(17)
-}
-
-android {
-    namespace = "io.github.syrou"
-    compileSdk = 35
-
-    sourceSets {
-        named("main") {
-            res.srcDir("src/commonMain/resources")
-        }
-    }
-
-    lint {
-        disable.addAll(listOf("MissingTranslation", "ExtraTranslation"))
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
 }

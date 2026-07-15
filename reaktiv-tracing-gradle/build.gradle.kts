@@ -39,8 +39,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.2.10")
-    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.10")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.4.10")
+    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10")
 
     testImplementation(kotlin("test"))
     testImplementation(gradleTestKit())

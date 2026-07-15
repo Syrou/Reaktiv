@@ -13,7 +13,9 @@ import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
+import io.github.syrou.reaktiv.navigation.transition.GestureAxis
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.transition.presentationAxis
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -185,6 +187,15 @@ interface Navigatable : NavigationNode {
      */
     val elevation: Float
         get() = 0f
+
+    val backGestureEnabled: Boolean
+        get() = true
+
+    val swipeToDismiss: Boolean
+        get() = enterTransition.presentationAxis() == GestureAxis.Vertical
+
+    val onDismissRequest: (suspend StoreAccessor.() -> Unit)?
+        get() = null
 
     /**
      * Called when this navigatable is added to the backstack.

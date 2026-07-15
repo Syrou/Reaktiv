@@ -1,12 +1,11 @@
 plugins {
     kotlin("jvm") apply false
     kotlin("multiplatform") apply false
-    kotlin("android") apply false
     id("com.android.application") apply false
-    id("com.android.library") apply false
-    id("org.jetbrains.dokka") version "2.0.0"
-    id("org.jetbrains.compose") version "1.8.2"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10"
+    id("com.android.kotlin.multiplatform.library") apply false
+    id("org.jetbrains.dokka") version "2.2.0"
+    id("org.jetbrains.compose") version "1.11.1"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.10"
 }
 
 buildscript {

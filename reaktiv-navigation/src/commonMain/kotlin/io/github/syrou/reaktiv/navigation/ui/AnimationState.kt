@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +55,7 @@ fun rememberLayerAnimationState(
     val navModule = LocalNavigationModule.current
     val navigationState by composeState<NavigationState>()
     val isExplicitBackNavigation = navigationState.lastNavigationAction is NavigationAction.Back
+    val interactiveController = LocalInteractiveTransitionController.current
 
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
@@ -61,14 +63,33 @@ fun rememberLayerAnimationState(
     val isCurrentlyEvaluating = navigationState.isEvaluatingNavigation
 
     if (currentEntryState.value.stableKey != currentEntry.stableKey) {
-        if (!previousRenderWasEvaluating.value) {
+        val gestureHandled = interactiveController?.consumeHandoff(
+            oldKey = currentEntryState.value.stableKey,
+            newKey = currentEntry.stableKey
+        ) == true
+        if (!previousRenderWasEvaluating.value && !gestureHandled) {
             previousEntryState.value = currentEntryState.value
         }
         currentEntryState.value = currentEntry
     }
     previousRenderWasEvaluating.value = isCurrentlyEvaluating
 
+    val activeScrubKind = interactiveController?.scrubKind
+    val contentScrubActive = interactiveController != null &&
+        interactiveController.phase != InteractiveTransitionController.Phase.Idle &&
+        (activeScrubKind is InteractiveTransitionController.ScrubKind.ContentBack ||
+            activeScrubKind is InteractiveTransitionController.ScrubKind.ContentDismiss)
+    if (contentScrubActive) {
+        previousEntryState.value = null
+    }
+
     val previousEntry = previousEntryState.value
+
+    if (interactiveController != null) {
+        SideEffect {
+            interactiveController.contentTransitionActive = previousEntry != null
+        }
+    }
 
     val animationDecision = previousEntry?.let { prev ->
         determineContentAnimationDecision(prev, currentEntry, navModule, isExplicitBackNavigation)
@@ -123,6 +144,7 @@ fun rememberModalAnimationState(
 ): List<ModalEntryState> {
     val entryStates = remember { mutableStateOf<Map<String, ModalEntryState>>(emptyMap()) }
     val previousEntries = remember { mutableStateOf<Set<String>>(emptySet()) }
+    val interactiveController = LocalInteractiveTransitionController.current
 
     val currentEntryIds = entries.map { it.stableKey }.toSet()
 
@@ -143,11 +165,15 @@ fun rememberModalAnimationState(
 
         val removed = previousEntries.value - currentEntryIds
         removed.forEach { id ->
-            newStates[id]?.let { state ->
-                newStates[id] = state.copy(
-                    isExiting = true,
-                    isEntering = false
-                )
+            if (interactiveController?.consumeModalHandoff(id) == true) {
+                newStates.remove(id)
+            } else {
+                newStates[id]?.let { state ->
+                    newStates[id] = state.copy(
+                        isExiting = true,
+                        isEntering = false
+                    )
+                }
             }
         }
 

@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.composeState
@@ -21,6 +22,7 @@ import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
+import io.github.syrou.reaktiv.navigation.util.canHandleBack
 import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 
 /**
@@ -76,13 +78,18 @@ internal val LocalCurrentActionResource = compositionLocalOf<ActionResource?> { 
  * ```
  *
  * @param modifier Modifier applied to the root [Box] that wraps all rendered layers.
+ * @param handlePlatformBack When true, system back (Android hardware/gesture back) is handled
+ *   automatically by dispatching through the unified dismiss funnel. Set to false if the app
+ *   wires its own platform back handling.
  */
 @Composable
 fun NavigationRender(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    handlePlatformBack: Boolean = true
 ) {
     val store = rememberStore()
     val navigationState by composeState<NavigationState>()
+    val latestNavigationState = rememberUpdatedState(navigationState)
     val navModule = remember { store.getNavigationModule() }
     val graphDefinitions = remember { navModule.getGraphDefinitions() }
 
@@ -98,12 +105,36 @@ fun NavigationRender(
         NavigationDebugger(navigationState, store)
     }
 
+    val interactiveController = remember { InteractiveTransitionController() }
+
     CompositionLocalProvider(
         LocalNavigationModule provides navModule,
-        LocalCurrentActionResource provides resolvedActionResource
+        LocalCurrentActionResource provides resolvedActionResource,
+        LocalInteractiveTransitionController provides interactiveController
     ) {
+        if (handlePlatformBack) {
+            val backCoordinator = remember(navModule) {
+                PlatformBackCoordinator(store, navModule, interactiveController) {
+                    latestNavigationState.value
+                }
+            }
+            PlatformBackHandler(
+                enabled = canHandleBack(navigationState, navModule),
+                coordinator = backCoordinator
+            )
+        }
         Box(
-            modifier = modifier.fillMaxSize()
+            modifier = modifier
+                .fillMaxSize()
+                .let {
+                    if (platformEdgeSwipeBackEnabled()) {
+                        it.backGestureRecognizer(interactiveController)
+                    } else {
+                        it
+                    }
+                }
+                .dismissGestureRecognizer(interactiveController)
+                .gestureNestedScrollHandoff(interactiveController)
         ) {
             val hasActiveLoadingOverlay = navigationState.isEvaluatingNavigation ||
                 navigationState.systemLayerEntries.any { navModule.resolveNavigatable(it) is LoadingModal }

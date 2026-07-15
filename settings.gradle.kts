@@ -7,18 +7,18 @@ pluginManagement {
     }
 
     plugins {
-        val kotlinVersion = "2.2.10"
-        val agpVersion = "8.9.1"
-        val composeVersion = "1.8.2"
+        val kotlinVersion = "2.4.10"
+        val agpVersion = "9.0.0"
+        val composeVersion = "1.11.1"
 
         kotlin("jvm").version(kotlinVersion)
         kotlin("multiplatform").version(kotlinVersion)
         kotlin("plugin.compose").version(kotlinVersion)
         kotlin("plugin.serialization").version(kotlinVersion)
-        kotlin("android").version(kotlinVersion)
         id("com.android.base").version(agpVersion)
         id("com.android.application").version(agpVersion)
         id("com.android.library").version(agpVersion)
+        id("com.android.kotlin.multiplatform.library").version(agpVersion)
         id("org.jetbrains.compose").version(composeVersion)
     }
 
@@ -26,7 +26,7 @@ pluginManagement {
     includeBuild("reaktiv-tracing-gradle")
 }
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.5.0"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 

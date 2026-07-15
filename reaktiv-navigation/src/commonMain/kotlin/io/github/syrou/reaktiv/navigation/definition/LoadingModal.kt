@@ -31,4 +31,6 @@ interface LoadingModal : Modal {
     override val renderLayer get() = RenderLayer.SYSTEM
     override val shouldDimBackground get() = false
     override val elevation get() = 0f
+    override val swipeToDismiss get() = false
+    override val backGestureEnabled get() = false
 }

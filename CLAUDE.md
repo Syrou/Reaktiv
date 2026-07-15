@@ -331,6 +331,8 @@ Test files are located in `src/commonTest/kotlin/` for multiplatform tests and `
 
 **Code Comments and Documentation Guidelines:**
 
+0. **Comments are a separate pass** - Never add comments or KDoc when writing or modifying code. Comments and documentation are only generated when explicitly requested as their own complete pass. The guidelines below define the style for that dedicated pass. Also: never use the em-dash character anywhere (code, docs, commit messages); use commas, colons, or parentheses instead.
+
 1. **No inline comments** - Comments should never appear after code on the same line
    ```kotlin
    // ✅ Good - comment above code
@@ -434,12 +436,13 @@ pluginManagement {
 
 ## Configuration
 
-- **Kotlin**: 2.1.21
-- **Compose**: 1.8.1
-- **Android Gradle Plugin**: 8.7.0
-- **AtomicFU**: 0.27.0
-- Target platforms: JVM, Android, potentially iOS/Desktop
-- Uses kotlinx.coroutines and kotlinx.serialization
+- **Kotlin**: 2.4.10
+- **Gradle**: 9.6.1 (runs on JDK 17-26; the system-default JDK 25 works)
+- **Compose Multiplatform**: 1.11.1
+- **Android Gradle Plugin**: 9.3.0 (KMP modules use `com.android.kotlin.multiplatform.library` with the android target configured inside `kotlin { android { } }`; androidexample uses AGP built-in Kotlin — no `kotlin("android")` plugin)
+- **AtomicFU**: 0.33.0
+- **kotlinx**: coroutines 1.11.0, serialization 1.11.0, datetime 0.8.0
+- Target platforms: JVM, Android, iOS/macOS, wasmJs (module-dependent)
 
 ## Migration Documentation
 

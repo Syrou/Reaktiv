@@ -39,10 +39,10 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.10")
+    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.4.10")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.10")
+    testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.4.10")
 }
 
 kotlin {

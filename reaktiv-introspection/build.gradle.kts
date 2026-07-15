@@ -1,9 +1,9 @@
-import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("com.android.library")
+    id("com.android.kotlin.multiplatform.library")
     id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
@@ -45,23 +45,11 @@ repositories {
     mavenCentral()
 }
 
-android {
-    namespace = "io.github.syrou.reaktiv.introspection"
-    compileSdk = 36
-
-    defaultConfig {
-        minSdk = 23
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
 kotlin {
-    androidTarget {
-        publishLibraryVariants("release")
+    android {
+        namespace = "io.github.syrou.reaktiv.introspection"
+        compileSdk = 36
+        minSdk = 23
     }
 
     jvm()
@@ -86,8 +74,8 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(project(":reaktiv-core"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
             }
         }
@@ -95,7 +83,7 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
             }
         }
     }

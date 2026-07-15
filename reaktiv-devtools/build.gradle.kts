@@ -1,10 +1,10 @@
-import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import java.net.URI
 
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("com.android.library")
+    id("com.android.kotlin.multiplatform.library")
     id("org.jetbrains.compose")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.dokka")
@@ -56,23 +56,11 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
 }
 
-android {
-    namespace = "io.github.syrou.reaktiv.devtools"
-    compileSdk = 36
-
-    defaultConfig {
-        minSdk = 23
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
 kotlin {
-    androidTarget {
-        publishLibraryVariants("release")
+    android {
+        namespace = "io.github.syrou.reaktiv.devtools"
+        compileSdk = 36
+        minSdk = 23
     }
     linuxX64 {
         binaries {
@@ -82,13 +70,6 @@ kotlin {
         }
     }
     linuxArm64 {
-        binaries {
-            executable {
-                entryPoint = "io.github.syrou.reaktiv.devtools.server.main"
-            }
-        }
-    }
-    macosX64 {
         binaries {
             executable {
                 entryPoint = "io.github.syrou.reaktiv.devtools.server.main"
@@ -123,8 +104,8 @@ kotlin {
             dependencies {
                 implementation(project(":reaktiv-core"))
                 api(project(":reaktiv-introspection"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
             }
         }
 
@@ -172,14 +153,14 @@ kotlin {
                 implementation("io.ktor:ktor-client-js:3.1.0")
                 implementation("io.ktor:ktor-client-websockets:3.1.0")
 
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
             }
         }
 
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
             }
         }
     }
@@ -191,12 +172,6 @@ kotlin {
     jvmToolchain(17)
 }
 
-compose {
-    experimental {
-        web.application {}
-    }
-}
-
 tasks {
     register("buildDevToolsServer") {
         group = "build"
@@ -205,7 +180,6 @@ tasks {
         dependsOn("wasmJsBrowserDistribution")
         dependsOn("linkReleaseExecutableLinuxX64")
         dependsOn("linkReleaseExecutableLinuxArm64")
-        dependsOn("linkReleaseExecutableMacosX64")
         dependsOn("linkReleaseExecutableMacosArm64")
         dependsOn("linkReleaseExecutableMingwX64")
 
@@ -220,7 +194,6 @@ tasks {
             println("Native executables built at:")
             println("  ./reaktiv-devtools/build/bin/linuxX64/releaseExecutable/reaktiv-devtools.kexe")
             println("  ./reaktiv-devtools/build/bin/linuxArm64/releaseExecutable/reaktiv-devtools.kexe")
-            println("  ./reaktiv-devtools/build/bin/macosX64/releaseExecutable/reaktiv-devtools.kexe")
             println("  ./reaktiv-devtools/build/bin/macosArm64/releaseExecutable/reaktiv-devtools.kexe")
             println("  ./reaktiv-devtools/build/bin/mingwX64/releaseExecutable/reaktiv-devtools.exe")
             println()
@@ -243,7 +216,6 @@ tasks {
             currentOs.contains("linux") && currentArch.contains("aarch64") -> "linkReleaseExecutableLinuxArm64"
             currentOs.contains("linux") -> "linkReleaseExecutableLinuxX64"
             currentOs.contains("mac") && currentArch.contains("aarch64") -> "linkReleaseExecutableMacosArm64"
-            currentOs.contains("mac") -> "linkReleaseExecutableMacosX64"
             currentOs.contains("win") -> "linkReleaseExecutableMingwX64"
             else -> null
         }

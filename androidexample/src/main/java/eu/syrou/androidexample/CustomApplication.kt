@@ -44,6 +44,7 @@ import eu.syrou.androidexample.ui.screen.home.news.NewsListScreen
 import eu.syrou.androidexample.ui.screen.home.news.NewsScreen
 import eu.syrou.androidexample.ui.screen.home.workspace.WorkspaceScreen
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectFilesScreen
+import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectGalleryScreen
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectOverviewScreen
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectSettingsScreen
 import eu.syrou.androidexample.ui.screen.home.workspace.project.ProjectTabLayout
@@ -163,7 +164,8 @@ class CustomApplication : Application() {
                                 ProjectOverviewScreen,
                                 ProjectTasksScreen,
                                 ProjectFilesScreen,
-                                ProjectSettingsScreen
+                                ProjectSettingsScreen,
+                                ProjectGalleryScreen
                             )
                             layout { content ->
                                 ProjectTabLayout(content)

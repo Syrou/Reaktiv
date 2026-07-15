@@ -6,7 +6,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
@@ -52,6 +51,7 @@ import eu.syrou.androidexample.ui.theme.ReaktivTheme
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
@@ -127,11 +127,6 @@ fun MainRender() {
         false
     }
 
-    BackHandler(true) {
-        store.launch {
-            store.navigateBack()
-        }
-    }
     val items =
         listOf(
             "Settings" to Icons.Default.Settings,
@@ -142,10 +137,12 @@ fun MainRender() {
         )
     val selectedItem = remember { mutableStateOf(items[0]) }
 
+    val navigationState by composeState<NavigationState>()
+
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         ModalNavigationDrawer(
             drawerState = drawerState,
-            gesturesEnabled = true,
+            gesturesEnabled = drawerState.isOpen || !navigationState.canGoBack,
             drawerContent = {
                 ModalDrawerSheet(
                     modifier = Modifier

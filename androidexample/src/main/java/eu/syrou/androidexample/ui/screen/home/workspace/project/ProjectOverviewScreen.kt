@@ -123,6 +123,16 @@ private fun ProjectOverviewContent(params: Params) {
         Button(onClick = {
             scope.launch {
                 store.navigation {
+                    navigateTo("home/workspace/projects/gallery")
+                }
+            }
+        }) {
+            Text("Open Gallery")
+        }
+
+        Button(onClick = {
+            scope.launch {
+                store.navigation {
                     navigateTo("home/workspace/overview")
                     popUpTo("home/workspace", inclusive = true)
                 }

@@ -1,7 +1,7 @@
 package io.github.syrou.reaktiv.devtools
 
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.window.CanvasBasedWindow
+import androidx.compose.ui.window.ComposeViewport
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.devtools.ui.DevToolsApp
@@ -32,15 +32,14 @@ fun main() {
 
     println("Main: Connecting to DevTools server at: $serverUrl")
     try {
-        CanvasBasedWindow(canvasElementId = "ComposeTarget") {
-            println("Main: Inside CanvasBasedWindow")
+        ComposeViewport(viewportContainerId = "root") {
             DevToolsTheme {
                 StoreProvider(store) {
                     DevToolsApp(store = store, serverUrl = serverUrl)
                 }
             }
         }
-        println("Main: CanvasBasedWindow created")
+        println("Main: ComposeViewport created")
     } catch (e: Exception) {
         println("Main: Error creating window - ${e.message}")
         e.printStackTrace()

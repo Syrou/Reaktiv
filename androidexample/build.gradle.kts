@@ -1,10 +1,5 @@
-import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
-import org.gradle.kotlin.dsl.components
-import org.gradle.kotlin.dsl.resources
-
 plugins {
     id("com.android.application")
-    kotlin("android")
     kotlin("plugin.serialization")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
@@ -85,16 +80,10 @@ android {
 }
 
 kotlin {
-    sourceSets.all {
-        languageSettings {
-            optIn("kotlin.time.ExperimentalTime")
-        }
+    compilerOptions {
+        optIn.add("kotlin.time.ExperimentalTime")
     }
     jvmToolchain(17)
-}
-
-composeCompiler {
-    enableStrongSkippingMode = true
 }
 
 dependencies {
@@ -122,7 +111,8 @@ dependencies {
     implementation("io.ktor:ktor-client-logging:3.1.0")
     implementation("androidx.core:core-splashscreen:1.0.0")
     implementation("androidx.webkit:webkit:1.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("io.coil-kt:coil:2.6.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")

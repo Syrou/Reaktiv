@@ -842,3 +842,292 @@ previous screen when navigating through a guarded route. `NavigationRender` rend
 See BC-07 for the removed `RemoveLoadingModals` action.
 
 ---
+### [BC-08] navigateBack() is a no-op while isEvaluatingNavigation is true
+
+**Type:** Behavioural
+
+**Grep:** `navigateBack`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// navigateBack() during guard/entry evaluation dispatched Back and could
+// corrupt the backstack that the in-flight evaluation was about to commit against
+store.navigateBack()
+```
+
+**After:**
+```kotlin
+// Same call, now silently ignored while NavigationState.isEvaluatingNavigation
+// is true. No code change needed unless you relied on back landing mid-evaluation.
+store.navigateBack()
+```
+
+**Notes:** `navigateBack()` bypasses the navigation mutex by design. Previously only a
+`LoadingModal` backstack entry blocked it, but since the evaluation overlay became a boolean
+(see AD-16), that check no longer covered evaluation. The new gate closes the window where a
+Back dispatched during async guard evaluation interleaved with the pending forward navigation.
+
+---
+
+### [BC-09] Toolchain modernised: Kotlin 2.4.10, Gradle 9.6.1, AGP 9.3.0, Compose Multiplatform 1.11.1
+
+**Type:** Behavioural
+
+**Grep:** `io.github.syrou:reaktiv`
+**File glob:** `**/build.gradle.kts`
+
+**Before:**
+```kotlin
+// Consumers on Kotlin 2.2.x / Compose Multiplatform 1.8.x
+```
+
+**After:**
+```kotlin
+// Consumers should upgrade to Kotlin 2.4+ and Compose Multiplatform 1.11+.
+// Native/wasm klibs produced by Kotlin 2.4.10 are not consumable by older compilers.
+```
+
+**Notes:** Library artifacts are now built with Kotlin 2.4.10 and Compose Multiplatform 1.11.1.
+JVM/Android consumers on slightly older Kotlin generally keep working (metadata n+1 rule), but
+KMP native/wasm consumers must be on a compiler able to read 2.4 klibs. kotlinx dependency
+floors: coroutines 1.11.0, serialization 1.11.0, kotlinx-datetime 0.8.0.
+
+---
+
+### [BC-10] macosX64 target removed from reaktiv-compose, reaktiv-navigation, reaktiv-devtools
+
+**Type:** Breaking
+
+**Grep:** `macosX64`
+**File glob:** `**/build.gradle.kts`
+
+**Before:**
+```kotlin
+kotlin {
+    macosX64()
+    sourceSets.commonMain.dependencies {
+        implementation("io.github.syrou:reaktiv-navigation:<version>")
+    }
+}
+```
+
+**After:**
+```kotlin
+kotlin {
+    // macosX64 no longer supported by Compose-dependent Reaktiv modules;
+    // Apple Silicon (macosArm64) remains supported.
+    macosArm64()
+}
+```
+
+**Notes:** Compose Multiplatform 1.11 no longer publishes macosX64 artifacts, so the
+Compose-dependent modules had to drop the target. reaktiv-core and reaktiv-introspection
+still publish macosX64. The reaktiv-devtools server no longer ships an Intel-mac executable.
+
+---
+### [BC-11] NavigationAnimations.AnimatedEntry is now internal
+
+**Type:** Breaking
+
+**Grep:** `NavigationAnimations.AnimatedEntry`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+NavigationAnimations.AnimatedEntry(entry, type, decision, w, h) { content() }
+```
+
+**After:**
+```kotlin
+NavigationRender()
+```
+
+**Notes:** AnimatedEntry was accidental public surface: a low-level rendering detail consumed
+only by the library's own layer renderers. Apps should render through NavigationRender. If you
+were composing entries manually, open an issue describing the use case.
+
+---
+### [AD-17] Interactive iOS-style edge-swipe back gesture in NavigationRender
+
+**Type:** Addition
+
+**Grep:** `NavigationRender`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+StoreProvider(store) {
+    NavigationRender()
+}
+```
+
+**Notes:** NavigationRender now recognises a left-edge (RTL: right-edge) horizontal drag on
+content screens and scrubs an interactive pop: the current screen follows the finger while the
+previous backstack entry renders underneath with a parallax reveal. Release past 30% progress
+or with a fast fling commits the back navigation (exactly one Back action); otherwise the
+gesture cancels and the screen settles back with its state intact. The scrub transforms are
+derived by reversing the push: popExitTransition/popEnterTransition win when set, otherwise
+the enter/exit transitions are played backwards, and transitionless screens fall back to the
+IOSSlideIn/IOSSlideOut pair. The gesture arms only when the stack can pop, no modal is on top,
+no evaluation/bootstrap is in flight and the revealed entry would not restore a modal context.
+
+Horizontally scrollable content coordinates with the back gesture through nested scrolling,
+using the same rule as the vertical dismiss: while the content is scrolled to its start, a
+backward drag's unconsumed leftover hands off to the back scrub from anywhere over the
+content; content scrolled forward consumes the drag normally and never pops until it returns
+to its start.
+
+The preview works across layout-graph boundaries (e.g. popping from a sub graph with its own
+chrome back to a parent-graph screen): shared layout chrome renders once and stays static,
+while each screen scrubs wrapped in its own unique chrome, mirroring the strategy the timed
+renderer uses. Caveat: for cross-hierarchy pairs the screens compose into dedicated preview
+slots, so a cancelled gesture recomposes the top screen fresh; same-hierarchy pairs keep
+composition state through arm, cancel and commit.
+
+The gesture is platform-scoped with no configuration knob: active on Apple and desktop
+targets. On Android it follows the system navigation mode, detected via
+WindowInsets.systemGestures: under gesture navigation the OS owns the edges and the system
+predictive back gesture (AD-21) provides the interactive pop, so the in-app recognizer stays
+off; under 2- or 3-button navigation the edges are free and the in-app edge swipe activates,
+giving button-navigation users an interactive pop they otherwise never get. Conflict
+arbitration follows Compose's deepest-child-wins pointer model: screen content (pagers,
+carousels, sliders) consumes drags before the navigation gesture, and the navigation gesture
+consumes before app chrome such as drawers. At the stack root the gesture never arms, so a
+ModalNavigationDrawer receives edge drags there untouched. Apps that want Material-style
+drawer-everywhere priority on gesture platforms flip it with their existing drawer:
+
+```kotlin
+val navState by composeState<NavigationState>()
+ModalNavigationDrawer(
+    gesturesEnabled = drawerState.isOpen || !navState.canGoBack,
+    ...
+)
+```
+
+Per-screen opt-out remains `backGestureEnabled = false` (AD-18).
+
+The gesture also respects the presentation axis: screens whose pop motion is vertical
+(SlideUpBottom/SlideOutBottom/StackPush/StackPop via popExitTransition or enterTransition)
+never arm the horizontal edge swipe; they dismiss with the vertical swipe instead (AD-19),
+matching iOS where the interactive pop applies only to horizontal pushes and vertically
+presented screens dismiss downward. Custom transitions classify as neutral (edge swipe arms
+with the IOS fallback pair); override backGestureEnabled/swipeToDismiss for vertical Custom
+transitions.
+
+---
+
+### [AD-18] Navigatable.backGestureEnabled
+
+**Type:** Addition
+
+**Grep:** `backGestureEnabled`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object MapScreen : Screen {
+    override val route = "map"
+    override val backGestureEnabled = false
+
+    @Composable
+    override fun Content(params: Params) { MapView() }
+}
+```
+
+**Notes:** Defaults to true. Set to false on screens whose content owns horizontal drags
+(maps, carousels) or that must not be interactively popped (login). Disables only the
+interactive scrub; Android system back still works through the commit-only path. See AD-17.
+
+---
+
+### [AD-19] Navigatable.swipeToDismiss
+
+**Type:** Addition
+
+**Grep:** `swipeToDismiss`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object FilterSheet : Screen {
+    override val route = "filters"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+    override val swipeToDismiss = true
+
+    @Composable
+    override fun Content(params: Params) { FilterContent() }
+}
+```
+
+**Notes:** Available on both Screens and Modals. Defaults follow iOS conventions: Modals are
+swipe-dismissable by default (like UIKit sheets with isModalInPresentation = false), Screens
+default to false (like full-screen pushes), and LoadingModal is never dismissable. Override
+per navigatable to change. A downward drag scrubs the navigatable through its exit transition
+(fallback SlideOutBottom) while the underlying screen animates forward beneath it, iOS
+card-stack style: popEnterTransition wins when set, otherwise the underlying screen's own
+exit transition plays backwards, otherwise it recedes back from 94% to full scale as the
+sheet departs. The modal dimmer follows the drag. Commit dispatches through the dismiss
+funnel (see AD-20).
+Scrollable content inside a dismissable screen or modal coordinates with the gesture through
+nested scrolling, matching iOS sheet behaviour and Material's ModalBottomSheet: while the
+content is scrolled to the top, further downward drag hands off to the dismiss scrub; pulling
+back up reduces the scrub to zero before scrolling resumes; mid-content drags scroll normally
+and never trigger dismissal.
+
+---
+
+### [AD-20] Navigatable.onDismissRequest unified dismiss funnel
+
+**Type:** Replaces-deprecated
+
+**Grep:** `onDismissRequest`
+**File glob:** `**/*.kt`
+
+**Replaces:** `Modal.tapOutsideClick` (now deprecated, still functional)
+
+**Example:**
+```kotlin
+object EditorSheet : Screen {
+    override val route = "editor"
+    override val swipeToDismiss = true
+    override val onDismissRequest: (suspend StoreAccessor.() -> Unit) = {
+        val state = selectState<EditorState>().first()
+        if (!state.hasUnsavedChanges) navigateBack()
+    }
+
+    @Composable
+    override fun Content(params: Params) { Editor() }
+}
+```
+
+**Notes:** One optional handler invoked by every dismiss input: edge-swipe commit, swipe-down
+commit, Android system back and (for modals) tap-outside. When null, gestures and system back
+default to navigateBack() and tap-outside falls back to the deprecated tapOutsideClick (which
+still defaults to doing nothing). If the handler declines (navigation state unchanged), the
+scrubbed screen animates back into place.
+
+---
+
+### [AD-21] Automatic platform back handling and NavigationRender(handlePlatformBack)
+
+**Type:** Addition
+
+**Grep:** `handlePlatformBack`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+NavigationRender(handlePlatformBack = false)
+```
+
+**Notes:** On Android, NavigationRender now installs a PredictiveBackHandler that drives the
+same interactive transition controller as the edge-swipe gesture: on Android 14+ the system
+predictive-back gesture scrubs the pop preview, and on older devices or 3-button navigation
+the flow completes commit-only with a normal animated pop. Remove app-level BackHandler blocks
+that called navigateBack(), or pass handlePlatformBack = false to keep them. Adding the
+defaulted parameter is source-compatible but binary-breaking (acceptable pre-1.0). Apple and
+desktop targets are no-ops (the edge swipe is the mechanism there).
+
+---

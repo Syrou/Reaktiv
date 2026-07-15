@@ -27,7 +27,13 @@ interface Modal : Navigatable {
      * override val tapOutsideClick: (suspend StoreAccessor.() -> Unit) = { navigateBack() }
      * ```
      */
+    @Deprecated(
+        message = "Use onDismissRequest instead; it unifies tap-outside, swipe-to-dismiss and system back handling.",
+        replaceWith = ReplaceWith("onDismissRequest")
+    )
     val tapOutsideClick: (suspend StoreAccessor.() -> Unit)? get() = null
+
+    override val swipeToDismiss: Boolean get() = true
 
     val shouldDimBackground: Boolean get() = true
     val backgroundDimAlpha: Float get() = 0.5f

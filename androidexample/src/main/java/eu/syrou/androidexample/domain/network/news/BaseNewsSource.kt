@@ -2,6 +2,7 @@ package eu.syrou.androidexample.domain.network.news
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.DEFAULT
 import io.ktor.client.plugins.logging.LogLevel
@@ -9,6 +10,7 @@ import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType.Application.Json
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -16,7 +18,12 @@ import kotlinx.serialization.json.Json
 abstract class BaseNewsSource : NewsSource {
     @OptIn(ExperimentalSerializationApi::class)
     protected val client = HttpClient {
+        expectSuccess = true
+        install(UserAgent) {
+            agent = "android:eu.syrou.androidexample:v1.0 (Reaktiv example app)"
+        }
         install(ContentNegotiation) {
+
             json(Json {
                 ignoreUnknownKeys = true
                 isLenient = true

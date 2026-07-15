@@ -642,8 +642,10 @@ class NavigationLogic(
     /**
      * Navigate back in the navigation stack.
      *
-     * No-op if a [LoadingModal] is currently showing — back navigation during async guard
-     * evaluation would corrupt state since this call bypasses the navigation mutex.
+     * No-op while [NavigationState.isEvaluatingNavigation] is true or a [LoadingModal] is
+     * the current entry, because back navigation during async guard/entry evaluation would
+     * corrupt state: this call bypasses the navigation mutex and the in-flight evaluation
+     * has already captured a state snapshot it is about to commit against.
      *
      * Dispatches [NavigationAction.Back] directly, bypassing the navigation mutex.
      * This is intentional: a back/dismiss requires no guard evaluation, and the mutex
@@ -653,6 +655,7 @@ class NavigationLogic(
     suspend fun navigateBack() {
         val currentState = getCurrentNavigationState()
         if (!currentState.canGoBack) return
+        if (currentState.isEvaluatingNavigation) return
         if (precomputedData.allNavigatables[currentState.currentEntry.path] is LoadingModal) return
         storeAccessor.dispatchAndAwait(NavigationAction.Back)
     }
