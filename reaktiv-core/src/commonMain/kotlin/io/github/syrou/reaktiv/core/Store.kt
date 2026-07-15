@@ -723,7 +723,7 @@ class Store private constructor(
         return completion.await()
     }
 
-    private suspend fun initializeModules() = stateUpdateMutex.withLock {
+    private fun registerModuleStates() {
         modules.forEach { module ->
             val info = ModuleInfo(
                 module = module,
@@ -732,7 +732,9 @@ class Store private constructor(
             moduleInfo[module::class.qualifiedName!!] = info
             moduleInfo[module.initialState::class.qualifiedName!!] = info
         }
+    }
 
+    private suspend fun initializeModules() = stateUpdateMutex.withLock {
         modules.forEach { module ->
             val info = moduleInfo[module::class.qualifiedName!!]!!
             info.logic = module.createLogic(this)
@@ -757,6 +759,7 @@ class Store private constructor(
     }
 
     init {
+        registerModuleStates()
         launch {
             initializeModules()
             processActionChannel()
