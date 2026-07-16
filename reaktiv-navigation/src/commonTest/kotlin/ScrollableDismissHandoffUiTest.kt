@@ -1,4 +1,4 @@
-import androidx.compose.ui.geometry.Offset
+﻿import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
@@ -48,10 +48,11 @@ class ScrollableDismissHandoffUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-scroll-sheet") } }
-        waitUntilExactlyOneExists(hasText("Sheet Row 0"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-scroll-sheet")
+        waitUntilExactlyOneExists(hasText("Sheet Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.3f))
@@ -61,8 +62,9 @@ class ScrollableDismissHandoffUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Sheet Row 0").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-home")
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Sheet Row 0").fetchSemanticsNodes().isEmpty() }
         assertEquals(1, recorder.backActions.size)
     }
 
@@ -75,10 +77,11 @@ class ScrollableDismissHandoffUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-scroll-sheet") } }
-        waitUntilExactlyOneExists(hasText("Sheet Row 0"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-scroll-sheet")
+        waitUntilExactlyOneExists(hasText("Sheet Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.7f))

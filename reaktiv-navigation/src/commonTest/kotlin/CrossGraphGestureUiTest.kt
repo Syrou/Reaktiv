@@ -1,4 +1,4 @@
-import androidx.compose.ui.geometry.Offset
+﻿import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
@@ -47,10 +47,11 @@ class CrossGraphGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Workspace"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Workspace"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("project-area/ui-project") } }
-        waitUntilExactlyOneExists(hasText("UI Project"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Workspace").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "project-area/ui-project")
+        waitUntilExactlyOneExists(hasText("UI Project"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Workspace").fetchSemanticsNodes().isEmpty() }
         onNodeWithTag("project-chrome").assertExists()
 
         onRoot().performTouchInput {
@@ -58,7 +59,7 @@ class CrossGraphGestureUiTest {
             moveBy(Offset(60f, 0f))
             moveBy(Offset(80f, 0f))
         }
-        waitUntilExactlyOneExists(hasText("UI Workspace"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Workspace"), timeoutMillis = UI_TEST_WAIT_MS)
         onNodeWithText("UI Project").assertExists()
         assertEquals(0, recorder.backActions.size)
 
@@ -67,7 +68,7 @@ class CrossGraphGestureUiTest {
             moveBy(Offset(2f, 0f), delayMillis = 100)
             up()
         }
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Workspace").fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Workspace").fetchSemanticsNodes().isEmpty() }
         onNodeWithText("UI Project").assertExists()
         assertEquals(0, recorder.backActions.size)
     }
@@ -81,10 +82,11 @@ class CrossGraphGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Workspace"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Workspace"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("project-area/ui-project") } }
-        waitUntilExactlyOneExists(hasText("UI Project"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Workspace").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "project-area/ui-project")
+        waitUntilExactlyOneExists(hasText("UI Project"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Workspace").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(10f, centerY))
@@ -94,9 +96,10 @@ class CrossGraphGestureUiTest {
             moveBy(Offset(2f, 0f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("UI Workspace"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Project").fetchSemanticsNodes().isEmpty() }
-        waitUntil(timeoutMillis = 5000) {
+        awaitCurrentScreen(store, "ui-workspace")
+        waitUntilExactlyOneExists(hasText("UI Workspace"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Project").fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) {
             onAllNodesWithText("UI Workspace").fetchSemanticsNodes().isNotEmpty()
         }
         assertEquals(1, recorder.backActions.size)

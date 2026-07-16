@@ -1,4 +1,4 @@
-import androidx.compose.foundation.layout.Box
+﻿import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -264,10 +264,11 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-headered-refresh-sheet") } }
-        waitUntilExactlyOneExists(hasText("Headered Row 0"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-headered-refresh-sheet")
+        waitUntilExactlyOneExists(hasText("Headered Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, 36f))
@@ -277,8 +278,9 @@ class PullToRefreshDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Headered Row 0").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-home")
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Headered Row 0").fetchSemanticsNodes().isEmpty() }
 
         assertEquals(1, recorder.backActions.size, "Dragging the header chrome should dismiss the sheet")
         assertEquals(0, RefreshRecorder.count, "A chrome drag must not trigger pull-to-refresh")
@@ -311,9 +313,10 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("chrome-home/ui-chrome-inner-sheet") } }
-        waitUntilExactlyOneExists(hasText("Inner Row 0"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "chrome-home/ui-chrome-inner-sheet")
+        waitUntilExactlyOneExists(hasText("Inner Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
         val pillBounds = onNodeWithTag("reaktiv-dismiss-indicator").fetchSemanticsNode().boundsInRoot
@@ -354,9 +357,10 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-full-demo-sheet") } }
-        waitUntilExactlyOneExists(hasText("Demo Row 1"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "ui-full-demo-sheet")
+        waitUntilExactlyOneExists(hasText("Demo Row 1"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
         onRoot().performTouchInput {
@@ -435,9 +439,10 @@ class PullToRefreshDismissUiTest {
                 }
             }
         }
-        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-surfaced-lazy-sheet") } }
-        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "ui-surfaced-lazy-sheet")
+        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
         onRoot().performTouchInput {
@@ -447,7 +452,7 @@ class PullToRefreshDismissUiTest {
             }
             up()
         }
-        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = UI_TEST_WAIT_MS)
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.6f))
@@ -513,9 +518,10 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-surfaced-lazy-sheet") } }
-        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "ui-surfaced-lazy-sheet")
+        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
         onRoot().performTouchInput {
@@ -525,7 +531,7 @@ class PullToRefreshDismissUiTest {
             }
             up()
         }
-        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = UI_TEST_WAIT_MS)
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.6f))
@@ -575,9 +581,10 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "ui-chrome-host")
         store.launch { store.navigation { navigateTo("ui-surfaced-lazy-sheet") } }
-        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "ui-surfaced-lazy-sheet")
+        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
         onRoot().performTouchInput {
@@ -588,11 +595,12 @@ class PullToRefreshDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = 5000)
-        waitForIdle()
+        awaitCurrentScreen(store, "ui-chrome-host")
+        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = UI_TEST_WAIT_MS)
 
         store.launch { store.navigation { navigateTo("ui-surfaced-lazy-sheet") } }
-        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "ui-surfaced-lazy-sheet")
+        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
         onRoot().performTouchInput {
@@ -602,7 +610,7 @@ class PullToRefreshDismissUiTest {
             }
             up()
         }
-        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = UI_TEST_WAIT_MS)
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.6f))
@@ -654,10 +662,11 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Chrome Host"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-surfaced-lazy-sheet") } }
-        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Chrome Host").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-surfaced-lazy-sheet")
+        waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Chrome Host").fetchSemanticsNodes().isEmpty() }
         waitForIdle()
 
         onRoot().performTouchInput {
@@ -681,7 +690,7 @@ class PullToRefreshDismissUiTest {
             }
             up()
         }
-        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = UI_TEST_WAIT_MS)
     }
 
     @Test
@@ -698,10 +707,11 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-refresh-sheet") } }
-        waitUntilExactlyOneExists(hasText("Refresh Row 0"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-refresh-sheet")
+        waitUntilExactlyOneExists(hasText("Refresh Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, 16f))
@@ -711,8 +721,9 @@ class PullToRefreshDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Refresh Row 0").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-home")
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Refresh Row 0").fetchSemanticsNodes().isEmpty() }
 
         assertEquals(1, recorder.backActions.size, "A drag starting in the top edge zone should dismiss even over pull-to-refresh content")
         assertEquals(0, RefreshRecorder.count, "The top edge drag must not trigger pull-to-refresh")
@@ -732,10 +743,11 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-refresh-sheet") } }
-        waitUntilExactlyOneExists(hasText("Refresh Row 0"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-refresh-sheet")
+        waitUntilExactlyOneExists(hasText("Refresh Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.3f))
@@ -745,8 +757,9 @@ class PullToRefreshDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Refresh Row 0").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-home")
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Refresh Row 0").fetchSemanticsNodes().isEmpty() }
 
         assertEquals(1, recorder.backActions.size, "An actively refreshing sheet stays dismissible, matching platform sheet behavior")
         assertEquals(0, RefreshRecorder.count, "The drag must not re-trigger onRefresh while already refreshing")
@@ -766,10 +779,11 @@ class PullToRefreshDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-refresh-sheet") } }
-        waitUntilExactlyOneExists(hasText("Refresh Row 0"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-refresh-sheet")
+        waitUntilExactlyOneExists(hasText("Refresh Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.3f))

@@ -1,4 +1,4 @@
-import androidx.compose.foundation.horizontalScroll
+﻿import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
@@ -66,17 +66,18 @@ class EdgeSwipeBackGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-detail") } }
-        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-detail")
+        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(10f, centerY))
             moveBy(Offset(60f, 0f))
             moveBy(Offset(80f, 0f))
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         onNodeWithText("UI Detail").assertExists()
         assertEquals(0, recorder.backActions.size)
 
@@ -85,7 +86,7 @@ class EdgeSwipeBackGestureUiTest {
             moveBy(Offset(2f, 0f), delayMillis = 100)
             up()
         }
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
         onNodeWithText("UI Detail").assertExists()
         assertEquals(0, recorder.backActions.size)
     }
@@ -99,10 +100,11 @@ class EdgeSwipeBackGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-detail") } }
-        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-detail")
+        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(10f, centerY))
@@ -112,8 +114,9 @@ class EdgeSwipeBackGestureUiTest {
             moveBy(Offset(2f, 0f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Detail").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-home")
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Detail").fetchSemanticsNodes().isEmpty() }
         assertEquals(1, recorder.backActions.size)
     }
 
@@ -126,10 +129,11 @@ class EdgeSwipeBackGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-detail") } }
-        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-detail")
+        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             swipe(
@@ -138,8 +142,8 @@ class EdgeSwipeBackGestureUiTest {
                 durationMillis = 40
             )
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Detail").fetchSemanticsNodes().isEmpty() }
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Detail").fetchSemanticsNodes().isEmpty() }
         assertEquals(1, recorder.backActions.size)
     }
 
@@ -183,10 +187,11 @@ class EdgeSwipeBackGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Pager Host"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Pager Host"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-h-pager") } }
-        waitUntilExactlyOneExists(hasText("Page 0"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Pager Host").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-h-pager")
+        waitUntilExactlyOneExists(hasText("Page 0"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Pager Host").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(10f, centerY))
@@ -196,12 +201,14 @@ class EdgeSwipeBackGestureUiTest {
             moveBy(Offset(2f, 0f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("Pager Host"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Page 0").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-pager-host")
+        waitUntilExactlyOneExists(hasText("Pager Host"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Page 0").fetchSemanticsNodes().isEmpty() }
         assertEquals(1, recorder.backActions.size, "Edge swipe must win over a horizontally scrollable child")
 
         store.launch { store.navigation { navigateTo("ui-h-pager") } }
-        waitUntilExactlyOneExists(hasText("Page 0"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "ui-h-pager")
+        waitUntilExactlyOneExists(hasText("Page 0"), timeoutMillis = UI_TEST_WAIT_MS)
         onRoot().performTouchInput {
             down(Offset(centerX, centerY))
             repeat(6) {
@@ -209,7 +216,7 @@ class EdgeSwipeBackGestureUiTest {
             }
             up()
         }
-        waitUntilExactlyOneExists(hasText("Page 12"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Page 12"), timeoutMillis = UI_TEST_WAIT_MS)
         assertEquals(1, recorder.backActions.size, "Mid-content horizontal scrolling must remain untouched")
     }
 
@@ -233,10 +240,11 @@ class EdgeSwipeBackGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-detail") } }
-        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-detail")
+        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(300f, centerY))
@@ -259,10 +267,11 @@ class EdgeSwipeBackGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-locked") } }
-        waitUntilExactlyOneExists(hasText("UI Locked"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-locked")
+        waitUntilExactlyOneExists(hasText("UI Locked"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(10f, centerY))
@@ -286,14 +295,15 @@ class EdgeSwipeBackGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-detail") } }
-        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-detail")
+        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onNodeWithTag("ui-detail-counter").performClick()
         onNodeWithTag("ui-detail-counter").performClick()
-        waitUntilExactlyOneExists(hasText("Count: 2"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Count: 2"), timeoutMillis = UI_TEST_WAIT_MS)
 
         onRoot().performTouchInput {
             down(Offset(10f, centerY))
@@ -303,7 +313,7 @@ class EdgeSwipeBackGestureUiTest {
             moveBy(Offset(2f, 0f), delayMillis = 100)
             up()
         }
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
         onNodeWithText("Count: 2").assertExists()
         assertEquals(0, recorder.backActions.size)
     }
@@ -317,16 +327,17 @@ class EdgeSwipeBackGestureUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-detail") } }
-        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-detail")
+        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         val evaluatingSeen = store.launch {
             store.selectState<NavigationState>().first { it.isEvaluatingNavigation }
         }
         store.dispatch(NavigationAction.SetEvaluating(true))
-        waitUntil(timeoutMillis = 5000) { evaluatingSeen.isCompleted }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { evaluatingSeen.isCompleted }
 
         onRoot().performTouchInput {
             down(Offset(10f, centerY))

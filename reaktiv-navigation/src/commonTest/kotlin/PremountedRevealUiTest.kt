@@ -1,4 +1,4 @@
-import androidx.compose.foundation.layout.Box
+﻿import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -115,10 +115,11 @@ class PremountedRevealUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Plain Host"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Plain Host"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("premount-sheet") } }
-        waitUntilExactlyOneExists(hasText("Premount Sheet"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Plain Host").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "premount-sheet")
+        waitUntilExactlyOneExists(hasText("Premount Sheet"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Plain Host").fetchSemanticsNodes().isEmpty() }
         waitForIdle()
 
         assertEquals(0, PlainHostLifecycle.disposed, "Revealed screen must never be disposed while a dismissible sheet covers it")
@@ -150,10 +151,11 @@ class PremountedRevealUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Graph Host"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Graph Host"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("premount-sheet") } }
-        waitUntilExactlyOneExists(hasText("Premount Sheet"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Graph Host").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "premount-sheet")
+        waitUntilExactlyOneExists(hasText("Premount Sheet"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Graph Host").fetchSemanticsNodes().isEmpty() }
         waitForIdle()
 
         assertEquals(1, GraphHostLifecycle.alive, "Revealed hierarchy should be premounted at rest beneath the sheet")
@@ -166,8 +168,9 @@ class PremountedRevealUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("Graph Host"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Premount Sheet").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "premount-graph-host")
+        waitUntilExactlyOneExists(hasText("Graph Host"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Premount Sheet").fetchSemanticsNodes().isEmpty() }
         waitForIdle()
 
         assertEquals(1, GraphHostLifecycle.alive, "Host must be the single live screen after the dismiss commits")

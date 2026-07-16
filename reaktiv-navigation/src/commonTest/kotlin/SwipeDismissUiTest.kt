@@ -1,4 +1,4 @@
-import androidx.compose.foundation.clickable
+﻿import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -67,10 +67,11 @@ class SwipeDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-sheet") } }
-        waitUntilExactlyOneExists(hasText("UI Sheet"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-sheet")
+        waitUntilExactlyOneExists(hasText("UI Sheet"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.2f))
@@ -80,8 +81,9 @@ class SwipeDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Sheet").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-home")
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Sheet").fetchSemanticsNodes().isEmpty() }
         assertEquals(1, recorder.backActions.size)
     }
 
@@ -94,17 +96,18 @@ class SwipeDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-sheet") } }
-        waitUntilExactlyOneExists(hasText("UI Sheet"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-sheet")
+        waitUntilExactlyOneExists(hasText("UI Sheet"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.2f))
             moveBy(Offset(0f, 60f))
             moveBy(Offset(0f, 60f))
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         onNodeWithText("UI Sheet").assertExists()
         assertEquals(0, recorder.backActions.size)
 
@@ -113,7 +116,7 @@ class SwipeDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
         onNodeWithText("UI Sheet").assertExists()
         assertEquals(0, recorder.backActions.size)
     }
@@ -127,10 +130,11 @@ class SwipeDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("ui-detail") } }
-        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "ui-detail")
+        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.2f))
@@ -176,9 +180,10 @@ class SwipeDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("swipe-modal") } }
-        waitUntilExactlyOneExists(hasText("Swipe Modal"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "swipe-modal")
+        waitUntilExactlyOneExists(hasText("Swipe Modal"), timeoutMillis = UI_TEST_WAIT_MS)
 
         onRoot().performTouchInput {
             down(Offset(centerX, centerY))
@@ -188,7 +193,7 @@ class SwipeDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Swipe Modal").fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Swipe Modal").fetchSemanticsNodes().isEmpty() }
         onNodeWithText("UI Home").assertExists()
         assertEquals(1, recorder.backActions.size)
     }
@@ -224,9 +229,10 @@ class SwipeDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("default-modal") } }
-        waitUntilExactlyOneExists(hasText("Default Modal"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "default-modal")
+        waitUntilExactlyOneExists(hasText("Default Modal"), timeoutMillis = UI_TEST_WAIT_MS)
 
         onRoot().performTouchInput {
             down(Offset(centerX, centerY))
@@ -236,7 +242,7 @@ class SwipeDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Default Modal").fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Default Modal").fetchSemanticsNodes().isEmpty() }
         onNodeWithText("UI Home").assertExists()
         assertEquals(1, recorder.backActions.size)
     }
@@ -277,10 +283,11 @@ class SwipeDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("guarded-sheet") } }
-        waitUntilExactlyOneExists(hasText("Guarded Sheet"), timeoutMillis = 5000)
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        awaitCurrentScreen(store, "guarded-sheet")
+        waitUntilExactlyOneExists(hasText("Guarded Sheet"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.2f))
@@ -290,8 +297,8 @@ class SwipeDismissUiTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        waitUntil(timeoutMillis = 5000) { dismissRequests.size == 1 }
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { dismissRequests.size == 1 }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
         onNodeWithText("Guarded Sheet").assertExists()
         assertEquals(0, recorder.backActions.size)
         assertEquals(1, dismissRequests.size)
@@ -342,9 +349,10 @@ class SwipeDismissUiTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("Click Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("Click Home"), timeoutMillis = UI_TEST_WAIT_MS)
         store.launch { store.navigation { navigateTo("blocking-modal") } }
-        waitUntilExactlyOneExists(hasText("Blocking Modal"), timeoutMillis = 5000)
+        awaitCurrentScreen(store, "blocking-modal")
+        waitUntilExactlyOneExists(hasText("Blocking Modal"), timeoutMillis = UI_TEST_WAIT_MS)
 
         onRoot().performTouchInput {
             down(Offset(20f, 20f))

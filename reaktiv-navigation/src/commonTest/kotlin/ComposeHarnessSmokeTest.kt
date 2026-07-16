@@ -24,7 +24,7 @@ class ComposeHarnessSmokeTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
     }
 
     @Test
@@ -37,17 +37,17 @@ class ComposeHarnessSmokeTest {
                 NavigationRender()
             }
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
 
         store.launch {
             store.navigation { navigateTo("ui-detail") }
         }
-        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Detail"), timeoutMillis = UI_TEST_WAIT_MS)
 
         store.launch {
             store.navigateBack()
         }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
         onNodeWithText("UI Detail").assertDoesNotExist()
     }
 }

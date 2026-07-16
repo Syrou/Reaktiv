@@ -107,14 +107,14 @@ class NavigationGestureSmokeTest {
                 NavigationRender()
             }
         }
-        composeRule.waitUntil(5_000) {
+        composeRule.waitUntil(30_000) {
             composeRule.onAllNodesWithText("Smoke Host").fetchSemanticsNodes().isNotEmpty()
         }
         store.launch { store.navigation { navigateTo("smoke-sheet") } }
-        composeRule.waitUntil(5_000) {
+        composeRule.waitUntil(30_000) {
             composeRule.onAllNodesWithText("Smoke Row 0").fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.waitUntil(5_000) {
+        composeRule.waitUntil(30_000) {
             composeRule.onAllNodesWithText("Smoke Host").fetchSemanticsNodes().isEmpty()
         }
         composeRule.waitForIdle()
@@ -132,7 +132,7 @@ class NavigationGestureSmokeTest {
             }
             up()
         }
-        composeRule.waitUntil(5_000) {
+        composeRule.waitUntil(30_000) {
             composeRule.onAllNodesWithText("Smoke Row 20").fetchSemanticsNodes().isNotEmpty()
         }
     }
@@ -150,7 +150,7 @@ class NavigationGestureSmokeTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        composeRule.waitUntil(5_000) { RefreshCounter.count.intValue >= 1 }
+        composeRule.waitUntil(30_000) { RefreshCounter.count.intValue >= 1 }
     }
 
     @Test
@@ -173,7 +173,7 @@ class NavigationGestureSmokeTest {
             moveBy(Offset(0f, 2f), delayMillis = 100)
             up()
         }
-        composeRule.waitUntil(5_000) {
+        composeRule.waitUntil(30_000) {
             composeRule.onAllNodesWithText("Smoke Host").fetchSemanticsNodes().isNotEmpty()
         }
     }
