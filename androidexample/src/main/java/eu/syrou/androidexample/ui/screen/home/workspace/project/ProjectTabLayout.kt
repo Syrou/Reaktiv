@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,7 +30,7 @@ fun ProjectTabLayout(content: @Composable () -> Unit) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(
+        PrimaryTabRow(
             selectedTabIndex = activeTab,
             modifier = Modifier
                 .fillMaxWidth()

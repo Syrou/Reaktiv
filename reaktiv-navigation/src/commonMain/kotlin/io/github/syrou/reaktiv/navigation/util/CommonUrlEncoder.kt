@@ -3,7 +3,7 @@ package io.github.syrou.reaktiv.navigation.util
 import io.github.syrou.reaktiv.navigation.definition.UrlEncoder
 
 
-class CommonUrlEncoder : UrlEncoder {
+public class CommonUrlEncoder : UrlEncoder {
     private val pathSafeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~".toSet()
     private val querySafeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!*'()".toSet()
 

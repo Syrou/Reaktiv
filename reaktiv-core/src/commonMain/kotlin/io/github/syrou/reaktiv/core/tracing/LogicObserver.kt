@@ -31,25 +31,25 @@ package io.github.syrou.reaktiv.core.tracing
  * @see LogicMethodCompleted for completion event details
  * @see LogicMethodFailed for failure event details
  */
-interface LogicObserver {
+public interface LogicObserver {
     /**
      * Called when a traced logic method begins execution.
      *
      * @param event Details about the method invocation
      */
-    fun onMethodStart(event: LogicMethodStart)
+    public fun onMethodStart(event: LogicMethodStart)
 
     /**
      * Called when a traced logic method completes successfully.
      *
      * @param event Details about the method completion
      */
-    fun onMethodCompleted(event: LogicMethodCompleted)
+    public fun onMethodCompleted(event: LogicMethodCompleted)
 
     /**
      * Called when a traced logic method throws an exception.
      *
      * @param event Details about the method failure
      */
-    fun onMethodFailed(event: LogicMethodFailed)
+    public fun onMethodFailed(event: LogicMethodFailed)
 }

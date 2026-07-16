@@ -1,7 +1,10 @@
 package io.github.syrou.reaktiv.core.tracing
 
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 /**
  * Central registry for logic method tracing.
@@ -9,6 +12,9 @@ import kotlin.time.ExperimentalTime
  * The compiler plugin injects calls to this object's notify methods at the start and end
  * of traced ModuleLogic methods. Observers registered here receive events for all traced
  * method invocations across the application.
+ *
+ * When no observers are registered, all notify methods return immediately without
+ * allocating events, so inactive tracing has near-zero runtime cost.
  *
  * Usage:
  * ```kotlin
@@ -36,20 +42,28 @@ import kotlin.time.ExperimentalTime
  * @see LogicMethodCompleted for method completion events
  * @see LogicMethodFailed for method failure events
  */
-object LogicTracer {
+@OptIn(ExperimentalAtomicApi::class)
+public object LogicTracer {
 
-    private val observers = mutableListOf<LogicObserver>()
-    private var callIdCounter = 0L
+    private val observers = AtomicReference<List<LogicObserver>>(emptyList())
+    private val callIdCounter = AtomicLong(0L)
+
+    /**
+     * Whether any observer is registered. Compiler-injected code checks this before
+     * building parameter and result strings so inactive tracing costs nothing.
+     */
+    public val active: Boolean get() = observers.load().isNotEmpty()
 
     /**
      * Registers an observer to receive logic method tracing events.
      *
      * @param observer The observer to register
      */
-    fun addObserver(observer: LogicObserver) {
-        if (observer !in observers) {
-            observers.add(observer)
-            println("LogicTracer: Observer added, total observers: ${observers.size}")
+    public fun addObserver(observer: LogicObserver) {
+        while (true) {
+            val current = observers.load()
+            if (observer in current) return
+            if (observers.compareAndSet(current, current + observer)) return
         }
     }
 
@@ -59,29 +73,25 @@ object LogicTracer {
      * @param observer The observer to remove
      * @return true if the observer was removed, false if it wasn't registered
      */
-    fun removeObserver(observer: LogicObserver): Boolean {
-        return observers.remove(observer)
+    public fun removeObserver(observer: LogicObserver): Boolean {
+        while (true) {
+            val current = observers.load()
+            if (observer !in current) return false
+            if (observers.compareAndSet(current, current - observer)) return true
+        }
     }
 
     /**
      * Removes all registered observers.
      */
-    fun clearObservers() {
-        observers.clear()
+    public fun clearObservers() {
+        observers.store(emptyList())
     }
 
     /**
      * Returns the current number of registered observers.
      */
-    fun observerCount(): Int = observers.size
-
-    /**
-     * Returns the number of pending (in-flight) traced method calls.
-     *
-     * A non-zero value after all coroutines have completed indicates leaked entries
-     * in the callIdToMethod map. Useful for testing memory safety after store reset.
-     */
-    fun pendingCallCount(): Int = callIdToMethod.size
+    public fun observerCount(): Int = observers.load().size
 
     /**
      * Notifies observers that a traced method has started.
@@ -96,9 +106,7 @@ object LogicTracer {
      * @param githubSourceUrl Full GitHub URL to the source line (built at compile time)
      * @return A unique call ID for correlating with completion/failure notifications
      */
-    private val callIdToMethod = mutableMapOf<String, String>()
-
-    fun notifyMethodStart(
+    public fun notifyMethodStart(
         logicClass: String,
         methodName: String,
         params: Map<String, String>,
@@ -106,26 +114,20 @@ object LogicTracer {
         lineNumber: Int? = null,
         githubSourceUrl: String? = null
     ): String {
-        val callId = generateCallId()
-        val fullMethodName = "$logicClass.$methodName"
-        callIdToMethod[callId] = fullMethodName
-        println("LogicTracer: notifyMethodStart called - $fullMethodName [callId=$callId] (observers: ${observers.size})")
+        if (!active) return ""
         val timestampMs = currentTimeMillis()
-
         val event = LogicMethodStart(
             logicClass = logicClass,
             methodName = methodName,
             params = params,
-            callId = callId,
+            callId = "call-${callIdCounter.addAndFetch(1L)}-$timestampMs",
             timestampMs = timestampMs,
             sourceFile = sourceFile,
             lineNumber = lineNumber,
             githubSourceUrl = githubSourceUrl
         )
-
         notifyObservers { it.onMethodStart(event) }
-
-        return callId
+        return event.callId
     }
 
     /**
@@ -138,21 +140,20 @@ object LogicTracer {
      * @param resultType Simple name of the result type
      * @param durationMs Time in milliseconds from method start
      */
-    fun notifyMethodCompleted(
+    public fun notifyMethodCompleted(
         callId: String,
         result: String?,
         resultType: String,
         durationMs: Long
     ) {
-        val methodName = callIdToMethod.remove(callId) ?: "unknown"
-        println("LogicTracer: notifyMethodCompleted called - $methodName [callId=$callId] resultType=$resultType, durationMs=$durationMs (observers: ${observers.size})")
+        if (!active) return
         val event = LogicMethodCompleted(
             callId = callId,
             result = result,
             resultType = resultType,
-            durationMs = durationMs
+            durationMs = durationMs,
+            timestampMs = currentTimeMillis()
         )
-
         notifyObservers { it.onMethodCompleted(event) }
     }
 
@@ -165,43 +166,30 @@ object LogicTracer {
      * @param exception The thrown exception
      * @param durationMs Time in milliseconds from method start
      */
-    fun notifyMethodFailed(
+    public fun notifyMethodFailed(
         callId: String,
         exception: Throwable,
         durationMs: Long
     ) {
-        val methodName = callIdToMethod.remove(callId) ?: "unknown"
-        println("LogicTracer: notifyMethodFailed called - $methodName [callId=$callId] exception=${exception::class.simpleName}: ${exception.message}, durationMs=$durationMs (observers: ${observers.size})")
+        if (!active) return
         val event = LogicMethodFailed(
             callId = callId,
             exceptionType = exception::class.simpleName ?: "Unknown",
             exceptionMessage = exception.message,
             stackTrace = exception.stackTraceToString(),
-            durationMs = durationMs
+            durationMs = durationMs,
+            timestampMs = currentTimeMillis()
         )
-
         notifyObservers { it.onMethodFailed(event) }
     }
 
-    private fun generateCallId(): String {
-        val id = ++callIdCounter
-        return "call-$id-${currentTimeMillis()}"
-    }
-
     private inline fun notifyObservers(action: (LogicObserver) -> Unit) {
-        // Take a snapshot to safely iterate while allowing concurrent modifications
-        for (observer in observers.toList()) {
+        for (observer in observers.load()) {
             try {
                 action(observer)
             } catch (e: Throwable) {
-                println("LogicTracer: Observer threw exception: ${e.message}")
+                ReaktivDebug.warn("LogicTracer observer threw exception: ${e.message}")
             }
         }
     }
 }
-
-/**
- * Gets current time in milliseconds using Kotlin's Clock.System.
- */
-@OptIn(ExperimentalTime::class)
-internal fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()

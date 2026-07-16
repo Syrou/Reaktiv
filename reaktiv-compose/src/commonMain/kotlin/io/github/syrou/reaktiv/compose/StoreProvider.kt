@@ -2,20 +2,14 @@ package io.github.syrou.reaktiv.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 internal val LocalStore = staticCompositionLocalOf<Store> {
@@ -46,7 +40,7 @@ internal val LocalStore = staticCompositionLocalOf<Store> {
  * @throws IllegalStateException if called outside of a StoreProvider
  */
 @Composable
-fun rememberStore(): Store {
+public fun rememberStore(): Store {
     return LocalStore.current
 }
 
@@ -73,7 +67,7 @@ fun rememberStore(): Store {
  * @return The dispatch function from the store
  */
 @Composable
-fun rememberDispatcher(): Dispatch {
+public fun rememberDispatcher(): Dispatch {
     val store = rememberStore()
     return remember { store.dispatch }
 }
@@ -99,28 +93,13 @@ fun rememberDispatcher(): Dispatch {
  * @param content The composable content that will have access to the store
  */
 @Composable
-fun StoreProvider(
+public fun StoreProvider(
     store: Store,
     content: @Composable () -> Unit
 ) {
     CompositionLocalProvider(LocalStore provides store) {
         content()
     }
-}
-
-/**
- * Selects a module's state as a StateFlow with an initial value for previews.
- *
- * @param initialValue The initial state value to use before the store is ready
- * @return StateFlow of the requested state type
- */
-@Composable
-inline fun <reified S : ModuleState> selectState(initialValue: S): StateFlow<S> {
-    val store = rememberStore()
-    val stateFlow by produceState<StateFlow<S>>(initialValue = MutableStateFlow(initialValue)) {
-        value = store.selectStateNonSuspend<S>()
-    }
-    return stateFlow
 }
 
 /**
@@ -132,32 +111,9 @@ inline fun <reified S : ModuleState> selectState(initialValue: S): StateFlow<S> 
  * @return StateFlow of the requested state type
  */
 @Composable
-inline fun <reified S : ModuleState> selectState(): StateFlow<S> {
+public inline fun <reified S : ModuleState> selectState(): StateFlow<S> {
     val store = rememberStore()
     return remember { store.selectStateNonSuspend<S>() }
-}
-
-/**
- * Observes a module's state as a Compose State with an initial value for previews.
- *
- * The returned State automatically updates when the module state changes,
- * triggering recomposition of any composables that read from it.
- *
- * Example:
- * ```kotlin
- * @Composable
- * fun CounterDisplayPreview() {
- *     val state by composeState<CounterState>(initialValue = CounterState(count = 42))
- *     Text("Count: ${state.count}")
- * }
- * ```
- *
- * @param initialValue The initial state value to use before the store is ready
- * @return Compose State of the requested state type
- */
-@Composable
-inline fun <reified S : ModuleState> composeState(initialValue: S): State<S> {
-    return selectState<S>(initialValue).collectAsState(Dispatchers.Main.immediate)
 }
 
 /**
@@ -178,53 +134,6 @@ inline fun <reified S : ModuleState> composeState(initialValue: S): State<S> {
  * @return Compose State of the requested state type
  */
 @Composable
-inline fun <reified S : ModuleState> composeState(): State<S> {
+public inline fun <reified S : ModuleState> composeState(): State<S> {
     return selectState<S>().collectAsState(Dispatchers.Main.immediate)
-}
-
-/**
- * Watches a selected value from state and triggers a callback when it changes.
- *
- * Use this for side effects like analytics tracking or navigation that should
- * happen in response to state changes while the composable is active.
- *
- * Example:
- * ```kotlin
- * @Composable
- * fun AnalyticsTracker() {
- *     onActiveValueChange<NavigationState, String>(
- *         selector = { it.currentEntry.navigatable.route }
- *     ) { route ->
- *         analytics.trackScreenView(route)
- *     }
- * }
- * ```
- *
- * @param selector Function to extract the value to watch from the state
- * @param onChange Callback invoked when the selected value changes
- */
-@Composable
-inline fun <reified S : ModuleState, T> onActiveValueChange(
-    crossinline selector: (S) -> T,
-    crossinline onChange: suspend (T) -> Unit
-) {
-    val state by composeState<S>()
-    val selectedValue = selector(state)
-
-    val isActive = remember { mutableStateOf(true) }
-    val previousValue = remember { mutableStateOf<T?>(null) }
-
-    DisposableEffect(Unit) {
-        isActive.value = true
-        onDispose {
-            isActive.value = false
-        }
-    }
-
-    LaunchedEffect(selectedValue) {
-        if (isActive.value && previousValue.value != null && previousValue.value != selectedValue) {
-            onChange(selectedValue)
-        }
-        previousValue.value = selectedValue
-    }
 }

@@ -31,9 +31,6 @@ object ProjectOverviewScreen : Screen {
 
     @Composable
     override fun Content(params: Params) {
-        LaunchedEffect(Unit) {
-            println("HERPADERPA - ProjectOverviewScreen Should trigger once")
-        }
         ProjectOverviewContent(params)
     }
 }
@@ -49,12 +46,10 @@ object ProjectTasksScreen : Screen {
     }
 
     override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
-        println("HERPADERPA - ADDED TO BACKSTACK (isVisible: ${lifecycle.visibility.value})")
 
         // Launch in lifecycle's scope - auto-cancelled when entry is removed from backstack
         lifecycle.launch {
             lifecycle.visibility.collect { isVisible ->
-                println("HERPADERPA - Visibility changed: $isVisible")
             }
         }
 
@@ -63,9 +58,7 @@ object ProjectTasksScreen : Screen {
         lifecycle.invokeOnRemoval { reason ->
             launch {
                 selectLogic<NewsLogic>().countDown()
-                println("HERPADERPA - Count down done!")
             }
-            println("HERPADERPA - REMOVED FROM BACKSTACK (invokeOnRemoval)")
         }
     }
 }

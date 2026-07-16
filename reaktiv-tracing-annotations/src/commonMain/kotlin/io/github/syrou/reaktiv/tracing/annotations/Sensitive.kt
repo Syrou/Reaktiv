@@ -23,4 +23,4 @@ package io.github.syrou.reaktiv.tracing.annotations
  */
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.BINARY)
-annotation class Sensitive
+public annotation class Sensitive

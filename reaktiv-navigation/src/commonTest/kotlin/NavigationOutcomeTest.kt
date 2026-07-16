@@ -2,7 +2,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationLogic
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.NavigationOutcome
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
@@ -11,6 +13,7 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -42,7 +45,7 @@ class NavigationOutcomeTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        startScreen(homeScreen)
+                        start(homeScreen)
                         screens(homeScreen, profileScreen)
                     }
                 })
@@ -58,7 +61,7 @@ class NavigationOutcomeTest {
         }
 
     @Test
-    fun `navigate returns Dropped when navigation already in progress`() =
+    fun `navigate queues behind an in-progress navigation instead of dropping`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val homeScreen = screen("home")
@@ -67,11 +70,11 @@ class NavigationOutcomeTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        startScreen(homeScreen)
+                        start(homeScreen)
                         screens(homeScreen)
                         intercept(guard = { guardBlocker.await(); GuardResult.Allow }) {
                             graph("secure") {
-                                startScreen(protectedScreen)
+                                start(protectedScreen)
                                 screens(protectedScreen)
                             }
                         }
@@ -83,17 +86,20 @@ class NavigationOutcomeTest {
 
             val logic = store.selectLogic<NavigationLogic>()
 
-            // First navigation — holds the mutex while waiting for the guard
             launch { logic.navigate { navigateTo("secure/protected") } }
-            advanceUntilIdle() // runs first nav until suspended at guardBlocker.await()
+            advanceUntilIdle()
 
-            // Second navigation — mutex is held, should be dropped immediately
-            val outcome = logic.navigate { navigateTo("home") }
-            assertEquals(NavigationOutcome.Dropped, outcome)
+            var secondOutcome: NavigationOutcome? = null
+            launch { secondOutcome = logic.navigate { navigateTo("home") } }
+            advanceUntilIdle()
+            assertEquals(null, secondOutcome, "Second navigation should be queued while the first holds the lock")
 
-            // Unblock first navigation
             guardBlocker.complete(Unit)
             advanceUntilIdle()
+
+            assertEquals(NavigationOutcome.Success, secondOutcome, "Queued navigation must execute once the lock frees")
+            val finalState = store.selectState<NavigationState>().first()
+            assertEquals("home", finalState.currentEntry.route, "The queued navigation should have landed last")
         }
 
     @Test
@@ -105,11 +111,11 @@ class NavigationOutcomeTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        startScreen(homeScreen)
+                        start(homeScreen)
                         screens(homeScreen)
                         intercept(guard = { GuardResult.Reject }) {
                             graph("secure") {
-                                startScreen(protectedScreen)
+                                start(protectedScreen)
                                 screens(protectedScreen)
                             }
                         }
@@ -136,11 +142,11 @@ class NavigationOutcomeTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        startScreen(homeScreen)
+                        start(homeScreen)
                         screens(homeScreen, loginScreen)
                         intercept(guard = { GuardResult.RedirectTo(loginScreen) }) {
                             graph("secure") {
-                                startScreen(protectedScreen)
+                                start(protectedScreen)
                                 screens(protectedScreen)
                             }
                         }

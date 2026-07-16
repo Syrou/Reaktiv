@@ -19,38 +19,38 @@ import io.github.syrou.reaktiv.navigation.model.NavigatableInterceptMap
  * @see Screen
  * @see NavigationState.isInGraph
  */
-interface NavigationGraph : NavigationNode {
+public interface NavigationGraph : NavigationNode {
     override val route: String
 
     /** The default destination shown when navigating to this graph without a specific target. */
-    val startDestination: StartDestination?
+    public val startDestination: StartDestination?
 
     /** Direct children of this graph. */
-    val navigatables: List<Navigatable>
+    public val navigatables: List<Navigatable>
 
     /** Sub-graphs owned by this graph. */
-    val nestedGraphs: List<NavigationGraph>
+    public val nestedGraphs: List<NavigationGraph>
 
     /** Optional shared layout wrapper applied to every screen inside this graph. */
-    val layout: (@Composable (@Composable () -> Unit) -> Unit)?
+    public val layout: (@Composable (@Composable () -> Unit) -> Unit)?
 
     /** Guard evaluated before entering any route within this graph. */
-    val interceptDefinition: InterceptDefinition? get() = null
+    public val interceptDefinition: InterceptDefinition? get() = null
 
     /** Dynamic entry-point resolver; overrides [startDestination] when present. */
-    val entryDefinition: EntryDefinition? get() = null
+    public val entryDefinition: EntryDefinition? get() = null
 
     /**
      * Intercept definitions for navigatables registered directly inside an `intercept { }`
      * block rather than inside a nested named graph. These navigatables land in the parent
      * graph's [navigatables] list but must still be guarded by the intercept.
      */
-    val navigatableIntercepts: NavigatableInterceptMap get() = emptyMap()
+    public val navigatableIntercepts: NavigatableInterceptMap get() = emptyMap()
 
     /**
      * Returns a flat map of route → [Navigatable] for this graph and all nested graphs.
      */
-    fun getAllNavigatables(): Map<String, Navigatable> = buildMap {
+    public fun getAllNavigatables(): Map<String, Navigatable> = buildMap {
         navigatables.forEach { navigatable -> put(navigatable.route, navigatable) }
         nestedGraphs.forEach { nestedGraph ->
             putAll(nestedGraph.getAllNavigatables())
@@ -64,7 +64,7 @@ interface NavigationGraph : NavigationNode {
      * @param route The route of the navigatable to search for.
      * @return The owning graph, or `null` if not found.
      */
-    fun findGraphContaining(route: String): NavigationGraph? {
+    public fun findGraphContaining(route: String): NavigationGraph? {
         if (navigatables.any { it.route == route }) return this
         return nestedGraphs.firstNotNullOfOrNull { it.findGraphContaining(route) }
     }
@@ -75,7 +75,7 @@ interface NavigationGraph : NavigationNode {
      * @param graphId The [route] of the nested graph to find.
      * @return The matching graph, or `null` if not found.
      */
-    fun findNestedGraph(graphId: String): NavigationGraph? {
+    public fun findNestedGraph(graphId: String): NavigationGraph? {
         return nestedGraphs.find { it.route == graphId }
             ?: nestedGraphs.firstNotNullOfOrNull { it.findNestedGraph(graphId) }
     }
@@ -87,7 +87,7 @@ interface NavigationGraph : NavigationNode {
      * @param graphDefinitions All known graphs keyed by their route.
      * @return The resolved start screen, or `null` if [startDestination] is `null`.
      */
-    fun resolveStartScreen(graphDefinitions: Map<String, NavigationGraph>): Navigatable? {
+    public fun resolveStartScreen(graphDefinitions: Map<String, NavigationGraph>): Navigatable? {
         return when (val dest = startDestination) {
             is StartDestination.DirectScreen -> dest.screen
             is StartDestination.GraphReference -> {

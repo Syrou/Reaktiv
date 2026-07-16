@@ -1,0 +1,395 @@
+public final class io/github/syrou/reaktiv/introspection/CrashHandler {
+	public fun <init> (Lio/github/syrou/reaktiv/introspection/PlatformContext;Lio/github/syrou/reaktiv/introspection/capture/SessionCapture;)V
+	public final fun install ()V
+}
+
+public abstract class io/github/syrou/reaktiv/introspection/IntrospectionAction : io/github/syrou/reaktiv/core/ModuleAction {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/IntrospectionAction$Companion;
+	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public static final synthetic fun write$Self (Lio/github/syrou/reaktiv/introspection/IntrospectionAction;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class io/github/syrou/reaktiv/introspection/IntrospectionAction$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/IntrospectionConfig {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getClientName ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getPlatform ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/introspection/IntrospectionLogic : io/github/syrou/reaktiv/core/ModuleLogic {
+	public fun beforeReset (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun cleanup (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun exportCrashSessionJson (Ljava/lang/Throwable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun exportCrashSessionToDownloads (Ljava/lang/Throwable;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun exportCrashSessionToDownloads$default (Lio/github/syrou/reaktiv/introspection/IntrospectionLogic;Ljava/lang/Throwable;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun exportSessionJson (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun exportSessionToDownloads (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun exportSessionToDownloads$default (Lio/github/syrou/reaktiv/introspection/IntrospectionLogic;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun getSessionCapture ()Lio/github/syrou/reaktiv/introspection/capture/SessionCapture;
+}
+
+public final class io/github/syrou/reaktiv/introspection/IntrospectionModule : io/github/syrou/reaktiv/core/ModuleWithLogic {
+	public fun <init> (Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;Lio/github/syrou/reaktiv/introspection/capture/SessionCapture;Lio/github/syrou/reaktiv/introspection/PlatformContext;)V
+	public fun getCreateLogic ()Lkotlin/jvm/functions/Function1;
+	public fun getCreateMiddleware ()Lkotlin/jvm/functions/Function0;
+	public synthetic fun getInitialState ()Lio/github/syrou/reaktiv/core/ModuleState;
+	public fun getInitialState ()Lio/github/syrou/reaktiv/introspection/IntrospectionState;
+	public fun getReducer ()Lkotlin/jvm/functions/Function2;
+	public fun selectLogic (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun selectLogicTyped (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun selectStateFlowNonSuspend (Lio/github/syrou/reaktiv/core/StoreAccessor;)Lkotlinx/coroutines/flow/StateFlow;
+}
+
+public final class io/github/syrou/reaktiv/introspection/IntrospectionState : io/github/syrou/reaktiv/core/ModuleState {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/IntrospectionState$Companion;
+	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun copy (Z)Lio/github/syrou/reaktiv/introspection/IntrospectionState;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/IntrospectionState;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/IntrospectionState;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun isCapturing ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/IntrospectionState$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/IntrospectionState$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/IntrospectionState;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/IntrospectionState;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/IntrospectionState$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/PlatformContext {
+	public fun <init> ()V
+}
+
+public final class io/github/syrou/reaktiv/introspection/SessionFileExport {
+	public fun <init> (Lio/github/syrou/reaktiv/introspection/PlatformContext;)V
+	public final fun saveToDownloads (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/introspection/capture/SessionCapture {
+	public fun <init> ()V
+	public fun <init> (II)V
+	public synthetic fun <init> (IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun attachStateSerializers (Lkotlinx/serialization/modules/SerializersModule;)V
+	public final fun captureAction (Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;)V
+	public final fun captureDispatchedAction (Lio/github/syrou/reaktiv/core/ModuleAction;Lio/github/syrou/reaktiv/core/ModuleState;)V
+	public final fun captureInitialState (Ljava/util/Map;)V
+	public final fun captureLogicCompleted (Lio/github/syrou/reaktiv/core/tracing/LogicMethodCompleted;)V
+	public final fun captureLogicFailed (Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;)V
+	public final fun captureLogicStarted (Lio/github/syrou/reaktiv/core/tracing/LogicMethodStart;)V
+	public final fun clear (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun exportCrashSession (Ljava/lang/Throwable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun exportSession (Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun exportSession$default (Lio/github/syrou/reaktiv/introspection/capture/SessionCapture;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun flush (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getActions ()Lkotlinx/coroutines/flow/SharedFlow;
+	public final fun getCapturedCrash ()Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getCrashes ()Lkotlinx/coroutines/flow/SharedFlow;
+	public final fun getInitialStateJson ()Ljava/lang/String;
+	public final fun getSessionHistory (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun isStarted ()Z
+	public final fun reportCrash (Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;)V
+	public final fun reportCrash (Ljava/lang/Throwable;)V
+	public final fun start (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun stop (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/introspection/capture/SessionHistory {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/capture/SessionHistory$Companion;
+	public fun <init> (JLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (JLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun copy (JLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;JLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActions ()Ljava/util/List;
+	public final fun getInitialStateJson ()Ljava/lang/String;
+	public final fun getLogicCompleted ()Ljava/util/List;
+	public final fun getLogicFailed ()Ljava/util/List;
+	public final fun getLogicStarted ()Ljava/util/List;
+	public final fun getStartTime ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/capture/SessionHistory$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/capture/SessionHistory$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/capture/SessionHistory$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CapturedAction {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction$Companion;
+	public fun <init> (Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionData ()Ljava/lang/String;
+	public final fun getActionType ()Ljava/lang/String;
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getModuleName ()Ljava/lang/String;
+	public final fun getStateDeltaJson ()Ljava/lang/String;
+	public final fun getTimestamp ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/protocol/CapturedAction$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CapturedAction$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CrashException {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/protocol/CrashException$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;)Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/CrashException;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCausedBy ()Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public final fun getExceptionType ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getStackTrace ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/protocol/CrashException$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/CrashException$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CrashException$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CrashInfo {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo$Companion;
+	public fun <init> (JLio/github/syrou/reaktiv/introspection/protocol/CrashException;)V
+	public final fun component1 ()J
+	public final fun component2 ()Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public final fun copy (JLio/github/syrou/reaktiv/introspection/protocol/CrashException;)Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;JLio/github/syrou/reaktiv/introspection/protocol/CrashException;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getException ()Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public final fun getTimestamp ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/protocol/CrashInfo$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CrashInfo$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getClientName ()Ljava/lang/String;
+	public final fun getPlatform ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/SessionData {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/protocol/SessionData$Companion;
+	public fun <init> (JJLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (JJLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component2 ()J
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/util/List;
+	public final fun copy (JJLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lio/github/syrou/reaktiv/introspection/protocol/SessionData;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JJLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/SessionData;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActions ()Ljava/util/List;
+	public final fun getEndTime ()J
+	public final fun getInitialStateJson ()Ljava/lang/String;
+	public final fun getLogicCompletedEvents ()Ljava/util/List;
+	public final fun getLogicFailedEvents ()Ljava/util/List;
+	public final fun getLogicStartedEvents ()Ljava/util/List;
+	public final fun getStartTime ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/protocol/SessionData$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/SessionData$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/protocol/SessionData;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/SessionData$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/SessionExport {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/protocol/SessionExport$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;
+	public final fun component5 ()Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+	public final fun component6 ()Lio/github/syrou/reaktiv/introspection/protocol/SessionData;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;)Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientInfo ()Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;
+	public final fun getCrash ()Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+	public final fun getExportedAt ()J
+	public final fun getSession ()Lio/github/syrou/reaktiv/introspection/protocol/SessionData;
+	public final fun getSessionId ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/protocol/SessionExport$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/SessionExport$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/SessionExport$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/SessionExportFormat {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/SessionExportFormat;
+	public static final field VERSION Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/SessionExportKt {
+	public static final fun toCrashException (Ljava/lang/Throwable;)Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public static final fun toCrashInfo (Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;)Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/StateReconstructor {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/StateReconstructor;
+	public final fun applyDelta (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public final fun reconstructAtIndex (Ljava/lang/String;Ljava/util/List;I)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/introspection/tracing/IntrospectionLogicObserver : io/github/syrou/reaktiv/core/tracing/LogicObserver {
+	public fun <init> (Lio/github/syrou/reaktiv/introspection/capture/SessionCapture;)V
+	public fun onMethodCompleted (Lio/github/syrou/reaktiv/core/tracing/LogicMethodCompleted;)V
+	public fun onMethodFailed (Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;)V
+	public fun onMethodStart (Lio/github/syrou/reaktiv/core/tracing/LogicMethodStart;)V
+}
+

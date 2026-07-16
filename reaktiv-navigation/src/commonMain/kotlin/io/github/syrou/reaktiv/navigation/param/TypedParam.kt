@@ -5,13 +5,13 @@ import kotlinx.serialization.Serializable
 
 
 @Serializable
-sealed class TypedParam<T> {
-    abstract val value: T
-    abstract val serializer: KSerializer<T>
+public sealed class TypedParam<T> {
+    public abstract val value: T
+    public abstract val serializer: KSerializer<T>
 }
 
 @Serializable
-data class SerializableParam<T>(
+public data class SerializableParam<T>(
     override val value: T,
     override val serializer: KSerializer<T>
 ) : TypedParam<T>()

@@ -1,0 +1,1787 @@
+public abstract class io/github/syrou/reaktiv/navigation/NavigationAction : io/github/syrou/reaktiv/core/ModuleAction {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$Companion;
+	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public static final synthetic fun write$Self (Lio/github/syrou/reaktiv/navigation/NavigationAction;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch$Companion;
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lio/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch;Ljava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActions ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$AtomicBatch$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$Back : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$Back;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$BootstrapComplete : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$BootstrapComplete;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$ClearBackstack : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$ClearBackstack;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$ClearPendingNavigation : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$ClearPendingNavigation;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$Navigate : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$Navigate$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/ModalContext;Z)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/ModalContext;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun component2 ()Lio/github/syrou/reaktiv/navigation/model/ModalContext;
+	public final fun component3 ()Z
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/ModalContext;Z)Lio/github/syrou/reaktiv/navigation/NavigationAction$Navigate;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationAction$Navigate;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/ModalContext;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationAction$Navigate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDismissModals ()Z
+	public final fun getEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun getModalContext ()Lio/github/syrou/reaktiv/navigation/model/ModalContext;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationAction$Navigate$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$Navigate$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationAction$Navigate;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationAction$Navigate;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$Navigate$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo$Companion;
+	public fun <init> (Ljava/lang/String;ZLio/github/syrou/reaktiv/navigation/model/NavigationEntry;)V
+	public synthetic fun <init> (Ljava/lang/String;ZLio/github/syrou/reaktiv/navigation/model/NavigationEntry;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun component3 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun copy (Ljava/lang/String;ZLio/github/syrou/reaktiv/navigation/model/NavigationEntry;)Lio/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo;Ljava/lang/String;ZLio/github/syrou/reaktiv/navigation/model/NavigationEntry;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntryToReAdd ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun getInclusive ()Z
+	public final fun getRoute ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$PopUpTo$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$Replace : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$Replace$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;)Lio/github/syrou/reaktiv/navigation/NavigationAction$Replace;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationAction$Replace;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationAction$Replace;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationAction$Replace$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$Replace$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationAction$Replace;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationAction$Replace;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$Replace$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating$Companion;
+	public fun <init> (Z)V
+	public final fun component1 ()Z
+	public final fun copy (Z)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun isEvaluating ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$SetEvaluating$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPending ()Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$SetPendingNavigation$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationBreadcrumb {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationBreadcrumb$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Z)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Z)Lio/github/syrou/reaktiv/navigation/NavigationBreadcrumb;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationBreadcrumb;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationBreadcrumb;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getPath ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isGraph ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationBreadcrumb$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationBreadcrumb$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationBreadcrumb;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationBreadcrumb;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationBreadcrumb$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationLogic : io/github/syrou/reaktiv/core/ModuleLogic {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/core/StoreAccessor;Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData;Lio/github/syrou/reaktiv/navigation/encoding/DualNavigationParameterEncoder;Lkotlin/jvm/functions/Function3;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/core/StoreAccessor;Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData;Lio/github/syrou/reaktiv/navigation/encoding/DualNavigationParameterEncoder;Lkotlin/jvm/functions/Function3;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun beforeReset (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun clearBackStack (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun clearBackStack$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun getStoreAccessor ()Lio/github/syrou/reaktiv/core/StoreAccessor;
+	public final fun navigate (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;ZLkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun navigate (Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun navigate$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;ZLkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun navigateBack (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun navigateDeepLink (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun navigateDeepLink$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun popUpTo (Ljava/lang/String;ZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun popUpTo$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;ZLjava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationModule : io/github/syrou/reaktiv/core/ModuleWithLogic, io/github/syrou/reaktiv/core/util/CustomTypeRegistrar {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationModule$Companion;
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lkotlin/jvm/functions/Function3;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/definition/LoadingModal;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAllFullPaths ()Ljava/util/Map;
+	public fun getCreateLogic ()Lkotlin/jvm/functions/Function1;
+	public fun getCreateMiddleware ()Lkotlin/jvm/functions/Function0;
+	public final fun getFullPath (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Ljava/lang/String;
+	public final fun getGraphId (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;)Ljava/lang/String;
+	public synthetic fun getInitialState ()Lio/github/syrou/reaktiv/core/ModuleState;
+	public fun getInitialState ()Lio/github/syrou/reaktiv/navigation/NavigationState;
+	public final fun getLoadingModal ()Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;
+	public fun getReducer ()Lkotlin/jvm/functions/Function2;
+	public fun registerAdditionalSerializers (Lkotlinx/serialization/modules/SerializersModuleBuilder;)V
+	public fun selectLogic (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun selectLogicTyped (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun selectStateFlowNonSuspend (Lio/github/syrou/reaktiv/core/StoreAccessor;)Lkotlinx/coroutines/flow/StateFlow;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationModule$Companion {
+	public final fun create (Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/NavigationModule;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationModuleKt {
+	public static final fun createNavigationModule (Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/NavigationModule;
+}
+
+public abstract class io/github/syrou/reaktiv/navigation/NavigationOutcome {
+	public static final field $stable I
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationOutcome$Dropped : io/github/syrou/reaktiv/navigation/NavigationOutcome {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationOutcome$Dropped;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationOutcome$Redirected : io/github/syrou/reaktiv/navigation/NavigationOutcome {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/NavigationOutcome$Redirected;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationOutcome$Redirected;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationOutcome$Redirected;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTo ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationOutcome$Rejected : io/github/syrou/reaktiv/navigation/NavigationOutcome {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationOutcome$Rejected;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationOutcome$Success : io/github/syrou/reaktiv/navigation/NavigationOutcome {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationOutcome$Success;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationState : io/github/syrou/reaktiv/core/ModuleState {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationState$Companion;
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/NavigationAction;JLjava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZZZLjava/util/List;Ljava/util/List;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/NavigationAction;JLjava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZZZLjava/util/List;Ljava/util/List;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun component10 ()Z
+	public final fun component11 ()Z
+	public final fun component12 ()Ljava/util/List;
+	public final fun component13 ()Ljava/util/List;
+	public final fun component14 ()Ljava/util/List;
+	public final fun component15 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun component16 ()Ljava/util/List;
+	public final fun component17 ()Ljava/util/List;
+	public final fun component18 ()Ljava/util/Map;
+	public final fun component19 ()Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component20 ()Z
+	public final fun component21 ()Z
+	public final fun component3 ()Lio/github/syrou/reaktiv/navigation/NavigationAction;
+	public final fun component4-UwyO8pc ()J
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/util/List;
+	public final fun component9 ()Z
+	public final fun copy-FASR690 (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/NavigationAction;JLjava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZZZLjava/util/List;Ljava/util/List;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZ)Lio/github/syrou/reaktiv/navigation/NavigationState;
+	public static synthetic fun copy-FASR690$default (Lio/github/syrou/reaktiv/navigation/NavigationState;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/NavigationAction;JLjava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZZZLjava/util/List;Ljava/util/List;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationState;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActiveModalContexts ()Ljava/util/Map;
+	public final fun getBackStack ()Ljava/util/List;
+	public final fun getBreadcrumbs ()Ljava/util/List;
+	public final fun getCanGoBack ()Z
+	public final fun getContentLayerEntries ()Ljava/util/List;
+	public final fun getCurrentEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun getCurrentFullPath ()Ljava/lang/String;
+	public final fun getCurrentGraphHierarchy ()Ljava/util/List;
+	public final fun getCurrentPathSegments ()Ljava/util/List;
+	public final fun getEffectiveDepth ()I
+	public final fun getEntriesByLayer ()Ljava/util/Map;
+	public final fun getGlobalOverlayEntries ()Ljava/util/List;
+	public final fun getHasModalsInStack ()Z
+	public final fun getLastNavigationAction ()Lio/github/syrou/reaktiv/navigation/NavigationAction;
+	public final fun getModalsInStack ()Ljava/util/List;
+	public final fun getNavigationDepth ()I
+	public final fun getOrderedBackStack ()Ljava/util/List;
+	public final fun getPendingNavigation ()Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
+	public final fun getRenderableEntries ()Ljava/util/List;
+	public final fun getScreenRetentionDuration-UwyO8pc ()J
+	public final fun getSystemLayerEntries ()Ljava/util/List;
+	public final fun getUnderlyingScreen ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun getUnderlyingScreenGraphHierarchy ()Ljava/util/List;
+	public final fun getVisibleLayers ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun isAtPath (Ljava/lang/String;)Z
+	public final fun isBootstrapping ()Z
+	public final fun isCurrentModal ()Z
+	public final fun isCurrentScreen ()Z
+	public final fun isEvaluatingNavigation ()Z
+	public final fun isInGraph (Ljava/lang/String;)Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationState$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationState$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationState;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationState;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationState$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/PrecomputedNavigationData {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/util/RouteResolver;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lio/github/syrou/reaktiv/navigation/definition/Screen;Ljava/util/Map;Ljava/util/Map;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/util/RouteResolver;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lio/github/syrou/reaktiv/navigation/definition/Screen;Ljava/util/Map;Ljava/util/Map;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/util/RouteResolver;
+	public final fun component10 ()Lio/github/syrou/reaktiv/navigation/definition/Screen;
+	public final fun component11 ()Ljava/util/Map;
+	public final fun component12 ()Ljava/util/Map;
+	public final fun component13 ()Ljava/util/List;
+	public final fun component14 ()Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun component5 ()Ljava/util/Map;
+	public final fun component6 ()Ljava/util/Map;
+	public final fun component7 ()Ljava/util/Map;
+	public final fun component8 ()Ljava/util/Map;
+	public final fun component9 ()Lio/github/syrou/reaktiv/navigation/definition/Screen;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/util/RouteResolver;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lio/github/syrou/reaktiv/navigation/definition/Screen;Ljava/util/Map;Ljava/util/Map;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData;Lio/github/syrou/reaktiv/navigation/util/RouteResolver;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lio/github/syrou/reaktiv/navigation/definition/Screen;Ljava/util/Map;Ljava/util/Map;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAllNavigatables ()Ljava/util/Map;
+	public final fun getAvailableNavigatables ()Ljava/util/Map;
+	public final fun getCrashScreen ()Lio/github/syrou/reaktiv/navigation/definition/Screen;
+	public final fun getDeepLinkAliases ()Ljava/util/List;
+	public final fun getGraphDefinitions ()Ljava/util/Map;
+	public final fun getGraphEntries ()Ljava/util/Map;
+	public final fun getGraphHierarchies ()Ljava/util/Map;
+	public final fun getInterceptedRoutes ()Ljava/util/Map;
+	public final fun getLoadingModal ()Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;
+	public final fun getNavigatableToFullPath ()Ljava/util/Map;
+	public final fun getNavigatableToGraph ()Ljava/util/Map;
+	public final fun getNotFoundScreen ()Lio/github/syrou/reaktiv/navigation/definition/Screen;
+	public final fun getRouteResolver ()Lio/github/syrou/reaktiv/navigation/util/RouteResolver;
+	public final fun getRouteToNavigatable ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/PrecomputedNavigationData$Companion {
+	public final fun create (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lio/github/syrou/reaktiv/navigation/definition/Screen;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData;
+	public static synthetic fun create$default (Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData$Companion;Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lio/github/syrou/reaktiv/navigation/definition/Screen;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/BackstackLifecycle : kotlinx/coroutines/CoroutineScope {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lkotlinx/coroutines/flow/StateFlow;Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlinx/coroutines/CoroutineScope;)V
+	public final fun dispatch (Lio/github/syrou/reaktiv/core/ModuleAction;)V
+	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
+	public final fun getEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun getParams ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun getRoute ()Ljava/lang/String;
+	public final fun getStoreAccessor ()Lio/github/syrou/reaktiv/core/StoreAccessor;
+	public final fun getVisibility ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun invokeOnRemoval (Lkotlin/jvm/functions/Function2;)V
+}
+
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/Graph : io/github/syrou/reaktiv/navigation/definition/NavigationNode {
+	public abstract fun getRoute ()Ljava/lang/String;
+}
+
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/LoadingModal : io/github/syrou/reaktiv/navigation/definition/Modal {
+	public fun getBackGestureEnabled ()Z
+	public fun getElevation ()F
+	public fun getRenderLayer ()Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public fun getShouldDimBackground ()Z
+	public fun getSwipeToDismiss ()Z
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/LoadingModal$DefaultImpls {
+	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
+	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Z
+	public static fun getBackgroundDimAlpha (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)F
+	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)F
+	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
+	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public static fun getPopExitTransition (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public static fun getRenderLayer (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public static fun getShouldDimBackground (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Z
+	public static fun getShowsDismissIndicator (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Z
+	public static fun getSwipeToDismiss (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Z
+	public static fun getTitleResource (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
+	public static fun onLifecycleCreated (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;Lio/github/syrou/reaktiv/navigation/definition/BackstackLifecycle;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/Modal : io/github/syrou/reaktiv/navigation/definition/Navigatable {
+	public fun getActionResource ()Lkotlin/jvm/functions/Function2;
+	public fun getBackgroundDimAlpha ()F
+	public fun getElevation ()F
+	public fun getPopEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public fun getPopExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public fun getRenderLayer ()Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public fun getShouldDimBackground ()Z
+	public fun getSwipeToDismiss ()Z
+	public fun getTitleResource ()Lkotlin/jvm/functions/Function2;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/Modal$DefaultImpls {
+	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
+	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Z
+	public static fun getBackgroundDimAlpha (Lio/github/syrou/reaktiv/navigation/definition/Modal;)F
+	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Modal;)F
+	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
+	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public static fun getPopExitTransition (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public static fun getRenderLayer (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public static fun getShouldDimBackground (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Z
+	public static fun getShowsDismissIndicator (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Z
+	public static fun getSwipeToDismiss (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Z
+	public static fun getTitleResource (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
+	public static fun onLifecycleCreated (Lio/github/syrou/reaktiv/navigation/definition/Modal;Lio/github/syrou/reaktiv/navigation/definition/BackstackLifecycle;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph : io/github/syrou/reaktiv/navigation/definition/NavigationGraph {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/definition/StartDestination;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/functions/Function3;Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/definition/StartDestination;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/functions/Function3;Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/navigation/definition/StartDestination;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Lkotlin/jvm/functions/Function3;
+	public final fun component6 ()Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
+	public final fun component7 ()Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
+	public final fun component8 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/definition/StartDestination;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/functions/Function3;Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/definition/StartDestination;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/functions/Function3;Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;Ljava/util/Map;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun findGraphContaining (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+	public fun findNestedGraph (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+	public fun getAllNavigatables ()Ljava/util/Map;
+	public fun getEntryDefinition ()Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
+	public fun getInterceptDefinition ()Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
+	public fun getLayout ()Lkotlin/jvm/functions/Function3;
+	public fun getNavigatableIntercepts ()Ljava/util/Map;
+	public fun getNavigatables ()Ljava/util/List;
+	public fun getNestedGraphs ()Ljava/util/List;
+	public fun getRoute ()Ljava/lang/String;
+	public fun getStartDestination ()Lio/github/syrou/reaktiv/navigation/definition/StartDestination;
+	public fun hashCode ()I
+	public fun resolveStartScreen (Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/MutableNavigationGraph$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/Navigatable : io/github/syrou/reaktiv/navigation/definition/NavigationNode {
+	public abstract fun Content (Lio/github/syrou/reaktiv/navigation/param/Params;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun getActionResource ()Lkotlin/jvm/functions/Function2;
+	public fun getBackGestureEnabled ()Z
+	public fun getElevation ()F
+	public abstract fun getEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public abstract fun getExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public fun getOnDismissRequest ()Lkotlin/jvm/functions/Function2;
+	public abstract fun getPopEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public abstract fun getPopExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public fun getRenderLayer ()Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public fun getShowsDismissIndicator ()Z
+	public fun getSwipeToDismiss ()Z
+	public abstract fun getTitleResource ()Lkotlin/jvm/functions/Function2;
+	public fun onLifecycleCreated (Lio/github/syrou/reaktiv/navigation/definition/BackstackLifecycle;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/Navigatable$DefaultImpls {
+	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Z
+	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)F
+	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lkotlin/jvm/functions/Function2;
+	public static fun getRenderLayer (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public static fun getShowsDismissIndicator (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Z
+	public static fun getSwipeToDismiss (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Z
+	public static fun onLifecycleCreated (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Lio/github/syrou/reaktiv/navigation/definition/BackstackLifecycle;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/NavigationGraph : io/github/syrou/reaktiv/navigation/definition/NavigationNode {
+	public fun findGraphContaining (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+	public fun findNestedGraph (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+	public fun getAllNavigatables ()Ljava/util/Map;
+	public fun getEntryDefinition ()Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
+	public fun getInterceptDefinition ()Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
+	public abstract fun getLayout ()Lkotlin/jvm/functions/Function3;
+	public fun getNavigatableIntercepts ()Ljava/util/Map;
+	public abstract fun getNavigatables ()Ljava/util/List;
+	public abstract fun getNestedGraphs ()Ljava/util/List;
+	public abstract fun getRoute ()Ljava/lang/String;
+	public abstract fun getStartDestination ()Lio/github/syrou/reaktiv/navigation/definition/StartDestination;
+	public fun resolveStartScreen (Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/NavigationGraph$DefaultImpls {
+	public static fun findGraphContaining (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+	public static fun findNestedGraph (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+	public static fun getAllNavigatables (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;)Ljava/util/Map;
+	public static fun getEntryDefinition (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;)Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
+	public static fun getInterceptDefinition (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;)Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
+	public static fun getNavigatableIntercepts (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;)Ljava/util/Map;
+	public static fun resolveStartScreen (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+}
+
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/NavigationNode {
+	public abstract fun getRoute ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/NavigationPath : io/github/syrou/reaktiv/navigation/definition/NavigationNode {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationPath;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/definition/NavigationPath;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/definition/NavigationPath;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getRoute ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class io/github/syrou/reaktiv/navigation/definition/NavigationTarget {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$Companion;
+	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public final fun resolve (Lio/github/syrou/reaktiv/navigation/PrecomputedNavigationData;)Ljava/lang/String;
+	public static final synthetic fun write$Self (Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/NavigationTarget$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/NavigationTarget$NavigatableObject : io/github/syrou/reaktiv/navigation/definition/NavigationTarget {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$NavigatableObject;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$NavigatableObject;Lio/github/syrou/reaktiv/navigation/definition/Navigatable;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$NavigatableObject;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNavigatable ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/NavigationTarget$NavigatableObjectWithGraph : io/github/syrou/reaktiv/navigation/definition/NavigationTarget {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$NavigatableObjectWithGraph;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$NavigatableObjectWithGraph;Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$NavigatableObjectWithGraph;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNavigatable ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public final fun getPreferredGraphId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/NavigationTarget$Path : io/github/syrou/reaktiv/navigation/definition/NavigationTarget {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$Path;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$Path;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget$Path;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPath ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/RemovalReason : java/lang/Enum {
+	public static final field NAVIGATION Lio/github/syrou/reaktiv/navigation/definition/RemovalReason;
+	public static final field RESET Lio/github/syrou/reaktiv/navigation/definition/RemovalReason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/RemovalReason;
+	public static fun values ()[Lio/github/syrou/reaktiv/navigation/definition/RemovalReason;
+}
+
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/Screen : io/github/syrou/reaktiv/navigation/definition/Navigatable {
+	public fun getActionResource ()Lkotlin/jvm/functions/Function2;
+	public fun getElevation ()F
+	public fun getPopEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public fun getPopExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public fun getRenderLayer ()Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public fun getTitleResource ()Lkotlin/jvm/functions/Function2;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/Screen$DefaultImpls {
+	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function2;
+	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Z
+	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Screen;)F
+	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function2;
+	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public static fun getPopExitTransition (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public static fun getRenderLayer (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public static fun getShowsDismissIndicator (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Z
+	public static fun getSwipeToDismiss (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Z
+	public static fun getTitleResource (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function2;
+	public static fun onLifecycleCreated (Lio/github/syrou/reaktiv/navigation/definition/Screen;Lio/github/syrou/reaktiv/navigation/definition/BackstackLifecycle;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public class io/github/syrou/reaktiv/navigation/definition/ScreenGroup {
+	public static final field $stable I
+	public fun <init> (Ljava/util/List;)V
+	public fun <init> ([Lio/github/syrou/reaktiv/navigation/definition/Screen;)V
+	public final fun getScreens ()Ljava/util/List;
+}
+
+public abstract class io/github/syrou/reaktiv/navigation/definition/StartDestination {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/definition/StartDestination$Companion;
+	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public static final synthetic fun write$Self (Lio/github/syrou/reaktiv/navigation/definition/StartDestination;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/StartDestination$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen : io/github/syrou/reaktiv/navigation/definition/StartDestination {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Screen;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/definition/Screen;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen;Lio/github/syrou/reaktiv/navigation/definition/Screen;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getScreen ()Lio/github/syrou/reaktiv/navigation/definition/Screen;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/StartDestination$DirectScreen$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference : io/github/syrou/reaktiv/navigation/definition/StartDestination {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference$Companion;
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGraphId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/StartDestination$GraphReference$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/UrlEncoder {
+	public abstract fun decode (Ljava/lang/String;)Ljava/lang/String;
+	public abstract fun encodePath (Ljava/lang/String;)Ljava/lang/String;
+	public abstract fun encodeQuery (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/DeepLinkAlias {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lkotlin/jvm/functions/Function1;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/dsl/DeepLinkAlias;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/dsl/DeepLinkAlias;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/dsl/DeepLinkAlias;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getParamsMapping ()Lkotlin/jvm/functions/Function1;
+	public final fun getPattern ()Ljava/lang/String;
+	public final fun getTargetRoute ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun matchAndExtract (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/DeepLinkAliasBuilder {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun alias (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun alias$default (Lio/github/syrou/reaktiv/navigation/dsl/DeepLinkAliasBuilder;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/GraphBasedBuilder {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun build ()Lio/github/syrou/reaktiv/navigation/NavigationModule;
+	public final fun crashScreen (Lio/github/syrou/reaktiv/navigation/definition/Screen;Lkotlin/jvm/functions/Function3;)V
+	public static synthetic fun crashScreen$default (Lio/github/syrou/reaktiv/navigation/dsl/GraphBasedBuilder;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)V
+	public final fun deepLinkAliases (Lkotlin/jvm/functions/Function1;)V
+	public final fun loadingModal (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)V
+	public final fun notFoundScreen (Lio/github/syrou/reaktiv/navigation/definition/Screen;)V
+	public final fun rootGraph (Lkotlin/jvm/functions/Function1;)V
+	public final fun screenRetentionDuration-LRDsOJo (J)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/NavigationBuilder {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/core/StoreAccessor;Lio/github/syrou/reaktiv/navigation/encoding/DualNavigationParameterEncoder;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/core/StoreAccessor;Lio/github/syrou/reaktiv/navigation/encoding/DualNavigationParameterEncoder;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun clearBackStack ()Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun dismissModals ()Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun findNavigatableByType (Lkotlin/reflect/KClass;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getCurrentParams ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun getFullPath (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Ljava/lang/String;
+	public final fun getOperations ()Ljava/util/List;
+	public final fun getShouldDismissModalsGlobally ()Z
+	public final fun navigateBack ()Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun navigateTo (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;ZZ)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun navigateTo (Ljava/lang/String;ZZLkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public static synthetic fun navigateTo$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;Lio/github/syrou/reaktiv/navigation/definition/Navigatable;ZZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public static synthetic fun navigateTo$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;Ljava/lang/String;ZZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun param (Ljava/lang/String;Ljava/lang/Object;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun params (Lio/github/syrou/reaktiv/navigation/param/Params;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun popUpTo (Ljava/lang/String;ZLjava/lang/String;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public static synthetic fun popUpTo$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;Ljava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun putBoolean (Ljava/lang/String;Z)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun putDouble (Ljava/lang/String;D)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun putFloat (Ljava/lang/String;F)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun putInt (Ljava/lang/String;I)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun putLong (Ljava/lang/String;J)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun putRaw (Ljava/lang/String;Ljava/lang/Object;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun putString (Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun resumePendingNavigation ()Lio/github/syrou/reaktiv/navigation/dsl/NavigationBuilder;
+	public final fun setCurrentParams (Lio/github/syrou/reaktiv/navigation/param/Params;)V
+	public final fun setShouldDismissModalsGlobally (Z)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/NavigationGraphBuilder {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public final fun graph (Lio/github/syrou/reaktiv/navigation/definition/Graph;Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+	public final fun graph (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+	public final fun intercept-8Mi8wO0 (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun intercept-8Mi8wO0$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationGraphBuilder;Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun layout (Lkotlin/jvm/functions/Function3;)V
+	public final fun modals ([Lio/github/syrou/reaktiv/navigation/definition/Modal;)V
+	public final fun screenGroup (Lio/github/syrou/reaktiv/navigation/definition/ScreenGroup;)V
+	public final fun screens ([Lio/github/syrou/reaktiv/navigation/definition/Screen;)V
+	public final fun start (Lio/github/syrou/reaktiv/navigation/definition/Screen;)V
+	public final fun start (Ljava/lang/String;)V
+	public final fun start-HG0u8IE (Lkotlin/jvm/functions/Function2;J)V
+	public static synthetic fun start-HG0u8IE$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationGraphBuilder;Lkotlin/jvm/functions/Function2;JILjava/lang/Object;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/NavigationOperation : java/lang/Enum {
+	public static final field Back Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public static final field ClearBackStack Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation$Companion;
+	public static final field Navigate Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public static final field PopUpTo Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public static final field Replace Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public static final field ResumePending Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public static fun values ()[Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/NavigationOperation$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/NavigationParameterBuilder {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun getParams ()Ljava/util/Map;
+	public final fun put (Ljava/lang/String;Ljava/lang/Object;Lkotlinx/serialization/KSerializer;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationParameterBuilder;
+	public final fun putRaw (Ljava/lang/String;Ljava/lang/Object;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationParameterBuilder;
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/NavigationStep {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/dsl/NavigationStep$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;Lio/github/syrou/reaktiv/navigation/param/Params;Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;ZLio/github/syrou/reaktiv/navigation/definition/NavigationTarget;ZZZZ)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;Lio/github/syrou/reaktiv/navigation/param/Params;Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;ZLio/github/syrou/reaktiv/navigation/definition/NavigationTarget;ZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public final fun component10 ()Z
+	public final fun component2 ()Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;
+	public final fun component3 ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun component4 ()Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;
+	public final fun component5 ()Z
+	public final fun component6 ()Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;
+	public final fun component7 ()Z
+	public final fun component8 ()Z
+	public final fun component9 ()Z
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;Lio/github/syrou/reaktiv/navigation/param/Params;Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;ZLio/github/syrou/reaktiv/navigation/definition/NavigationTarget;ZZZZ)Lio/github/syrou/reaktiv/navigation/dsl/NavigationStep;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationStep;Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;Lio/github/syrou/reaktiv/navigation/param/Params;Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;ZLio/github/syrou/reaktiv/navigation/definition/NavigationTarget;ZZZZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationStep;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOperation ()Lio/github/syrou/reaktiv/navigation/dsl/NavigationOperation;
+	public final fun getParams ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun getPopUpToFallback ()Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;
+	public final fun getPopUpToInclusive ()Z
+	public final fun getPopUpToTarget ()Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;
+	public final fun getShouldClearBackStack ()Z
+	public final fun getShouldDismissModals ()Z
+	public final fun getShouldReplaceWith ()Z
+	public final fun getSynthesizeBackstack ()Z
+	public final fun getTarget ()Lio/github/syrou/reaktiv/navigation/definition/NavigationTarget;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/dsl/NavigationStep$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/dsl/NavigationStep$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/dsl/NavigationStep;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/dsl/NavigationStep;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/dsl/NavigationStep$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/encoding/DualNavigationParameterEncoder {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/UrlEncoder;Lkotlinx/serialization/json/Json;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/definition/UrlEncoder;Lkotlinx/serialization/json/Json;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun decodeSimple (Ljava/lang/String;)Ljava/lang/Object;
+	public final fun decodeSimpleQueryString (Ljava/lang/String;)Ljava/util/Map;
+	public final fun decodeTypeSafe (Ljava/lang/String;Lkotlinx/serialization/KSerializer;)Ljava/lang/Object;
+	public final fun encodeMixed (Ljava/lang/Object;)Ljava/lang/Object;
+	public final fun encodeMixedQueryString (Ljava/util/Map;)Ljava/lang/String;
+	public final fun encodeSimple (Ljava/lang/Object;)Ljava/lang/Object;
+	public final fun encodeSimpleQueryString (Ljava/util/Map;)Ljava/lang/String;
+	public final fun encodeStepParameters (Ljava/util/Map;)Ljava/util/Map;
+	public final fun encodeTypeSafe (Ljava/lang/Object;Lkotlinx/serialization/KSerializer;)Ljava/lang/String;
+	public final fun encodeTypeSafeQueryString (Ljava/util/Map;)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/exception/ClearingBackStackWithOtherOperations : java/lang/Exception {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/exception/ClearingBackStackWithOtherOperations;
+}
+
+public final class io/github/syrou/reaktiv/navigation/exception/RouteNotFoundException : java/lang/Exception {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/extension/ExtensionsKt {
+	public static final fun applyIf (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;)Landroidx/compose/ui/Modifier;
+	public static final fun clearAllModals (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun dismissModal (Lio/github/syrou/reaktiv/core/StoreAccessor;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun dismissModal (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun navigate (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun navigate$default (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun navigateBack (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun navigateDeepLink (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun navigateDeepLink$default (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun navigation (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/navigation/layer/RenderLayer : java/lang/Enum {
+	public static final field CONTENT Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public static final field GLOBAL_OVERLAY Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public static final field SYSTEM Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+	public static fun values ()[Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/EntryDefinition {
+	public static final field $stable I
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lkotlin/jvm/functions/Function2;
+	public final fun component2-UwyO8pc ()J
+	public final fun copy-HG0u8IE (Lkotlin/jvm/functions/Function2;J)Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
+	public static synthetic fun copy-HG0u8IE$default (Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;Lkotlin/jvm/functions/Function2;JILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLoadingThreshold-UwyO8pc ()J
+	public final fun getRoute ()Lkotlin/jvm/functions/Function2;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class io/github/syrou/reaktiv/navigation/model/GuardResult {
+	public static final field $stable I
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/GuardResult$Allow : io/github/syrou/reaktiv/navigation/model/GuardResult {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/model/GuardResult$Allow;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/GuardResult$PendAndRedirectTo : io/github/syrou/reaktiv/navigation/model/GuardResult {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/util/Map;Ljava/lang/String;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/util/Map;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/model/GuardResult$PendAndRedirectTo;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/model/GuardResult$PendAndRedirectTo;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/GuardResult$PendAndRedirectTo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDisplayHint ()Ljava/lang/String;
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getRoute ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/GuardResult$RedirectTo : io/github/syrou/reaktiv/navigation/model/GuardResult {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)V
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/model/GuardResult$RedirectTo;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/model/GuardResult$RedirectTo;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/GuardResult$RedirectTo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRoute ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/GuardResult$Reject : io/github/syrou/reaktiv/navigation/model/GuardResult {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/model/GuardResult$Reject;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/InterceptDefinition {
+	public static final field $stable I
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLjava/util/List;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lkotlin/jvm/functions/Function2;
+	public final fun component2-UwyO8pc ()J
+	public final fun copy-8Mi8wO0 (Lkotlin/jvm/functions/Function2;JLjava/util/List;)Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
+	public static synthetic fun copy-8Mi8wO0$default (Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;Lkotlin/jvm/functions/Function2;JLjava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGuard ()Lkotlin/jvm/functions/Function2;
+	public final fun getLoadingThreshold-UwyO8pc ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/ModalContext {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/model/ModalContext$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/lang/String;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun component2 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/model/ModalContext;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/model/ModalContext;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/ModalContext;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getModalEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun getNavigatedAwayToRoute ()Ljava/lang/String;
+	public final fun getOriginalUnderlyingScreenEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/model/ModalContext$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/model/ModalContext$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/model/ModalContext;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/model/ModalContext;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/ModalContext$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/NavigationEntry {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;I)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun component4 ()I
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;I)Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;IILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionResource ()Lkotlin/jvm/functions/Function2;
+	public final fun getGraphId ()Ljava/lang/String;
+	public final fun getNavigatable ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public final fun getNavigatableRoute ()Ljava/lang/String;
+	public final fun getParams ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun getPath ()Ljava/lang/String;
+	public final fun getRoute ()Ljava/lang/String;
+	public final fun getStableKey ()Ljava/lang/String;
+	public final fun getStackPosition ()I
+	public final fun getTitleResource ()Lkotlin/jvm/functions/Function2;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/NavigationEntryKt {
+	public static final fun toNavigationEntry (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;I)Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public static synthetic fun toNavigationEntry$default (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;IILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/NavigationEntrySerializer : kotlinx/serialization/KSerializer {
+	public static final field $stable I
+	public fun <init> (Lkotlin/jvm/functions/Function1;)V
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/PendingNavigation {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/model/PendingNavigation$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Ljava/util/Map;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Ljava/util/Map;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Ljava/util/Map;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDisplayHint ()Ljava/lang/String;
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getParams ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun getRoute ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/model/PendingNavigation$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/model/PendingNavigation$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/PendingNavigation$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/RouteResolution {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Z
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Ljava/lang/String;Z)Lio/github/syrou/reaktiv/navigation/model/RouteResolution;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/model/RouteResolution;Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Ljava/lang/String;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/RouteResolution;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEffectiveGraphId ()Ljava/lang/String;
+	public final fun getExtractedParams ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun getNavigationGraphId ()Ljava/lang/String;
+	public final fun getTargetGraphId ()Ljava/lang/String;
+	public final fun getTargetNavigatable ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public fun hashCode ()I
+	public final fun isGraphReference ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/ScreenResolution {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/model/ScreenResolution;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/model/ScreenResolution;Lio/github/syrou/reaktiv/navigation/definition/Navigatable;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/ScreenResolution;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActualGraphId ()Ljava/lang/String;
+	public final fun getNavigatable ()Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/param/Params {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/param/Params$Companion;
+	public synthetic fun <init> (Ljava/util/Map;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun contains (Ljava/lang/String;)Z
+	public final fun containsKey (Ljava/lang/String;)Z
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun get (Ljava/lang/String;)Ljava/lang/Object;
+	public final fun getBoolean (Ljava/lang/String;)Ljava/lang/Boolean;
+	public final fun getDouble (Ljava/lang/String;)Ljava/lang/Double;
+	public final fun getFloat (Ljava/lang/String;)Ljava/lang/Float;
+	public final fun getInt (Ljava/lang/String;)Ljava/lang/Integer;
+	public final fun getLong (Ljava/lang/String;)Ljava/lang/Long;
+	public final fun getSize ()I
+	public final fun getString (Ljava/lang/String;)Ljava/lang/String;
+	public final fun getTyped (Ljava/lang/String;Lkotlinx/serialization/KSerializer;)Ljava/lang/Object;
+	public fun hashCode ()I
+	public final fun isEmpty ()Z
+	public final fun isNotEmpty ()Z
+	public final fun keys ()Ljava/util/Set;
+	public final fun plus (Lio/github/syrou/reaktiv/navigation/param/Params;)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun requireBoolean (Ljava/lang/String;)Z
+	public final fun requireDouble (Ljava/lang/String;)D
+	public final fun requireFloat (Ljava/lang/String;)F
+	public final fun requireInt (Ljava/lang/String;)I
+	public final fun requireLong (Ljava/lang/String;)J
+	public final fun requireString (Ljava/lang/String;)Ljava/lang/String;
+	public final fun toMap ()Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+	public final fun with (Ljava/lang/String;D)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun with (Ljava/lang/String;F)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun with (Ljava/lang/String;I)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun with (Ljava/lang/String;J)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun with (Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun with (Ljava/lang/String;Z)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun withTyped (Ljava/lang/String;Ljava/lang/Object;Lkotlinx/serialization/KSerializer;)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun without (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/param/Params;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/param/Params$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/param/Params$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/param/Params;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/param/Params$Companion {
+	public final fun empty ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun fromMap (Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun fromUrl (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun of ([Lkotlin/Pair;)Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/param/ParamsBuilder {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun getParams ()Lio/github/syrou/reaktiv/navigation/param/Params;
+	public final fun put (Ljava/lang/String;D)Lio/github/syrou/reaktiv/navigation/param/ParamsBuilder;
+	public final fun put (Ljava/lang/String;F)Lio/github/syrou/reaktiv/navigation/param/ParamsBuilder;
+	public final fun put (Ljava/lang/String;I)Lio/github/syrou/reaktiv/navigation/param/ParamsBuilder;
+	public final fun put (Ljava/lang/String;J)Lio/github/syrou/reaktiv/navigation/param/ParamsBuilder;
+	public final fun put (Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/param/ParamsBuilder;
+	public final fun put (Ljava/lang/String;Z)Lio/github/syrou/reaktiv/navigation/param/ParamsBuilder;
+	public final fun setParams (Lio/github/syrou/reaktiv/navigation/param/Params;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/param/ParamsKt {
+	public static final fun requireBoolean (Ljava/util/Map;Ljava/lang/String;)Z
+	public static final fun requireDouble (Ljava/util/Map;Ljava/lang/String;)D
+	public static final fun requireFloat (Ljava/util/Map;Ljava/lang/String;)F
+	public static final fun requireInt (Ljava/util/Map;Ljava/lang/String;)I
+	public static final fun requireLong (Ljava/util/Map;Ljava/lang/String;)J
+	public static final fun requireString (Ljava/util/Map;Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/param/SerializableParam : io/github/syrou/reaktiv/navigation/param/TypedParam {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/param/SerializableParam$Companion;
+	public fun <init> (Ljava/lang/Object;Lkotlinx/serialization/KSerializer;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun component2 ()Lkotlinx/serialization/KSerializer;
+	public final fun copy (Ljava/lang/Object;Lkotlinx/serialization/KSerializer;)Lio/github/syrou/reaktiv/navigation/param/SerializableParam;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/param/SerializableParam;Ljava/lang/Object;Lkotlinx/serialization/KSerializer;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/param/SerializableParam;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getSerializer ()Lkotlinx/serialization/KSerializer;
+	public fun getValue ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/param/SerializableParam$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public fun <init> (Lkotlinx/serialization/KSerializer;)V
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/param/SerializableParam;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/param/SerializableParam;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public final fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/param/SerializableParam$Companion {
+	public final fun serializer (Lkotlinx/serialization/KSerializer;)Lkotlinx/serialization/KSerializer;
+}
+
+public abstract class io/github/syrou/reaktiv/navigation/param/TypedParam {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/param/TypedParam$Companion;
+	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public abstract fun getSerializer ()Lkotlinx/serialization/KSerializer;
+	public abstract fun getValue ()Ljava/lang/Object;
+	public static final synthetic fun write$Self (Lio/github/syrou/reaktiv/navigation/param/TypedParam;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;Lkotlinx/serialization/KSerializer;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/param/TypedParam$Companion {
+	public final fun serializer (Lkotlinx/serialization/KSerializer;)Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/BackGestureTransformsKt {
+	public static final fun presentationAxis (Lio/github/syrou/reaktiv/navigation/transition/NavTransition;)Lio/github/syrou/reaktiv/navigation/transition/GestureAxis;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/GestureAxis : java/lang/Enum {
+	public static final field Horizontal Lio/github/syrou/reaktiv/navigation/transition/GestureAxis;
+	public static final field Neutral Lio/github/syrou/reaktiv/navigation/transition/GestureAxis;
+	public static final field Vertical Lio/github/syrou/reaktiv/navigation/transition/GestureAxis;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/transition/GestureAxis;
+	public static fun values ()[Lio/github/syrou/reaktiv/navigation/transition/GestureAxis;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransationKt {
+	public static final fun resolve (Lio/github/syrou/reaktiv/navigation/transition/NavTransition;FFZ)Lio/github/syrou/reaktiv/navigation/transition/ResolvedNavTransition;
+	public static synthetic fun resolve$default (Lio/github/syrou/reaktiv/navigation/transition/NavTransition;FFZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/transition/ResolvedNavTransition;
+}
+
+public abstract class io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Companion;
+	public static final field DEFAULT_ANIMATION_DURATION I
+	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun getDurationMillis ()I
+	public static final synthetic fun write$Self (Lio/github/syrou/reaktiv/navigation/transition/NavTransition;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$Custom : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Custom$Companion;
+	public fun <init> ()V
+	public fun <init> (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAlpha ()Lkotlin/jvm/functions/Function1;
+	public fun getDurationMillis ()I
+	public final fun getRotationZ ()Lkotlin/jvm/functions/Function1;
+	public final fun getScaleX ()Lkotlin/jvm/functions/Function1;
+	public final fun getScaleY ()Lkotlin/jvm/functions/Function1;
+	public final fun getTranslationX ()Lkotlin/jvm/functions/Function1;
+	public final fun getTranslationY ()Lkotlin/jvm/functions/Function1;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/transition/NavTransition$Custom$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Custom$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Custom;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Custom;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$Custom$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$Fade : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Fade;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$FadeOut : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$FadeOut;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$IOSSlideIn : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$IOSSlideIn;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$IOSSlideOut : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$IOSSlideOut;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$MaterialSlideIn : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$MaterialSlideIn;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$MaterialSlideOut : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$MaterialSlideOut;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$None : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$None;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$Scale : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Scale$Companion;
+	public fun <init> ()V
+	public fun <init> (I)V
+	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getDurationMillis ()I
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/transition/NavTransition$Scale$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Scale$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Scale;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/transition/NavTransition$Scale;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$Scale$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$ScaleOut : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/transition/NavTransition$ScaleOut$Companion;
+	public fun <init> ()V
+	public fun <init> (I)V
+	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getDurationMillis ()I
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/transition/NavTransition$ScaleOut$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$ScaleOut$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition$ScaleOut;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/transition/NavTransition$ScaleOut;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$ScaleOut$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$SlideInLeft : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$SlideInLeft;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$SlideInRight : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$SlideInRight;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$SlideOutBottom : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$SlideOutBottom;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$SlideOutLeft : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$SlideOutLeft;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$SlideOutRight : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$SlideOutRight;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$SlideUpBottom : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$SlideUpBottom;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$StackPop : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$StackPop;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/NavTransition$StackPush : io/github/syrou/reaktiv/navigation/transition/NavTransition {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/transition/NavTransition$StackPush;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/transition/ResolvedNavTransition {
+	public static final field $stable I
+	public fun <init> (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Lkotlin/jvm/functions/Function1;
+	public final fun component3 ()Lkotlin/jvm/functions/Function1;
+	public final fun component4 ()Lkotlin/jvm/functions/Function1;
+	public final fun component5 ()Lkotlin/jvm/functions/Function1;
+	public final fun component6 ()Lkotlin/jvm/functions/Function1;
+	public final fun component7 ()Lkotlin/jvm/functions/Function1;
+	public final fun copy (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/transition/ResolvedNavTransition;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/transition/ResolvedNavTransition;ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/transition/ResolvedNavTransition;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAlpha ()Lkotlin/jvm/functions/Function1;
+	public final fun getDurationMillis ()I
+	public final fun getRotationZ ()Lkotlin/jvm/functions/Function1;
+	public final fun getScaleX ()Lkotlin/jvm/functions/Function1;
+	public final fun getScaleY ()Lkotlin/jvm/functions/Function1;
+	public final fun getTranslationX ()Lkotlin/jvm/functions/Function1;
+	public final fun getTranslationY ()Lkotlin/jvm/functions/Function1;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/ui/AnimationStateKt {
+	public static final fun rememberLayerAnimationState (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Landroidx/compose/runtime/Composer;I)Lio/github/syrou/reaktiv/navigation/ui/LayerAnimationState;
+	public static final fun rememberModalAnimationState (Ljava/util/List;Landroidx/compose/runtime/Composer;I)Ljava/util/List;
+}
+
+public final class io/github/syrou/reaktiv/navigation/ui/LayerAnimationState {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;Ljava/util/List;Z)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun component2 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun component3 ()Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Z
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;Ljava/util/List;Z)Lio/github/syrou/reaktiv/navigation/ui/LayerAnimationState;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/ui/LayerAnimationState;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;Ljava/util/List;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/ui/LayerAnimationState;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAliveEntries ()Ljava/util/List;
+	public final fun getAnimationDecision ()Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public final fun getCurrentEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun getHasAnimation ()Z
+	public final fun getPreviousEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public fun hashCode ()I
+	public final fun isBackNavigation ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/ui/LayerRendererKt {
+	public static final fun UnifiedLayerRenderer (Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;Ljava/util/List;Ljava/util/Map;Landroidx/compose/runtime/Composer;I)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/ui/LocalNavigationBackgroundColorKt {
+	public static final fun NavigationBackgroundProvider-3J-VO9M (JLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun getLocalNavigationBackgroundColor ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun rememberNavigationBackgroundColor (Landroidx/compose/runtime/Composer;I)J
+}
+
+public final class io/github/syrou/reaktiv/navigation/ui/ModalEntryState {
+	public static final field $stable I
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;ZZ)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;ZZ)Lio/github/syrou/reaktiv/navigation/ui/ModalEntryState;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/ui/ModalEntryState;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;ZZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/ui/ModalEntryState;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAnimationType ()Lio/github/syrou/reaktiv/navigation/ui/NavigationAnimations$AnimationType;
+	public final fun getEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
+	public fun hashCode ()I
+	public final fun isEntering ()Z
+	public final fun isExiting ()Z
+	public final fun markCompleted ()Lio/github/syrou/reaktiv/navigation/ui/ModalEntryState;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/ui/NavigationAnimations {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/ui/NavigationAnimations;
+}
+
+public final class io/github/syrou/reaktiv/navigation/ui/NavigationAnimations$AnimationType : java/lang/Enum {
+	public static final field MODAL_ENTER Lio/github/syrou/reaktiv/navigation/ui/NavigationAnimations$AnimationType;
+	public static final field MODAL_EXIT Lio/github/syrou/reaktiv/navigation/ui/NavigationAnimations$AnimationType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/ui/NavigationAnimations$AnimationType;
+	public static fun values ()[Lio/github/syrou/reaktiv/navigation/ui/NavigationAnimations$AnimationType;
+}
+
+public final class io/github/syrou/reaktiv/navigation/ui/NavigationRenderKt {
+	public static final fun NavigationRender (Landroidx/compose/ui/Modifier;ZLandroidx/compose/runtime/Composer;II)V
+	public static final fun currentActionResource (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function2;
+	public static final fun currentNavigatable (Landroidx/compose/runtime/Composer;I)Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public static final fun currentTitle (Landroidx/compose/runtime/Composer;I)Ljava/lang/String;
+	public static final fun getLocalNavigationModule ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/AnimationDecision {
+	public static final field $stable I
+	public fun <init> (ZZZLio/github/syrou/reaktiv/navigation/transition/NavTransition;Lio/github/syrou/reaktiv/navigation/transition/NavTransition;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun component4 ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public final fun component5 ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public final fun copy (ZZZLio/github/syrou/reaktiv/navigation/transition/NavTransition;Lio/github/syrou/reaktiv/navigation/transition/NavTransition;)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;ZZZLio/github/syrou/reaktiv/navigation/transition/NavTransition;Lio/github/syrou/reaktiv/navigation/transition/NavTransition;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public final fun getExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
+	public final fun getShouldAnimateEnter ()Z
+	public final fun getShouldAnimateExit ()Z
+	public fun hashCode ()I
+	public final fun isForward ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/AnimationUtilKt {
+	public static final fun determineAnimationDecision (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/NavigationModule;Z)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public static synthetic fun determineAnimationDecision$default (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/NavigationModule;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public static final fun determineContentAnimationDecision (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/NavigationModule;Z)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public static synthetic fun determineContentAnimationDecision$default (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/NavigationModule;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/CommonUrlEncoder : io/github/syrou/reaktiv/navigation/definition/UrlEncoder {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun decode (Ljava/lang/String;)Ljava/lang/String;
+	public fun encodePath (Ljava/lang/String;)Ljava/lang/String;
+	public fun encodeQuery (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/GraphUtilKt {
+	public static final fun buildGraphHierarchyPath (Ljava/lang/String;Ljava/util/Map;)Ljava/util/List;
+	public static final fun findLayoutGraphsInHierarchy (Ljava/lang/String;Ljava/util/Map;)Ljava/util/List;
+	public static final fun findParentGraph (Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/NavigationDebuggerKt {
+	public static final fun NavigationDebugger (Lio/github/syrou/reaktiv/navigation/NavigationState;Lio/github/syrou/reaktiv/core/Store;Landroidx/compose/runtime/Composer;I)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/RouteResolver {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/util/RouteResolver$Companion;
+	public synthetic fun <init> (Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/definition/Screen;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun buildFullPathForEntry (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;)Ljava/lang/String;
+	public final fun buildPathHierarchy (Ljava/lang/String;)Ljava/util/List;
+	public final fun findRouteInBackStack (Ljava/lang/String;Ljava/util/List;)I
+	public final fun getNavigatableNotFoundHint (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Ljava/lang/String;
+	public final fun resolve (Ljava/lang/String;Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/model/RouteResolution;
+	public static synthetic fun resolve$default (Lio/github/syrou/reaktiv/navigation/util/RouteResolver;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/RouteResolution;
+	public final fun resolveForBackstackSynthesis (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/model/RouteResolution;
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/RouteResolver$Companion {
+	public final fun create (Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/util/RouteResolver;
+	public static synthetic fun create$default (Lio/github/syrou/reaktiv/navigation/util/RouteResolver$Companion;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/definition/Screen;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/util/RouteResolver;
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/StoreExtensionsKt {
+	public static final fun getFullPath (Lio/github/syrou/reaktiv/core/StoreAccessor;Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Ljava/lang/String;
+	public static final fun getNavigationModule (Lio/github/syrou/reaktiv/core/StoreAccessor;)Lio/github/syrou/reaktiv/navigation/NavigationModule;
+	public static final fun requireFullPath (Lio/github/syrou/reaktiv/core/StoreAccessor;Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/util/UriKt {
+	public static final fun parseUrlWithQueryParams (Ljava/lang/String;)Lkotlin/Pair;
+}
+

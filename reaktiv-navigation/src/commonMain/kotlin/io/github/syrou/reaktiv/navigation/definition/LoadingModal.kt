@@ -27,10 +27,10 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
  * }
  * ```
  */
-interface LoadingModal : Modal {
-    override val renderLayer get() = RenderLayer.SYSTEM
-    override val shouldDimBackground get() = false
-    override val elevation get() = 0f
-    override val swipeToDismiss get() = false
-    override val backGestureEnabled get() = false
+public interface LoadingModal : Modal {
+    override val renderLayer: RenderLayer get() = RenderLayer.SYSTEM
+    override val shouldDimBackground: Boolean get() = false
+    override val elevation: Float get() = 0f
+    override val swipeToDismiss: Boolean get() = false
+    override val backGestureEnabled: Boolean get() = false
 }

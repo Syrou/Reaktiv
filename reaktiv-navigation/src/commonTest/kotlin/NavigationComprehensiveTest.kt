@@ -52,28 +52,28 @@ class NavigationComprehensiveTest {
     // Create the navigation module that matches the user's structure
     private fun createTestNavigationModule() = createNavigationModule {
         rootGraph {
-            startScreen(splashScreen)
+            start(splashScreen)
             screens(splashScreen, settingsScreen)
 
             graph("home") {
-                startGraph("news")  // Key: home references news
+                start("news")  // Key: home references news
 
                 graph("news") {
-                    startScreen(newsScreen)
+                    start(newsScreen)
                     screens(newsScreen, newsListScreen)
                 }
 
                 graph("workspace") {
-                    startScreen(workspaceScreen)
+                    start(workspaceScreen)
 
                     graph("projects") {
-                        startScreen(projectOverviewScreen)
+                        start(projectOverviewScreen)
                         screens(projectOverviewScreen, projectTasksScreen, projectSettingsScreen)
                     }
                 }
 
                 graph("leaderboard") {
-                    startScreen(leaderboardScreen)
+                    start(leaderboardScreen)
                 }
             }
         }
@@ -105,7 +105,7 @@ class NavigationComprehensiveTest {
             coroutineContext(testDispatcher)
         }
 
-        // Navigate to "home" - should resolve to news graph via startGraph("news")
+        // Navigate to "home" - should resolve to news graph via start("news")
         store.navigation { navigateTo("home") }
         advanceUntilIdle()
 

@@ -66,7 +66,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleDeepLink(intent: Intent, source: String) {
-        println("KASTRULL - ON NEW INTENT FROM: $source, intent: $intent")
         if (intent.action == Intent.ACTION_VIEW) {
             val uri = intent.data ?: return
             val route = if (uri.scheme == "poedex") {
@@ -74,7 +73,6 @@ class MainActivity : ComponentActivity() {
             } else {
                 uri.toString()
             }
-            println("KASTRULL - DEEP LINK URI: $uri, route: $route")
             lifecycleScope.launch {
                 customApp.store.navigateDeepLink(route)
             }
@@ -117,14 +115,16 @@ fun MainRender() {
     val store = rememberStore()
     val settingsState by composeState<SettingsModule.SettingsState>()
     val drawerValue: DrawerValue = if (settingsState.drawerOpen) DrawerValue.Open else DrawerValue.Closed
-    val drawerState = DrawerState(drawerValue) { drawerValue ->
-        val isClosed = drawerValue == DrawerValue.Closed
-        if (settingsState.drawerOpen && isClosed) {
-            store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(false))
-        } else {
-            store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(true))
+    val drawerState = remember(drawerValue) {
+        DrawerState(drawerValue) { newValue ->
+            val isClosed = newValue == DrawerValue.Closed
+            if (settingsState.drawerOpen && isClosed) {
+                store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(false))
+            } else {
+                store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(true))
+            }
+            false
         }
-        false
     }
 
     val items =

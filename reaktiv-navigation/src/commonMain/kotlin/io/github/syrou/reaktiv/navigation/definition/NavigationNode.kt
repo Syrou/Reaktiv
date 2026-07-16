@@ -1,7 +1,7 @@
 package io.github.syrou.reaktiv.navigation.definition
 
-interface NavigationNode{
-    val route: String
+public interface NavigationNode{
+    public val route: String
 }
 
 /**
@@ -24,4 +24,4 @@ interface NavigationNode{
  * }
  * ```
  */
-data class NavigationPath(override val route: String) : NavigationNode
+public data class NavigationPath(override val route: String) : NavigationNode

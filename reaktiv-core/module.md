@@ -70,7 +70,7 @@ val store = createStore {
 store.dispatch(CounterAction.Increment)
 
 // Read the current state once
-val state = store.getCurrentState<CounterState>()
+val state = store.selectState<CounterState>().first()
 
 // Observe state as a flow
 store.selectState<CounterState>().collect { state ->
@@ -106,10 +106,11 @@ class CheckoutLogic(val storeAccessor: StoreAccessor) : ModuleLogic() {
 ### Middleware
 
 Middleware intercepts every dispatched action. Use it for logging, analytics, or side-effect
-orchestration. The `updatedState` lambda returns the module state *after* the action is reduced.
+orchestration. The `updatedState` lambda applies the action and returns the owning module's
+state *after* reduction; `getAllStates` snapshots the full state tree.
 
 ```kotlin
-val loggingMiddleware = Middleware { action, updatedState ->
+val loggingMiddleware: Middleware = { action, getAllStates, storeAccessor, updatedState ->
     println("Action dispatched: $action")
     val newState = updatedState(action)
     println("New state: $newState")
@@ -117,7 +118,7 @@ val loggingMiddleware = Middleware { action, updatedState ->
 
 val store = createStore {
     module(CounterModule)
-    middleware(loggingMiddleware)
+    middlewares(loggingMiddleware)
 }
 ```
 
@@ -125,27 +126,29 @@ val store = createStore {
 
 ### State Persistence
 
-Implement [PersistenceStrategy] to save and restore state across sessions. Pass it to
-`createStore` via `persistWith`.
+Implement [PersistenceStrategy] to save and restore the serialized store state across sessions.
+Pass it to `createStore` via `persistenceManager`.
 
 ```kotlin
 class DataStorePersistence(private val dataStore: DataStore<Preferences>) : PersistenceStrategy {
-    override suspend fun save(key: String, value: String) {
-        dataStore.edit { prefs -> prefs[stringPreferencesKey(key)] = value }
+    private val stateKey = stringPreferencesKey("reaktiv-state")
+
+    override suspend fun saveState(serializedState: String) {
+        dataStore.edit { prefs -> prefs[stateKey] = serializedState }
     }
 
-    override suspend fun load(key: String): String? {
-        return dataStore.data.first()[stringPreferencesKey(key)]
+    override suspend fun loadState(): String? {
+        return dataStore.data.first()[stateKey]
     }
 
-    override suspend fun remove(key: String) {
-        dataStore.edit { prefs -> prefs.remove(stringPreferencesKey(key)) }
+    override suspend fun hasPersistedState(): Boolean {
+        return dataStore.data.first().contains(stateKey)
     }
 }
 
 val store = createStore {
     module(CounterModule)
-    persistWith(DataStorePersistence(dataStore))
+    persistenceManager(DataStorePersistence(dataStore))
 }
 ```
 
@@ -181,8 +184,9 @@ object SettingsModule : ModuleWithLogic<SettingsState, SettingsAction, SettingsL
 
 ### Swift / iOS Interop
 
-Reaktiv works with Swift via SKIE. Due to Kotlin type erasure across the ObjC/Swift boundary,
-`getModule<M>()` is not callable from Swift. Use one of these patterns instead.
+Reaktiv works with Swift via Kotlin Swift Export, which bridges suspend functions as `async`.
+Due to Kotlin type erasure across the language boundary, reified lookups like `getModule<M>()`
+are not callable from Swift. Use one of these patterns instead.
 
 **Recommended: expose module instances as typed properties on your SDK class.**
 This gives Swift a direct, typed reference with no store lookup required.
@@ -205,7 +209,7 @@ Swift can then use the module's built-in interop methods:
 // Observe state — non-suspend, callable directly from Swift
 let stateFlow = sdk.navigationModule.selectStateFlowNonSuspend(store: store)
 
-// Access logic — suspend, SKIE bridges this as async
+// Access logic — suspend, exported to Swift as async
 let logic = try await sdk.navigationModule.selectLogicTyped(store: store)
 ```
 

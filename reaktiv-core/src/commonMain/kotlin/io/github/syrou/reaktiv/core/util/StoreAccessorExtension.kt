@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
  * @return StateFlow of the requested state type
  * @throws IllegalStateException if no module with the specified state type is registered
  */
-suspend inline fun <reified S : ModuleState> StoreAccessor.selectState(): StateFlow<S> = this.selectState(S::class)
+public suspend inline fun <reified S : ModuleState> StoreAccessor.selectState(): StateFlow<S> = this.selectState(S::class)
 
 /**
  * Selects a module's logic instance by its type.
@@ -46,4 +46,4 @@ suspend inline fun <reified S : ModuleState> StoreAccessor.selectState(): StateF
  * @return The logic instance of the requested type
  * @throws IllegalStateException if no module with the specified logic type is registered
  */
-suspend inline fun <reified L : ModuleLogic> StoreAccessor.selectLogic(): L = selectLogic(L::class)
+public suspend inline fun <reified L : ModuleLogic> StoreAccessor.selectLogic(): L = selectLogic(L::class)

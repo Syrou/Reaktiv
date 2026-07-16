@@ -28,7 +28,7 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
  * @see NavigationGraph
  * @see Modal
  */
-interface Screen : Navigatable {
+public interface Screen : Navigatable {
     override val actionResource: ActionResource? get() = null
     override val titleResource: TitleResource? get() = null
     override val popEnterTransition: NavTransition? get() = null

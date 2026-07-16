@@ -9,7 +9,7 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-class GraphBasedBuilder {
+public class GraphBasedBuilder {
     private var rootGraph: NavigationGraph? = null
     private var notFoundScreen: Screen? = null
     private var crashScreen: Screen? = null
@@ -18,7 +18,7 @@ class GraphBasedBuilder {
     private var screenRetentionDuration: Duration = 10.seconds
     private var loadingModal: LoadingModal? = null
 
-    fun rootGraph(block: NavigationGraphBuilder.() -> Unit) {
+    public fun rootGraph(block: NavigationGraphBuilder.() -> Unit) {
         val builder = NavigationGraphBuilder("root")
         builder.apply(block)
         rootGraph = builder.build()
@@ -30,7 +30,7 @@ class GraphBasedBuilder {
      *
      * @param screen The screen to display for not found routes
      */
-    fun notFoundScreen(screen: Screen) {
+    public fun notFoundScreen(screen: Screen) {
         this.notFoundScreen = screen
     }
 
@@ -45,7 +45,7 @@ class GraphBasedBuilder {
      * @param screen The screen to display on crash
      * @param onCrash Optional callback invoked before navigation
      */
-    fun crashScreen(
+    public fun crashScreen(
         screen: Screen,
         onCrash: (suspend (exception: Throwable, action: ModuleAction?) -> CrashRecovery)? = null
     ) {
@@ -53,7 +53,7 @@ class GraphBasedBuilder {
         this.onCrash = onCrash
     }
 
-    fun screenRetentionDuration(duration: Duration) {
+    public fun screenRetentionDuration(duration: Duration) {
         screenRetentionDuration = duration
     }
 
@@ -61,14 +61,14 @@ class GraphBasedBuilder {
      * Sets the global loading modal shown while guards or dynamic entry routes are evaluating.
      *
      * The modal is shown as a [RenderLayer.SYSTEM] overlay when evaluation takes longer than
-     * the [loadingThreshold] configured on `entry()` or `intercept()` (default 200ms).
+     * the [loadingThreshold] configured on `start()` or `intercept()` (default 200ms).
      *
      * It does not need to be registered in [screens] or [modals] — it is registered
      * automatically by the navigation module.
      *
      * @param modal The loading modal to display during async evaluation
      */
-    fun loadingModal(modal: LoadingModal) {
+    public fun loadingModal(modal: LoadingModal) {
         this.loadingModal = modal
     }
 
@@ -92,11 +92,11 @@ class GraphBasedBuilder {
      *
      * @param block Builder block for registering alias entries
      */
-    fun deepLinkAliases(block: DeepLinkAliasBuilder.() -> Unit) {
+    public fun deepLinkAliases(block: DeepLinkAliasBuilder.() -> Unit) {
         deepLinkAliasBuilder.apply(block)
     }
 
-    fun build(): NavigationModule {
+    public fun build(): NavigationModule {
         requireNotNull(rootGraph) { "Root graph must be defined" }
         return NavigationModule(
             rootGraph = rootGraph!!,

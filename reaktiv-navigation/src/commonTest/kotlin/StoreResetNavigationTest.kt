@@ -95,7 +95,7 @@ class StoreResetNavigationTest {
 
     private fun simpleNavModule() = createNavigationModule {
         rootGraph {
-            startScreen(homeScreen)
+            start(homeScreen)
             screens(homeScreen, profileScreen, settingsScreen)
             modals(notificationModal)
         }
@@ -103,7 +103,7 @@ class StoreResetNavigationTest {
 
     private fun guardedNavModule() = createNavigationModule {
         rootGraph {
-            startScreen(homeScreen)
+            start(homeScreen)
             screens(homeScreen, loginScreen)
             intercept(
                 guard = { store ->
@@ -115,7 +115,7 @@ class StoreResetNavigationTest {
                 }
             ) {
                 graph("protected") {
-                    entry(workspaceScreen)
+                    start(workspaceScreen)
                     screens(workspaceScreen, settingsScreen)
                 }
             }

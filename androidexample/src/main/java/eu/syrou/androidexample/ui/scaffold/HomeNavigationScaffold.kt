@@ -29,6 +29,7 @@ import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.ui.currentActionResource
+import io.github.syrou.reaktiv.navigation.ui.currentTitle
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,7 +46,7 @@ fun HomeNavigationScaffold(content: @Composable () -> Unit) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(navigationState.currentTitle ?: "Home")
+                    Text(currentTitle() ?: "Home")
                 },
                 navigationIcon = {
                     IconButton(onClick = {

@@ -60,10 +60,10 @@ class DeepLinkSynthesisTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        entry(splashScreen)
+                        start(splashScreen)
                         screens(splashScreen, loginScreen)
                         graph("workspace") {
-                            entry(workspaceHome)
+                            start(workspaceHome)
                             screens(workspaceHome, workspaceDetail)
                         }
                     }
@@ -90,14 +90,14 @@ class DeepLinkSynthesisTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        entry(splashScreen)
+                        start(splashScreen)
                         screens(splashScreen, loginScreen)
                         graph("workspace") {
-                            entry(workspaceHome)
+                            start(workspaceHome)
                             screens(workspaceHome, workspaceDetail)
                         }
                         graph("settings") {
-                            entry(settingsHome)
+                            start(settingsHome)
                             screens(settingsHome, notificationsScreen)
                         }
                     }
@@ -124,10 +124,10 @@ class DeepLinkSynthesisTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        entry(splashScreen)
+                        start(splashScreen)
                         screens(splashScreen, loginScreen)
                         graph("workspace") {
-                            entry(workspaceHome)
+                            start(workspaceHome)
                             screens(workspaceHome, workspaceDetail)
                         }
                     }
@@ -153,10 +153,10 @@ class DeepLinkSynthesisTest {
                 module(createNavigationModule {
                     loadingModal(loadingScreen)
                     rootGraph {
-                        entry(route = { _ -> splashScreen })
+                        start(route = { _ -> splashScreen })
                         screens(splashScreen, loginScreen)
                         graph("workspace") {
-                            entry(workspaceHome)
+                            start(workspaceHome)
                             screens(workspaceHome, workspaceDetail)
                         }
                     }
@@ -184,10 +184,10 @@ class DeepLinkSynthesisTest {
                 module(createNavigationModule {
                     loadingModal(loadingScreen)
                     rootGraph {
-                        entry(route = { _ -> NavigationPath("login") })
+                        start(route = { _ -> NavigationPath("login") })
                         screens(splashScreen, loginScreen)
                         graph("workspace") {
-                            entry(workspaceHome)
+                            start(workspaceHome)
                             screens(workspaceHome, workspaceDetail)
                         }
                     }
@@ -215,14 +215,14 @@ class DeepLinkSynthesisTest {
                 module(createNavigationModule {
                     loadingModal(loadingScreen)
                     rootGraph {
-                        entry(route = { _ -> splashScreen })
+                        start(route = { _ -> splashScreen })
                         screens(splashScreen, loginScreen)
                         graph("workspace") {
-                            entry(workspaceHome)
+                            start(workspaceHome)
                             screens(workspaceHome, workspaceDetail)
                         }
                         graph("settings") {
-                            entry(settingsHome)
+                            start(settingsHome)
                             screens(settingsHome, notificationsScreen)
                         }
                     }
@@ -252,11 +252,11 @@ class DeepLinkSynthesisTest {
                     rootGraph {
                         start("main")
                         graph("main") {
-                            entry(route = { _ -> splashScreen })
+                            start(route = { _ -> splashScreen })
                             screens(splashScreen, loginScreen)
                         }
                         graph("settings") {
-                            entry(settingsHome)
+                            start(settingsHome)
                             screens(settingsHome, notificationsScreen)
                         }
                     }
@@ -286,11 +286,11 @@ class DeepLinkSynthesisTest {
                     rootGraph {
                         start("main")
                         graph("main") {
-                            entry(route = { _ -> splashScreen })
+                            start(route = { _ -> splashScreen })
                             screens(splashScreen, loginScreen)
                         }
                         graph("settings") {
-                            entry(settingsHome)
+                            start(settingsHome)
                             screens(settingsHome, notificationsScreen)
                         }
                     }
@@ -323,7 +323,7 @@ class DeepLinkSynthesisTest {
                     rootGraph {
                         start("main")
                         graph("main") {
-                            entry(route = { _ ->
+                            start(route = { _ ->
                                 invokeCount++
                                 splashScreen
                             })
@@ -354,10 +354,10 @@ class DeepLinkSynthesisTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        entry(splashScreen)
+                        start(splashScreen)
                         screens(splashScreen, loginScreen)
                         graph("workspace") {
-                            entry(route = { _ -> workspaceHome })
+                            start(route = { _ -> workspaceHome })
                             screens(workspaceHome, workspaceDetail)
                         }
                     }
@@ -387,12 +387,12 @@ class DeepLinkSynthesisTest {
                 module(createNavigationModule {
                     loadingModal(loadingScreen)
                     rootGraph {
-                        entry(route = { _ ->
+                        start(route = { _ ->
                             if (criticalErrorActive) criticalErrorScreen else splashScreen
                         })
                         screens(splashScreen, loginScreen, criticalErrorScreen)
                         graph("workspace") {
-                            entry(workspaceHome)
+                            start(workspaceHome)
                             screens(workspaceHome, workspaceDetail)
                         }
                     }
@@ -423,13 +423,13 @@ class DeepLinkSynthesisTest {
                 module(createNavigationModule {
                     loadingModal(loadingScreen)
                     rootGraph {
-                        entry(route = { _ -> NavigationPath("home") })
+                        start(route = { _ -> NavigationPath("home") })
                         graph("home") {
-                            entry(route = { _ -> workspaceHome })
+                            start(route = { _ -> workspaceHome })
                             screens(workspaceHome, workspaceDetail)
                         }
                         graph("settings") {
-                            entry(settingsHome)
+                            start(settingsHome)
                             screens(settingsHome, notificationsScreen)
                         }
                     }

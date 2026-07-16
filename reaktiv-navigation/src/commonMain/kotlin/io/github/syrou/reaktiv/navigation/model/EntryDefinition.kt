@@ -17,7 +17,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * ```kotlin
  * intercept(guard = requireContentReady) {
  *     graph("content") {
- *         entry(
+ *         start(
  *             route = { store ->
  *                 val state = store.selectState<ContentState>().value
  *                 if (state.releases.isNotEmpty()) ReleasesScreen else ArtistScreen
@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param route Dynamic selector returning which [NavigationNode] inside the graph to navigate to
  * @param loadingThreshold How long to wait before showing the global loading modal (default 200ms)
  */
-data class EntryDefinition(
+public data class EntryDefinition(
     val route: RouteSelector? = null,
     val loadingThreshold: Duration = 200.milliseconds
 )

@@ -1075,6 +1075,12 @@ nested scrolling, matching iOS sheet behaviour and Material's ModalBottomSheet: 
 content is scrolled to the top, further downward drag hands off to the dismiss scrub; pulling
 back up reduces the scrub to zero before scrolling resumes; mid-content drags scroll normally
 and never trigger dismissal.
+A downward drag starting in the top 32dp of the screen always dismisses, regardless of what
+the content underneath does with drags: the vertical analogue of the horizontal edge-swipe
+zone. This guarantees dismissability even when a component owns at-top downward drags in a
+way nested scrolling cannot observe, such as `PullToRefreshBox`, without any per-screen
+wiring. Taps and horizontal drags in the zone pass through untouched; content pulls below
+the zone still refresh.
 
 ---
 
@@ -1131,3 +1137,636 @@ defaulted parameter is source-compatible but binary-breaking (acceptable pre-1.0
 desktop targets are no-ops (the edge swipe is the mechanism there).
 
 ---
+
+### [BC-12] ReaktivDebug mode and category helpers removed
+
+**Type:** Breaking
+
+**Grep:** `ReaktivDebug.(developmentMode|productionMode|enableOnly|compose|state|action|debug)`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+ReaktivDebug.developmentMode()
+ReaktivDebug.enableOnly("NAV", "STATE")
+ReaktivDebug.debug("CUSTOM", "message")
+```
+
+**After:**
+```kotlin
+ReaktivDebug.enable()
+ReaktivDebug.general("message")
+```
+
+**Notes:** The category-filtering mechanism is gone; `enable()`/`disable()` is the only toggle
+and no longer prints a confirmation line. Remaining loggers: `nav`, `store`, `general`,
+`trace`, `warn`, `error`.
+
+---
+
+### [BC-13] Compose select() delegate removed
+
+**Type:** Breaking
+
+**Grep:** `select<`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val count by select<TodoState, Int> { state -> state.items.size }
+```
+
+**After:**
+```kotlin
+val state by composeState<TodoState>()
+val count = state.items.size
+```
+
+**Notes:** `StoreSelect.kt` was removed entirely. `composeState` is the single state
+observation API for Compose.
+
+---
+
+### [BC-14] onActiveValueChange removed
+
+**Type:** Breaking
+
+**Grep:** `onActiveValueChange`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+onActiveValueChange<NavigationState, String>(
+    selector = { it.currentEntry.path }
+) { route -> analytics.trackScreenView(route) }
+```
+
+**After:**
+```kotlin
+val state by composeState<NavigationState>()
+LaunchedEffect(state.currentEntry.path) {
+    analytics.trackScreenView(state.currentEntry.path)
+}
+```
+
+---
+
+### [BC-15] Preview overloads composeState(initialValue)/selectState(initialValue) removed
+
+**Type:** Breaking
+
+**Grep:** `composeState\(initialValue|selectState\(initialValue|composeState\([^)]|selectState\([^)]`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val state by composeState<CounterState>(initialValue = CounterState(count = 42))
+```
+
+**After:**
+```kotlin
+val state by composeState<CounterState>()
+```
+
+**Notes:** For previews, wrap the preview content in a `StoreProvider` with a store built
+from the module's real initial state instead of passing a detached initial value.
+
+---
+
+### [BC-16] Deprecated entry()/startScreen()/startGraph() removed
+
+**Type:** Deprecation-removal
+
+**Grep:** `entry\(|startScreen\(|startGraph\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+graph("home") {
+    startScreen(HomeScreen)
+    graph("news") {
+        startGraph("feed")
+    }
+    entry(SplashScreen)
+    entry(route = { storeAccessor -> resolveStart(storeAccessor) })
+}
+```
+
+**After:**
+```kotlin
+graph("home") {
+    start(HomeScreen)
+    graph("news") {
+        start("feed")
+    }
+    start(SplashScreen)
+    start(route = { storeAccessor -> resolveStart(storeAccessor) })
+}
+```
+
+**Notes:** Completes the deprecation from BC-04; `start()` (AD-07) is the single entry-point
+DSL. All overloads map one-to-one.
+
+---
+
+### [BC-17] Modal.tapOutsideClick removed
+
+**Type:** Deprecation-removal
+
+**Grep:** `tapOutsideClick`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+object MyModal : Modal {
+    override val tapOutsideClick: (suspend StoreAccessor.() -> Unit) = { navigateBack() }
+}
+```
+
+**After:**
+```kotlin
+object MyModal : Modal {
+    override val onDismissRequest: (suspend StoreAccessor.() -> Unit) = { navigateBack() }
+}
+```
+
+**Notes:** `onDismissRequest` (AD-20) unifies tap-outside, swipe-to-dismiss and system back
+into one dismiss funnel. Tap-outside now only triggers `onDismissRequest`.
+
+---
+
+### [BC-18] DevToolsLogic.exportSessionJson/exportCrashSessionJson removed
+
+**Type:** Breaking
+
+**Grep:** `exportSessionJson|exportCrashSessionJson`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val json = devToolsLogic.exportSessionJson()
+val crashJson = devToolsLogic.exportCrashSessionJson(throwable)
+```
+
+**After:**
+```kotlin
+val json = introspectionLogic.exportSessionJson()
+val crashJson = introspectionLogic.exportCrashSessionJson(throwable)
+```
+
+**Notes:** Session export belongs to introspection; the devtools copies were unused
+duplicates of the `IntrospectionLogic` methods backed by the same shared `SessionCapture`.
+
+---
+
+### [AD-22] Shared core utilities: currentTimeMillis() and reaktivJson()
+
+**Type:** Addition
+
+**Grep:** `currentTimeMillis\(\)|reaktivJson\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
+import io.github.syrou.reaktiv.core.util.reaktivJson
+
+val timestamp = currentTimeMillis()
+val json = reaktivJson(store.serializersModule)
+val exportJson = reaktivJson(encodeDefaults = true)
+```
+
+**Notes:** `currentTimeMillis()` replaces scattered `Clock.System.now().toEpochMilliseconds()`
+call sites and hides the `ExperimentalTime` opt-in. `reaktivJson()` is the single factory for
+`Json` instances across all Reaktiv modules (`ignoreUnknownKeys = true` always; optional
+`serializersModule`, `encodeDefaults`, `prettyPrint`).
+
+---
+
+### [BC-19] LogicTracer.pendingCallCount() removed; notifications are no-ops with zero observers
+
+**Type:** Breaking | Behavioural
+
+**Grep:** `pendingCallCount`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+assertEquals(0, LogicTracer.pendingCallCount())
+```
+
+**After:**
+```kotlin
+// No replacement needed: the tracer no longer tracks in-flight calls at all,
+// so there is nothing to leak. Assert on observerCount() or captured events instead.
+```
+
+**Notes:** The tracer's observer registry is now thread-safe (copy-on-write) and all
+notify methods bail out immediately when no observer is registered: `notifyMethodStart`
+returns an empty call ID and allocates nothing. `LogicMethodCompleted`/`LogicMethodFailed`
+gained a `timestampMs` field. The tracer no longer prints to stdout.
+
+---
+
+### [AD-23] LogicTracer.active fast-path flag
+
+**Type:** Addition
+
+**Grep:** `LogicTracer.active`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+if (LogicTracer.active) {
+    expensiveDiagnostics()
+}
+```
+
+**Notes:** True while at least one observer is registered. Compiler-injected tracing code
+checks this before stringifying method parameters and results, so traced methods cost
+almost nothing in production builds where no devtools/introspection observer is attached.
+See BC-19.
+
+---
+
+### [BC-20] Tracing event types unified across core, introspection, and devtools
+
+**Type:** Breaking
+
+**Grep:** `CapturedLogicStart|CapturedLogicComplete|CapturedLogicFailed|toCaptured|fromCaptured|ActionStateEvent`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val captured = event.toCaptured(clientId)
+sessionCapture.captureLogicStarted(captured)
+val message = DevToolsMessage.LogicMethodStarted.fromCaptured(captured)
+```
+
+**After:**
+```kotlin
+sessionCapture.captureLogicStarted(event)
+val message = DevToolsMessage.LogicMethodStarted(clientId, event)
+```
+
+**Notes:** The core tracing events (`LogicMethodStart`/`LogicMethodCompleted`/`LogicMethodFailed`)
+are now `@Serializable` and are the single canonical event shapes. Introspection's
+`CapturedLogic*` mirror types, `EventConverters`, and the devtools UI `ActionStateEvent`
+were deleted. `SessionData`/`SessionHistory` embed the core types; `SessionExport` format
+version is now `"3.0"` (v2 exports do not import). DevTools wire messages wrap
+`(clientId, event)`; `SessionHistorySync` carries a `SessionHistory`;
+`StateSync.orchestrated` was removed. `IntrospectionLogicObserver` no longer takes a
+clientId parameter.
+
+---
+
+### [BC-21] SessionCapture is asynchronous; export API consolidated
+
+**Type:** Breaking | Behavioural
+
+**Grep:** `exportSessionWithCrash|captureCrashFromLogicFailure|captureCrashFromThrowable|captureInitialState|getSessionHistory\(\)|exportSession\(\)`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+capture.captureCrashFromThrowable(throwable)
+val json = capture.exportSessionWithCrash(crashInfo)
+val history = capture.getSessionHistory()
+```
+
+**After:**
+```kotlin
+capture.reportCrash(throwable)
+val json = capture.exportSession(crashInfo)
+val history = capture.getSessionHistory()
+```
+
+**Notes:** Capture calls now enqueue records; a background worker performs JSON encoding
+and batched storage writes off the dispatch path. `exportSession(crash)`,
+`getSessionHistory()`, `clear()`, `stop()`, and `exportCrashSession(throwable)` are now
+suspend and flush or drain pending records first; use `flush()` in tests before asserting
+on side channels. `captureInitialState` takes the state map instead of pre-encoded JSON.
+`captureCrashFromLogicFailure` (which dropped the stack trace) and
+`captureCrashFromThrowable` were replaced by `reportCrash`; the traced-failure path now
+preserves the full stack trace. `IntrospectionLogic` export methods and
+`IntrospectionLogic.cleanup()`/`DevToolsLogic.cleanup()` are suspend accordingly.
+
+---
+
+### [BC-22] CrashModule removed; install CrashHandler directly
+
+**Type:** Breaking
+
+**Grep:** `CrashModule|CrashLogic|CrashState|CrashAction`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val store = createStore {
+    module(IntrospectionModule(config, sessionCapture, platformContext))
+    module(CrashModule(platformContext, sessionCapture))
+}
+```
+
+**After:**
+```kotlin
+val store = createStore {
+    module(IntrospectionModule(config, sessionCapture, platformContext))
+}
+CrashHandler(platformContext, sessionCapture).install()
+```
+
+**Notes:** The module existed only to flip an `isInstalled` boolean nothing read.
+
+---
+
+### [BC-23] DevTools action streaming consumes the SessionCapture nexus
+
+**Type:** Behavioural
+
+**Grep:** `DevToolsMiddleware`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// DevToolsMiddleware independently serialized state per action when PUBLISHER
+```
+
+**After:**
+```kotlin
+// The middleware collects SessionCapture.actions and forwards them; state is
+// serialized exactly once by the capture worker. IntrospectionModule (or another
+// starter of the shared SessionCapture) is required for action streaming.
+```
+
+**Notes:** `DevToolsMessage.CrashReport` now carries the canonical `CrashInfo` envelope
+and is emitted by collecting `SessionCapture.crashes`; the hand-rolled crash export in
+`DevToolsLogicObserver` was removed.
+
+---
+
+### [AD-24] SessionCapture crash/event nexus
+
+**Type:** Addition
+
+**Grep:** `reportCrash|capture\.actions|capture\.crashes|captureDispatchedAction`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val capture = SessionCapture()
+capture.start("client", "MyApp", "Android")
+
+capture.reportCrash(throwable)
+
+scope.launch {
+    capture.crashes.collect { crash -> uploadCrash(crash) }
+}
+scope.launch {
+    capture.actions.collect { event -> forwardToTooling(event) }
+}
+```
+
+**Notes:** `SessionCapture` is the single nexus for tooling signals: middleware enqueues
+actions via `captureDispatchedAction(action, state)`, observers enqueue traced logic
+events, and every crash source funnels through `reportCrash`, fanning out to storage,
+`crashes` subscribers (devtools socket), and session exports. See BC-21/BC-23.
+
+---
+
+### [AD-25] Canonical serializable tracing events
+
+**Type:** Addition
+
+**Grep:** `LogicMethodStart\(|LogicMethodCompleted\(|LogicMethodFailed\(|toCrashInfo`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val crashInfo = failedEvent.toCrashInfo()
+val sync = DevToolsMessage.SessionHistorySync(clientId, capture.getSessionHistory())
+```
+
+**Notes:** Core tracing events are `@Serializable`, carry `timestampMs`, and flow
+unconverted from the compiler-injected call site through session storage, the devtools
+wire protocol, and the WASM UI. `LogicMethodFailed.toCrashInfo()` builds the canonical
+crash envelope with the full stack trace. See BC-20.
+
+---
+
+### [BC-24] NavigationAction.SetCurrentTitle and NavigationState.currentTitle removed
+
+**Type:** Breaking
+
+**Grep:** `SetCurrentTitle|currentTitle`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+Text(navigationState.currentTitle ?: "Home")
+```
+
+**After:**
+```kotlin
+Text(currentTitle() ?: "Home")
+```
+
+**Notes:** The dispatch round-trip that copied the resolved title into state is gone.
+Titles are read directly from the navigatable bound to the current entry; see AD-26.
+`currentActionResource()` no longer requires being under `NavigationRender` (the backing
+CompositionLocal was removed), only under `StoreProvider`.
+
+---
+
+### [AD-26] NavigationEntry.navigatable direct access and title/action accessors
+
+**Type:** Addition | Replaces-deprecated
+
+**Grep:** `entry\.navigatable|currentNavigatable\(\)|currentTitle\(\)`
+**File glob:** `**/*.kt`
+
+**Replaces:** the `SetCurrentTitle` action + `NavigationState.currentTitle` round-trip (see BC-24)
+and the `resolveNavigatable(entry)` lookups (see BC-25)
+
+**Example:**
+```kotlin
+val title = navigationState.currentEntry.titleResource?.invoke()
+val action = navigationState.currentEntry.actionResource
+val navigatable = navigationState.currentEntry.navigatable
+
+@Composable
+fun TitleBar() {
+    Text(currentTitle() ?: "Home")
+    currentActionResource()?.invoke()
+}
+```
+
+**Notes:** `NavigationEntry` holds a non-null direct reference to its `Navigatable`; titles
+and action resources are read straight off the entry with no resolution step and no
+null-handling. `currentNavigatable()`, `currentTitle()`, and `currentActionResource()` are
+composables usable anywhere under `StoreProvider`. Screens and modals are never serialized;
+see BC-25 for how entries persist.
+
+---
+
+### [BC-25] NavigationEntry is a runtime type; resolveNavigatable removed
+
+**Type:** Breaking
+
+**Grep:** `resolveNavigatable|NavigationEntry\(|NavigationEntry\.serializer`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val navigatable = navModule.resolveNavigatable(entry) ?: return
+val entry = NavigationEntry(path = path, params = params, stackPosition = 0)
+```
+
+**After:**
+```kotlin
+val navigatable = entry.navigatable
+val entry = screen.toNavigationEntry(path = path, params = params)
+```
+
+**Notes:** `NavigationEntry` is no longer `@Serializable` itself and its constructor requires
+the non-null `navigatable` as the first parameter (prefer `Navigatable.toNavigationEntry`).
+`navigatableRoute` is now derived from the navigatable. Persistence uses
+`NavigationEntrySerializer`, registered contextually by `NavigationModule` via
+`CustomTypeRegistrar`: it stores `(path, params, stackPosition)` and rehydrates the
+navigatable from the route registry on restore, falling back to `notFoundScreen` for paths
+that no longer exist (a `SerializationException` is thrown when there is no fallback).
+Serializing entries outside the store requires a `Json` built with the store's
+`serializersModule`. `NavigationModule.resolveNavigatable` and
+`StoreAccessor.resolveNavigatable` were removed.
+
+---
+
+### [BC-26] Screens beneath vertically dismissible screens stay composed
+
+**Type:** Behavioural
+
+**Grep:** `swipeToDismiss`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Navigating from HostScreen to a SlideUpBottom sheet disposed HostScreen:
+// its DisposableEffect onDispose fired, LaunchedEffects were cancelled.
+```
+
+**After:**
+```kotlin
+// HostScreen stays composed beneath the sheet: effects keep running, state is
+// preserved, and the dismiss gesture reveals it with zero composition cost.
+```
+
+**Notes:** Applies whenever the current content-layer entry arms the vertical swipe
+dismiss (same predicate as the gesture). Matches modal semantics and iOS sheet
+behaviour, where the presenting screen stays alive beneath the sheet. The premounted
+hierarchy is hidden from accessibility/semantics while at rest and shielded from
+pointer input, so it cannot be interacted with until revealed. Screens relying on
+`DisposableEffect` disposal when a sheet opens must move that logic to navigation
+callbacks instead. `currentTitle()`, `currentActionResource()` and
+`currentNavigatable()` are now scoped: inside a rendered entry's subtree they resolve
+to that entry, and during a committed dismiss/back gesture they resolve to the target
+entry as soon as the finger lifts, so shared toolbars update immediately instead of
+after the settle animation.
+
+The content layer renders every entry through a single hosting slot keyed by
+`stableKey`, so the screen beneath a sheet keeps one continuous composition from the
+sheet's enter transition, through the premount, to the dismiss commit: its effects run
+once when it first appears and are not re-triggered by the sheet's lifecycle, and its
+state survives gesture cancels and commits. Push/pop navigation is unaffected:
+returning to a popped-back screen still recomposes it and re-runs its effects.
+
+---
+
+### [BC-27] Navigations queue instead of being dropped
+
+**Type:** Behavioural
+
+**Grep:** `NavigationOutcome.Dropped`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// navigate {} returned NavigationOutcome.Dropped when another navigation was in
+// flight (e.g. during slow guard evaluation): the user's tap silently did nothing.
+```
+
+**After:**
+```kotlin
+// navigate {} suspends until the in-flight navigation completes, then executes.
+// NavigationOutcome.Dropped is no longer returned.
+```
+
+**Notes:** Navigations are serialized in arrival order. Re-entrant navigations issued
+from inside an in-flight navigation (a guard or entry lambda navigating) execute
+inline as before. Code branching on `NavigationOutcome.Dropped` is now dead and can
+be removed.
+
+---
+
+### [BC-28] Navigation stack math unified; popUpTo fallback resets the back stack
+
+**Type:** Behavioural
+
+**Grep:** `popUpTo\(.*fallback`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// popUpTo with an unmatched route and a fallback dispatched a plain Navigate:
+// the fallback destination was appended on top of the existing back stack.
+```
+
+**After:**
+```kotlin
+// The fallback now clears the back stack and navigates: the resulting stack is
+// exactly [fallback destination], matching the documented intent.
+```
+
+**Notes:** The reducer and the navigation builder's execution simulation now share one
+set of pure stack-transition functions, so their semantics can no longer diverge. Two
+latent divergences were fixed in the process: the fallback behaviour above, and `back()`
+inside a `navigation { }` block now models modal-context restoration identically to the
+reducer, so multi-step blocks that go back over a modal compute subsequent steps against
+the correct stack.
+
+---
+
+### [AD-27] Dismiss zone with default indicator
+
+**Type:** Addition
+
+**Grep:** `showsDismissIndicator`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object FullBleedSheet : Screen {
+    override val route = "full-bleed"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+
+    override val showsDismissIndicator: Boolean = false
+}
+```
+
+**Notes:** Vertically dismissible screens reserve a dismiss zone at the top of the
+screen's own content area: a 28dp slot with a default grabber pill
+(`testTag("reaktiv-dismiss-indicator")`) that takes real layout space and shifts the
+screen content down. The slot renders below any graph layout chrome (toolbars from
+`layout { }` graphs); on screens without layout chrome it sits at the absolute top,
+padded by `WindowInsets.statusBars` so it never collides with system bars or the
+Android notification shade. A downward drag starting in the slot always dismisses,
+regardless of what the content does with drags (works over `PullToRefreshBox` and any
+other consuming content, with no per-screen wiring); the zone is derived from the
+pill's measured position, so it is exact in any hierarchy. Anything below the slot
+belongs to the content. The slot lives inside the entry's subtree, so it follows the
+sheet during gesture scrubs. Opt out per navigatable with
+`showsDismissIndicator = false`; a 32dp invisible band below the status bar inset then
+remains as the dismiss zone fallback.
+
+---
+

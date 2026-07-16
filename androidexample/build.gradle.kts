@@ -70,13 +70,6 @@ android {
             excludes += "kotlin/annotation/annotation.kotlin_builtins"
         }
     }
-    sourceSets {
-        sourceSets {
-            getByName("main") {
-                java.srcDir("src/main/kotlin")
-            }
-        }
-    }
 }
 
 kotlin {
@@ -88,22 +81,21 @@ kotlin {
 
 dependencies {
 
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.1")
-    implementation("androidx.activity:activity-compose:1.9.0")
-    implementation(compose.runtime)
-    implementation(compose.foundation)
-    implementation(compose.material3)
-    implementation(compose.materialIconsExtended)
-    implementation(compose.components.resources)
-    implementation("androidx.compose.material3:material3")
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test:runner:1.5.2")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2023.08.00"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.compose.runtime)
+    implementation(libs.compose.foundation)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons.extended)
+    implementation(libs.compose.components.resources)
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.espresso)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("io.ktor:ktor-client-okhttp:3.1.0")
     implementation("io.ktor:ktor-client-content-negotiation:3.1.0")

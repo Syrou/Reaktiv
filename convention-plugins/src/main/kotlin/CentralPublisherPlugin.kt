@@ -685,6 +685,23 @@ class CentralPublisherPlugin : Plugin<Project> {
         // Create extension immediately so it's available for configuration
         val extension = project.extensions.create<CentralPublisherExtension>("centralPublisher")
 
+        with(extension) {
+            username.convention(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_TOKEN"))
+            password.convention(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_PASSWORD"))
+            publishingType.convention(PublishingType.AUTOMATIC)
+            signingPassword.convention(CentralPublisherCredentials.credentialProvider(project, "SIGNING_PASSWORD"))
+            signingSecretKey.convention(CentralPublisherCredentials.credentialProvider(project, "SIGNING_SECRET_KEY"))
+            projectUrl.convention("https://github.com/Syrou/Reaktiv")
+            licenseName.convention("Apache License 2.0")
+            licenseUrl.convention("https://opensource.org/license/apache-2-0")
+            developerId.convention("Syrou")
+            developerName.convention("Syrou")
+            developerEmail.convention("me@syrou.eu")
+            scmUrl.convention("https://github.com/Syrou/Reaktiv")
+            scmConnection.convention("scm:git:https://github.com/Syrou/Reaktiv.git")
+            scmDeveloperConnection.convention("scm:git:ssh://github.com/Syrou/Reaktiv.git")
+        }
+
         // Defer configuration until after project evaluation
         project.afterEvaluate {
             // Configure everything after plugins are applied and project is evaluated

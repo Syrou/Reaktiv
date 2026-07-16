@@ -172,7 +172,7 @@ object UiProjectScreen : Screen {
 
 fun createUiTestModule(): NavigationModule = createNavigationModule {
     rootGraph {
-        startScreen(UiHomeScreen)
+        start(UiHomeScreen)
         screens(
             UiHomeScreen,
             UiDetailScreen,
@@ -187,7 +187,7 @@ fun createUiTestModule(): NavigationModule = createNavigationModule {
 
 fun createUiGraphTestModule(): NavigationModule = createNavigationModule {
     rootGraph {
-        startScreen(UiWorkspaceScreen)
+        start(UiWorkspaceScreen)
         screens(UiWorkspaceScreen)
 
         graph("project-area") {
@@ -196,7 +196,7 @@ fun createUiGraphTestModule(): NavigationModule = createNavigationModule {
                     content()
                 }
             }
-            startScreen(UiProjectScreen)
+            start(UiProjectScreen)
             screens(UiProjectScreen)
         }
     }

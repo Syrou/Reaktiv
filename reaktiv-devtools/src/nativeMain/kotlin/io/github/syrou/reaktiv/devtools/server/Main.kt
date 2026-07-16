@@ -17,7 +17,7 @@ package io.github.syrou.reaktiv.devtools.server
  * ./reaktiv-devtools.kexe build/dist/wasmJs/productionExecutable
  * ```
  */
-fun main(args: Array<String>) {
+public fun main(args: Array<String>) {
     println("=".repeat(60))
     println("Reaktiv DevTools Server")
     println("=".repeat(60))

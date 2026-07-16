@@ -101,7 +101,7 @@ class UserJourneyIntegrationTest {
     private fun pendAndRedirectModule(displayHint: String = "Please log in to continue") =
         createNavigationModule {
             rootGraph {
-                startScreen(splashScreen)
+                start(splashScreen)
                 screens(splashScreen, loginScreen, checkEmailScreen, registerScreen)
                 modals(notificationModal)
                 intercept(
@@ -115,7 +115,7 @@ class UserJourneyIntegrationTest {
                     }
                 ) {
                     graph("workspace") {
-                        entry(workspaceHomeScreen)
+                        start(workspaceHomeScreen)
                         screens(workspaceHomeScreen, taskDetailScreen, settingsScreen)
                     }
                 }
@@ -124,14 +124,14 @@ class UserJourneyIntegrationTest {
 
     private fun rejectGuardModule() = createNavigationModule {
         rootGraph {
-            startScreen(splashScreen)
+            start(splashScreen)
             screens(splashScreen, loginScreen)
             intercept(guard = { store ->
                 if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
                 else GuardResult.Reject
             }) {
                 graph("workspace") {
-                    entry(workspaceHomeScreen)
+                    start(workspaceHomeScreen)
                     screens(workspaceHomeScreen, settingsScreen)
                 }
             }

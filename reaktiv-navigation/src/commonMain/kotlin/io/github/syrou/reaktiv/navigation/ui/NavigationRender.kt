@@ -4,22 +4,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
 import io.github.syrou.reaktiv.navigation.util.canHandleBack
@@ -32,15 +34,46 @@ import io.github.syrou.reaktiv.navigation.util.getNavigationModule
  * a composable that is a descendant of [NavigationRender] to access the module directly.
  * An error is thrown if accessed outside of a [NavigationRender] host.
  */
-val LocalNavigationModule = compositionLocalOf<NavigationModule> {
+public val LocalNavigationModule: ProvidableCompositionLocal<NavigationModule> = compositionLocalOf {
     error("NavigationModule not provided. Wrap your content with NavigationRender.")
+}
+
+internal val LocalRenderedEntry = compositionLocalOf<NavigationEntry?> { null }
+
+/**
+ * Returns the [Navigatable] bound to the current entry.
+ *
+ * Can be called from any composable under a `StoreProvider`.
+ */
+@Composable
+public fun currentNavigatable(): Navigatable {
+    return currentPerceivedEntry().navigatable
+}
+
+@Composable
+private fun currentPerceivedEntry(): NavigationEntry {
+    LocalRenderedEntry.current?.let { return it }
+    val navigationState by composeState<NavigationState>()
+    val controller = LocalInteractiveTransitionController.current
+    return controller?.committedTarget ?: navigationState.currentEntry
+}
+
+/**
+ * Returns the resolved title of the currently visible screen, or `null` if the screen
+ * does not define a [io.github.syrou.reaktiv.navigation.definition.Navigatable.titleResource].
+ *
+ * Can be called from any composable under a `StoreProvider`.
+ */
+@Composable
+public fun currentTitle(): String? {
+    return currentPerceivedEntry().titleResource?.invoke()
 }
 
 /**
  * Returns the [ActionResource] of the currently visible screen, or `null` if the screen
  * does not define one.
  *
- * Must be called inside a composable that is a descendant of [NavigationRender].
+ * Can be called from any composable under a `StoreProvider`.
  *
  * Example:
  * ```kotlin
@@ -52,9 +85,9 @@ val LocalNavigationModule = compositionLocalOf<NavigationModule> {
  * ```
  */
 @Composable
-fun currentActionResource(): ActionResource? = LocalCurrentActionResource.current
-
-internal val LocalCurrentActionResource = compositionLocalOf<ActionResource?> { null }
+public fun currentActionResource(): ActionResource? {
+    return currentPerceivedEntry().actionResource
+}
 
 /**
  * Root composable that drives the navigation UI.
@@ -83,7 +116,7 @@ internal val LocalCurrentActionResource = compositionLocalOf<ActionResource?> { 
  *   wires its own platform back handling.
  */
 @Composable
-fun NavigationRender(
+public fun NavigationRender(
     modifier: Modifier = Modifier,
     handlePlatformBack: Boolean = true
 ) {
@@ -93,14 +126,6 @@ fun NavigationRender(
     val navModule = remember { store.getNavigationModule() }
     val graphDefinitions = remember { navModule.getGraphDefinitions() }
 
-    val currentEntryKey = navigationState.currentEntry.stableKey
-    val currentNavigatable = navModule.resolveNavigatable(navigationState.currentEntry)
-    val resolvedTitle = currentNavigatable?.titleResource?.invoke()
-    val resolvedActionResource = currentNavigatable?.actionResource
-    LaunchedEffect(currentEntryKey) {
-        store.dispatch(NavigationAction.SetCurrentTitle(resolvedTitle))
-    }
-
     if (ReaktivDebug.isEnabled) {
         NavigationDebugger(navigationState, store)
     }
@@ -109,7 +134,6 @@ fun NavigationRender(
 
     CompositionLocalProvider(
         LocalNavigationModule provides navModule,
-        LocalCurrentActionResource provides resolvedActionResource,
         LocalInteractiveTransitionController provides interactiveController
     ) {
         if (handlePlatformBack) {
@@ -126,6 +150,7 @@ fun NavigationRender(
         Box(
             modifier = modifier
                 .fillMaxSize()
+                .onGloballyPositioned { interactiveController.rootCoordinates = it }
                 .let {
                     if (platformEdgeSwipeBackEnabled()) {
                         it.backGestureRecognizer(interactiveController)
@@ -134,10 +159,11 @@ fun NavigationRender(
                     }
                 }
                 .dismissGestureRecognizer(interactiveController)
+                .topEdgeDismissRecognizer(interactiveController)
                 .gestureNestedScrollHandoff(interactiveController)
         ) {
             val hasActiveLoadingOverlay = navigationState.isEvaluatingNavigation ||
-                navigationState.systemLayerEntries.any { navModule.resolveNavigatable(it) is LoadingModal }
+                navigationState.systemLayerEntries.any { it.navigatable is LoadingModal }
             val showContentLayers = !navigationState.isBootstrapping || !hasActiveLoadingOverlay
             if (showContentLayers) {
                 UnifiedLayerRenderer(

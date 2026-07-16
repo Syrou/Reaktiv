@@ -28,7 +28,6 @@ object WorkspaceScreen : Screen {
     @Composable
     override fun Content(params: Params) {
         LaunchedEffect(Unit) {
-            println("HERPADERPA - WorkspaceScreen Should trigger once")
         }
         WorkspaceContent()
     }

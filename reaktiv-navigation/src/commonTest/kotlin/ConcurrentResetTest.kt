@@ -53,7 +53,7 @@ class ConcurrentResetTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen)
                 }
             }
@@ -124,7 +124,7 @@ class ConcurrentResetTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen)
                 }
             }

@@ -1,6 +1,8 @@
 package io.github.syrou.reaktiv.introspection.protocol
 
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.Json
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 
@@ -16,8 +18,8 @@ import kotlinx.serialization.json.buildJsonObject
  * val stateAtIndex = StateReconstructor.reconstructAtIndex(initialStateJson, actions, 5)
  * ```
  */
-object StateReconstructor {
-    private val json = Json { ignoreUnknownKeys = true }
+public object StateReconstructor {
+    private val json = reaktivJson()
 
     /**
      * Applies a single module delta to the current full state JSON.
@@ -27,7 +29,7 @@ object StateReconstructor {
      * @param deltaJson The new state for that module as a JSON string
      * @return Updated full state JSON string with the module key replaced
      */
-    fun applyDelta(currentStateJson: String, moduleName: String, deltaJson: String): String {
+    public fun applyDelta(currentStateJson: String, moduleName: String, deltaJson: String): String {
         if (moduleName.isBlank()) return currentStateJson
 
         val currentState = try {
@@ -67,7 +69,7 @@ object StateReconstructor {
      * @param index The index (inclusive) up to which to apply deltas
      * @return The reconstructed full state JSON string at the given index
      */
-    fun reconstructAtIndex(initialStateJson: String, actions: List<CapturedAction>, index: Int): String {
+    public fun reconstructAtIndex(initialStateJson: String, actions: List<CapturedAction>, index: Int): String {
         if (actions.isEmpty()) return initialStateJson
         var state = initialStateJson
         val end = index.coerceIn(0, actions.size - 1)

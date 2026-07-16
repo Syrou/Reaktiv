@@ -2,7 +2,7 @@ package io.github.syrou.reaktiv.navigation.util
 
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 
-fun findLayoutGraphsInHierarchy(
+public fun findLayoutGraphsInHierarchy(
     currentGraphId: String,
     graphDefinitions: Map<String, NavigationGraph>
 ): List<NavigationGraph> {
@@ -10,7 +10,7 @@ fun findLayoutGraphsInHierarchy(
     return hierarchyPath.filter { it.layout != null }
 }
 
-fun buildGraphHierarchyPath(
+public fun buildGraphHierarchyPath(
     targetGraphId: String,
     graphDefinitions: Map<String, NavigationGraph>
 ): List<NavigationGraph> {
@@ -26,7 +26,7 @@ fun buildGraphHierarchyPath(
     return path
 }
 
-fun findParentGraph(
+public fun findParentGraph(
     targetGraph: NavigationGraph,
     graphDefinitions: Map<String, NavigationGraph>
 ): NavigationGraph? {

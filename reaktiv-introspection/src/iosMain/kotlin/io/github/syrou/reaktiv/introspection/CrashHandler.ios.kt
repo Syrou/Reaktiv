@@ -1,16 +1,18 @@
 package io.github.syrou.reaktiv.introspection
 
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import kotlinx.cinterop.staticCFunction
+import kotlinx.coroutines.runBlocking
 import platform.Foundation.NSException
 import platform.Foundation.NSSetUncaughtExceptionHandler
-import kotlin.time.Clock
 
-actual class CrashHandler actual constructor(
+public actual class CrashHandler actual constructor(
     private val platformContext: PlatformContext,
     private val sessionCapture: SessionCapture
 ) {
-    actual fun install() {
+    public actual fun install() {
         State.sessionCapture = sessionCapture
         State.sessionFileExport = SessionFileExport(platformContext)
 
@@ -20,8 +22,8 @@ actual class CrashHandler actual constructor(
                     val capture = State.sessionCapture ?: return@staticCFunction
                     val exporter = State.sessionFileExport ?: return@staticCFunction
                     val throwable = Exception(exception.reason ?: "Unknown NSException")
-                    val json = capture.exportCrashSession(throwable)
-                    val timestamp = Clock.System.now().toEpochMilliseconds()
+                    val json = runBlocking { capture.exportCrashSession(throwable) }
+                    val timestamp = currentTimeMillis()
                     val fileName = "reaktiv_crash_$timestamp.json"
                     exporter.saveToDownloads(json, fileName)
                 } catch (_: Exception) {
@@ -29,7 +31,7 @@ actual class CrashHandler actual constructor(
                 }
             }
         })
-        println("Introspection: Crash handler installed (iOS)")
+        ReaktivDebug.general("Introspection: Crash handler installed (iOS)")
     }
 
     private companion object State {

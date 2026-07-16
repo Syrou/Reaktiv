@@ -45,7 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
+import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import kotlinx.datetime.TimeZone
@@ -59,7 +59,7 @@ sealed class StreamEvent {
     abstract val timestamp: Long
     abstract val clientId: String
 
-    data class Action(val event: ActionStateEvent, val originalIndex: Int) : StreamEvent() {
+    data class Action(val event: CapturedAction, val originalIndex: Int) : StreamEvent() {
         override val timestamp: Long = event.timestamp
         override val clientId: String = event.clientId
     }
@@ -80,7 +80,7 @@ sealed class StreamEvent {
  */
 @Composable
 fun ActionStream(
-    actions: List<ActionStateEvent>,
+    actions: List<CapturedAction>,
     logicMethodEvents: List<LogicMethodEvent> = emptyList(),
     crashEvent: CrashEventInfo? = null,
     selectedIndex: Int? = null,
@@ -407,7 +407,7 @@ fun ActionStream(
 
 @Composable
 private fun ActionEventCard(
-    action: ActionStateEvent,
+    action: CapturedAction,
     isSelected: Boolean = false,
     onClick: () -> Unit = {},
     onExclude: () -> Unit = {}

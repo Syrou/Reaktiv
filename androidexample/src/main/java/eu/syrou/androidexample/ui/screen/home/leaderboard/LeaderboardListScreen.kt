@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -124,7 +124,7 @@ object LeaderboardListScreen : Screen {
                             Text("Player ${index + 1}", style = MaterialTheme.typography.titleSmall)
                             Text("Score: ${1000 - index * 50}", style = MaterialTheme.typography.bodySmall)
                         }
-                        Icon(Icons.Default.ArrowForward, contentDescription = "View Profile")
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "View Profile")
                     }
                 }
             }

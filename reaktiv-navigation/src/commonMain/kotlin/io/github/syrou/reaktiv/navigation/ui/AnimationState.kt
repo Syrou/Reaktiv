@@ -25,7 +25,7 @@ import kotlinx.coroutines.delay
  * @property aliveEntries List of entries to keep composed (max 2: current + previous)
  * @property isBackNavigation Whether this is a back navigation (for disposal logic)
  */
-data class LayerAnimationState(
+public data class LayerAnimationState(
     val currentEntry: NavigationEntry,
     val previousEntry: NavigationEntry?,
     val animationDecision: AnimationDecision?,
@@ -49,7 +49,7 @@ data class LayerAnimationState(
  * @return Animation state containing current, previous, and all entries to keep composed
  */
 @Composable
-fun rememberLayerAnimationState(
+public fun rememberLayerAnimationState(
     currentEntry: NavigationEntry
 ): LayerAnimationState {
     val navModule = LocalNavigationModule.current
@@ -99,10 +99,10 @@ fun rememberLayerAnimationState(
 
     LaunchedEffect(currentEntry.stableKey) {
         if (previousEntry != null && animationDecision != null) {
-            val prevNavigatable = navModule.resolveNavigatable(previousEntry)
-            val currNavigatable = navModule.resolveNavigatable(currentEntry)
-            val exitDuration = prevNavigatable?.exitTransition?.durationMillis ?: 0
-            val enterDuration = currNavigatable?.enterTransition?.durationMillis ?: 0
+            val prevNavigatable = previousEntry.navigatable
+            val currNavigatable = currentEntry.navigatable
+            val exitDuration = prevNavigatable.exitTransition.durationMillis
+            val enterDuration = currNavigatable.enterTransition.durationMillis
             val animationDuration = maxOf(exitDuration, enterDuration).toLong()
             if (animationDuration > 0) {
                 delay(animationDuration)
@@ -139,7 +139,7 @@ fun rememberLayerAnimationState(
  * @return List of modal states with enter/exit animation tracking
  */
 @Composable
-fun rememberModalAnimationState(
+public fun rememberModalAnimationState(
     entries: List<NavigationEntry>
 ): List<ModalEntryState> {
     val entryStates = remember { mutableStateOf<Map<String, ModalEntryState>>(emptyMap()) }
@@ -183,13 +183,13 @@ fun rememberModalAnimationState(
 
     val navModule = LocalNavigationModule.current
     return entryStates.value.values
-        .sortedBy { navModule.resolveNavigatable(it.entry)?.elevation ?: 0f }
+        .sortedBy { it.entry.navigatable.elevation }
 }
 
 /**
  * State for individual modal entries
  */
-data class ModalEntryState(
+public data class ModalEntryState(
     val entry: NavigationEntry,
     val isEntering: Boolean,
     val isExiting: Boolean
@@ -201,7 +201,7 @@ data class ModalEntryState(
             else -> NavigationAnimations.AnimationType.MODAL_ENTER
         }
 
-    fun markCompleted(): ModalEntryState? = when {
+    public fun markCompleted(): ModalEntryState? = when {
         isEntering -> copy(isEntering = false)
         isExiting -> null
         else -> this

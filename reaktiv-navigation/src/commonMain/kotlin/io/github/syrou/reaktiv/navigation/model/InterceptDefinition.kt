@@ -9,7 +9,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * should protect them. Used to handle modals and screens that are promoted to the parent graph
  * but must still be guarded.
  */
-typealias NavigatableInterceptMap = Map<Navigatable, InterceptDefinition>
+public typealias NavigatableInterceptMap = Map<Navigatable, InterceptDefinition>
 
 /**
  * Defines an intercept guard that applies to all navigation into a group of graphs,
@@ -39,7 +39,7 @@ typealias NavigatableInterceptMap = Map<Navigatable, InterceptDefinition>
  *             else GuardResult.RedirectTo(upgradeScreen)
  *         }) {
  *             graph("premium") {
- *                 entry(premiumHome)
+ *                 start(premiumHome)
  *                 screens(premiumHome)
  *             }
  *         }
@@ -55,7 +55,7 @@ typealias NavigatableInterceptMap = Map<Navigatable, InterceptDefinition>
  *
  * @see NavigationGraphBuilder.intercept
  */
-data class InterceptDefinition(
+public data class InterceptDefinition(
     val guard: NavigationGuard,
     val loadingThreshold: Duration = 200.milliseconds,
     internal val outerGuards: List<Pair<NavigationGuard, Duration>> = emptyList()

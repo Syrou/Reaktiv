@@ -18,7 +18,7 @@ import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-class NavigationGraphBuilder(
+public class NavigationGraphBuilder(
     private val route: String
 ) {
     private var startDestination: StartDestination? = null
@@ -39,7 +39,7 @@ class NavigationGraphBuilder(
      *
      * @param screen The screen to navigate to when entering this graph directly
      */
-    fun start(screen: Screen) {
+    public fun start(screen: Screen) {
         checkNoStartDestination()
         startDestination = StartDestination.DirectScreen(screen)
         if (screen !in navigatables) navigatables.add(screen)
@@ -54,7 +54,7 @@ class NavigationGraphBuilder(
      *
      * @param graphId The route of the graph to delegate entry to
      */
-    fun start(graphId: String) {
+    public fun start(graphId: String) {
         checkNoStartDestination()
         startDestination = StartDestination.GraphReference(graphId)
     }
@@ -87,7 +87,7 @@ class NavigationGraphBuilder(
      * @param route Typed selector returning the [NavigationNode] to navigate to
      * @param loadingThreshold How long to wait before showing the global loading modal (default 200ms)
      */
-    fun start(
+    public fun start(
         route: suspend (StoreAccessor) -> NavigationNode,
         loadingThreshold: Duration = 200.milliseconds
     ) {
@@ -98,34 +98,19 @@ class NavigationGraphBuilder(
         )
     }
 
-    @Deprecated("Use start(screen) instead", ReplaceWith("start(screen)"))
-    fun entry(screen: Screen) = start(screen)
-
-    @Deprecated("Use start(route, loadingThreshold) instead", ReplaceWith("start(route, loadingThreshold)"))
-    fun entry(
-        route: suspend (StoreAccessor) -> NavigationNode,
-        loadingThreshold: Duration = 200.milliseconds
-    ) = start(route, loadingThreshold)
-
-    @Deprecated("Use start(screen) instead", ReplaceWith("start(screen)"))
-    fun startScreen(screen: Screen) = start(screen)
-
-    @Deprecated("Use start(graphId) instead", ReplaceWith("start(graphId)"))
-    fun startGraph(graphId: String) = start(graphId)
-
-    fun screens(vararg screens: Screen) {
+    public fun screens(vararg screens: Screen) {
         this.navigatables.addAll(screens.filterNot(this.navigatables::contains))
     }
 
-    fun modals(vararg modals: Modal) {
+    public fun modals(vararg modals: Modal) {
         this.navigatables.addAll(modals.filterNot(this.navigatables::contains))
     }
 
-    fun screenGroup(screenGroup: ScreenGroup) {
+    public fun screenGroup(screenGroup: ScreenGroup) {
         this.navigatables.addAll(screenGroup.screens.filterNot(this.navigatables::contains))
     }
 
-    fun graph(graphId: String, builder: NavigationGraphBuilder.() -> Unit): NavigationGraph {
+    public fun graph(graphId: String, builder: NavigationGraphBuilder.() -> Unit): NavigationGraph {
         val nestedBuilder = NavigationGraphBuilder(graphId)
         nestedBuilder.apply(builder)
         val nestedGraph = nestedBuilder.build()
@@ -133,11 +118,11 @@ class NavigationGraphBuilder(
         return nestedGraph
     }
 
-    fun graph(graph: Graph, builder: NavigationGraphBuilder.() -> Unit): NavigationGraph {
+    public fun graph(graph: Graph, builder: NavigationGraphBuilder.() -> Unit): NavigationGraph {
         return graph(graph.route, builder)
     }
 
-    fun layout(layoutComposable: @Composable (@Composable () -> Unit) -> Unit) {
+    public fun layout(layoutComposable: @Composable (@Composable () -> Unit) -> Unit) {
         this.graphLayout = layoutComposable
     }
 
@@ -210,7 +195,7 @@ class NavigationGraphBuilder(
      * @see InterceptDefinition
      * @see GuardResult
      */
-    fun intercept(
+    public fun intercept(
         guard: NavigationGuard,
         loadingThreshold: Duration = 200.milliseconds,
         block: NavigationGraphBuilder.() -> Unit

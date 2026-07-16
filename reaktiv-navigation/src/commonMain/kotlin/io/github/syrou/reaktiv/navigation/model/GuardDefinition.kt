@@ -16,7 +16,7 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationNode
  * }
  * ```
  */
-typealias NavigationGuard = suspend (StoreAccessor) -> GuardResult
+public typealias NavigationGuard = suspend (StoreAccessor) -> GuardResult
 
 /**
  * A suspend function that selects which destination to navigate to when entering a graph.
@@ -25,4 +25,4 @@ typealias NavigationGuard = suspend (StoreAccessor) -> GuardResult
  * (screen or modal object) for full-path resolution, or a [io.github.syrou.reaktiv.navigation.definition.NavigationPath]
  * for a plain route string. Used internally by [EntryDefinition.route].
  */
-typealias RouteSelector = suspend (StoreAccessor) -> NavigationNode
+public typealias RouteSelector = suspend (StoreAccessor) -> NavigationNode

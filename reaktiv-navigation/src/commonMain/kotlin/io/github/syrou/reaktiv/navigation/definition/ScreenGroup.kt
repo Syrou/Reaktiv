@@ -1,7 +1,7 @@
 package io.github.syrou.reaktiv.navigation.definition
 
-open class ScreenGroup(
-    val screens: List<Screen>
+public open class ScreenGroup(
+    public val screens: List<Screen>
 )  {
-    constructor(vararg screens: Screen) : this(screens.toList())
+    public constructor(vararg screens: Screen) : this(screens.toList())
 }

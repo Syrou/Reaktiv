@@ -1,9 +1,10 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted as CoreLogicMethodCompleted
+import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed as CoreLogicMethodFailed
+import io.github.syrou.reaktiv.core.tracing.LogicMethodStart as CoreLogicMethodStart
+import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicComplete
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicFailed
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicStart
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
@@ -19,10 +20,10 @@ import kotlinx.serialization.Serializable
  * Data capture types (CapturedAction, etc.) are imported from reaktiv-crash-capture.
  */
 @Serializable
-sealed class DevToolsMessage {
+public sealed class DevToolsMessage {
 
     @Serializable
-    data class ClientRegistration(
+    public data class ClientRegistration(
         val clientName: String,
         val clientId: String,
         val platform: String,
@@ -30,50 +31,37 @@ sealed class DevToolsMessage {
     ) : DevToolsMessage()
 
     @Serializable
-    data class RoleAssignment(
+    public data class RoleAssignment(
         val targetClientId: String,
         val role: ClientRole,
         val publisherClientId: String? = null
     ) : DevToolsMessage()
 
     /**
-     * Sent when an action is dispatched. Wraps CapturedAction from crash-capture.
+     * Sent when an action is dispatched. Wraps CapturedAction from introspection.
      */
     @Serializable
-    data class ActionDispatched(
-        val clientId: String,
-        val timestamp: Long,
-        val actionType: String,
-        val actionData: String,
-        val stateDeltaJson: String,
-        val moduleName: String = ""
+    public data class ActionDispatched(
+        val event: CapturedAction
     ) : DevToolsMessage() {
-        fun toCaptured() = CapturedAction(clientId, timestamp, actionType, actionData, stateDeltaJson, moduleName)
-
-        companion object {
-            fun fromCaptured(captured: CapturedAction) = ActionDispatched(
-                captured.clientId, captured.timestamp, captured.actionType,
-                captured.actionData, captured.stateDeltaJson, captured.moduleName
-            )
-        }
+        val clientId: String get() = event.clientId
     }
 
     @Serializable
-    data class StateSync(
+    public data class StateSync(
         val fromClientId: String,
         val timestamp: Long,
         val stateJson: String,
-        val moduleName: String = "",
-        val orchestrated: Boolean = false
+        val moduleName: String = ""
     ) : DevToolsMessage()
 
     @Serializable
-    data class ClientListUpdate(
+    public data class ClientListUpdate(
         val clients: List<ClientInfo>
     ) : DevToolsMessage()
 
     @Serializable
-    data class RoleAcknowledgment(
+    public data class RoleAcknowledgment(
         val clientId: String,
         val role: ClientRole,
         val success: Boolean,
@@ -84,75 +72,28 @@ sealed class DevToolsMessage {
      * Sent when a traced logic method starts execution.
      */
     @Serializable
-    data class LogicMethodStarted(
+    public data class LogicMethodStarted(
         val clientId: String,
-        val timestamp: Long,
-        val callId: String,
-        val logicClass: String,
-        val methodName: String,
-        val params: Map<String, String>,
-        val sourceFile: String? = null,
-        val lineNumber: Int? = null,
-        val githubSourceUrl: String? = null
-    ) : DevToolsMessage() {
-        fun toCaptured() = CapturedLogicStart(
-            clientId, timestamp, callId, logicClass, methodName, params,
-            sourceFile, lineNumber, githubSourceUrl
-        )
-
-        companion object {
-            fun fromCaptured(captured: CapturedLogicStart) = LogicMethodStarted(
-                captured.clientId, captured.timestamp, captured.callId,
-                captured.logicClass, captured.methodName, captured.params,
-                captured.sourceFile, captured.lineNumber, captured.githubSourceUrl
-            )
-        }
-    }
+        val event: CoreLogicMethodStart
+    ) : DevToolsMessage()
 
     /**
      * Sent when a traced logic method completes successfully.
      */
     @Serializable
-    data class LogicMethodCompleted(
+    public data class LogicMethodCompleted(
         val clientId: String,
-        val timestamp: Long,
-        val callId: String,
-        val result: String?,
-        val resultType: String,
-        val durationMs: Long
-    ) : DevToolsMessage() {
-        fun toCaptured() = CapturedLogicComplete(clientId, timestamp, callId, result, resultType, durationMs)
-
-        companion object {
-            fun fromCaptured(captured: CapturedLogicComplete) = LogicMethodCompleted(
-                captured.clientId, captured.timestamp, captured.callId,
-                captured.result, captured.resultType, captured.durationMs
-            )
-        }
-    }
+        val event: CoreLogicMethodCompleted
+    ) : DevToolsMessage()
 
     /**
      * Sent when a traced logic method fails with an exception.
      */
     @Serializable
-    data class LogicMethodFailed(
+    public data class LogicMethodFailed(
         val clientId: String,
-        val timestamp: Long,
-        val callId: String,
-        val exceptionType: String,
-        val exceptionMessage: String?,
-        val stackTrace: String? = null,
-        val durationMs: Long
-    ) : DevToolsMessage() {
-        fun toCaptured() = CapturedLogicFailed(clientId, timestamp, callId, exceptionType, exceptionMessage, stackTrace, durationMs)
-
-        companion object {
-            fun fromCaptured(captured: CapturedLogicFailed) = LogicMethodFailed(
-                captured.clientId, captured.timestamp, captured.callId,
-                captured.exceptionType, captured.exceptionMessage, captured.stackTrace, captured.durationMs
-            )
-        }
-    }
+        val event: CoreLogicMethodFailed
+    ) : DevToolsMessage()
 
     /**
      * Registers a ghost device from an imported session.
@@ -163,7 +104,7 @@ sealed class DevToolsMessage {
      * State syncing happens via StateSync messages during playback.
      */
     @Serializable
-    data class GhostDeviceRegistration(
+    public data class GhostDeviceRegistration(
         val sessionId: String,
         val originalClientInfo: ClientInfo,
         val crashException: CrashException? = null,
@@ -178,7 +119,7 @@ sealed class DevToolsMessage {
      * Request to remove a ghost device.
      */
     @Serializable
-    data class GhostDeviceRemoval(
+    public data class GhostDeviceRemoval(
         val ghostClientId: String
     ) : DevToolsMessage()
 
@@ -187,7 +128,7 @@ sealed class DevToolsMessage {
      * Contains the full session export JSON so the WASM UI can rebuild its state.
      */
     @Serializable
-    data class GhostSessionRestore(
+    public data class GhostSessionRestore(
         val ghostClientId: String,
         val sessionExportJson: String
     ) : DevToolsMessage()
@@ -197,7 +138,7 @@ sealed class DevToolsMessage {
      * The publisher should respond by sending a full StateSync.
      */
     @Serializable
-    data class ListenerAttached(
+    public data class ListenerAttached(
         val listenerId: String
     ) : DevToolsMessage()
 
@@ -205,24 +146,20 @@ sealed class DevToolsMessage {
      * Notification when the publisher changes.
      */
     @Serializable
-    data class PublisherChanged(
+    public data class PublisherChanged(
         val newPublisherId: String?,
         val previousPublisherId: String?,
         val reason: String
     ) : DevToolsMessage()
 
     /**
-     * Sent when a crash occurs in a logic method.
-     * Carries crash info and optional session snapshot for real-time crash reporting.
+     * Sent when a crash is reported on the publisher.
+     * Carries the canonical crash envelope and an optional session snapshot.
      */
     @Serializable
-    data class CrashReport(
+    public data class CrashReport(
         val clientId: String,
-        val timestamp: Long,
-        val exceptionType: String,
-        val exceptionMessage: String?,
-        val stackTrace: String?,
-        val failedCallId: String?,
+        val crash: CrashInfo,
         val sessionJson: String?
     ) : DevToolsMessage()
 
@@ -231,19 +168,14 @@ sealed class DevToolsMessage {
      * Allows the WASM orchestrator to track and export the session.
      */
     @Serializable
-    data class SessionHistorySync(
+    public data class SessionHistorySync(
         val clientId: String,
-        val sessionStartTime: Long,
-        val initialStateJson: String = "{}",
-        val actionEvents: List<ActionDispatched>,
-        val logicStartedEvents: List<LogicMethodStarted>,
-        val logicCompletedEvents: List<LogicMethodCompleted>,
-        val logicFailedEvents: List<LogicMethodFailed>
+        val history: SessionHistory
     ) : DevToolsMessage()
 }
 
 @Serializable
-enum class ClientRole {
+public enum class ClientRole {
     UNASSIGNED,
     PUBLISHER,
     LISTENER,
@@ -251,7 +183,7 @@ enum class ClientRole {
 }
 
 @Serializable
-data class ClientInfo(
+public data class ClientInfo(
     val clientId: String,
     val clientName: String,
     val platform: String,
@@ -262,5 +194,5 @@ data class ClientInfo(
 )
 
 // Re-export types from introspection for convenience
-typealias GhostSessionExport = SessionExport
-typealias GhostSessionFormat = SessionExportFormat
+public typealias GhostSessionExport = SessionExport
+public typealias GhostSessionFormat = SessionExportFormat

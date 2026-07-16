@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.model
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
 /**
@@ -16,8 +17,8 @@ import kotlinx.serialization.Serializable
  *   this holds that screen's route so it can be restored on back-press.
  */
 @Serializable
-data class ModalContext(
-    val modalEntry: NavigationEntry,
-    val originalUnderlyingScreenEntry: NavigationEntry,
+public data class ModalContext(
+    @Contextual val modalEntry: NavigationEntry,
+    @Contextual val originalUnderlyingScreenEntry: NavigationEntry,
     val navigatedAwayToRoute: String? = null
 )

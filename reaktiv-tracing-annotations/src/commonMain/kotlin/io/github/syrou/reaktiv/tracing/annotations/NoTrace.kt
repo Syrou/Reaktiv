@@ -31,4 +31,4 @@ package io.github.syrou.reaktiv.tracing.annotations
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.BINARY)
-annotation class NoTrace
+public annotation class NoTrace

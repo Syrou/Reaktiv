@@ -23,6 +23,7 @@ import kotlinx.io.writeString
  */
 internal interface CaptureStorage {
     fun appendLine(line: String)
+    fun appendLines(lines: List<String>)
     fun readLines(): List<String>
     fun lineCount(): Int
     fun clear()
@@ -47,15 +48,22 @@ internal class FileCaptureStorage(
     private var count = 0
 
     override fun appendLine(line: String) {
+        appendLines(listOf(line))
+    }
+
+    override fun appendLines(lines: List<String>) {
+        if (lines.isEmpty()) return
         val sink = SystemFileSystem.sink(filePath, append = true).buffered()
         try {
-            sink.writeString(line)
-            sink.writeString("\n")
+            for (line in lines) {
+                sink.writeString(line)
+                sink.writeString("\n")
+            }
             sink.flush()
         } finally {
             sink.close()
         }
-        count++
+        count += lines.size
     }
 
     override fun readLines(): List<String> {
@@ -93,9 +101,7 @@ internal class FileCaptureStorage(
         } else {
             lines
         }
-        for (line in trimmed) {
-            appendLine(line)
-        }
+        appendLines(trimmed)
     }
 
     override fun delete() {
@@ -111,6 +117,10 @@ internal class InMemoryCaptureStorage : CaptureStorage {
 
     override fun appendLine(line: String) {
         lines.addLast(line)
+    }
+
+    override fun appendLines(lines: List<String>) {
+        this.lines.addAll(lines)
     }
 
     override fun readLines(): List<String> = lines.toList()

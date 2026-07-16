@@ -19,7 +19,7 @@ import kotlin.uuid.Uuid
  * @param platform Platform description (e.g., "Android 14", "iOS 17")
  * @param enabled Enable or disable session capture
  */
-data class IntrospectionConfig @OptIn(ExperimentalUuidApi::class) constructor(
+public data class IntrospectionConfig @OptIn(ExperimentalUuidApi::class) constructor(
     val clientId: String = Uuid.random().toString(),
     val clientName: String = "Client-${clientId.take(8)}",
     val platform: String,

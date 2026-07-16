@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import io.github.syrou.reaktiv.devtools.ui.ActionStateEvent
 import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
@@ -36,7 +35,7 @@ private enum class StateViewerTab { DELTA, STATE }
 
 @Composable
 fun StateViewer(
-    actionStateHistory: List<ActionStateEvent>,
+    actionStateHistory: List<CapturedAction>,
     selectedActionIndex: Int?,
     logicMethodEvents: List<LogicMethodEvent> = emptyList(),
     selectedLogicMethodCallId: String? = null,
@@ -252,7 +251,7 @@ fun StateViewer(
 
 @Composable
 private fun StateSnapshotView(
-    event: ActionStateEvent,
+    event: CapturedAction,
     stateJson: String,
     previousStateJson: String?,
     showAsDiff: Boolean,
@@ -414,7 +413,8 @@ private fun LogicMethodDataView(
 
                     if (startedEvent.sourceFile != null && startedEvent.lineNumber != null) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        if (startedEvent.githubSourceUrl != null) {
+                        val githubSourceUrl = startedEvent.githubSourceUrl
+                        if (githubSourceUrl != null) {
                             Text(
                                 text = "(${startedEvent.sourceFile}:${startedEvent.lineNumber})",
                                 style = MaterialTheme.typography.bodySmall.copy(
@@ -422,7 +422,7 @@ private fun LogicMethodDataView(
                                 ),
                                 color = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.clickable {
-                                    openInBrowser(startedEvent.githubSourceUrl)
+                                    openInBrowser(githubSourceUrl)
                                 }
                             )
                         } else {

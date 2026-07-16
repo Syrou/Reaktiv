@@ -1,4 +1,13 @@
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
@@ -14,9 +23,14 @@ import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.createStore
+import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.param.Params
+import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -127,6 +141,87 @@ class EdgeSwipeBackGestureUiTest {
         waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
         waitUntil(timeoutMillis = 5000) { onAllNodesWithText("UI Detail").fetchSemanticsNodes().isEmpty() }
         assertEquals(1, recorder.backActions.size)
+    }
+
+    private object UiHorizontalPagerScreen : Screen {
+        override val route = "ui-h-pager"
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+
+        @Composable
+        override fun Content(params: Params) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .horizontalScroll(rememberScrollState())
+                    .testTag("h-pager")
+            ) {
+                repeat(20) { index ->
+                    Text(
+                        text = "Page $index",
+                        modifier = Modifier.width(200.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun edgeSwipeWinsOverHorizontallyScrollableContent() = runComposeUiTest {
+        val recorder = BackActionRecorder()
+        val store = createStore {
+            module(createNavigationModule {
+                rootGraph {
+                    start(UiPagerHostScreen)
+                    screens(UiPagerHostScreen, UiHorizontalPagerScreen)
+                }
+            })
+            middlewares(recorder.middleware)
+        }
+        setContent {
+            StoreProvider(store) {
+                NavigationRender()
+            }
+        }
+        waitUntilExactlyOneExists(hasText("Pager Host"), timeoutMillis = 5000)
+        store.launch { store.navigation { navigateTo("ui-h-pager") } }
+        waitUntilExactlyOneExists(hasText("Page 0"), timeoutMillis = 5000)
+        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Pager Host").fetchSemanticsNodes().isEmpty() }
+
+        onRoot().performTouchInput {
+            down(Offset(10f, centerY))
+            repeat(8) {
+                moveBy(Offset(width * 0.08f, 0f), delayMillis = 30)
+            }
+            moveBy(Offset(2f, 0f), delayMillis = 100)
+            up()
+        }
+        waitUntilExactlyOneExists(hasText("Pager Host"), timeoutMillis = 5000)
+        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Page 0").fetchSemanticsNodes().isEmpty() }
+        assertEquals(1, recorder.backActions.size, "Edge swipe must win over a horizontally scrollable child")
+
+        store.launch { store.navigation { navigateTo("ui-h-pager") } }
+        waitUntilExactlyOneExists(hasText("Page 0"), timeoutMillis = 5000)
+        onRoot().performTouchInput {
+            down(Offset(centerX, centerY))
+            repeat(6) {
+                moveBy(Offset(-width * 0.08f, 0f), delayMillis = 30)
+            }
+            up()
+        }
+        waitUntilExactlyOneExists(hasText("Page 12"), timeoutMillis = 5000)
+        assertEquals(1, recorder.backActions.size, "Mid-content horizontal scrolling must remain untouched")
+    }
+
+    private object UiPagerHostScreen : Screen {
+        override val route = "ui-pager-host"
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+
+        @Composable
+        override fun Content(params: Params) {
+            Text("Pager Host")
+        }
     }
 
     @Test

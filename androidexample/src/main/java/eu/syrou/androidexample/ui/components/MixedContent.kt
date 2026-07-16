@@ -98,7 +98,7 @@ fun MarkdownTable(tableContent: String) {
                 )
             }
         }
-        Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
         dataRows.forEach { row ->
             val cells = row.split("|").filter { it.isNotBlank() }.map { it.trim() }
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -111,7 +111,7 @@ fun MarkdownTable(tableContent: String) {
                     )
                 }
             }
-            Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
         }
     }
 }

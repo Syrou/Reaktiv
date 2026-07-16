@@ -30,4 +30,4 @@ package io.github.syrou.reaktiv.tracing.annotations
  */
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.BINARY)
-annotation class PII
+public annotation class PII

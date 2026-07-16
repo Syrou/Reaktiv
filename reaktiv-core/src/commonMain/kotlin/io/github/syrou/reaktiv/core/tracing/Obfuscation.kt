@@ -5,12 +5,12 @@ package io.github.syrou.reaktiv.core.tracing
  *
  * Used by the compiler plugin to process parameters marked with @Sensitive or @PII annotations.
  */
-object Obfuscation {
+public object Obfuscation {
 
     /**
      * Placeholder text for completely redacted values.
      */
-    const val REDACTED = "[REDACTED]"
+    public const val REDACTED: String = "[REDACTED]"
 
     /**
      * Completely redacts a value, returning "[REDACTED]".
@@ -20,7 +20,7 @@ object Obfuscation {
      * @param value The value to redact (ignored)
      * @return The constant string "[REDACTED]"
      */
-    fun redact(value: Any?): String = REDACTED
+    public fun redact(value: Any?): String = REDACTED
 
     /**
      * Partially masks a value while preserving some characters for debugging.
@@ -38,7 +38,7 @@ object Obfuscation {
      * @param value The value to mask
      * @return Partially masked string representation
      */
-    fun maskPII(value: Any?): String {
+    public fun maskPII(value: Any?): String {
         if (value == null) return "null"
 
         val str = value.toString()
@@ -88,7 +88,7 @@ object Obfuscation {
      * @param maxLength Maximum length of the output string (default 200)
      * @return String representation of the value
      */
-    fun toTraceString(value: Any?, maxLength: Int = 200): String {
+    public fun toTraceString(value: Any?, maxLength: Int = 200): String {
         if (value == null) return "null"
 
         val str = when (value) {

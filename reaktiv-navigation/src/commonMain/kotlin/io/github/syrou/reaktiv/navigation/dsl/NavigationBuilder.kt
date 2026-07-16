@@ -17,7 +17,7 @@ import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
 @Serializable
-enum class NavigationOperation {
+public enum class NavigationOperation {
     Navigate,
     Replace,
     Back,
@@ -27,7 +27,7 @@ enum class NavigationOperation {
 }
 
 @Serializable
-data class NavigationStep(
+public data class NavigationStep(
     val operation: NavigationOperation,
     val target: NavigationTarget? = null,
     val params: Params = Params.empty(),
@@ -40,21 +40,21 @@ data class NavigationStep(
     val synthesizeBackstack: Boolean = false
 )
 
-class NavigationParameterBuilder {
+public class NavigationParameterBuilder {
     @PublishedApi
-    internal val params = mutableMapOf<String, Any>()
+    internal val params: MutableMap<String, Any> = mutableMapOf()
 
-    inline fun <reified T> put(key: String, value: T): NavigationParameterBuilder {
+    public inline fun <reified T> put(key: String, value: T): NavigationParameterBuilder {
         params[key] = SerializableParam(value, serializer<T>())
         return this
     }
 
-    fun <T> put(key: String, value: T, serializer: KSerializer<T>): NavigationParameterBuilder {
+    public fun <T> put(key: String, value: T, serializer: KSerializer<T>): NavigationParameterBuilder {
         params[key] = SerializableParam(value, serializer)
         return this
     }
 
-    fun putRaw(key: String, value: Any): NavigationParameterBuilder {
+    public fun putRaw(key: String, value: Any): NavigationParameterBuilder {
         params[key] = value
         return this
     }
@@ -79,18 +79,18 @@ class NavigationParameterBuilder {
  * @param storeAccessor Accessor for the store to execute operations
  * @param encoder Parameter encoder for serialization
  */
-class NavigationBuilder(
+public class NavigationBuilder(
     private val storeAccessor: StoreAccessor,
     private val encoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
 ) {
     @PublishedApi
-    internal val operations = mutableListOf<NavigationStep>()
+    internal val operations: MutableList<NavigationStep> = mutableListOf()
 
     @PublishedApi
-    internal var currentParams = Params.empty()
+    internal var currentParams: Params = Params.empty()
 
     @PublishedApi
-    internal var shouldDismissModalsGlobally = false
+    internal var shouldDismissModalsGlobally: Boolean = false
 
     /**
      * Get the full path for a Navigatable within the navigation builder context.
@@ -105,7 +105,7 @@ class NavigationBuilder(
      * @return The full path for the navigatable
      * @throws IllegalStateException if the navigatable is not registered
      */
-    val Navigatable.fullPath: String
+    public val Navigatable.fullPath: String
         get() = storeAccessor.getNavigationModule().getFullPath(this)
             ?: error("Navigatable '${this.route}' is not registered in any navigation graph")
 
@@ -117,7 +117,7 @@ class NavigationBuilder(
      * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
      * @param paramBuilder Optional builder for navigation parameters
      */
-    fun navigateTo(
+    public fun navigateTo(
         path: String,
         replaceCurrent: Boolean = false,
         synthesizeBackstack: Boolean = false,
@@ -158,7 +158,7 @@ class NavigationBuilder(
      * @param replaceCurrent If true, replaces the current entry instead of pushing
      * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
      */
-    fun navigateTo(
+    public fun navigateTo(
         navigatable: Navigatable,
         replaceCurrent: Boolean = false,
         synthesizeBackstack: Boolean = false
@@ -179,7 +179,7 @@ class NavigationBuilder(
         return this
     }
 
-    fun navigateBack(): NavigationBuilder {
+    public fun navigateBack(): NavigationBuilder {
         val step = NavigationStep(
             operation = NavigationOperation.Back,
             shouldDismissModals = shouldDismissModalsGlobally
@@ -189,7 +189,7 @@ class NavigationBuilder(
         return this
     }
 
-    suspend inline fun <reified T : Screen> navigateTo(
+    public suspend inline fun <reified T : Screen> navigateTo(
         replaceCurrent: Boolean = false,
         synthesizeBackstack: Boolean = false
     ): NavigationBuilder {
@@ -204,7 +204,7 @@ class NavigationBuilder(
      * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
      * @param paramBuilder Optional builder for navigation parameters
      */
-    suspend inline fun <reified T : Navigatable> navigateTo(
+    public suspend inline fun <reified T : Navigatable> navigateTo(
         replaceCurrent: Boolean = false,
         preferredGraphId: String? = null,
         synthesizeBackstack: Boolean = false,
@@ -248,7 +248,7 @@ class NavigationBuilder(
      * @param inclusive If true, also removes the target route from the backstack
      * @param fallback Optional fallback route if the target route is not found in the backstack.
      */
-    fun popUpTo(path: String, inclusive: Boolean = false, fallback: String? = null): NavigationBuilder {
+    public fun popUpTo(path: String, inclusive: Boolean = false, fallback: String? = null): NavigationBuilder {
         val (cleanPath, _) = parseUrlWithQueryParams(path)
         val fallbackTarget = fallback?.let {
             val (cleanFallback, _) = parseUrlWithQueryParams(it)
@@ -274,7 +274,7 @@ class NavigationBuilder(
      * @param preferredGraphId Optional graph ID to prefer when resolving the target
      * @param fallback Optional fallback route if the target route is not found in the backstack.
      */
-    suspend inline fun <reified T : Navigatable> popUpTo(
+    public suspend inline fun <reified T : Navigatable> popUpTo(
         inclusive: Boolean = false,
         preferredGraphId: String? = null,
         fallback: String? = null
@@ -303,7 +303,7 @@ class NavigationBuilder(
         return this
     }
 
-    fun clearBackStack(): NavigationBuilder {
+    public fun clearBackStack(): NavigationBuilder {
         val step = NavigationStep(
             operation = NavigationOperation.ClearBackStack,
             shouldClearBackStack = true,
@@ -330,7 +330,7 @@ class NavigationBuilder(
      * }
      * ```
      */
-    fun resumePendingNavigation(): NavigationBuilder {
+    public fun resumePendingNavigation(): NavigationBuilder {
         operations.add(NavigationStep(operation = NavigationOperation.ResumePending))
         return this
     }
@@ -338,7 +338,7 @@ class NavigationBuilder(
     /**
      * Dismiss any active modals as part of all navigation operations in this block
      */
-    fun dismissModals(): NavigationBuilder {
+    public fun dismissModals(): NavigationBuilder {
         shouldDismissModalsGlobally = true
         for (i in operations.indices) {
             operations[i] = operations[i].copy(shouldDismissModals = true)
@@ -346,17 +346,17 @@ class NavigationBuilder(
         return this
     }
 
-    fun params(params: Params): NavigationBuilder {
+    public fun params(params: Params): NavigationBuilder {
         currentParams += params
         return this
     }
 
-    inline fun <reified T : Any> put(key: String, value: T): NavigationBuilder {
+    public inline fun <reified T : Any> put(key: String, value: T): NavigationBuilder {
         currentParams = currentParams.withTyped(key, value)
         return this
     }
 
-    fun putRaw(key: String, value: Any): NavigationBuilder {
+    public fun putRaw(key: String, value: Any): NavigationBuilder {
         currentParams = when (value) {
             is String -> currentParams.with(key, value)
             is Int -> currentParams.with(key, value)
@@ -369,32 +369,32 @@ class NavigationBuilder(
         return this
     }
 
-    fun putString(key: String, value: String): NavigationBuilder {
+    public fun putString(key: String, value: String): NavigationBuilder {
         currentParams = currentParams.with(key, value)
         return this
     }
-    fun putInt(key: String, value: Int): NavigationBuilder {
+    public fun putInt(key: String, value: Int): NavigationBuilder {
         currentParams = currentParams.with(key, value)
         return this
     }
-    fun putBoolean(key: String, value: Boolean): NavigationBuilder {
+    public fun putBoolean(key: String, value: Boolean): NavigationBuilder {
         currentParams = currentParams.with(key, value)
         return this
     }
-    fun putDouble(key: String, value: Double): NavigationBuilder {
+    public fun putDouble(key: String, value: Double): NavigationBuilder {
         currentParams = currentParams.with(key, value)
         return this
     }
-    fun putLong(key: String, value: Long): NavigationBuilder {
+    public fun putLong(key: String, value: Long): NavigationBuilder {
         currentParams = currentParams.with(key, value)
         return this
     }
-    fun putFloat(key: String, value: Float): NavigationBuilder {
+    public fun putFloat(key: String, value: Float): NavigationBuilder {
         currentParams = currentParams.with(key, value)
         return this
     }
 
-    fun param(key: String, value: Any) = putRaw(key, value)
+    public fun param(key: String, value: Any): NavigationBuilder = putRaw(key, value)
 
     internal fun validate() {
         if (operations.isEmpty()) {

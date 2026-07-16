@@ -1,10 +1,10 @@
 package io.github.syrou.reaktiv.introspection
 
+import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
+import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicComplete
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicFailed
-import io.github.syrou.reaktiv.introspection.protocol.CapturedLogicStart
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -26,29 +26,24 @@ class SessionCaptureTest {
         moduleName = "TestModule"
     )
 
-    private fun capturedLogicStart(index: Int) = CapturedLogicStart(
-        clientId = "test-client",
-        timestamp = 1000L + index,
-        callId = "call-$index",
+    private fun capturedLogicStart(index: Int) = LogicMethodStart(
         logicClass = "TestLogic",
         methodName = "method$index",
         params = emptyMap(),
-        sourceFile = null,
-        lineNumber = null,
-        githubSourceUrl = null
+        callId = "call-$index",
+        timestampMs = 1000L + index
     )
 
-    private fun capturedLogicComplete(index: Int) = CapturedLogicComplete(
-        clientId = "test-client",
-        timestamp = 2000L + index,
+    private fun capturedLogicComplete(index: Int) = LogicMethodCompleted(
         callId = "call-$index",
         result = "ok",
         resultType = "String",
-        durationMs = 100L
+        durationMs = 100L,
+        timestampMs = 2000L + index
     )
 
     @Test
-    fun `captureAction stores exactly one entry per call`() {
+    fun `captureAction stores exactly one entry per call`() = runTest {
         val capture = createCapture()
 
         capture.captureAction(capturedAction(1))
@@ -63,7 +58,7 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `captureAction respects maxActions limit`() {
+    fun `captureAction respects maxActions limit`() = runTest {
         val capture = createCapture(maxActions = 3)
 
         for (i in 1..5) {
@@ -78,7 +73,7 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `captureLogicStarted stores exactly one entry per call`() {
+    fun `captureLogicStarted stores exactly one entry per call`() = runTest {
         val capture = createCapture()
 
         capture.captureLogicStarted(capturedLogicStart(1))
@@ -89,7 +84,7 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `captureLogicCompleted stores exactly one entry per call`() {
+    fun `captureLogicCompleted stores exactly one entry per call`() = runTest {
         val capture = createCapture()
 
         capture.captureLogicCompleted(capturedLogicComplete(1))
@@ -100,7 +95,7 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `does not capture when not started`() {
+    fun `does not capture when not started`() = runTest {
         val capture = SessionCapture()
 
         capture.captureAction(capturedAction(1))
@@ -112,7 +107,7 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `exportSession produces valid JSON`() {
+    fun `exportSession produces valid JSON`() = runTest {
         val capture = createCapture()
 
         capture.captureAction(capturedAction(1))
@@ -129,7 +124,7 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `exportCrashSession includes crash info`() {
+    fun `exportCrashSession includes crash info`() = runTest {
         val capture = createCapture()
         capture.captureAction(capturedAction(1))
 
@@ -140,11 +135,11 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `captureCrashFromThrowable stores crash for later export`() {
+    fun `captureCrashFromThrowable stores crash for later export`() = runTest {
         val capture = createCapture()
         capture.captureAction(capturedAction(1))
 
-        capture.captureCrashFromThrowable(RuntimeException("stored crash"))
+        capture.reportCrash(RuntimeException("stored crash"))
         val json = capture.exportSession()
 
         assertTrue(json.contains("\"crash\""))
@@ -153,7 +148,7 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `clear removes all captured data but keeps session active`() {
+    fun `clear removes all captured data but keeps session active`() = runTest {
         val capture = createCapture()
 
         capture.captureAction(capturedAction(1))
@@ -167,7 +162,7 @@ class SessionCaptureTest {
     }
 
     @Test
-    fun `stop deactivates capture`() {
+    fun `stop deactivates capture`() = runTest {
         val capture = createCapture()
 
         capture.captureAction(capturedAction(1))

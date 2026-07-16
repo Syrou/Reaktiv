@@ -2,13 +2,14 @@ package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
  * CompositionLocal for providing default background color to navigation containers
  */
-val LocalNavigationBackgroundColor = staticCompositionLocalOf<Color> {
+public val LocalNavigationBackgroundColor: ProvidableCompositionLocal<Color> = staticCompositionLocalOf {
     Color.Unspecified
 }
 
@@ -16,7 +17,7 @@ val LocalNavigationBackgroundColor = staticCompositionLocalOf<Color> {
  * Provides a default background color for navigation containers
  */
 @Composable
-fun NavigationBackgroundProvider(
+public fun NavigationBackgroundProvider(
     backgroundColor: Color = Color.Unspecified,
     content: @Composable () -> Unit
 ) {
@@ -35,6 +36,6 @@ fun NavigationBackgroundProvider(
  * Gets the current navigation background color from the composition
  */
 @Composable
-fun rememberNavigationBackgroundColor(): Color {
+public fun rememberNavigationBackgroundColor(): Color {
     return LocalNavigationBackgroundColor.current
 }

@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.LayoutCoordinates
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import kotlin.math.abs
 
@@ -43,6 +44,17 @@ internal class InteractiveTransitionController {
         private set
 
     var contentTransitionActive: Boolean by mutableStateOf(false)
+
+    var committedTarget: NavigationEntry? by mutableStateOf(null)
+        private set
+
+    var rootCoordinates: LayoutCoordinates? = null
+
+    var indicatorCoordinates: LayoutCoordinates? = null
+
+    fun markCommittedTarget(entry: NavigationEntry) {
+        committedTarget = entry
+    }
 
     private var progressState = mutableFloatStateOf(0f)
 
@@ -108,6 +120,7 @@ internal class InteractiveTransitionController {
     fun reset() {
         progressState.value = 0f
         scrubKind = null
+        committedTarget = null
         phase = Phase.Idle
     }
 

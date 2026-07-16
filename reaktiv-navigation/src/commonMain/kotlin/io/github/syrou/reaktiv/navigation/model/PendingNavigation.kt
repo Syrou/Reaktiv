@@ -26,7 +26,7 @@ import kotlinx.serialization.Serializable
  * @param displayHint Optional human-readable hint that can be shown during the auth flow
  */
 @Serializable
-data class PendingNavigation(
+public data class PendingNavigation(
     val route: String,
     val params: Params,
     val metadata: Map<String, String> = emptyMap(),

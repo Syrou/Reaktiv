@@ -13,7 +13,7 @@ internal fun canHandleBack(state: NavigationState, navModule: NavigationModule):
     if (state.isBootstrapping) return false
     if (state.isEvaluatingNavigation) return false
     if (!state.canGoBack) return false
-    if (navModule.resolveNavigatable(state.currentEntry) is LoadingModal) return false
+    if (state.currentEntry.navigatable is LoadingModal) return false
     return true
 }
 
@@ -24,7 +24,7 @@ internal fun revealedEntryForBack(state: NavigationState): NavigationEntry? {
 
 internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: NavigationModule): Boolean {
     if (!canHandleBack(state, navModule)) return false
-    val top = navModule.resolveNavigatable(state.currentEntry) ?: return false
+    val top = state.currentEntry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.backGestureEnabled) return false
     val popAxis = (top.popExitTransition ?: top.enterTransition)
@@ -37,7 +37,7 @@ internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: Nav
 
 internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationModule): Boolean {
     if (!canHandleBack(state, navModule)) return false
-    val top = navModule.resolveNavigatable(state.currentEntry) ?: return false
+    val top = state.currentEntry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.swipeToDismiss) return false
     return revealedContentEntryAvailable(state, navModule)
@@ -45,7 +45,7 @@ internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationMod
 
 private fun revealedContentEntryAvailable(state: NavigationState, navModule: NavigationModule): Boolean {
     val revealed = revealedEntryForBack(state) ?: return false
-    val revealedNavigatable = navModule.resolveNavigatable(revealed) ?: return false
+    val revealedNavigatable = revealed.navigatable
     if (revealedNavigatable.renderLayer != RenderLayer.CONTENT) return false
     if (state.activeModalContexts[revealed.path] != null) return false
     return true

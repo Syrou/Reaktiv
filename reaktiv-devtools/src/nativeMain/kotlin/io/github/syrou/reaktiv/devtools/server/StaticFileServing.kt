@@ -17,7 +17,7 @@ import kotlinx.io.readByteArray
 /**
  * Serves files from a static root folder.
  */
-fun Route.staticFiles(folder: String) {
+public fun Route.staticFiles(folder: String) {
     val dir = Path(folder)
     val pathParameter = "static-content-path-parameter"
 
@@ -36,7 +36,7 @@ fun Route.staticFiles(folder: String) {
 /**
  * Responds with a static file.
  */
-suspend fun ApplicationCall.respondStatic(path: Path) {
+public suspend fun ApplicationCall.respondStatic(path: Path) {
     if (SystemFileSystem.exists(path)) {
         respond(LocalFileContent(path, ContentType.defaultForFile(path)))
     } else {
@@ -47,7 +47,7 @@ suspend fun ApplicationCall.respondStatic(path: Path) {
 /**
  * Determines the content type based on file extension.
  */
-fun ContentType.Companion.defaultForFile(path: Path): ContentType {
+public fun ContentType.Companion.defaultForFile(path: Path): ContentType {
     val extension = path.name.substringAfterLast('.', "")
     val contentType = ContentType.fromFileExtension(extension).firstOrNull()
         ?: ContentType.Application.OctetStream
@@ -62,7 +62,7 @@ fun ContentType.Companion.defaultForFile(path: Path): ContentType {
 /**
  * OutgoingContent implementation for serving local files.
  */
-class LocalFileContent(
+public class LocalFileContent(
     private val path: Path,
     override val contentType: ContentType = ContentType.defaultForFile(path)
 ) : OutgoingContent.WriteChannelContent() {

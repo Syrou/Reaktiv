@@ -6,6 +6,15 @@ plugins {
     id("org.jetbrains.dokka") version "2.2.0"
     id("org.jetbrains.compose") version "1.11.1"
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.10"
+    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.1"
+}
+
+@OptIn(kotlinx.validation.ExperimentalBCVApi::class)
+apiValidation {
+    ignoredProjects += listOf("androidexample")
+    klib {
+        enabled = true
+    }
 }
 
 buildscript {
@@ -17,8 +26,8 @@ buildscript {
         google()
     }
 
-    val kotlinVersion: String by project.extra
-    val atomicFuVersion: String by project.extra
+    val kotlinVersion = project.extra["kotlinVersion"] as String
+    val atomicFuVersion = project.extra["atomicFuVersion"] as String
 
     dependencies {
         classpath("org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion")
@@ -29,6 +38,31 @@ buildscript {
 
 subprojects {
     apply(plugin = "org.jetbrains.dokka")
+    group = "io.github.syrou"
+
+    extensions.configure<org.jetbrains.dokka.gradle.DokkaExtension> {
+        dokkaSourceSets.configureEach {
+            if (project.file("module.md").exists()) {
+                includes.from("module.md")
+            }
+            sourceLink {
+                localDirectory.set(project.file("src"))
+                remoteUrl.set(java.net.URI("https://github.com/Syrou/Reaktiv/blob/main/${project.name}/src"))
+                remoteLineSuffix.set("#L")
+            }
+        }
+    }
+
+    plugins.withId("org.jetbrains.kotlin.multiplatform") {
+        extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension> {
+            jvmToolchain(17)
+            explicitApi()
+            compilerOptions {
+                freeCompilerArgs.add("-Xexpect-actual-classes")
+            }
+        }
+    }
+
     tasks {
         withType<PublishToMavenRepository> {
             dependsOn(withType<Sign>())
@@ -44,16 +78,12 @@ dokka {
 }
 
 dependencies {
-    listOf(
-        ":reaktiv-core",
-        ":reaktiv-navigation",
-        ":reaktiv-compose",
-        ":reaktiv-devtools",
-        ":reaktiv-tracing-annotations",
-        ":reaktiv-introspection"
-    ).forEach { path ->
-        dokka(project(path))
-    }
+    dokka(project(":reaktiv-core"))
+    dokka(project(":reaktiv-navigation"))
+    dokka(project(":reaktiv-compose"))
+    dokka(project(":reaktiv-devtools"))
+    dokka(project(":reaktiv-tracing-annotations"))
+    dokka(project(":reaktiv-introspection"))
 }
 
 allprojects {

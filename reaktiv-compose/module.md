@@ -118,16 +118,17 @@ fun ProfileScreen() {
 
 ## Watching Side Effects
 
-`onActiveValueChange<S, T>()` fires a callback whenever a selected value changes while
-the Composable is active — ideal for analytics, toast messages, and one-off reactions.
+Combine `composeState` with `snapshotFlow` to react to value changes while the Composable
+is active — ideal for analytics, toast messages, and one-off reactions.
 
 ```kotlin
 @Composable
 fun ScreenTracker() {
-    onActiveValueChange<NavigationState, String>(
-        selector = { it.currentEntry.navigatable.route }
-    ) { route ->
-        analytics.trackScreenView(route)
+    val navState by composeState<NavigationState>()
+    LaunchedEffect(Unit) {
+        snapshotFlow { navState.currentEntry.route }
+            .distinctUntilChanged()
+            .collect { route -> analytics.trackScreenView(route) }
     }
 }
 ```
@@ -180,5 +181,5 @@ fun TodoListScreen() {
 - `rememberDispatcher()` — returns the store's `Dispatch` function
 - `rememberLogic<M, L>()` — returns the typed [ModuleLogic] instance
 - `rememberStore()` — returns the raw [Store] (for advanced use)
-- `onActiveValueChange<S, T>()` — side-effect hook that fires on value changes
+- `currentTitle()` / `currentActionResource()` / `currentNavigatable()` — gesture-aware accessors for the perceived current screen (from reaktiv-navigation)
 - [NavigationRender] — renders the current navigation screen with animated transitions

@@ -30,6 +30,8 @@ import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
+import io.github.syrou.reaktiv.navigation.util.NavigationStackMath
+import io.github.syrou.reaktiv.navigation.util.StackSnapshot
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -45,10 +47,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
+
+private object NavigationLockKey : CoroutineContext.Key<NavigationLockMarker>
+
+private class NavigationLockMarker : AbstractCoroutineContextElement(NavigationLockKey)
 
 /**
  * Side-effecting logic for the navigation system.
@@ -78,8 +87,8 @@ import kotlin.time.Duration
  * @see NavigationState
  */
 @OptIn(ExperimentalReaktivApi::class)
-class NavigationLogic(
-    val storeAccessor: StoreAccessor,
+public class NavigationLogic(
+    public val storeAccessor: StoreAccessor,
     private val precomputedData: PrecomputedNavigationData,
     private val parameterEncoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder(),
     private val onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null
@@ -91,13 +100,6 @@ class NavigationLogic(
 
     private val entryLifecycleJobs = mutableMapOf<String, Job>()
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
-
-    private fun NavigationEntry.resolvedNavigatable(): Navigatable? =
-        precomputedData.allNavigatables[path]
-
-    private fun NavigationEntry.isModal(): Boolean = resolvedNavigatable() is Modal
-
-    private fun NavigationEntry.isScreen(): Boolean = resolvedNavigatable() is Screen
 
     init {
         startLifecycleObservation()
@@ -136,10 +138,7 @@ class NavigationLogic(
                     routeBuilder.clearBackStack()
                     val resolvedBootstrapNode = resolveEntryChain(selectedNode, bootstrapGraphId ?: "root")
 
-                    val resolvedPath = if (resolvedBootstrapNode is Navigatable)
-                        precomputedData.navigatableToFullPath[resolvedBootstrapNode as Navigatable]
-                            ?: (resolvedBootstrapNode as Navigatable).route
-                    else resolvedBootstrapNode.route
+                    val resolvedPath = resolvedBootstrapNode.fullPathOrRoute()
                     val resolvedResolution = precomputedData.routeResolver.resolve(resolvedPath)
                     val bootstrapStep = NavigationStep(NavigationOperation.Navigate)
                     val currentState = getCurrentNavigationState()
@@ -155,13 +154,9 @@ class NavigationLogic(
                         is GuardEvaluation.Reject -> {
                             val fallback = precomputedData.notFoundScreen
                             if (fallback != null) routeBuilder.navigateTo(fallback)
-                            else if (resolvedBootstrapNode is Navigatable) routeBuilder.navigateTo(resolvedBootstrapNode as Navigatable)
-                            else routeBuilder.navigateTo(resolvedBootstrapNode.route)
+                            else routeBuilder.navigateToNode(resolvedBootstrapNode)
                         }
-                        is GuardEvaluation.Allow, null -> {
-                            if (resolvedBootstrapNode is Navigatable) routeBuilder.navigateTo(resolvedBootstrapNode as Navigatable)
-                            else routeBuilder.navigateTo(resolvedBootstrapNode.route)
-                        }
+                        is GuardEvaluation.Allow, null -> routeBuilder.navigateToNode(resolvedBootstrapNode)
                     }
 
                     routeBuilder.validate()
@@ -207,11 +202,9 @@ class NavigationLogic(
                 "exceptionMessage" to (exception.message ?: ""),
                 "actionType" to (action?.let { it::class.simpleName } ?: "Logic Method")
             )
-            val crashPath = precomputedData.navigatableToFullPath[crashScreenDef] ?: crashScreenDef.route
-            val crashEntry = NavigationEntry(
-                path = crashPath,
-                params = crashParams,
-                navigatableRoute = crashScreenDef.route
+            val crashEntry = crashScreenDef.toNavigationEntry(
+                path = crashScreenDef.fullPathOrRoute(),
+                params = crashParams
             )
             storeAccessor.dispatch(
                 NavigationAction.Navigate(
@@ -221,7 +214,7 @@ class NavigationLogic(
                 )
             )
         } catch (e: Exception) {
-            println("NavigationLogic: Failed to navigate to crash screen - ${e.message}")
+            ReaktivDebug.error("NavigationLogic: Failed to navigate to crash screen - ${e.message}", e)
         }
     }
 
@@ -250,7 +243,7 @@ class NavigationLogic(
      * @return [NavigationOutcome] describing whether the navigation succeeded, was dropped,
      *   rejected, or redirected. Callers can ignore the return value for fire-and-forget use.
      */
-    suspend fun navigate(block: suspend NavigationBuilder.() -> Unit): NavigationOutcome {
+    public suspend fun navigate(block: suspend NavigationBuilder.() -> Unit): NavigationOutcome {
         val builder = NavigationBuilder(storeAccessor, parameterEncoder)
         builder.apply { block() }
         builder.validate()
@@ -268,21 +261,6 @@ class NavigationLogic(
             bootstrapCompleted.await()
         }
         return evaluateAndExecute(builder, targetRoute, targetResolution)
-    }
-
-    private fun isSystemLayerNavigation(builder: NavigationBuilder): Boolean {
-        val primaryNavigate = builder.operations.firstOrNull {
-            it.operation == NavigationOperation.Navigate
-        } ?: return false
-        val targetRoute = try {
-            primaryNavigate.target?.resolve(precomputedData)
-        } catch (e: Exception) {
-            return false
-        } ?: return false
-        val resolution = precomputedData.routeResolver.resolve(
-            targetRoute, precomputedData.availableNavigatables
-        ) ?: return false
-        return resolution.targetNavigatable.renderLayer == RenderLayer.SYSTEM
     }
 
     private sealed class GuardEvaluation {
@@ -380,9 +358,10 @@ class NavigationLogic(
 
         val static = precomputedData.routeResolver.resolveForBackstackSynthesis(graphPath)
         if (static != null) {
-            val resPath = precomputedData.navigatableToFullPath[static.targetNavigatable]
-                ?: static.targetNavigatable.route
-            return static.targetNavigatable.toNavigationEntry(path = resPath, params = static.extractedParams)
+            return static.targetNavigatable.toNavigationEntry(
+                path = static.targetNavigatable.fullPathOrRoute(),
+                params = static.extractedParams
+            )
         }
 
         val directEntryDef = precomputedData.graphEntries[graphPath]
@@ -404,33 +383,30 @@ class NavigationLogic(
         if (entryDef.route == null) return null
 
         val existingInSimulated = simulatedBackStack.firstOrNull { entry ->
-            precomputedData.navigatableToGraph[precomputedData.allNavigatables[entry.path]] == effectiveGraphPath
+            precomputedData.navigatableToGraph[entry.navigatable] == effectiveGraphPath
         }
         if (existingInSimulated != null) return existingInSimulated
 
         if (simulatedBackStack.isNotEmpty() || visited.isNotEmpty()) {
             val currentState = getCurrentNavigationState()
             val existingEntry = currentState.backStack.firstOrNull { entry ->
-                precomputedData.navigatableToGraph[precomputedData.allNavigatables[entry.path]] == effectiveGraphPath
+                precomputedData.navigatableToGraph[entry.navigatable] == effectiveGraphPath
             }
             if (existingEntry != null) return existingEntry
         }
 
         val node = evaluateWithThreshold(entryDef.loadingThreshold) { entryDef.route.invoke(storeAccessor) }
-        return when (node) {
-            is Navigatable -> {
-                val resPath = precomputedData.navigatableToFullPath[node] ?: node.route
-                node.toNavigationEntry(path = resPath, params = Params.empty())
-            }
+        return when {
+            node is Navigatable ->
+                node.toNavigationEntry(path = node.fullPathOrRoute(), params = Params.empty())
+            precomputedData.graphDefinitions.containsKey(node.route) ->
+                resolveGraphEntryForSynthesis(node.route, simulatedBackStack, visited + graphPath)
             else -> {
-                if (precomputedData.graphDefinitions.containsKey(node.route)) {
-                    resolveGraphEntryForSynthesis(node.route, simulatedBackStack, visited + graphPath)
-                } else {
-                    val resolution = precomputedData.routeResolver.resolve(node.route) ?: return null
-                    val resPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                        ?: resolution.targetNavigatable.route
-                    resolution.targetNavigatable.toNavigationEntry(path = resPath, params = resolution.extractedParams)
-                }
+                val resolution = precomputedData.routeResolver.resolve(node.route) ?: return null
+                resolution.targetNavigatable.toNavigationEntry(
+                    path = resolution.targetNavigatable.fullPathOrRoute(),
+                    params = resolution.extractedParams
+                )
             }
         }
     }
@@ -442,21 +418,90 @@ class NavigationLogic(
         executeNavigation(builder)
     }
 
+    private fun NavigationNode.fullPathOrRoute(): String =
+        if (this is Navigatable) precomputedData.navigatableToFullPath[this] ?: route else route
+
+    private fun NavigationBuilder.navigateToNode(node: NavigationNode) {
+        if (node is Navigatable) navigateTo(node) else navigateTo(node.route)
+    }
+
+    private suspend fun guardOutcome(guard: GuardEvaluation?): NavigationOutcome? = when (guard) {
+        is GuardEvaluation.Reject -> NavigationOutcome.Rejected
+        is GuardEvaluation.Redirect -> {
+            navigateDirect(guard.route)
+            NavigationOutcome.Redirected(guard.route)
+        }
+        is GuardEvaluation.PendAndRedirect -> {
+            storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
+            if (!guard.alreadyAtRedirect) {
+                val redirectBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                redirectBuilder.clearBackStack()
+                redirectBuilder.navigateTo(guard.redirectRoute)
+                redirectBuilder.validate()
+                executeNavigation(redirectBuilder)
+            }
+            NavigationOutcome.Redirected(guard.redirectRoute)
+        }
+        is GuardEvaluation.Allow, null -> null
+    }
+
+    private suspend fun synthesizeAncestorEntries(
+        route: String,
+        simulatedBackStack: List<NavigationEntry>,
+        seenPaths: MutableSet<String>,
+        includeRoot: Boolean
+    ): List<NavigationEntry> {
+        val synthesized = mutableListOf<NavigationEntry>()
+        var stack = simulatedBackStack
+        if (includeRoot) {
+            val rootEntry = resolveGraphEntryForSynthesis("root", stack)
+            if (rootEntry != null && seenPaths.add(rootEntry.path)) {
+                synthesized.add(rootEntry)
+                stack = stack + rootEntry
+            }
+        }
+        for (intermediatePath in precomputedData.routeResolver.buildPathHierarchy(route).dropLast(1)) {
+            val entry = resolveGraphEntryForSynthesis(intermediatePath, stack) ?: continue
+            if (!seenPaths.add(entry.path)) continue
+            synthesized.add(entry)
+            stack = stack + entry
+        }
+        return synthesized
+    }
+
     /**
      * Evaluate intercept guards and entry definitions for the given builder, then execute
      * the navigation. Runs inside [NonCancellable] so that guard evaluation and state
      * commits are never partially cancelled.
      *
-     * Returns [NavigationOutcome.Dropped] immediately if another navigation is already in progress.
+     * Navigations are serialized: a call issued while another navigation is in progress
+     * suspends until the in-flight one completes, then executes. Re-entrant calls made
+     * from inside an in-flight navigation (e.g. a guard navigating) execute inline.
      */
     private suspend fun evaluateAndExecute(
         builder: NavigationBuilder,
         precomputedTargetRoute: String? = null,
         precomputedTargetResolution: RouteResolution? = null
     ): NavigationOutcome {
-        if (!navigationMutex.tryLock()) return NavigationOutcome.Dropped
+        if (currentCoroutineContext()[NavigationLockKey] != null) {
+            return performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
+        }
+        navigationMutex.lock()
         try {
-            return withContext(NonCancellable) {
+            return withContext(NavigationLockMarker()) {
+                performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
+            }
+        } finally {
+            navigationMutex.unlock()
+        }
+    }
+
+    private suspend fun performEvaluateAndExecute(
+        builder: NavigationBuilder,
+        precomputedTargetRoute: String? = null,
+        precomputedTargetResolution: RouteResolution? = null
+    ): NavigationOutcome {
+        return withContext(NonCancellable) {
                 try {
                     val primaryStep = builder.operations.firstOrNull {
                         it.operation == NavigationOperation.Navigate || it.operation == NavigationOperation.Replace
@@ -484,33 +529,15 @@ class NavigationLogic(
                     val currentState = getCurrentNavigationState()
 
                     val initialGuard = evaluateGuard(targetRoute, targetResolution, primaryStep, currentState)
-                    when (initialGuard) {
-                        is GuardEvaluation.Reject -> return@withContext NavigationOutcome.Rejected
-                        is GuardEvaluation.Redirect -> {
-                            navigateDirect(initialGuard.route)
-                            return@withContext NavigationOutcome.Redirected(initialGuard.route)
-                        }
-                        is GuardEvaluation.PendAndRedirect -> {
-                            storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(initialGuard.pending))
-                            if (!initialGuard.alreadyAtRedirect) {
-                                val redirectBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
-                                redirectBuilder.clearBackStack()
-                                redirectBuilder.navigateTo(initialGuard.redirectRoute)
-                                redirectBuilder.validate()
-                                executeNavigation(redirectBuilder)
-                            }
-                            return@withContext NavigationOutcome.Redirected(initialGuard.redirectRoute)
-                        }
-                        is GuardEvaluation.Allow, null -> Unit
-                    }
+                    guardOutcome(initialGuard)?.let { return@withContext it }
 
                     val isDynamicGraphTarget = precomputedData.graphEntries[targetRoute]?.route != null
                     val entryNode: NavigationNode? = if (isDynamicGraphTarget) {
                         val existingEntry = currentState.backStack.firstOrNull { entry ->
-                            precomputedData.navigatableToGraph[precomputedData.allNavigatables[entry.path]] == targetRoute
+                            precomputedData.navigatableToGraph[entry.navigatable] == targetRoute
                         }
                         if (existingEntry != null) {
-                            precomputedData.allNavigatables[existingEntry.path]
+                            existingEntry.navigatable
                         } else {
                             resolveEntryNavigatable(targetRoute)
                         }
@@ -521,9 +548,8 @@ class NavigationLogic(
                         val resolvedNode = resolveEntryChain(entryNode, targetRoute)
                         val resolvedResolution = if (resolvedNode is Navigatable) {
                             RouteResolution(
-                                targetNavigatable = resolvedNode as Navigatable,
-                                targetGraphId = precomputedData.navigatableToGraph[resolvedNode as Navigatable]
-                                    ?: "root",
+                                targetNavigatable = resolvedNode,
+                                targetGraphId = precomputedData.navigatableToGraph[resolvedNode] ?: "root",
                                 extractedParams = Params.empty()
                             )
                         } else {
@@ -533,30 +559,10 @@ class NavigationLogic(
                         }
 
                         if (initialGuard == null) {
-                            val resolvedRoute = if (resolvedNode is Navigatable)
-                                precomputedData.navigatableToFullPath[resolvedNode as Navigatable]
-                                    ?: (resolvedNode as Navigatable).route
-                            else resolvedNode.route
+                            val resolvedRoute = resolvedNode.fullPathOrRoute()
                             val stateAfterResolution = getCurrentNavigationState()
-                            when (val resolvedGuard = evaluateGuard(resolvedRoute, resolvedResolution, primaryStep, stateAfterResolution)) {
-                                is GuardEvaluation.Reject -> return@withContext NavigationOutcome.Rejected
-                                is GuardEvaluation.Redirect -> {
-                                    navigateDirect(resolvedGuard.route)
-                                    return@withContext NavigationOutcome.Redirected(resolvedGuard.route)
-                                }
-                                is GuardEvaluation.PendAndRedirect -> {
-                                    storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(resolvedGuard.pending))
-                                    if (!resolvedGuard.alreadyAtRedirect) {
-                                        val redirectBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
-                                        redirectBuilder.clearBackStack()
-                                        redirectBuilder.navigateTo(resolvedGuard.redirectRoute)
-                                        redirectBuilder.validate()
-                                        executeNavigation(redirectBuilder)
-                                    }
-                                    return@withContext NavigationOutcome.Redirected(resolvedGuard.redirectRoute)
-                                }
-                                is GuardEvaluation.Allow, null -> Unit
-                            }
+                            val resolvedGuard = evaluateGuard(resolvedRoute, resolvedResolution, primaryStep, stateAfterResolution)
+                            guardOutcome(resolvedGuard)?.let { return@withContext it }
                         }
 
                         val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
@@ -564,8 +570,7 @@ class NavigationLogic(
                         builder.operations.subList(0, primaryStepIndex)
                             .forEach { routeBuilder.operations.add(it) }
                         if (primaryStep.params.isNotEmpty()) routeBuilder.params(primaryStep.params)
-                        if (resolvedNode is Navigatable) routeBuilder.navigateTo(resolvedNode as Navigatable)
-                        else routeBuilder.navigateTo(resolvedNode.route)
+                        routeBuilder.navigateToNode(resolvedNode)
                         val lastIdx = routeBuilder.operations.lastIndex
                         routeBuilder.operations[lastIdx] = routeBuilder.operations[lastIdx].copy(
                             shouldDismissModals = primaryStep.shouldDismissModals,
@@ -585,9 +590,6 @@ class NavigationLogic(
                         storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
                     }
                 }
-            }
-        } finally {
-            navigationMutex.unlock()
         }
     }
 
@@ -626,7 +628,7 @@ class NavigationLogic(
      * @return [NavigationOutcome] describing whether the navigation succeeded, was dropped,
      *   rejected, or redirected.
      */
-    suspend fun navigate(
+    public suspend fun navigate(
         route: String,
         params: Params = Params.empty(),
         replaceCurrent: Boolean = false,
@@ -650,13 +652,14 @@ class NavigationLogic(
      * Dispatches [NavigationAction.Back] directly, bypassing the navigation mutex.
      * This is intentional: a back/dismiss requires no guard evaluation, and the mutex
      * may be held while a loading modal is showing (e.g. during guard evaluation).
-     * Routing through [evaluateAndExecute] would silently drop the dismiss via tryLock.
+     * Routing through [evaluateAndExecute] would needlessly serialize the dismiss
+     * behind the in-flight evaluation.
      */
-    suspend fun navigateBack() {
+    public suspend fun navigateBack() {
         val currentState = getCurrentNavigationState()
         if (!currentState.canGoBack) return
         if (currentState.isEvaluatingNavigation) return
-        if (precomputedData.allNavigatables[currentState.currentEntry.path] is LoadingModal) return
+        if (currentState.currentEntry.navigatable is LoadingModal) return
         storeAccessor.dispatchAndAwait(NavigationAction.Back)
     }
 
@@ -667,7 +670,7 @@ class NavigationLogic(
      * @param inclusive If true, also removes the target route from backstack
      * @param fallback Optional fallback route if the target route is not found
      */
-    suspend fun popUpTo(route: String, inclusive: Boolean = false, fallback: String? = null) {
+    public suspend fun popUpTo(route: String, inclusive: Boolean = false, fallback: String? = null) {
         navigate {
             popUpTo(route, inclusive, fallback)
         }
@@ -680,7 +683,7 @@ class NavigationLogic(
      * @param route Target route to navigate to
      * @param params Parameters to pass to the destination screen
      */
-    suspend fun navigateDeepLink(route: String, params: Params = Params.empty()) {
+    public suspend fun navigateDeepLink(route: String, params: Params = Params.empty()) {
         val (cleanRoute, queryParams) = parseUrlWithQueryParams(route)
 
         var pathParams = Params.empty()
@@ -722,7 +725,7 @@ class NavigationLogic(
      * @param newRoute Optional route to navigate to after clearing backstack
      * @param params Parameters for the new route if specified
      */
-    suspend fun clearBackStack(newRoute: String? = null, params: Params = Params.empty()) {
+    public suspend fun clearBackStack(newRoute: String? = null, params: Params = Params.empty()) {
         if (newRoute != null) {
             navigate {
                 params(params)
@@ -742,10 +745,12 @@ class NavigationLogic(
         wrapActions: (List<NavigationAction>) -> List<NavigationAction> = { it }
     ) {
         val initialState = getCurrentNavigationState()
-        var simulatedCurrentEntry = initialState.currentEntry
-        val navigationStartEntry = simulatedCurrentEntry
-        var simulatedBackStack = initialState.backStack
-        var simulatedModalContexts = initialState.activeModalContexts
+        var sim = StackSnapshot(
+            currentEntry = initialState.currentEntry,
+            backStack = initialState.backStack,
+            modalContexts = initialState.activeModalContexts
+        )
+        val navigationStartEntry = sim.currentEntry
         var lastNavigatedEntry: NavigationEntry? = null
 
         val batchedActions = mutableListOf<NavigationAction>()
@@ -766,75 +771,31 @@ class NavigationLogic(
                     }
 
                     if (step.synthesizeBackstack) {
-                        val pathHierarchy = precomputedData.routeResolver.buildPathHierarchy(resolvedRoute)
-                        val destinationPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                            ?: resolution.targetNavigatable.route
-                        val seenPaths = (simulatedBackStack.map { it.path } + destinationPath).toMutableSet()
+                        val destinationPath = resolution.targetNavigatable.fullPathOrRoute()
+                        val seenPaths = (sim.backStack.map { it.path } + destinationPath).toMutableSet()
 
-                        val rootEntry = resolveGraphEntryForSynthesis("root", simulatedBackStack)
-                        if (rootEntry != null && rootEntry.path !in seenPaths) {
-                            seenPaths.add(rootEntry.path)
-                            batchedActions.add(NavigationAction.Navigate(rootEntry))
-                            simulatedBackStack = simulatedBackStack + rootEntry
-                            simulatedCurrentEntry = rootEntry
-                            lastNavigatedEntry = rootEntry
-                        }
-
-                        for (intermediatePath in pathHierarchy.dropLast(1)) {
-                            val entry = resolveGraphEntryForSynthesis(intermediatePath, simulatedBackStack) ?: continue
-                            if (entry.path in seenPaths) continue
-                            seenPaths.add(entry.path)
+                        for (entry in synthesizeAncestorEntries(resolvedRoute, sim.backStack, seenPaths, includeRoot = true)) {
                             batchedActions.add(NavigationAction.Navigate(entry))
-                            simulatedBackStack = simulatedBackStack + entry
-                            simulatedCurrentEntry = entry
+                            sim = NavigationStackMath.applyNavigate(sim, entry, null, false)
                             lastNavigatedEntry = entry
                         }
 
-                        val finalPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                            ?: resolution.targetNavigatable.route
-                        val finalEntry = createNavigationEntry(step, resolution, finalPath, 0)
+                        val finalEntry = createNavigationEntry(step, resolution, destinationPath, 0)
                         batchedActions.add(NavigationAction.Navigate(finalEntry, dismissModals = step.shouldDismissModals))
-                        simulatedBackStack = simulatedBackStack + finalEntry
-                        simulatedCurrentEntry = finalEntry
+                        sim = NavigationStackMath.applyNavigate(sim, finalEntry, null, step.shouldDismissModals)
                         lastNavigatedEntry = finalEntry
                     } else {
-                        val entryPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                            ?: resolution.targetNavigatable.route
+                        val entryPath = resolution.targetNavigatable.fullPathOrRoute()
                         val entry = createNavigationEntry(step, resolution, entryPath, 0)
-                        if (simulatedBackStack.isNotEmpty() && entry.path == simulatedCurrentEntry.path) {
+                        if (sim.backStack.isNotEmpty() && entry.path == sim.currentEntry.path) {
                             continue
                         }
-                        val isModal = precomputedData.allNavigatables[entry.path] is Modal
+                        val isModal = entry.navigatable is Modal
                         val modalCtx = if (isModal) buildModalContext(
-                            entry, simulatedCurrentEntry, simulatedBackStack, simulatedModalContexts
+                            entry, sim.currentEntry, sim.backStack, sim.modalContexts
                         ) else null
                         batchedActions.add(NavigationAction.Navigate(entry, modalCtx, step.shouldDismissModals))
-
-                        val baseBackStack = if (step.shouldDismissModals)
-                            simulatedBackStack.filter { precomputedData.allNavigatables[it.path] !is Modal }
-                        else simulatedBackStack
-                        simulatedBackStack = when {
-                            isModal -> simulatedBackStack + entry
-                            baseBackStack.isEmpty() -> listOf(entry)
-                            else -> baseBackStack + entry
-                        }
-                        simulatedModalContexts = when {
-                            step.shouldDismissModals -> emptyMap()
-                            isModal && modalCtx != null ->
-                                simulatedModalContexts + (entry.path to modalCtx)
-                            !isModal && !step.shouldDismissModals &&
-                                    precomputedData.allNavigatables[simulatedCurrentEntry.path] is Modal &&
-                                    simulatedModalContexts.isNotEmpty() -> {
-                                val modalPath = simulatedCurrentEntry.path
-                                val ctx = simulatedModalContexts[modalPath]
-                                if (ctx != null) {
-                                    val underlying = ctx.originalUnderlyingScreenEntry.path
-                                    mapOf(underlying to ctx.copy(navigatedAwayToRoute = entry.path))
-                                } else simulatedModalContexts
-                            }
-                            else -> simulatedModalContexts
-                        }
-                        simulatedCurrentEntry = entry
+                        sim = NavigationStackMath.applyNavigate(sim, entry, modalCtx, step.shouldDismissModals)
                         lastNavigatedEntry = entry
                     }
                 }
@@ -850,29 +811,22 @@ class NavigationLogic(
                             resolvedRoute, precomputedData.availableNavigatables
                         ) ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
                     }
-                    val entryPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                        ?: resolution.targetNavigatable.route
-                    val entry = createNavigationEntry(step, resolution, entryPath, simulatedBackStack.size)
+                    val entryPath = resolution.targetNavigatable.fullPathOrRoute()
+                    val entry = createNavigationEntry(step, resolution, entryPath, sim.backStack.size)
                     batchedActions.add(NavigationAction.Replace(entry))
-                    simulatedBackStack = if (simulatedBackStack.isEmpty()) listOf(entry)
-                                         else simulatedBackStack.dropLast(1) + entry
-                    simulatedCurrentEntry = entry
+                    sim = NavigationStackMath.applyReplace(sim, entry)
                     lastNavigatedEntry = entry
                 }
 
                 NavigationOperation.Back -> {
                     batchedActions.add(NavigationAction.Back)
-                    if (simulatedBackStack.size > 1) {
-                        simulatedBackStack = simulatedBackStack.dropLast(1)
-                        simulatedCurrentEntry = simulatedBackStack.last()
-                    }
+                    sim = NavigationStackMath.applyBack(sim)
                     lastNavigatedEntry = null
                 }
 
                 NavigationOperation.ClearBackStack -> {
                     batchedActions.add(NavigationAction.ClearBackstack)
-                    simulatedBackStack = emptyList()
-                    simulatedModalContexts = emptyMap()
+                    sim = NavigationStackMath.applyClearBackstack(sim)
                     lastNavigatedEntry = null
                 }
 
@@ -884,42 +838,24 @@ class NavigationLogic(
                         pending.route, precomputedData.availableNavigatables
                     ) ?: continue
 
-                    val pathHierarchy = precomputedData.routeResolver.buildPathHierarchy(pending.route)
-                    val destinationPath = precomputedData.navigatableToFullPath[pendingResolution.targetNavigatable]
-                        ?: pendingResolution.targetNavigatable.route
-                    val seenPaths = (simulatedBackStack.map { it.path } + destinationPath).toMutableSet()
+                    val destinationPath = pendingResolution.targetNavigatable.fullPathOrRoute()
+                    val seenPaths = (sim.backStack.map { it.path } + destinationPath).toMutableSet()
 
-                    if (simulatedBackStack.isEmpty()) {
-                        val rootEntry = resolveGraphEntryForSynthesis("root", simulatedBackStack)
-                        if (rootEntry != null && rootEntry.path !in seenPaths) {
-                            seenPaths.add(rootEntry.path)
-                            batchedActions.add(NavigationAction.Navigate(rootEntry))
-                            simulatedBackStack = simulatedBackStack + rootEntry
-                            simulatedCurrentEntry = rootEntry
-                            lastNavigatedEntry = rootEntry
-                        }
-                    }
-
-                    for (intermediatePath in pathHierarchy.dropLast(1)) {
-                        val entry = resolveGraphEntryForSynthesis(intermediatePath, simulatedBackStack) ?: continue
-                        if (entry.path in seenPaths) continue
-                        seenPaths.add(entry.path)
+                    for (entry in synthesizeAncestorEntries(
+                        pending.route, sim.backStack, seenPaths,
+                        includeRoot = sim.backStack.isEmpty()
+                    )) {
                         batchedActions.add(NavigationAction.Navigate(entry))
-                        simulatedBackStack = simulatedBackStack + entry
-                        simulatedCurrentEntry = entry
+                        sim = NavigationStackMath.applyNavigate(sim, entry, null, false)
                         lastNavigatedEntry = entry
                     }
 
-                    val mergedParams = pendingResolution.extractedParams + pending.params
-                    val finalEntry = NavigationEntry(
+                    val finalEntry = pendingResolution.targetNavigatable.toNavigationEntry(
                         path = destinationPath,
-                        params = mergedParams,
-                        stackPosition = 0,
-                        navigatableRoute = pendingResolution.targetNavigatable.route
+                        params = pendingResolution.extractedParams + pending.params
                     )
                     batchedActions.add(NavigationAction.Navigate(finalEntry))
-                    simulatedBackStack = simulatedBackStack + finalEntry
-                    simulatedCurrentEntry = finalEntry
+                    sim = NavigationStackMath.applyNavigate(sim, finalEntry, null, false)
                     lastNavigatedEntry = finalEntry
                 }
 
@@ -928,7 +864,7 @@ class NavigationLogic(
                         ?: throw IllegalStateException("PopUpTo operation requires a popUpTo target")
 
                     val targetIndex = precomputedData.routeResolver.findRouteInBackStack(
-                        resolvedRoute, simulatedBackStack
+                        resolvedRoute, sim.backStack
                     )
 
                     if (targetIndex < 0) {
@@ -937,32 +873,32 @@ class NavigationLogic(
                             val resolution = precomputedData.routeResolver.resolve(
                                 fallbackRoute, precomputedData.availableNavigatables
                             ) ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
-                            val fallbackPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-                                ?: resolution.targetNavigatable.route
+                            val fallbackPath = resolution.targetNavigatable.fullPathOrRoute()
                             val newEntry = createNavigationEntry(
                                 step.copy(target = step.popUpToFallback),
                                 resolution,
                                 fallbackPath,
                                 stackPosition = 1
                             )
+                            batchedActions.add(NavigationAction.ClearBackstack)
+                            sim = NavigationStackMath.applyClearBackstack(sim)
                             batchedActions.add(NavigationAction.Navigate(newEntry))
-                            simulatedBackStack = listOf(newEntry)
-                            simulatedCurrentEntry = newEntry
-                            simulatedModalContexts = emptyMap()
+                            sim = NavigationStackMath.applyNavigate(sim, newEntry, null, false)
                             lastNavigatedEntry = newEntry
                         } else {
                             throw RouteNotFoundException("No match found for route $resolvedRoute")
                         }
                     } else {
                         val trimmedBackStack = if (step.popUpToInclusive) {
-                            simulatedBackStack.take(targetIndex)
+                            sim.backStack.take(targetIndex)
                         } else {
-                            simulatedBackStack.take(targetIndex + 1)
+                            sim.backStack.take(targetIndex + 1)
                         }
 
-                        val entryToReAdd = if (lastNavigatedEntry != null &&
-                            trimmedBackStack.none { it.path == lastNavigatedEntry!!.path }) {
-                            lastNavigatedEntry
+                        val toReAdd = lastNavigatedEntry
+                        val entryToReAdd = if (toReAdd != null &&
+                            trimmedBackStack.none { it.path == toReAdd.path }) {
+                            toReAdd
                         } else null
 
                         val wouldBeEmpty = trimmedBackStack.isEmpty() && entryToReAdd == null
@@ -974,16 +910,7 @@ class NavigationLogic(
                         }
 
                         batchedActions.add(NavigationAction.PopUpTo(resolvedRoute, step.popUpToInclusive, entryToReAdd))
-
-                        simulatedBackStack = if (entryToReAdd != null) {
-                            val pos = trimmedBackStack.size + 1
-                            trimmedBackStack + entryToReAdd.copy(stackPosition = pos)
-                        } else {
-                            trimmedBackStack
-                        }
-                        simulatedCurrentEntry = simulatedBackStack.lastOrNull() ?: simulatedCurrentEntry
-                        val trimmedPaths = simulatedBackStack.map { it.path }.toSet()
-                        simulatedModalContexts = simulatedModalContexts.filterKeys { it in trimmedPaths }
+                        sim = NavigationStackMath.applyPopUpTo(sim, targetIndex, step.popUpToInclusive, entryToReAdd)
                         lastNavigatedEntry = null
                     }
                 }
@@ -1000,10 +927,9 @@ class NavigationLogic(
         val lastNavigatedNavEntry = batchedActions
             .filterIsInstance<NavigationAction.Navigate>()
             .lastOrNull()?.entry
-        val lastNavigatedNavigatable = lastNavigatedNavEntry?.let { precomputedData.allNavigatables[it.path] }
+        val lastNavigatedNavigatable = lastNavigatedNavEntry?.navigatable
         val enterMs = lastNavigatedNavigatable?.enterTransition?.durationMillis?.toLong() ?: 0L
-        val exitMs = precomputedData.allNavigatables[navigationStartEntry.path]
-            ?.exitTransition?.durationMillis?.toLong() ?: 0L
+        val exitMs = navigationStartEntry.navigatable.exitTransition.durationMillis.toLong()
         val animMs = maxOf(enterMs, exitMs)
         if (animMs > 0L) delay(animMs)
     }
@@ -1024,7 +950,7 @@ class NavigationLogic(
         val navigationStateFlow = storeAccessor.selectState<NavigationState>()
 
         addedEntries.forEach { entry ->
-            val navigatable = precomputedData.allNavigatables[entry.path] ?: return@forEach
+            val navigatable = entry.navigatable
             try {
                 val lifecycleJob = SupervisorJob(storeAccessor.coroutineContext[Job])
                 val lifecycleScope = CoroutineScope(storeAccessor.coroutineContext + lifecycleJob)
@@ -1053,14 +979,10 @@ class NavigationLogic(
         path: String,
         stackPosition: Int
     ): NavigationEntry {
-        val encodedParams = step.params
-        val mergedParams = resolution.extractedParams + encodedParams
-
-        return NavigationEntry(
+        return resolution.targetNavigatable.toNavigationEntry(
             path = path,
-            params = mergedParams,
-            stackPosition = stackPosition,
-            navigatableRoute = resolution.targetNavigatable.route
+            params = resolution.extractedParams + step.params,
+            stackPosition = stackPosition
         )
     }
 
@@ -1070,7 +992,7 @@ class NavigationLogic(
         backStack: List<NavigationEntry>,
         activeModalContexts: Map<String, ModalContext>
     ): ModalContext? {
-        val underlying = if (precomputedData.allNavigatables[currentEntry.path] is Modal)
+        val underlying = if (currentEntry.navigatable is Modal)
             activeModalContexts.values.firstOrNull()?.originalUnderlyingScreenEntry
                 ?: findUnderlyingScreenForModal(currentEntry, backStack)
         else currentEntry
@@ -1090,7 +1012,7 @@ class NavigationLogic(
         if (modalIndex <= 0) return null
 
         return backStack.subList(0, modalIndex).lastOrNull {
-            precomputedData.allNavigatables[it.path] is Screen
+            it.navigatable is Screen
         }
     }
 

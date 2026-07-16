@@ -52,7 +52,7 @@ object LeaderboardDetailScreen : Screen {
         ) {
             item {
                 Text(
-                    "${period.capitalize()} Leaderboard",
+                    "${period.replaceFirstChar { it.uppercase() }} Leaderboard",
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )

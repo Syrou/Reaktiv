@@ -13,26 +13,25 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.Json
 
-actual class DevToolsConnection actual constructor(private val serverUrl: String) {
+public actual class DevToolsConnection actual constructor(private val serverUrl: String) {
     private val client = HttpClient(OkHttp) {
         install(WebSockets)
     }
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-    }
+    private val json = reaktivJson()
 
     private val scope = CoroutineScope(SupervisorJob())
     private var session: DefaultClientWebSocketSession? = null
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
-    actual val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+    public actual val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
     private val messageHandler = MutableStateFlow<(suspend (DevToolsMessage) -> Unit)?>(null)
 
-    actual suspend fun connect(clientId: String, clientName: String, platform: String) {
+    public actual suspend fun connect(clientId: String, clientName: String, platform: String) {
         try {
             _connectionState.value = ConnectionState.CONNECTING
             session = client.webSocketSession(serverUrl)
@@ -48,7 +47,7 @@ actual class DevToolsConnection actual constructor(private val serverUrl: String
         }
     }
 
-    actual suspend fun send(message: DevToolsMessage) {
+    public actual suspend fun send(message: DevToolsMessage) {
         try {
             val jsonString = json.encodeToString(message)
             session?.send(Frame.Text(jsonString))
@@ -57,11 +56,11 @@ actual class DevToolsConnection actual constructor(private val serverUrl: String
         }
     }
 
-    actual fun observeMessages(handler: suspend (DevToolsMessage) -> Unit) {
+    public actual fun observeMessages(handler: suspend (DevToolsMessage) -> Unit) {
         messageHandler.value = handler
     }
 
-    actual suspend fun disconnect() {
+    public actual suspend fun disconnect() {
         session?.close()
         client.close()
         _connectionState.value = ConnectionState.DISCONNECTED

@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.devtools.ui
 
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -261,7 +262,7 @@ private fun DevToolsContent(store: Store) {
                             }
                             clientId?.let {
                                 dispatch(DevToolsAction.SetPublisherSessionStart(
-                                    kotlin.time.Clock.System.now().toEpochMilliseconds()
+                                    currentTimeMillis()
                                 ))
                                 dispatch(DevToolsAction.SetCanExportSession(true))
                                 scope.launch {

@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.stateIn
  * Passed to [BackstackLifecycle.invokeOnRemoval] handlers so they can
  * distinguish between normal navigation removal and a full store reset.
  */
-enum class RemovalReason {
+public enum class RemovalReason {
     /** Entry was removed via normal navigation (back, popUpTo, replace, etc.) */
     NAVIGATION,
 
@@ -90,14 +90,14 @@ enum class RemovalReason {
  * @property entry The navigation entry for this navigatable
  * @property visibility StateFlow indicating whether this entry is currently visible. Use .value for current state or collect for changes.
  */
-class BackstackLifecycle(
-    val entry: NavigationEntry,
+public class BackstackLifecycle(
+    public val entry: NavigationEntry,
     navigationStateFlow: StateFlow<NavigationState>,
     @PublishedApi internal val storeAccessor: StoreAccessor,
     lifecycleScope: CoroutineScope
 ) : CoroutineScope by lifecycleScope {
 
-    val visibility: StateFlow<Boolean> = navigationStateFlow
+    public val visibility: StateFlow<Boolean> = navigationStateFlow
         .map { state -> state.currentEntry.stableKey == entry.stableKey }
         .stateIn(
             scope = lifecycleScope,
@@ -105,14 +105,14 @@ class BackstackLifecycle(
             initialValue = navigationStateFlow.value.currentEntry.stableKey == entry.stableKey
         )
 
-    val params: Params get() = entry.params
-    val route: String get() = entry.route
+    public val params: Params get() = entry.params
+    public val route: String get() = entry.route
 
-    fun dispatch(action: ModuleAction) = storeAccessor.dispatch(action)
+    public fun dispatch(action: ModuleAction): Unit = storeAccessor.dispatch(action)
 
-    suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = storeAccessor.selectState()
+    public suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = storeAccessor.selectState()
 
-    suspend inline fun <reified L : ModuleLogic> selectLogic(): L = storeAccessor.selectLogic<L>()
+    public suspend inline fun <reified L : ModuleLogic> selectLogic(): L = storeAccessor.selectLogic<L>()
 
     private val removalHandlers = mutableListOf<StoreAccessor.(RemovalReason) -> Unit>()
 
@@ -151,7 +151,7 @@ class BackstackLifecycle(
      *
      * @param handler Callback invoked with [StoreAccessor] as receiver and [RemovalReason] as parameter.
      */
-    fun invokeOnRemoval(handler: StoreAccessor.(RemovalReason) -> Unit) {
+    public fun invokeOnRemoval(handler: StoreAccessor.(RemovalReason) -> Unit) {
         removalHandlers.add(handler)
     }
 
@@ -168,33 +168,36 @@ class BackstackLifecycle(
     }
 }
 
-interface Navigatable : NavigationNode {
-    val titleResource: TitleResource?
-    val actionResource: ActionResource?
-    val enterTransition: NavTransition
-    val exitTransition: NavTransition
-    val popEnterTransition: NavTransition?
-    val popExitTransition: NavTransition?
+public interface Navigatable : NavigationNode {
+    public val titleResource: TitleResource?
+    public val actionResource: ActionResource?
+    public val enterTransition: NavTransition
+    public val exitTransition: NavTransition
+    public val popEnterTransition: NavTransition?
+    public val popExitTransition: NavTransition?
 
     /**
      * Which layer this navigatable should render in
      */
-    val renderLayer: RenderLayer
+    public val renderLayer: RenderLayer
         get() = RenderLayer.CONTENT
 
     /**
      * Elevation within the layer (higher = on top)
      */
-    val elevation: Float
+    public val elevation: Float
         get() = 0f
 
-    val backGestureEnabled: Boolean
+    public val backGestureEnabled: Boolean
         get() = true
 
-    val swipeToDismiss: Boolean
+    public val swipeToDismiss: Boolean
         get() = enterTransition.presentationAxis() == GestureAxis.Vertical
 
-    val onDismissRequest: (suspend StoreAccessor.() -> Unit)?
+    public val showsDismissIndicator: Boolean
+        get() = true
+
+    public val onDismissRequest: (suspend StoreAccessor.() -> Unit)?
         get() = null
 
     /**
@@ -250,8 +253,8 @@ interface Navigatable : NavigationNode {
      *
      * @param lifecycle Provides entry info, visibility, dispatch, selectState, and coroutine scope
      */
-    suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {}
+    public suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {}
 
     @Composable
-    fun Content(params: Params)
+    public fun Content(params: Params)
 }

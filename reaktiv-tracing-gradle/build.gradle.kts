@@ -10,27 +10,8 @@ plugins {
 group = "io.github.syrou"
 
 centralPublisher {
-    username.set(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_TOKEN"))
-    password.set(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_PASSWORD"))
-    publishingType = PublishingType.AUTOMATIC
-
-    signingPassword.set(CentralPublisherCredentials.credentialProvider(project, "SIGNING_PASSWORD"))
-    signingSecretKey.set(CentralPublisherCredentials.credentialProvider(project, "SIGNING_SECRET_KEY"))
-
     projectName = "Reaktiv Tracing Gradle Plugin"
     projectDescription = "Gradle plugin for automatic logic method tracing in Reaktiv"
-    projectUrl = "https://github.com/Syrou/Reaktiv"
-
-    licenseName = "Apache License 2.0"
-    licenseUrl = "https://opensource.org/license/apache-2-0"
-
-    developerId = "Syrou"
-    developerName = "Syrou"
-    developerEmail = "me@syrou.eu"
-
-    scmUrl = "https://github.com/Syrou/Reaktiv"
-    scmConnection = "scm:git:https://github.com/Syrou/Reaktiv.git"
-    scmDeveloperConnection = "scm:git:ssh://github.com/Syrou/Reaktiv.git"
 }
 
 repositories {

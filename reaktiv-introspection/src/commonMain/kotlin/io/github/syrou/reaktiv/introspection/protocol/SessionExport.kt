@@ -1,12 +1,15 @@
 package io.github.syrou.reaktiv.introspection.protocol
 
+import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
+import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
+import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import kotlinx.serialization.Serializable
 
 /**
  * JSON export format version for captured sessions.
  */
-object SessionExportFormat {
-    const val VERSION = "2.0"
+public object SessionExportFormat {
+    public const val VERSION: String = "3.0"
 }
 
 /**
@@ -16,7 +19,7 @@ object SessionExportFormat {
  * Example JSON structure:
  * ```json
  * {
- *   "version": "1.0",
+ *   "version": "3.0",
  *   "sessionId": "uuid",
  *   "exportedAt": 1704067200000,
  *   "clientInfo": { "clientId": "...", "clientName": "...", "platform": "..." },
@@ -28,7 +31,7 @@ object SessionExportFormat {
  * This format is compatible with DevTools ghost device import.
  */
 @Serializable
-data class SessionExport(
+public data class SessionExport(
     val version: String = SessionExportFormat.VERSION,
     val sessionId: String,
     val exportedAt: Long,
@@ -41,7 +44,7 @@ data class SessionExport(
  * Basic client information for export.
  */
 @Serializable
-data class ExportedClientInfo(
+public data class ExportedClientInfo(
     val clientId: String,
     val clientName: String,
     val platform: String
@@ -51,7 +54,7 @@ data class ExportedClientInfo(
  * Crash information with timestamp and exception details.
  */
 @Serializable
-data class CrashInfo(
+public data class CrashInfo(
     val timestamp: Long,
     val exception: CrashException
 )
@@ -60,7 +63,7 @@ data class CrashInfo(
  * Represents exception information captured during a crash.
  */
 @Serializable
-data class CrashException(
+public data class CrashException(
     val exceptionType: String,
     val message: String?,
     val stackTrace: String,
@@ -71,24 +74,38 @@ data class CrashException(
  * The captured session data including actions and logic events.
  */
 @Serializable
-data class SessionData(
+public data class SessionData(
     val startTime: Long,
     val endTime: Long,
     val initialStateJson: String = "{}",
     val actions: List<CapturedAction>,
-    val logicStartedEvents: List<CapturedLogicStart>,
-    val logicCompletedEvents: List<CapturedLogicComplete>,
-    val logicFailedEvents: List<CapturedLogicFailed>
+    val logicStartedEvents: List<LogicMethodStart>,
+    val logicCompletedEvents: List<LogicMethodCompleted>,
+    val logicFailedEvents: List<LogicMethodFailed>
 )
 
 /**
  * Converts a Throwable to a CrashException for serialization.
  */
-fun Throwable.toCrashException(): CrashException {
+public fun Throwable.toCrashException(): CrashException {
     return CrashException(
         exceptionType = this::class.simpleName ?: "Unknown",
         message = this.message,
         stackTrace = this.stackTraceToString(),
         causedBy = this.cause?.toCrashException()
+    )
+}
+
+/**
+ * Converts a traced logic failure into the canonical crash envelope.
+ */
+public fun LogicMethodFailed.toCrashInfo(): CrashInfo {
+    return CrashInfo(
+        timestamp = timestampMs,
+        exception = CrashException(
+            exceptionType = exceptionType,
+            message = exceptionMessage,
+            stackTrace = stackTrace ?: ""
+        )
     )
 }

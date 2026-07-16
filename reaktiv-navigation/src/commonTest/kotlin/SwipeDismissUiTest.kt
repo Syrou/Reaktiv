@@ -162,7 +162,7 @@ class SwipeDismissUiTest {
         }
         val module = createNavigationModule {
             rootGraph {
-                startScreen(UiHomeScreen)
+                start(UiHomeScreen)
                 screens(UiHomeScreen)
                 modals(swipeModal)
             }
@@ -210,7 +210,7 @@ class SwipeDismissUiTest {
         }
         val module = createNavigationModule {
             rootGraph {
-                startScreen(UiHomeScreen)
+                start(UiHomeScreen)
                 screens(UiHomeScreen)
                 modals(defaultModal)
             }
@@ -264,7 +264,7 @@ class SwipeDismissUiTest {
         }
         val module = createNavigationModule {
             rootGraph {
-                startScreen(UiHomeScreen)
+                start(UiHomeScreen)
                 screens(UiHomeScreen, guardedSheet)
             }
         }
@@ -298,56 +298,6 @@ class SwipeDismissUiTest {
     }
 
     @Test
-    fun deprecatedTapOutsideClickStillDismisses() = runComposeUiTest {
-        val recorder = BackActionRecorder()
-        val tapModal = object : Modal {
-            override val route = "tap-modal"
-            override val enterTransition = NavTransition.None
-            override val exitTransition = NavTransition.None
-
-            @Deprecated("test uses legacy api")
-            @Suppress("OVERRIDE_DEPRECATION")
-            override val tapOutsideClick: (suspend StoreAccessor.() -> Unit) = { navigateBack() }
-
-            @Composable
-            override fun Content(params: Params) {
-                Box(
-                    modifier = Modifier.size(100.dp).testTag("tap-modal-content"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Tap Modal")
-                }
-            }
-        }
-        val module = createNavigationModule {
-            rootGraph {
-                startScreen(UiHomeScreen)
-                screens(UiHomeScreen)
-                modals(tapModal)
-            }
-        }
-        val store = createStore {
-            module(module)
-            middlewares(recorder.middleware)
-        }
-        setContent {
-            StoreProvider(store) {
-                NavigationRender()
-            }
-        }
-        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = 5000)
-        store.launch { store.navigation { navigateTo("tap-modal") } }
-        waitUntilExactlyOneExists(hasText("Tap Modal"), timeoutMillis = 5000)
-
-        onRoot().performTouchInput {
-            down(Offset(20f, 20f))
-            up()
-        }
-        waitUntil(timeoutMillis = 5000) { onAllNodesWithText("Tap Modal").fetchSemanticsNodes().isEmpty() }
-        assertEquals(1, recorder.backActions.size)
-    }
-
-    @Test
     fun modalBackgroundStillBlocksClickThrough() = runComposeUiTest {
         val recorder = BackActionRecorder()
         var homeClicks = 0
@@ -378,7 +328,7 @@ class SwipeDismissUiTest {
         }
         val module = createNavigationModule {
             rootGraph {
-                startScreen(clickHome)
+                start(clickHome)
                 screens(clickHome)
                 modals(blockingModal)
             }

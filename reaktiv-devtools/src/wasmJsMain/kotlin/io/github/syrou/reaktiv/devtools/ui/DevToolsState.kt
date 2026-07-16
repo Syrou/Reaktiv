@@ -2,8 +2,12 @@ package io.github.syrou.reaktiv.devtools.ui
 
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
+import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
+import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.devtools.client.ConnectionState
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
+import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import kotlinx.serialization.Serializable
 
@@ -14,7 +18,7 @@ import kotlinx.serialization.Serializable
 data class DevToolsState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val connectedClients: List<ClientInfo> = emptyList(),
-    val actionStateHistory: List<ActionStateEvent> = emptyList(),
+    val actionStateHistory: List<CapturedAction> = emptyList(),
     val logicMethodEvents: List<LogicMethodEvent> = emptyList(),
     val selectedPublisher: String? = null,
     val selectedListener: String? = null,
@@ -55,7 +59,7 @@ data class CrashEventInfo(
 sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data class UpdateConnectionState(val state: ConnectionState) : DevToolsAction()
     data class UpdateClientList(val clients: List<ClientInfo>) : DevToolsAction()
-    data class AddActionStateEvent(val event: ActionStateEvent) : DevToolsAction()
+    data class AddActionStateEvent(val event: CapturedAction) : DevToolsAction()
     data class AddLogicMethodEvent(val event: LogicMethodEvent) : DevToolsAction()
     data class SelectPublisher(val clientId: String?) : DevToolsAction()
     data class SelectListener(val clientId: String?) : DevToolsAction()
@@ -82,7 +86,7 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
     data class SelectCrash(val selected: Boolean) : DevToolsAction()
     data class SetPublisherSessionStart(val startTime: Long?) : DevToolsAction()
     data class SetCanExportSession(val canExport: Boolean) : DevToolsAction()
-    data class BulkAddActionStateEvents(val events: List<ActionStateEvent>) : DevToolsAction()
+    data class BulkAddActionStateEvents(val events: List<CapturedAction>) : DevToolsAction()
     data class BulkAddLogicMethodEvents(val events: List<LogicMethodEvent>) : DevToolsAction()
     data class SetActiveGhostId(val ghostId: String?) : DevToolsAction()
     data class EnableTimeTravelWithGhost(val ghostId: String) : DevToolsAction()
@@ -90,20 +94,8 @@ sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
 }
 
 /**
- * Represents an action dispatched by a client with its resulting state.
- */
-@Serializable
-data class ActionStateEvent(
-    val clientId: String,
-    val timestamp: Long,
-    val actionType: String,
-    val actionData: String,
-    val stateDeltaJson: String,
-    val moduleName: String = ""
-)
-
-/**
- * Represents a logic method tracing event from a client.
+ * Represents a logic method tracing event from a client, wrapping the canonical
+ * core tracing event together with the originating client ID.
  */
 @Serializable
 sealed class LogicMethodEvent {
@@ -114,34 +106,40 @@ sealed class LogicMethodEvent {
     @Serializable
     data class Started(
         override val clientId: String,
-        override val timestamp: Long,
-        override val callId: String,
-        val logicClass: String,
-        val methodName: String,
-        val params: Map<String, String>,
-        val sourceFile: String? = null,
-        val lineNumber: Int? = null,
-        val githubSourceUrl: String? = null
-    ) : LogicMethodEvent()
+        val event: LogicMethodStart
+    ) : LogicMethodEvent() {
+        override val timestamp: Long get() = event.timestampMs
+        override val callId: String get() = event.callId
+        val logicClass: String get() = event.logicClass
+        val methodName: String get() = event.methodName
+        val params: Map<String, String> get() = event.params
+        val sourceFile: String? get() = event.sourceFile
+        val lineNumber: Int? get() = event.lineNumber
+        val githubSourceUrl: String? get() = event.githubSourceUrl
+    }
 
     @Serializable
     data class Completed(
         override val clientId: String,
-        override val timestamp: Long,
-        override val callId: String,
-        val result: String?,
-        val resultType: String,
-        val durationMs: Long
-    ) : LogicMethodEvent()
+        val event: LogicMethodCompleted
+    ) : LogicMethodEvent() {
+        override val timestamp: Long get() = event.timestampMs
+        override val callId: String get() = event.callId
+        val result: String? get() = event.result
+        val resultType: String get() = event.resultType
+        val durationMs: Long get() = event.durationMs
+    }
 
     @Serializable
     data class Failed(
         override val clientId: String,
-        override val timestamp: Long,
-        override val callId: String,
-        val exceptionType: String,
-        val exceptionMessage: String?,
-        val stackTrace: String? = null,
-        val durationMs: Long
-    ) : LogicMethodEvent()
+        val event: LogicMethodFailed
+    ) : LogicMethodEvent() {
+        override val timestamp: Long get() = event.timestampMs
+        override val callId: String get() = event.callId
+        val exceptionType: String get() = event.exceptionType
+        val exceptionMessage: String? get() = event.exceptionMessage
+        val stackTrace: String? get() = event.stackTrace
+        val durationMs: Long get() = event.durationMs
+    }
 }

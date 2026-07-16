@@ -8,9 +8,9 @@ import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
 import platform.Foundation.writeToFile
 
-actual class SessionFileExport actual constructor(private val platformContext: PlatformContext) {
+public actual class SessionFileExport actual constructor(private val platformContext: PlatformContext) {
 
-    actual fun saveToDownloads(json: String, fileName: String): String {
+    public actual fun saveToDownloads(json: String, fileName: String): String {
         val fileManager = NSFileManager.defaultManager
         val urls = fileManager.URLsForDirectory(NSDocumentDirectory, NSUserDomainMask)
         val documentsUrl = urls.firstOrNull()

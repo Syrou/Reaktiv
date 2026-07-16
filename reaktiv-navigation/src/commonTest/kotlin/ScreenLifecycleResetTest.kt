@@ -56,7 +56,7 @@ class ScreenLifecycleResetTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen, settingsScreen)
                 }
             }
@@ -132,7 +132,7 @@ class ScreenLifecycleResetTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen, settingsScreen)
                 }
             }
@@ -179,7 +179,7 @@ class ScreenLifecycleResetTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen, settingsScreen)
                 }
             }

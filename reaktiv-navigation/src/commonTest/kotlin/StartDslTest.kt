@@ -333,7 +333,7 @@ class StartDslTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        entry(homeScreen)
+                        start(homeScreen)
                         screens(homeScreen)
                     }
                 })
@@ -352,7 +352,7 @@ class StartDslTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        startGraph("workspace")
+                        start("workspace")
                         screens(homeScreen)
                         graph("workspace") {
                             start(dashboardScreen)
@@ -376,7 +376,7 @@ class StartDslTest {
                 module(createNavigationModule {
                     loadingModal(loadingModal())
                     rootGraph {
-                        entry(route = { _ -> homeScreen })
+                        start(route = { _ -> homeScreen })
                         screens(homeScreen)
                     }
                 })

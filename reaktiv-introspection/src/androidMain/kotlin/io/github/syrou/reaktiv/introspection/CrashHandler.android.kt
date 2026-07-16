@@ -1,15 +1,17 @@
 package io.github.syrou.reaktiv.introspection
 
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
-import kotlin.time.Clock
+import kotlinx.coroutines.runBlocking
 
-actual class CrashHandler actual constructor(
+public actual class CrashHandler actual constructor(
     private val platformContext: PlatformContext,
     private val sessionCapture: SessionCapture
 ) {
-    actual fun install() {
+    public actual fun install() {
         if (installed) {
-            println("Introspection: Crash handler already installed")
+            ReaktivDebug.general("Introspection: Crash handler already installed")
             return
         }
 
@@ -18,8 +20,8 @@ actual class CrashHandler actual constructor(
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                val json = sessionCapture.exportCrashSession(throwable)
-                val timestamp = Clock.System.now().toEpochMilliseconds()
+                val json = runBlocking { sessionCapture.exportCrashSession(throwable) }
+                val timestamp = currentTimeMillis()
                 val fileName = "reaktiv_crash_$timestamp.json"
                 val savedPath = sessionExport.saveToDownloads(json, fileName)
                 println("Introspection: Crash session saved to $savedPath")
@@ -31,10 +33,10 @@ actual class CrashHandler actual constructor(
         }
 
         installed = true
-        println("Introspection: Crash handler installed")
+        ReaktivDebug.general("Introspection: Crash handler installed")
     }
 
-    companion object {
+    public companion object {
         private var installed = false
     }
 }

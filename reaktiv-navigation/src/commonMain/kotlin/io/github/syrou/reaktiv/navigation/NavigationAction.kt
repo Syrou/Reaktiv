@@ -5,6 +5,7 @@ import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
 /**
@@ -21,63 +22,63 @@ import kotlinx.serialization.Serializable
  * }
  * ```
  */
-sealed class NavigationOutcome {
+public sealed class NavigationOutcome {
     /** Navigation was executed successfully. */
-    data object Success : NavigationOutcome()
+    public data object Success : NavigationOutcome()
 
     /** Navigation was silently dropped because another navigation was already in progress. */
-    data object Dropped : NavigationOutcome()
+    public data object Dropped : NavigationOutcome()
 
     /** Navigation was rejected by a guard. */
-    data object Rejected : NavigationOutcome()
+    public data object Rejected : NavigationOutcome()
 
     /**
      * Navigation was redirected by a guard.
      *
      * @param to The route the guard redirected to.
      */
-    data class Redirected(val to: String) : NavigationOutcome()
+    public data class Redirected(val to: String) : NavigationOutcome()
 }
 
 @Serializable
-sealed class NavigationAction : ModuleAction(NavigationModule::class) {
+public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 
     @Serializable
-    data class Navigate(
-        val entry: NavigationEntry,
+    public data class Navigate(
+        @Contextual val entry: NavigationEntry,
         val modalContext: ModalContext? = null,
         val dismissModals: Boolean = false
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class Replace(val entry: NavigationEntry) : NavigationAction(), HighPriorityAction
+    public data class Replace(@Contextual val entry: NavigationEntry) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    object Back : NavigationAction(), HighPriorityAction
+    public object Back : NavigationAction(), HighPriorityAction
 
     @Serializable
-    object ClearBackstack : NavigationAction(), HighPriorityAction
+    public object ClearBackstack : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class PopUpTo(
+    public data class PopUpTo(
         val route: String,
         val inclusive: Boolean,
-        val entryToReAdd: NavigationEntry? = null
+        @Contextual val entryToReAdd: NavigationEntry? = null
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class SetPendingNavigation(
+    public data class SetPendingNavigation(
         val pending: PendingNavigation
     ) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    object ClearPendingNavigation : NavigationAction(), HighPriorityAction
+    public object ClearPendingNavigation : NavigationAction(), HighPriorityAction
 
     @Serializable
-    data class AtomicBatch(val actions: List<NavigationAction>) : NavigationAction(), HighPriorityAction
+    public data class AtomicBatch(val actions: List<NavigationAction>) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    object BootstrapComplete : NavigationAction(), HighPriorityAction
+    public object BootstrapComplete : NavigationAction(), HighPriorityAction
 
     /**
      * Sets [NavigationState.isEvaluatingNavigation] to [isEvaluating].
@@ -90,14 +91,5 @@ sealed class NavigationAction : ModuleAction(NavigationModule::class) {
      * @param isEvaluating `true` to show the evaluation overlay; `false` to hide it.
      */
     @Serializable
-    data class SetEvaluating(val isEvaluating: Boolean) : NavigationAction(), HighPriorityAction
-
-    /**
-     * Sets [NavigationState.currentTitle] to the resolved title string for the current entry.
-     * Dispatched from [io.github.syrou.reaktiv.navigation.ui.NavigationRender] after invoking
-     * the current navigatable's [io.github.syrou.reaktiv.navigation.definition.Navigatable.titleResource]
-     * inside the Compose tree, where localization APIs like `stringResource` are available.
-     */
-    @Serializable
-    data class SetCurrentTitle(val title: String?) : NavigationAction()
+    public data class SetEvaluating(val isEvaluating: Boolean) : NavigationAction(), HighPriorityAction
 }

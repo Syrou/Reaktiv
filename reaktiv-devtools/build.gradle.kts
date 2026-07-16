@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-import java.net.URI
 
 plugins {
     kotlin("multiplatform")
@@ -12,48 +11,9 @@ plugins {
     id("io.github.syrou.version")
 }
 
-group = "io.github.syrou"
-
-dokka {
-    moduleName.set("reaktiv-devtools")
-    dokkaSourceSets.configureEach {
-        includes.from("module.md")
-        sourceLink {
-            localDirectory.set(file("src"))
-            remoteUrl.set(URI("https://github.com/Syrou/Reaktiv/blob/main/reaktiv-devtools/src"))
-            remoteLineSuffix.set("#L")
-        }
-    }
-}
-
 centralPublisher {
-    username.set(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_TOKEN"))
-    password.set(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_PASSWORD"))
-    publishingType = PublishingType.AUTOMATIC
-
-    // GPG signing
-    signingPassword.set(CentralPublisherCredentials.credentialProvider(project, "SIGNING_PASSWORD"))
-    signingSecretKey.set(CentralPublisherCredentials.credentialProvider(project, "SIGNING_SECRET_KEY"))
-
     projectName = "Reaktiv DevTools"
     projectDescription = "DevTools middleware and server for Reaktiv state management library"
-    projectUrl = "https://github.com/Syrou/Reaktiv"
-
-    licenseName = "Apache License 2.0"
-    licenseUrl = "https://opensource.org/license/apache-2-0"
-
-    developerId = "Syrou"
-    developerName = "Syrou"
-    developerEmail = "me@syrou.eu"
-
-    scmUrl = "https://github.com/Syrou/Reaktiv"
-    scmConnection = "scm:git:https://github.com/Syrou/Reaktiv.git"
-    scmDeveloperConnection = "scm:git:ssh://github.com/Syrou/Reaktiv.git"
-}
-
-repositories {
-    mavenCentral()
-    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
 }
 
 kotlin {
@@ -95,50 +55,55 @@ kotlin {
     wasmJs {
         browser()
         binaries.executable()
+        compilations.configureEach {
+            compileTaskProvider.configure {
+                compilerOptions.freeCompilerArgs.add("-Xexplicit-api=disable")
+            }
+        }
     }
 
     applyDefaultHierarchyTemplate()
 
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 implementation(project(":reaktiv-core"))
                 api(project(":reaktiv-introspection"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
             }
         }
 
-        val nativeMain by getting {
+        getByName("nativeMain") {
             dependencies {
-                implementation("io.ktor:ktor-server-core:3.1.0")
-                implementation("io.ktor:ktor-server-cio:3.1.0")
-                implementation("io.ktor:ktor-server-websockets:3.1.0")
-                implementation("io.ktor:ktor-server-content-negotiation:3.1.0")
-                implementation("io.ktor:ktor-serialization-kotlinx-json:3.1.0")
+                implementation(libs.ktor.server.core)
+                implementation(libs.ktor.server.cio)
+                implementation(libs.ktor.server.websockets)
+                implementation(libs.ktor.server.content.negotiation)
+                implementation(libs.ktor.serialization.kotlinx.json)
 
-                implementation("io.ktor:ktor-client-core:3.1.0")
-                implementation("io.ktor:ktor-client-cio:3.1.0")
-                implementation("io.ktor:ktor-client-websockets:3.1.0")
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.cio)
+                implementation(libs.ktor.client.websockets)
 
-                implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
+                implementation(libs.kotlinx.io.core)
 
                 // Compose runtime required by compose compiler plugin
                 implementation(compose.runtime)
             }
         }
 
-        val androidMain by getting {
+        getByName("androidMain") {
             dependencies {
-                implementation("io.ktor:ktor-client-core:3.1.0")
-                implementation("io.ktor:ktor-client-okhttp:3.1.0")
-                implementation("io.ktor:ktor-client-websockets:3.1.0")
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.okhttp)
+                implementation(libs.ktor.client.websockets)
 
                 implementation(compose.runtime)
             }
         }
 
-        val wasmJsMain by getting {
+        getByName("wasmJsMain") {
             dependencies {
                 implementation(project(":reaktiv-compose"))
 
@@ -149,27 +114,26 @@ kotlin {
                 implementation(compose.materialIconsExtended)
                 implementation(compose.components.resources)
 
-                implementation("io.ktor:ktor-client-core:3.1.0")
-                implementation("io.ktor:ktor-client-js:3.1.0")
-                implementation("io.ktor:ktor-client-websockets:3.1.0")
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.js)
+                implementation(libs.ktor.client.websockets)
 
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
+                implementation(libs.kotlinx.datetime)
             }
         }
 
-        val commonTest by getting {
+        getByName("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
     }
 
     compilerOptions {
-        freeCompilerArgs.add("-opt-in=kotlin.time.ExperimentalTime")
+        optIn.add("kotlin.time.ExperimentalTime")
+        optIn.add("kotlinx.coroutines.DelicateCoroutinesApi")
     }
-
-    jvmToolchain(17)
 }
 
 tasks {

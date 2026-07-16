@@ -58,14 +58,17 @@ These are separate Gradle builds and must be built/tested/published with `-p`:
 
 ### Test Commands
 ```bash
-# Run core module tests
-./gradlew :reaktiv-core:test
+# Run core module tests (KMP modules have no plain `test` task, use jvmTest)
+./gradlew :reaktiv-core:jvmTest
 
 # Run navigation module tests
-./gradlew :reaktiv-navigation:test
-
-# Run JVM tests for specific module
 ./gradlew :reaktiv-navigation:jvmTest
+
+# Run introspection module tests
+./gradlew :reaktiv-introspection:jvmTest
+
+# Verify devtools compilation (no JVM target)
+./gradlew :reaktiv-devtools:compileKotlinMingwX64
 
 # Run Android tests
 ./gradlew :androidexample:testDebugUnitTest
@@ -285,31 +288,6 @@ fun ExampleComponent() {
 }
 ```
 
-### Guided Flow Operations DSL
-
-**New Pattern**: Use the `guidedFlow { }` DSL for atomic guided flow operations, similar to `navigation { }`:
-
-```kotlin
-// Atomic guided flow operations
-storeAccessor.guidedFlow("signup-flow") {
-    removeSteps(listOf(2, 3))
-    updateStepParams(1, mapOf("userId" to "123"))
-    nextStep()
-}
-
-// Instead of multiple separate dispatches:
-store.dispatch(NavigationAction.ModifyGuidedFlow(...))
-store.dispatch(NavigationAction.NextStep())
-```
-
-**Available operations:**
-- `addSteps(steps, insertIndex)` - Add steps to the flow
-- `removeSteps(stepIndices)` - Remove steps by index
-- `replaceStep(stepIndex, newStep)` - Replace a step
-- `updateStepParams(stepIndex, newParams)` - Update step parameters
-- `updateOnComplete(onComplete)` - Update completion handler
-- `nextStep(params)` - Navigate to next step
-
 ## Key Directories
 
 - `reaktiv-core/src/commonMain/kotlin/`: Core MVLI implementation
@@ -345,35 +323,33 @@ Test files are located in `src/commonTest/kotlin/` for multiplatform tests and `
 2. **Dokka-compatible formatting** - All code examples must be formatted for Dokka documentation generation:
    ```kotlin
    /**
-    * Handles complex guided flow operations atomically.
+    * Executes navigation operations atomically.
     * 
     * Example usage:
     * ```kotlin
-    * store.guidedFlow("user-onboarding") {
-    *     removeSteps(listOf(2, 3))
-    *     updateStepParams(1, mapOf("userId" to "123"))
-    *     nextStep()
+    * store.navigation {
+    *     navigateTo(ProfileScreen)
+    *     popUpTo("home")
     * }
     * ```
     * 
-    * @param flowRoute The route identifier for the guided flow
-    * @param block Lambda containing flow operations to execute
+    * @param block Lambda containing navigation operations to execute
     */
    ```
 
 3. **Usage examples for complex classes** - Classes that provide tooling or complex functionality must include usage examples:
    ```kotlin
    /**
-    * Builder for creating atomic guided flow operations.
+    * Builder for creating atomic navigation operations.
     * 
     * Usage:
     * ```kotlin
-    * val builder = GuidedFlowOperationBuilder(flowRoute)
-    * builder.addSteps(newSteps, 0)
-    * builder.nextStep()
+    * val builder = NavigationBuilder(storeAccessor, encoder)
+    * builder.navigateTo("profile")
+    * builder.validate()
     * ```
     */
-   class GuidedFlowOperationBuilder { ... }
+   class NavigationBuilder { ... }
    ```
 
 4. **Comments should provide value** - Only add comments that explain:

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.Json
 
 actual class DevToolsConnection actual constructor(private val serverUrl: String) {
@@ -20,9 +21,7 @@ actual class DevToolsConnection actual constructor(private val serverUrl: String
         install(WebSockets)
     }
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-    }
+    private val json = reaktivJson()
 
     private val scope = CoroutineScope(SupervisorJob())
     private var session: DefaultClientWebSocketSession? = null

@@ -10,6 +10,7 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
@@ -23,12 +24,10 @@ import kotlin.time.Duration.Companion.seconds
  * }
  * ```
  */
-object DevToolsServer {
+public object DevToolsServer {
     private val clientManager = ClientManager()
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-    }
+    private val json = reaktivJson()
 
     /**
      * Starts the DevTools server.
@@ -37,7 +36,7 @@ object DevToolsServer {
      * @param host Host address (default: 0.0.0.0)
      * @param uiPath Path to the WASM UI distribution directory (optional)
      */
-    fun start(port: Int = 8080, host: String = "0.0.0.0", uiPath: String? = null) {
+    public fun start(port: Int = 8080, host: String = "0.0.0.0", uiPath: String? = null) {
         println("DevTools Server: Starting on http://$host:$port")
         println("DevTools Server: WebSocket endpoint at ws://$host:$port/ws")
 
@@ -131,20 +130,20 @@ object DevToolsServer {
             }
 
             is DevToolsMessage.ActionDispatched -> {
-                println("DevTools Server: Action from ${message.clientId} - ${message.actionType}")
+                println("DevTools Server: Action from ${message.clientId} - ${message.event.actionType}")
                 clientManager.broadcastToListeners(message.clientId, message)
 
                 val stateSync = DevToolsMessage.StateSync(
                     fromClientId = message.clientId,
-                    timestamp = message.timestamp,
-                    stateJson = message.stateDeltaJson,
-                    moduleName = message.moduleName
+                    timestamp = message.event.timestamp,
+                    stateJson = message.event.stateDeltaJson,
+                    moduleName = message.event.moduleName
                 )
                 clientManager.broadcastToListeners(message.clientId, stateSync)
             }
 
             is DevToolsMessage.StateSync -> {
-                println("DevTools Server: StateSync from ${message.fromClientId} (orchestrated: ${message.orchestrated})")
+                println("DevTools Server: StateSync from ${message.fromClientId}")
                 clientManager.broadcastToListeners(message.fromClientId, message)
             }
 
@@ -216,17 +215,17 @@ object DevToolsServer {
             }
 
             is DevToolsMessage.LogicMethodStarted -> {
-                println("DevTools Server: LogicMethodStarted from ${message.clientId} - ${message.logicClass}.${message.methodName}")
+                println("DevTools Server: LogicMethodStarted from ${message.clientId} - ${message.event.logicClass}.${message.event.methodName}")
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 
             is DevToolsMessage.LogicMethodCompleted -> {
-                println("DevTools Server: LogicMethodCompleted from ${message.clientId} - ${message.callId}")
+                println("DevTools Server: LogicMethodCompleted from ${message.clientId} - ${message.event.callId}")
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 
             is DevToolsMessage.LogicMethodFailed -> {
-                println("DevTools Server: LogicMethodFailed from ${message.clientId} - ${message.callId}")
+                println("DevTools Server: LogicMethodFailed from ${message.clientId} - ${message.event.callId}")
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 
@@ -242,7 +241,7 @@ object DevToolsServer {
             }
 
             is DevToolsMessage.SessionHistorySync -> {
-                println("DevTools Server: SessionHistorySync from ${message.clientId} (${message.actionEvents.size} actions)")
+                println("DevTools Server: SessionHistorySync from ${message.clientId} (${message.history.actions.size} actions)")
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 
@@ -251,7 +250,7 @@ object DevToolsServer {
             }
 
             is DevToolsMessage.CrashReport -> {
-                println("DevTools Server: CrashReport from ${message.clientId} - ${message.exceptionType}")
+                println("DevTools Server: CrashReport from ${message.clientId} - ${message.crash.exception.exceptionType}")
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 
@@ -272,5 +271,5 @@ object DevToolsServer {
     /**
      * Gets the client manager instance.
      */
-    fun getClientManager(): ClientManager = clientManager
+    public fun getClientManager(): ClientManager = clientManager
 }

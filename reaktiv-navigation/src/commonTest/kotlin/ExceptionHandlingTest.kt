@@ -51,7 +51,7 @@ class ExceptionHandlingTest {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val navigationModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen)
                 }
             }
@@ -75,11 +75,11 @@ class ExceptionHandlingTest {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val navigationModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen)
 
                     graph("content") {
-                        startScreen(profileScreen)
+                        start(profileScreen)
                         screens(profileScreen)
                     }
                 }
@@ -104,12 +104,12 @@ class ExceptionHandlingTest {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val navigationModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen)
 
                     graph("broken") {
                         // This graph doesn't exist
-                        startGraph("nonexistent")
+                        start("nonexistent")
                     }
                 }
             }
@@ -134,7 +134,7 @@ class ExceptionHandlingTest {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val navigationModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen)
                 }
             }
@@ -171,7 +171,7 @@ class ExceptionHandlingTest {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val navigationModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen)
                 }
             }
@@ -197,7 +197,7 @@ class ExceptionHandlingTest {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val navigationModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen)
                 }
             }
@@ -232,7 +232,7 @@ class ExceptionHandlingTest {
             val testDispatcher = StandardTestDispatcher(testScheduler)
             val navigationModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen)
                 }
             }

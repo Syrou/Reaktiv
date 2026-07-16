@@ -64,7 +64,7 @@ class ModalNavigationContextTest {
 
     private fun createTestNavigationModule() = createNavigationModule {
         rootGraph {
-            startScreen(workspaceScreen)
+            start(workspaceScreen)
             screens(workspaceScreen, videosListScreen)
             modals(notificationModal)
         }

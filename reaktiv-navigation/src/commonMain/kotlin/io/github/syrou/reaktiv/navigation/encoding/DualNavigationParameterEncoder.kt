@@ -4,18 +4,16 @@ import io.github.syrou.reaktiv.navigation.definition.UrlEncoder
 import io.github.syrou.reaktiv.navigation.param.TypedParam
 import io.github.syrou.reaktiv.navigation.util.CommonUrlEncoder
 import kotlinx.serialization.KSerializer
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 
-class DualNavigationParameterEncoder(
+public class DualNavigationParameterEncoder(
     private val urlEncoder: UrlEncoder = CommonUrlEncoder(),
-    private val json: Json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val json: Json = reaktivJson(encodeDefaults = true)
 ) {
     
-    fun encodeSimple(value: Any): Any {
+    public fun encodeSimple(value: Any): Any {
         return when (value) {
             is String -> urlEncoder.encodeQuery(value)
             is Number, is Boolean -> value
@@ -39,7 +37,7 @@ class DualNavigationParameterEncoder(
     }
 
     
-    fun decodeSimple(encoded: String): Any {
+    public fun decodeSimple(encoded: String): Any {
         val decoded = urlEncoder.decode(encoded)
 
         return when {
@@ -72,7 +70,7 @@ class DualNavigationParameterEncoder(
     }
 
     
-    fun encodeSimpleQueryString(parameters: Map<String, Any>): String {
+    public fun encodeSimpleQueryString(parameters: Map<String, Any>): String {
         if (parameters.isEmpty()) return ""
 
         return parameters.entries.joinToString("&") { (key, value) ->
@@ -81,7 +79,7 @@ class DualNavigationParameterEncoder(
     }
 
     
-    fun decodeSimpleQueryString(queryString: String): Map<String, Any> {
+    public fun decodeSimpleQueryString(queryString: String): Map<String, Any> {
         if (queryString.isBlank()) return emptyMap()
 
         return queryString.split("&")
@@ -98,31 +96,31 @@ class DualNavigationParameterEncoder(
     }
 
     
-    fun <T> encodeTypeSafe(value: T, serializer: KSerializer<T>): String {
+    public fun <T> encodeTypeSafe(value: T, serializer: KSerializer<T>): String {
         val jsonString = json.encodeToString(serializer, value)
         return urlEncoder.encodeQuery(jsonString)
     }
 
     
-    inline fun <reified T> encodeTypeSafe(value: T): String {
+    public inline fun <reified T> encodeTypeSafe(value: T): String {
         val serializer = serializer<T>()
         return encodeTypeSafe(value, serializer)
     }
 
     
-    fun <T> decodeTypeSafe(encoded: String, serializer: KSerializer<T>): T {
+    public fun <T> decodeTypeSafe(encoded: String, serializer: KSerializer<T>): T {
         val decoded = urlEncoder.decode(encoded)
         return json.decodeFromString(serializer, decoded)
     }
 
     
-    inline fun <reified T> decodeTypeSafe(encoded: String): T {
+    public inline fun <reified T> decodeTypeSafe(encoded: String): T {
         val serializer = serializer<T>()
         return decodeTypeSafe(encoded, serializer)
     }
 
     
-    fun encodeTypeSafeQueryString(parameters: Map<String, TypedParam<*>>): String {
+    public fun encodeTypeSafeQueryString(parameters: Map<String, TypedParam<*>>): String {
         if (parameters.isEmpty()) return ""
 
         return parameters.entries.joinToString("&") { (key, typedParam) ->
@@ -135,11 +133,11 @@ class DualNavigationParameterEncoder(
     
     @Suppress("UNCHECKED_CAST")
     private fun encodeTypeSafeWildcard(typedParam: TypedParam<Any>): String {
-        return encodeTypeSafe(typedParam.value, typedParam.serializer as KSerializer<Any>)
+        return encodeTypeSafe(typedParam.value, typedParam.serializer)
     }
 
     
-    fun encodeMixed(value: Any): Any {
+    public fun encodeMixed(value: Any): Any {
         return when (value) {
             is TypedParam<*> -> {
                 @Suppress("UNCHECKED_CAST")
@@ -150,7 +148,7 @@ class DualNavigationParameterEncoder(
     }
 
     
-    fun encodeMixedQueryString(parameters: Map<String, Any>): String {
+    public fun encodeMixedQueryString(parameters: Map<String, Any>): String {
         if (parameters.isEmpty()) return ""
 
         return parameters.entries.joinToString("&") { (key, value) ->
@@ -158,7 +156,7 @@ class DualNavigationParameterEncoder(
         }
     }
     
-    fun encodeStepParameters(stepParams: Map<String, Any>): Map<String, Any> {
+    public fun encodeStepParameters(stepParams: Map<String, Any>): Map<String, Any> {
         return stepParams.mapValues { (_, value) ->
             encodeMixed(value)
         }

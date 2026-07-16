@@ -63,11 +63,11 @@ import kotlinx.serialization.modules.SerializersModuleBuilder
  *
  * @see io.github.syrou.reaktiv.navigation.NavigationModule for a built-in example
  */
-interface CustomTypeRegistrar {
+public interface CustomTypeRegistrar {
     /**
      * Register additional serializers for types used within your module's state.
      *
      * @param builder SerializersModuleBuilder for registering polymorphic types, contextual serializers, etc.
      */
-    fun registerAdditionalSerializers(builder: SerializersModuleBuilder)
+    public fun registerAdditionalSerializers(builder: SerializersModuleBuilder)
 }

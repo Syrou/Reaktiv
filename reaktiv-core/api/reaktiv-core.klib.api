@@ -1,0 +1,378 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, linuxArm64, linuxX64, macosArm64, mingwX64, wasmJs]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <io.github.syrou:reaktiv-core>
+open annotation class io.github.syrou.reaktiv.core/ExperimentalReaktivApi : kotlin/Annotation { // io.github.syrou.reaktiv.core/ExperimentalReaktivApi|null[0]
+    constructor <init>() // io.github.syrou.reaktiv.core/ExperimentalReaktivApi.<init>|<init>(){}[0]
+}
+
+final enum class io.github.syrou.reaktiv.core/CrashRecovery : kotlin/Enum<io.github.syrou.reaktiv.core/CrashRecovery> { // io.github.syrou.reaktiv.core/CrashRecovery|null[0]
+    enum entry NAVIGATE_TO_CRASH_SCREEN // io.github.syrou.reaktiv.core/CrashRecovery.NAVIGATE_TO_CRASH_SCREEN|null[0]
+    enum entry RETHROW // io.github.syrou.reaktiv.core/CrashRecovery.RETHROW|null[0]
+
+    final val entries // io.github.syrou.reaktiv.core/CrashRecovery.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.syrou.reaktiv.core/CrashRecovery> // io.github.syrou.reaktiv.core/CrashRecovery.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.syrou.reaktiv.core/CrashRecovery // io.github.syrou.reaktiv.core/CrashRecovery.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.syrou.reaktiv.core/CrashRecovery> // io.github.syrou.reaktiv.core/CrashRecovery.values|values#static(){}[0]
+}
+
+abstract interface <#A: io.github.syrou.reaktiv.core/ModuleState, #B: io.github.syrou.reaktiv.core/ModuleAction, #C: io.github.syrou.reaktiv.core/ModuleLogic> io.github.syrou.reaktiv.core/ModuleWithLogic : io.github.syrou.reaktiv.core/Module<#A, #B> { // io.github.syrou.reaktiv.core/ModuleWithLogic|null[0]
+    abstract val createLogic // io.github.syrou.reaktiv.core/ModuleWithLogic.createLogic|{}createLogic[0]
+        abstract fun <get-createLogic>(): kotlin/Function1<io.github.syrou.reaktiv.core/StoreAccessor, #C> // io.github.syrou.reaktiv.core/ModuleWithLogic.createLogic.<get-createLogic>|<get-createLogic>(){}[0]
+
+    open suspend fun selectLogicTyped(io.github.syrou.reaktiv.core/StoreAccessor): #C // io.github.syrou.reaktiv.core/ModuleWithLogic.selectLogicTyped|selectLogicTyped(io.github.syrou.reaktiv.core.StoreAccessor){}[0]
+}
+
+abstract interface <#A: io.github.syrou.reaktiv.core/ModuleState, #B: io.github.syrou.reaktiv.core/ModuleAction> io.github.syrou.reaktiv.core/Module { // io.github.syrou.reaktiv.core/Module|null[0]
+    abstract val createLogic // io.github.syrou.reaktiv.core/Module.createLogic|{}createLogic[0]
+        abstract fun <get-createLogic>(): kotlin/Function1<io.github.syrou.reaktiv.core/StoreAccessor, io.github.syrou.reaktiv.core/ModuleLogic> // io.github.syrou.reaktiv.core/Module.createLogic.<get-createLogic>|<get-createLogic>(){}[0]
+    abstract val initialState // io.github.syrou.reaktiv.core/Module.initialState|{}initialState[0]
+        abstract fun <get-initialState>(): #A // io.github.syrou.reaktiv.core/Module.initialState.<get-initialState>|<get-initialState>(){}[0]
+    abstract val reducer // io.github.syrou.reaktiv.core/Module.reducer|{}reducer[0]
+        abstract fun <get-reducer>(): kotlin/Function2<#A, #B, #A> // io.github.syrou.reaktiv.core/Module.reducer.<get-reducer>|<get-reducer>(){}[0]
+    open val createMiddleware // io.github.syrou.reaktiv.core/Module.createMiddleware|{}createMiddleware[0]
+        open fun <get-createMiddleware>(): kotlin/Function0<kotlin.coroutines/SuspendFunction4<io.github.syrou.reaktiv.core/ModuleAction, kotlin.coroutines/SuspendFunction0<kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>>, io.github.syrou.reaktiv.core/StoreAccessor, kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/ModuleAction, io.github.syrou.reaktiv.core/ModuleState>, kotlin/Unit>>? // io.github.syrou.reaktiv.core/Module.createMiddleware.<get-createMiddleware>|<get-createMiddleware>(){}[0]
+
+    open fun selectStateFlowNonSuspend(io.github.syrou.reaktiv.core/StoreAccessor): kotlinx.coroutines.flow/StateFlow<#A> // io.github.syrou.reaktiv.core/Module.selectStateFlowNonSuspend|selectStateFlowNonSuspend(io.github.syrou.reaktiv.core.StoreAccessor){}[0]
+    open suspend fun selectLogic(io.github.syrou.reaktiv.core/StoreAccessor): io.github.syrou.reaktiv.core/ModuleLogic // io.github.syrou.reaktiv.core/Module.selectLogic|selectLogic(io.github.syrou.reaktiv.core.StoreAccessor){}[0]
+}
+
+abstract interface io.github.syrou.reaktiv.core.persistance/PersistenceStrategy { // io.github.syrou.reaktiv.core.persistance/PersistenceStrategy|null[0]
+    abstract suspend fun hasPersistedState(): kotlin/Boolean // io.github.syrou.reaktiv.core.persistance/PersistenceStrategy.hasPersistedState|hasPersistedState(){}[0]
+    abstract suspend fun loadState(): kotlin/String? // io.github.syrou.reaktiv.core.persistance/PersistenceStrategy.loadState|loadState(){}[0]
+    abstract suspend fun saveState(kotlin/String) // io.github.syrou.reaktiv.core.persistance/PersistenceStrategy.saveState|saveState(kotlin.String){}[0]
+}
+
+abstract interface io.github.syrou.reaktiv.core.tracing/LogicObserver { // io.github.syrou.reaktiv.core.tracing/LogicObserver|null[0]
+    abstract fun onMethodCompleted(io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted) // io.github.syrou.reaktiv.core.tracing/LogicObserver.onMethodCompleted|onMethodCompleted(io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted){}[0]
+    abstract fun onMethodFailed(io.github.syrou.reaktiv.core.tracing/LogicMethodFailed) // io.github.syrou.reaktiv.core.tracing/LogicObserver.onMethodFailed|onMethodFailed(io.github.syrou.reaktiv.core.tracing.LogicMethodFailed){}[0]
+    abstract fun onMethodStart(io.github.syrou.reaktiv.core.tracing/LogicMethodStart) // io.github.syrou.reaktiv.core.tracing/LogicObserver.onMethodStart|onMethodStart(io.github.syrou.reaktiv.core.tracing.LogicMethodStart){}[0]
+}
+
+abstract interface io.github.syrou.reaktiv.core.util/CustomTypeRegistrar { // io.github.syrou.reaktiv.core.util/CustomTypeRegistrar|null[0]
+    abstract fun registerAdditionalSerializers(kotlinx.serialization.modules/SerializersModuleBuilder) // io.github.syrou.reaktiv.core.util/CustomTypeRegistrar.registerAdditionalSerializers|registerAdditionalSerializers(kotlinx.serialization.modules.SerializersModuleBuilder){}[0]
+}
+
+abstract interface io.github.syrou.reaktiv.core/CrashListener { // io.github.syrou.reaktiv.core/CrashListener|null[0]
+    abstract suspend fun onLogicCrash(kotlin/Throwable, io.github.syrou.reaktiv.core/ModuleAction?): io.github.syrou.reaktiv.core/CrashRecovery // io.github.syrou.reaktiv.core/CrashListener.onLogicCrash|onLogicCrash(kotlin.Throwable;io.github.syrou.reaktiv.core.ModuleAction?){}[0]
+}
+
+abstract interface io.github.syrou.reaktiv.core/HighPriorityAction // io.github.syrou.reaktiv.core/HighPriorityAction|null[0]
+
+abstract interface io.github.syrou.reaktiv.core/InternalStoreOperations { // io.github.syrou.reaktiv.core/InternalStoreOperations|null[0]
+    abstract suspend fun applyExternalStates(kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>) // io.github.syrou.reaktiv.core/InternalStoreOperations.applyExternalStates|applyExternalStates(kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>){}[0]
+}
+
+abstract interface io.github.syrou.reaktiv.core/Logic // io.github.syrou.reaktiv.core/Logic|null[0]
+
+abstract interface io.github.syrou.reaktiv.core/ModuleState // io.github.syrou.reaktiv.core/ModuleState|null[0]
+
+abstract class io.github.syrou.reaktiv.core/ModuleAction { // io.github.syrou.reaktiv.core/ModuleAction|null[0]
+    constructor <init>(kotlin.reflect/KClass<*> = ...) // io.github.syrou.reaktiv.core/ModuleAction.<init>|<init>(kotlin.reflect.KClass<*>){}[0]
+    constructor <init>(kotlin/Int, kotlinx.serialization.internal/SerializationConstructorMarker?) // io.github.syrou.reaktiv.core/ModuleAction.<init>|<init>(kotlin.Int;kotlinx.serialization.internal.SerializationConstructorMarker?){}[0]
+
+    final object Companion : kotlinx.serialization.internal/SerializerFactory { // io.github.syrou.reaktiv.core/ModuleAction.Companion|null[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.core/ModuleAction> // io.github.syrou.reaktiv.core/ModuleAction.Companion.serializer|serializer(){}[0]
+        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // io.github.syrou.reaktiv.core/ModuleAction.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
+    }
+}
+
+abstract class io.github.syrou.reaktiv.core/StoreAccessor : kotlinx.coroutines/CoroutineScope { // io.github.syrou.reaktiv.core/StoreAccessor|null[0]
+    constructor <init>(kotlinx.coroutines/CoroutineScope) // io.github.syrou.reaktiv.core/StoreAccessor.<init>|<init>(kotlinx.coroutines.CoroutineScope){}[0]
+
+    abstract val dispatch // io.github.syrou.reaktiv.core/StoreAccessor.dispatch|{}dispatch[0]
+        abstract fun <get-dispatch>(): kotlin/Function1<io.github.syrou.reaktiv.core/ModuleAction, kotlin/Unit> // io.github.syrou.reaktiv.core/StoreAccessor.dispatch.<get-dispatch>|<get-dispatch>(){}[0]
+    open val coroutineContext // io.github.syrou.reaktiv.core/StoreAccessor.coroutineContext|{}coroutineContext[0]
+        open fun <get-coroutineContext>(): kotlin.coroutines/CoroutineContext // io.github.syrou.reaktiv.core/StoreAccessor.coroutineContext.<get-coroutineContext>|<get-coroutineContext>(){}[0]
+
+    abstract fun <#A1: kotlin/Any> getModule(kotlin.reflect/KClass<#A1>): #A1? // io.github.syrou.reaktiv.core/StoreAccessor.getModule|getModule(kotlin.reflect.KClass<0:0>){0§<kotlin.Any>}[0]
+    abstract fun addCrashListener(io.github.syrou.reaktiv.core/CrashListener) // io.github.syrou.reaktiv.core/StoreAccessor.addCrashListener|addCrashListener(io.github.syrou.reaktiv.core.CrashListener){}[0]
+    abstract fun getRegisteredModules(): kotlin.collections/List<io.github.syrou.reaktiv.core/Module<*, *>> // io.github.syrou.reaktiv.core/StoreAccessor.getRegisteredModules|getRegisteredModules(){}[0]
+    abstract fun getStateFlowForModule(io.github.syrou.reaktiv.core/Module<*, *>): kotlinx.coroutines.flow/StateFlow<io.github.syrou.reaktiv.core/ModuleState>? // io.github.syrou.reaktiv.core/StoreAccessor.getStateFlowForModule|getStateFlowForModule(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
+    abstract fun removeCrashListener(io.github.syrou.reaktiv.core/CrashListener) // io.github.syrou.reaktiv.core/StoreAccessor.removeCrashListener|removeCrashListener(io.github.syrou.reaktiv.core.CrashListener){}[0]
+    abstract fun resetAsync(): kotlinx.coroutines/Job // io.github.syrou.reaktiv.core/StoreAccessor.resetAsync|resetAsync(){}[0]
+    abstract suspend fun <#A1: io.github.syrou.reaktiv.core/ModuleLogic> selectLogic(kotlin.reflect/KClass<#A1>): #A1 // io.github.syrou.reaktiv.core/StoreAccessor.selectLogic|selectLogic(kotlin.reflect.KClass<0:0>){0§<io.github.syrou.reaktiv.core.ModuleLogic>}[0]
+    abstract suspend fun <#A1: io.github.syrou.reaktiv.core/ModuleState> selectState(kotlin.reflect/KClass<#A1>): kotlinx.coroutines.flow/StateFlow<#A1> // io.github.syrou.reaktiv.core/StoreAccessor.selectState|selectState(kotlin.reflect.KClass<0:0>){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+    abstract suspend fun dispatchAndAwait(io.github.syrou.reaktiv.core/ModuleAction): io.github.syrou.reaktiv.core/DispatchResult // io.github.syrou.reaktiv.core/StoreAccessor.dispatchAndAwait|dispatchAndAwait(io.github.syrou.reaktiv.core.ModuleAction){}[0]
+    abstract suspend fun getLogicForModule(io.github.syrou.reaktiv.core/Module<*, *>): io.github.syrou.reaktiv.core/ModuleLogic? // io.github.syrou.reaktiv.core/StoreAccessor.getLogicForModule|getLogicForModule(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
+    abstract suspend fun reset(): kotlin/Boolean // io.github.syrou.reaktiv.core/StoreAccessor.reset|reset(){}[0]
+    final fun asInternalOperations(): io.github.syrou.reaktiv.core/InternalStoreOperations? // io.github.syrou.reaktiv.core/StoreAccessor.asInternalOperations|asInternalOperations(){}[0]
+    final inline fun <#A1: reified kotlin/Any> getModule(): #A1? // io.github.syrou.reaktiv.core/StoreAccessor.getModule|getModule(){0§<kotlin.Any>}[0]
+}
+
+final class io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted { // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted|null[0]
+    constructor <init>(kotlin/String, kotlin/String?, kotlin/String, kotlin/Long, kotlin/Long = ...) // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.<init>|<init>(kotlin.String;kotlin.String?;kotlin.String;kotlin.Long;kotlin.Long){}[0]
+
+    final val callId // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.callId|{}callId[0]
+        final fun <get-callId>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.callId.<get-callId>|<get-callId>(){}[0]
+    final val durationMs // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.durationMs|{}durationMs[0]
+        final fun <get-durationMs>(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.durationMs.<get-durationMs>|<get-durationMs>(){}[0]
+    final val result // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.result|{}result[0]
+        final fun <get-result>(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.result.<get-result>|<get-result>(){}[0]
+    final val resultType // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.resultType|{}resultType[0]
+        final fun <get-resultType>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.resultType.<get-resultType>|<get-resultType>(){}[0]
+    final val timestampMs // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.timestampMs|{}timestampMs[0]
+        final fun <get-timestampMs>(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.timestampMs.<get-timestampMs>|<get-timestampMs>(){}[0]
+
+    final fun component1(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.component1|component1(){}[0]
+    final fun component2(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.component2|component2(){}[0]
+    final fun component3(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.component3|component3(){}[0]
+    final fun component4(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.component4|component4(){}[0]
+    final fun component5(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.component5|component5(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String? = ..., kotlin/String = ..., kotlin/Long = ..., kotlin/Long = ...): io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.copy|copy(kotlin.String;kotlin.String?;kotlin.String;kotlin.Long;kotlin.Long){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.toString|toString(){}[0]
+
+    final object $serializer : kotlinx.serialization.internal/GeneratedSerializer<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted> { // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.$serializer|null[0]
+        final val descriptor // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.$serializer.descriptor|{}descriptor[0]
+            final fun <get-descriptor>(): kotlinx.serialization.descriptors/SerialDescriptor // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.$serializer.descriptor.<get-descriptor>|<get-descriptor>(){}[0]
+
+        final fun childSerializers(): kotlin/Array<kotlinx.serialization/KSerializer<*>> // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.$serializer.childSerializers|childSerializers(){}[0]
+        final fun deserialize(kotlinx.serialization.encoding/Decoder): io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.$serializer.deserialize|deserialize(kotlinx.serialization.encoding.Decoder){}[0]
+        final fun serialize(kotlinx.serialization.encoding/Encoder, io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted) // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.$serializer.serialize|serialize(kotlinx.serialization.encoding.Encoder;io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted){}[0]
+    }
+
+    final object Companion { // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.Companion|null[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted> // io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted.Companion.serializer|serializer(){}[0]
+    }
+}
+
+final class io.github.syrou.reaktiv.core.tracing/LogicMethodFailed { // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String?, kotlin/String?, kotlin/Long, kotlin/Long = ...) // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.<init>|<init>(kotlin.String;kotlin.String;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Long){}[0]
+
+    final val callId // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.callId|{}callId[0]
+        final fun <get-callId>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.callId.<get-callId>|<get-callId>(){}[0]
+    final val durationMs // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.durationMs|{}durationMs[0]
+        final fun <get-durationMs>(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.durationMs.<get-durationMs>|<get-durationMs>(){}[0]
+    final val exceptionMessage // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.exceptionMessage|{}exceptionMessage[0]
+        final fun <get-exceptionMessage>(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.exceptionMessage.<get-exceptionMessage>|<get-exceptionMessage>(){}[0]
+    final val exceptionType // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.exceptionType|{}exceptionType[0]
+        final fun <get-exceptionType>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.exceptionType.<get-exceptionType>|<get-exceptionType>(){}[0]
+    final val stackTrace // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.stackTrace|{}stackTrace[0]
+        final fun <get-stackTrace>(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.stackTrace.<get-stackTrace>|<get-stackTrace>(){}[0]
+    final val timestampMs // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.timestampMs|{}timestampMs[0]
+        final fun <get-timestampMs>(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.timestampMs.<get-timestampMs>|<get-timestampMs>(){}[0]
+
+    final fun component1(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component1|component1(){}[0]
+    final fun component2(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component2|component2(){}[0]
+    final fun component3(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component3|component3(){}[0]
+    final fun component4(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component4|component4(){}[0]
+    final fun component5(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component5|component5(){}[0]
+    final fun component6(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component6|component6(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Long = ...): io.github.syrou.reaktiv.core.tracing/LogicMethodFailed // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.copy|copy(kotlin.String;kotlin.String;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Long){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.toString|toString(){}[0]
+
+    final object $serializer : kotlinx.serialization.internal/GeneratedSerializer<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed> { // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.$serializer|null[0]
+        final val descriptor // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.$serializer.descriptor|{}descriptor[0]
+            final fun <get-descriptor>(): kotlinx.serialization.descriptors/SerialDescriptor // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.$serializer.descriptor.<get-descriptor>|<get-descriptor>(){}[0]
+
+        final fun childSerializers(): kotlin/Array<kotlinx.serialization/KSerializer<*>> // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.$serializer.childSerializers|childSerializers(){}[0]
+        final fun deserialize(kotlinx.serialization.encoding/Decoder): io.github.syrou.reaktiv.core.tracing/LogicMethodFailed // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.$serializer.deserialize|deserialize(kotlinx.serialization.encoding.Decoder){}[0]
+        final fun serialize(kotlinx.serialization.encoding/Encoder, io.github.syrou.reaktiv.core.tracing/LogicMethodFailed) // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.$serializer.serialize|serialize(kotlinx.serialization.encoding.Encoder;io.github.syrou.reaktiv.core.tracing.LogicMethodFailed){}[0]
+    }
+
+    final object Companion { // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.Companion|null[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed> // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.Companion.serializer|serializer(){}[0]
+    }
+}
+
+final class io.github.syrou.reaktiv.core.tracing/LogicMethodStart { // io.github.syrou.reaktiv.core.tracing/LogicMethodStart|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String>, kotlin/String, kotlin/Long, kotlin/String? = ..., kotlin/Int? = ..., kotlin/String? = ...) // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.<init>|<init>(kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.String;kotlin.Long;kotlin.String?;kotlin.Int?;kotlin.String?){}[0]
+
+    final val callId // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.callId|{}callId[0]
+        final fun <get-callId>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.callId.<get-callId>|<get-callId>(){}[0]
+    final val githubSourceUrl // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.githubSourceUrl|{}githubSourceUrl[0]
+        final fun <get-githubSourceUrl>(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.githubSourceUrl.<get-githubSourceUrl>|<get-githubSourceUrl>(){}[0]
+    final val lineNumber // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.lineNumber|{}lineNumber[0]
+        final fun <get-lineNumber>(): kotlin/Int? // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.lineNumber.<get-lineNumber>|<get-lineNumber>(){}[0]
+    final val logicClass // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.logicClass|{}logicClass[0]
+        final fun <get-logicClass>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.logicClass.<get-logicClass>|<get-logicClass>(){}[0]
+    final val methodName // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.methodName|{}methodName[0]
+        final fun <get-methodName>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.methodName.<get-methodName>|<get-methodName>(){}[0]
+    final val params // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.params|{}params[0]
+        final fun <get-params>(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.params.<get-params>|<get-params>(){}[0]
+    final val sourceFile // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.sourceFile|{}sourceFile[0]
+        final fun <get-sourceFile>(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.sourceFile.<get-sourceFile>|<get-sourceFile>(){}[0]
+    final val timestampMs // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.timestampMs|{}timestampMs[0]
+        final fun <get-timestampMs>(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.timestampMs.<get-timestampMs>|<get-timestampMs>(){}[0]
+
+    final fun component1(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.component1|component1(){}[0]
+    final fun component2(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.component2|component2(){}[0]
+    final fun component3(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.component3|component3(){}[0]
+    final fun component4(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.component4|component4(){}[0]
+    final fun component5(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.component5|component5(){}[0]
+    final fun component6(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.component6|component6(){}[0]
+    final fun component7(): kotlin/Int? // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.component7|component7(){}[0]
+    final fun component8(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.component8|component8(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/String = ..., kotlin/Long = ..., kotlin/String? = ..., kotlin/Int? = ..., kotlin/String? = ...): io.github.syrou.reaktiv.core.tracing/LogicMethodStart // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.copy|copy(kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.String;kotlin.Long;kotlin.String?;kotlin.Int?;kotlin.String?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.toString|toString(){}[0]
+
+    final object $serializer : kotlinx.serialization.internal/GeneratedSerializer<io.github.syrou.reaktiv.core.tracing/LogicMethodStart> { // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.$serializer|null[0]
+        final val descriptor // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.$serializer.descriptor|{}descriptor[0]
+            final fun <get-descriptor>(): kotlinx.serialization.descriptors/SerialDescriptor // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.$serializer.descriptor.<get-descriptor>|<get-descriptor>(){}[0]
+
+        final fun childSerializers(): kotlin/Array<kotlinx.serialization/KSerializer<*>> // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.$serializer.childSerializers|childSerializers(){}[0]
+        final fun deserialize(kotlinx.serialization.encoding/Decoder): io.github.syrou.reaktiv.core.tracing/LogicMethodStart // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.$serializer.deserialize|deserialize(kotlinx.serialization.encoding.Decoder){}[0]
+        final fun serialize(kotlinx.serialization.encoding/Encoder, io.github.syrou.reaktiv.core.tracing/LogicMethodStart) // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.$serializer.serialize|serialize(kotlinx.serialization.encoding.Encoder;io.github.syrou.reaktiv.core.tracing.LogicMethodStart){}[0]
+    }
+
+    final object Companion { // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.Companion|null[0]
+        final val $childSerializers // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.Companion.$childSerializers|{}$childSerializers[0]
+
+        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.core.tracing/LogicMethodStart> // io.github.syrou.reaktiv.core.tracing/LogicMethodStart.Companion.serializer|serializer(){}[0]
+    }
+}
+
+final class io.github.syrou.reaktiv.core/Store : io.github.syrou.reaktiv.core/InternalStoreOperations, io.github.syrou.reaktiv.core/StoreAccessor { // io.github.syrou.reaktiv.core/Store|null[0]
+    final val coroutineContext // io.github.syrou.reaktiv.core/Store.coroutineContext|{}coroutineContext[0]
+        final fun <get-coroutineContext>(): kotlin.coroutines/CoroutineContext // io.github.syrou.reaktiv.core/Store.coroutineContext.<get-coroutineContext>|<get-coroutineContext>(){}[0]
+    final val dispatch // io.github.syrou.reaktiv.core/Store.dispatch|{}dispatch[0]
+        final fun <get-dispatch>(): kotlin/Function1<io.github.syrou.reaktiv.core/ModuleAction, kotlin/Unit> // io.github.syrou.reaktiv.core/Store.dispatch.<get-dispatch>|<get-dispatch>(){}[0]
+    final val initialized // io.github.syrou.reaktiv.core/Store.initialized|{}initialized[0]
+        final fun <get-initialized>(): kotlinx.coroutines.flow/StateFlow<kotlin/Boolean> // io.github.syrou.reaktiv.core/Store.initialized.<get-initialized>|<get-initialized>(){}[0]
+    final val modules // io.github.syrou.reaktiv.core/Store.modules|{}modules[0]
+        final fun <get-modules>(): kotlin.collections/List<io.github.syrou.reaktiv.core/Module<io.github.syrou.reaktiv.core/ModuleState, io.github.syrou.reaktiv.core/ModuleAction>> // io.github.syrou.reaktiv.core/Store.modules.<get-modules>|<get-modules>(){}[0]
+    final val serializersModule // io.github.syrou.reaktiv.core/Store.serializersModule|{}serializersModule[0]
+        final fun <get-serializersModule>(): kotlinx.serialization.modules/SerializersModule // io.github.syrou.reaktiv.core/Store.serializersModule.<get-serializersModule>|<get-serializersModule>(){}[0]
+
+    final fun <#A1: io.github.syrou.reaktiv.core/ModuleState> selectStateNonSuspend(kotlin.reflect/KClass<#A1>): kotlinx.coroutines.flow/StateFlow<#A1> // io.github.syrou.reaktiv.core/Store.selectStateNonSuspend|selectStateNonSuspend(kotlin.reflect.KClass<0:0>){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+    final fun <#A1: kotlin/Any> getModule(kotlin.reflect/KClass<#A1>): #A1? // io.github.syrou.reaktiv.core/Store.getModule|getModule(kotlin.reflect.KClass<0:0>){0§<kotlin.Any>}[0]
+    final fun addCrashListener(io.github.syrou.reaktiv.core/CrashListener) // io.github.syrou.reaktiv.core/Store.addCrashListener|addCrashListener(io.github.syrou.reaktiv.core.CrashListener){}[0]
+    final fun cleanup() // io.github.syrou.reaktiv.core/Store.cleanup|cleanup(){}[0]
+    final fun getRegisteredModules(): kotlin.collections/List<io.github.syrou.reaktiv.core/Module<*, *>> // io.github.syrou.reaktiv.core/Store.getRegisteredModules|getRegisteredModules(){}[0]
+    final fun getStateFlowForModule(io.github.syrou.reaktiv.core/Module<*, *>): kotlinx.coroutines.flow/StateFlow<io.github.syrou.reaktiv.core/ModuleState>? // io.github.syrou.reaktiv.core/Store.getStateFlowForModule|getStateFlowForModule(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
+    final fun removeCrashListener(io.github.syrou.reaktiv.core/CrashListener) // io.github.syrou.reaktiv.core/Store.removeCrashListener|removeCrashListener(io.github.syrou.reaktiv.core.CrashListener){}[0]
+    final fun resetAsync(): kotlinx.coroutines/Job // io.github.syrou.reaktiv.core/Store.resetAsync|resetAsync(){}[0]
+    final inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleState> selectStateNonSuspend(): kotlinx.coroutines.flow/StateFlow<#A1> // io.github.syrou.reaktiv.core/Store.selectStateNonSuspend|selectStateNonSuspend(){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+    final suspend fun <#A1: io.github.syrou.reaktiv.core/ModuleLogic> selectLogic(kotlin.reflect/KClass<#A1>): #A1 // io.github.syrou.reaktiv.core/Store.selectLogic|selectLogic(kotlin.reflect.KClass<0:0>){0§<io.github.syrou.reaktiv.core.ModuleLogic>}[0]
+    final suspend fun <#A1: io.github.syrou.reaktiv.core/ModuleState> selectState(kotlin.reflect/KClass<#A1>): kotlinx.coroutines.flow/StateFlow<#A1> // io.github.syrou.reaktiv.core/Store.selectState|selectState(kotlin.reflect.KClass<0:0>){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+    final suspend fun applyExternalStates(kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>) // io.github.syrou.reaktiv.core/Store.applyExternalStates|applyExternalStates(kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>){}[0]
+    final suspend fun dispatchAndAwait(io.github.syrou.reaktiv.core/ModuleAction): io.github.syrou.reaktiv.core/DispatchResult // io.github.syrou.reaktiv.core/Store.dispatchAndAwait|dispatchAndAwait(io.github.syrou.reaktiv.core.ModuleAction){}[0]
+    final suspend fun getLogicForModule(io.github.syrou.reaktiv.core/Module<*, *>): io.github.syrou.reaktiv.core/ModuleLogic? // io.github.syrou.reaktiv.core/Store.getLogicForModule|getLogicForModule(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
+    final suspend fun hasPersistedState(): kotlin/Boolean // io.github.syrou.reaktiv.core/Store.hasPersistedState|hasPersistedState(){}[0]
+    final suspend fun loadState() // io.github.syrou.reaktiv.core/Store.loadState|loadState(){}[0]
+    final suspend fun reset(): kotlin/Boolean // io.github.syrou.reaktiv.core/Store.reset|reset(){}[0]
+    final suspend fun saveState(kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>) // io.github.syrou.reaktiv.core/Store.saveState|saveState(kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>){}[0]
+    final suspend inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleLogic> selectLogic(): #A1 // io.github.syrou.reaktiv.core/Store.selectLogic|selectLogic(){0§<io.github.syrou.reaktiv.core.ModuleLogic>}[0]
+    final suspend inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleState> selectState(): kotlinx.coroutines.flow/StateFlow<#A1> // io.github.syrou.reaktiv.core/Store.selectState|selectState(){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+
+    final object Companion // io.github.syrou.reaktiv.core/Store.Companion|null[0]
+}
+
+final class io.github.syrou.reaktiv.core/StoreDSL { // io.github.syrou.reaktiv.core/StoreDSL|null[0]
+    constructor <init>() // io.github.syrou.reaktiv.core/StoreDSL.<init>|<init>(){}[0]
+
+    final fun <#A1: io.github.syrou.reaktiv.core/ModuleState, #B1: io.github.syrou.reaktiv.core/ModuleAction> module(kotlin.reflect/KClass<#A1>, io.github.syrou.reaktiv.core/Module<#A1, #B1>) // io.github.syrou.reaktiv.core/StoreDSL.module|module(kotlin.reflect.KClass<0:0>;io.github.syrou.reaktiv.core.Module<0:0,0:1>){0§<io.github.syrou.reaktiv.core.ModuleState>;1§<io.github.syrou.reaktiv.core.ModuleAction>}[0]
+    final fun coroutineContext(kotlin.coroutines/CoroutineContext) // io.github.syrou.reaktiv.core/StoreDSL.coroutineContext|coroutineContext(kotlin.coroutines.CoroutineContext){}[0]
+    final fun middlewares(kotlin/Array<out kotlin.coroutines/SuspendFunction4<io.github.syrou.reaktiv.core/ModuleAction, kotlin.coroutines/SuspendFunction0<kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>>, io.github.syrou.reaktiv.core/StoreAccessor, kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/ModuleAction, io.github.syrou.reaktiv.core/ModuleState>, kotlin/Unit>>...) // io.github.syrou.reaktiv.core/StoreDSL.middlewares|middlewares(kotlin.Array<out|kotlin.coroutines.SuspendFunction4<io.github.syrou.reaktiv.core.ModuleAction,kotlin.coroutines.SuspendFunction0<kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>>,io.github.syrou.reaktiv.core.StoreAccessor,kotlin.coroutines.SuspendFunction1<io.github.syrou.reaktiv.core.ModuleAction,io.github.syrou.reaktiv.core.ModuleState>,kotlin.Unit>>...){}[0]
+    final fun persistenceManager(io.github.syrou.reaktiv.core.persistance/PersistenceStrategy) // io.github.syrou.reaktiv.core/StoreDSL.persistenceManager|persistenceManager(io.github.syrou.reaktiv.core.persistance.PersistenceStrategy){}[0]
+    final inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleState, #B1: io.github.syrou.reaktiv.core/ModuleAction> module(io.github.syrou.reaktiv.core/Module<#A1, #B1>) // io.github.syrou.reaktiv.core/StoreDSL.module|module(io.github.syrou.reaktiv.core.Module<0:0,0:1>){0§<io.github.syrou.reaktiv.core.ModuleState>;1§<io.github.syrou.reaktiv.core.ModuleAction>}[0]
+}
+
+open class <#A: io.github.syrou.reaktiv.core/ModuleState> io.github.syrou.reaktiv.core/StateSelector { // io.github.syrou.reaktiv.core/StateSelector|null[0]
+    constructor <init>(kotlin.reflect/KClass<#A>) // io.github.syrou.reaktiv.core/StateSelector.<init>|<init>(kotlin.reflect.KClass<1:0>){}[0]
+
+    final val stateClass // io.github.syrou.reaktiv.core/StateSelector.stateClass|{}stateClass[0]
+        final fun <get-stateClass>(): kotlin.reflect/KClass<#A> // io.github.syrou.reaktiv.core/StateSelector.stateClass.<get-stateClass>|<get-stateClass>(){}[0]
+
+    final fun getValue(io.github.syrou.reaktiv.core/Store): #A // io.github.syrou.reaktiv.core/StateSelector.getValue|getValue(io.github.syrou.reaktiv.core.Store){}[0]
+    final fun selectNow(io.github.syrou.reaktiv.core/Store): kotlinx.coroutines.flow/StateFlow<#A> // io.github.syrou.reaktiv.core/StateSelector.selectNow|selectNow(io.github.syrou.reaktiv.core.Store){}[0]
+    final suspend fun select(io.github.syrou.reaktiv.core/Store): kotlinx.coroutines.flow/StateFlow<#A> // io.github.syrou.reaktiv.core/StateSelector.select|select(io.github.syrou.reaktiv.core.Store){}[0]
+
+    final object Companion { // io.github.syrou.reaktiv.core/StateSelector.Companion|null[0]
+        final inline fun <#A2: reified io.github.syrou.reaktiv.core/ModuleState> create(): io.github.syrou.reaktiv.core/StateSelector<#A2> // io.github.syrou.reaktiv.core/StateSelector.Companion.create|create(){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+    }
+}
+
+open class io.github.syrou.reaktiv.core/ModuleLogic : io.github.syrou.reaktiv.core/Logic { // io.github.syrou.reaktiv.core/ModuleLogic|null[0]
+    constructor <init>() // io.github.syrou.reaktiv.core/ModuleLogic.<init>|<init>(){}[0]
+
+    open suspend fun beforeReset() // io.github.syrou.reaktiv.core/ModuleLogic.beforeReset|beforeReset(){}[0]
+}
+
+sealed class io.github.syrou.reaktiv.core/DispatchResult { // io.github.syrou.reaktiv.core/DispatchResult|null[0]
+    final class Error : io.github.syrou.reaktiv.core/DispatchResult { // io.github.syrou.reaktiv.core/DispatchResult.Error|null[0]
+        constructor <init>(kotlin/Throwable) // io.github.syrou.reaktiv.core/DispatchResult.Error.<init>|<init>(kotlin.Throwable){}[0]
+
+        final val cause // io.github.syrou.reaktiv.core/DispatchResult.Error.cause|{}cause[0]
+            final fun <get-cause>(): kotlin/Throwable // io.github.syrou.reaktiv.core/DispatchResult.Error.cause.<get-cause>|<get-cause>(){}[0]
+
+        final fun component1(): kotlin/Throwable // io.github.syrou.reaktiv.core/DispatchResult.Error.component1|component1(){}[0]
+        final fun copy(kotlin/Throwable = ...): io.github.syrou.reaktiv.core/DispatchResult.Error // io.github.syrou.reaktiv.core/DispatchResult.Error.copy|copy(kotlin.Throwable){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core/DispatchResult.Error.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core/DispatchResult.Error.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.core/DispatchResult.Error.toString|toString(){}[0]
+    }
+
+    final object Blocked : io.github.syrou.reaktiv.core/DispatchResult { // io.github.syrou.reaktiv.core/DispatchResult.Blocked|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core/DispatchResult.Blocked.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core/DispatchResult.Blocked.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.core/DispatchResult.Blocked.toString|toString(){}[0]
+    }
+
+    final object Processed : io.github.syrou.reaktiv.core/DispatchResult { // io.github.syrou.reaktiv.core/DispatchResult.Processed|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core/DispatchResult.Processed.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core/DispatchResult.Processed.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.core/DispatchResult.Processed.toString|toString(){}[0]
+    }
+}
+
+final object io.github.syrou.reaktiv.core.serialization/AnySerializer : kotlinx.serialization/KSerializer<kotlin/Any> { // io.github.syrou.reaktiv.core.serialization/AnySerializer|null[0]
+    final val descriptor // io.github.syrou.reaktiv.core.serialization/AnySerializer.descriptor|{}descriptor[0]
+        final fun <get-descriptor>(): kotlinx.serialization.descriptors/SerialDescriptor // io.github.syrou.reaktiv.core.serialization/AnySerializer.descriptor.<get-descriptor>|<get-descriptor>(){}[0]
+
+    final fun deserialize(kotlinx.serialization.encoding/Decoder): kotlin/Any // io.github.syrou.reaktiv.core.serialization/AnySerializer.deserialize|deserialize(kotlinx.serialization.encoding.Decoder){}[0]
+    final fun serialize(kotlinx.serialization.encoding/Encoder, kotlin/Any) // io.github.syrou.reaktiv.core.serialization/AnySerializer.serialize|serialize(kotlinx.serialization.encoding.Encoder;kotlin.Any){}[0]
+}
+
+final object io.github.syrou.reaktiv.core.tracing/LogicTracer { // io.github.syrou.reaktiv.core.tracing/LogicTracer|null[0]
+    final val active // io.github.syrou.reaktiv.core.tracing/LogicTracer.active|{}active[0]
+        final fun <get-active>(): kotlin/Boolean // io.github.syrou.reaktiv.core.tracing/LogicTracer.active.<get-active>|<get-active>(){}[0]
+
+    final fun addObserver(io.github.syrou.reaktiv.core.tracing/LogicObserver) // io.github.syrou.reaktiv.core.tracing/LogicTracer.addObserver|addObserver(io.github.syrou.reaktiv.core.tracing.LogicObserver){}[0]
+    final fun clearObservers() // io.github.syrou.reaktiv.core.tracing/LogicTracer.clearObservers|clearObservers(){}[0]
+    final fun notifyMethodCompleted(kotlin/String, kotlin/String?, kotlin/String, kotlin/Long) // io.github.syrou.reaktiv.core.tracing/LogicTracer.notifyMethodCompleted|notifyMethodCompleted(kotlin.String;kotlin.String?;kotlin.String;kotlin.Long){}[0]
+    final fun notifyMethodFailed(kotlin/String, kotlin/Throwable, kotlin/Long) // io.github.syrou.reaktiv.core.tracing/LogicTracer.notifyMethodFailed|notifyMethodFailed(kotlin.String;kotlin.Throwable;kotlin.Long){}[0]
+    final fun notifyMethodStart(kotlin/String, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String>, kotlin/String? = ..., kotlin/Int? = ..., kotlin/String? = ...): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicTracer.notifyMethodStart|notifyMethodStart(kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.String?;kotlin.Int?;kotlin.String?){}[0]
+    final fun observerCount(): kotlin/Int // io.github.syrou.reaktiv.core.tracing/LogicTracer.observerCount|observerCount(){}[0]
+    final fun removeObserver(io.github.syrou.reaktiv.core.tracing/LogicObserver): kotlin/Boolean // io.github.syrou.reaktiv.core.tracing/LogicTracer.removeObserver|removeObserver(io.github.syrou.reaktiv.core.tracing.LogicObserver){}[0]
+}
+
+final object io.github.syrou.reaktiv.core.tracing/Obfuscation { // io.github.syrou.reaktiv.core.tracing/Obfuscation|null[0]
+    final const val REDACTED // io.github.syrou.reaktiv.core.tracing/Obfuscation.REDACTED|{}REDACTED[0]
+        final fun <get-REDACTED>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/Obfuscation.REDACTED.<get-REDACTED>|<get-REDACTED>(){}[0]
+
+    final fun maskPII(kotlin/Any?): kotlin/String // io.github.syrou.reaktiv.core.tracing/Obfuscation.maskPII|maskPII(kotlin.Any?){}[0]
+    final fun redact(kotlin/Any?): kotlin/String // io.github.syrou.reaktiv.core.tracing/Obfuscation.redact|redact(kotlin.Any?){}[0]
+    final fun toTraceString(kotlin/Any?, kotlin/Int = ...): kotlin/String // io.github.syrou.reaktiv.core.tracing/Obfuscation.toTraceString|toTraceString(kotlin.Any?;kotlin.Int){}[0]
+}
+
+final object io.github.syrou.reaktiv.core.util/ReaktivDebug { // io.github.syrou.reaktiv.core.util/ReaktivDebug|null[0]
+    final var isEnabled // io.github.syrou.reaktiv.core.util/ReaktivDebug.isEnabled|{}isEnabled[0]
+        final fun <get-isEnabled>(): kotlin/Boolean // io.github.syrou.reaktiv.core.util/ReaktivDebug.isEnabled.<get-isEnabled>|<get-isEnabled>(){}[0]
+
+    final fun disable() // io.github.syrou.reaktiv.core.util/ReaktivDebug.disable|disable(){}[0]
+    final fun enable() // io.github.syrou.reaktiv.core.util/ReaktivDebug.enable|enable(){}[0]
+    final fun error(kotlin/String, kotlin/Throwable? = ...) // io.github.syrou.reaktiv.core.util/ReaktivDebug.error|error(kotlin.String;kotlin.Throwable?){}[0]
+    final fun general(kotlin/String) // io.github.syrou.reaktiv.core.util/ReaktivDebug.general|general(kotlin.String){}[0]
+    final fun nav(kotlin/String) // io.github.syrou.reaktiv.core.util/ReaktivDebug.nav|nav(kotlin.String){}[0]
+    final fun store(kotlin/String) // io.github.syrou.reaktiv.core.util/ReaktivDebug.store|store(kotlin.String){}[0]
+    final fun trace(kotlin/String) // io.github.syrou.reaktiv.core.util/ReaktivDebug.trace|trace(kotlin.String){}[0]
+    final fun warn(kotlin/String) // io.github.syrou.reaktiv.core.util/ReaktivDebug.warn|warn(kotlin.String){}[0]
+}
+
+final fun io.github.syrou.reaktiv.core.util/currentTimeMillis(): kotlin/Long // io.github.syrou.reaktiv.core.util/currentTimeMillis|currentTimeMillis(){}[0]
+final fun io.github.syrou.reaktiv.core.util/reaktivJson(kotlinx.serialization.modules/SerializersModule? = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): kotlinx.serialization.json/Json // io.github.syrou.reaktiv.core.util/reaktivJson|reaktivJson(kotlinx.serialization.modules.SerializersModule?;kotlin.Boolean;kotlin.Boolean){}[0]
+final fun io.github.syrou.reaktiv.core/createStore(kotlin/Function1<io.github.syrou.reaktiv.core/StoreDSL, kotlin/Unit>): io.github.syrou.reaktiv.core/Store // io.github.syrou.reaktiv.core/createStore|createStore(kotlin.Function1<io.github.syrou.reaktiv.core.StoreDSL,kotlin.Unit>){}[0]
+final suspend inline fun <#A: reified io.github.syrou.reaktiv.core/ModuleLogic> (io.github.syrou.reaktiv.core/StoreAccessor).io.github.syrou.reaktiv.core.util/selectLogic(): #A // io.github.syrou.reaktiv.core.util/selectLogic|selectLogic@io.github.syrou.reaktiv.core.StoreAccessor(){0§<io.github.syrou.reaktiv.core.ModuleLogic>}[0]
+final suspend inline fun <#A: reified io.github.syrou.reaktiv.core/ModuleState> (io.github.syrou.reaktiv.core/StoreAccessor).io.github.syrou.reaktiv.core.util/selectState(): kotlinx.coroutines.flow/StateFlow<#A> // io.github.syrou.reaktiv.core.util/selectState|selectState@io.github.syrou.reaktiv.core.StoreAccessor(){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]

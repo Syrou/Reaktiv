@@ -47,11 +47,11 @@ class NavigationLogicTest {
 
     private fun createSimpleNavigationModule() = createNavigationModule {
         rootGraph {
-            startScreen(homeScreen)
+            start(homeScreen)
             screens(homeScreen, profileScreen, settingsScreen, aboutScreen)
 
             graph("content") {
-                startScreen(newsScreen)
+                start(newsScreen)
                 screens(newsScreen, workspaceScreen)
             }
         }
@@ -567,13 +567,13 @@ class NavigationLogicTest {
 
             val module = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen)
                     graph("workspace") {
-                        entry(route = { _ -> NavigationPath("projects") })
+                        start(route = { _ -> NavigationPath("projects") })
                         screens(workspaceScreen)
                         graph("projects") {
-                            entry(route = { _ -> projectHomeScreen })
+                            start(route = { _ -> projectHomeScreen })
                             screens(projectHomeScreen, projectDetailScreen)
                         }
                     }
@@ -613,10 +613,10 @@ class NavigationLogicTest {
             val module = createNavigationModule {
                 loadingModal(loadingModal)
                 rootGraph {
-                    entry(route = { _ -> NavigationPath("workspace") })
+                    start(route = { _ -> NavigationPath("workspace") })
                     screens(homeScreen)
                     graph("workspace") {
-                        entry(route = { _ -> projectHomeScreen })
+                        start(route = { _ -> projectHomeScreen })
                         screens(projectHomeScreen)
                     }
                 }

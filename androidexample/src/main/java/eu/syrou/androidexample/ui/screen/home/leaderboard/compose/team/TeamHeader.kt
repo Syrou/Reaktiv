@@ -65,7 +65,7 @@ fun TeamHeader(teamData: TeamStatsData) {
 
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
-                progress = (teamData.teamPerformance.overallRating / 5.0).toFloat(),
+                progress = { (teamData.teamPerformance.overallRating / 5.0).toFloat() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
@@ -142,7 +142,7 @@ fun PerformanceMetric(
             )
         }
         LinearProgressIndicator(
-            progress = value.toFloat(),
+            progress = { value.toFloat() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp),

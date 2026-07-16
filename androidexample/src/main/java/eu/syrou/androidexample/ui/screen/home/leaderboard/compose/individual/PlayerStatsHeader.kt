@@ -63,7 +63,7 @@ fun PlayerStatsHeader(playerData: IndividualStatsData) {
                         (playerData.progressionData.experiencePoints + playerData.progressionData.experienceToNextLevel)
 
                 LinearProgressIndicator(
-                    progress = progress,
+                    progress = { progress },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp),
@@ -185,7 +185,7 @@ fun SkillProgressItem(skill: SkillProgress) {
         }
 
         LinearProgressIndicator(
-            progress = skill.masteryPercentage.toFloat(),
+            progress = { skill.masteryPercentage.toFloat() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp),

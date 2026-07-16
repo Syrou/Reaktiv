@@ -133,7 +133,7 @@ class ProtectedRoutesTest {
 
     private fun moduleWithReject() = createNavigationModule {
         rootGraph {
-            entry(startScreen)
+            start(startScreen)
             screens(startScreen, loginScreen)
             intercept(
                 guard = { store ->
@@ -142,7 +142,7 @@ class ProtectedRoutesTest {
                 }
             ) {
                 graph("workspace") {
-                    entry(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen)
                 }
             }
@@ -151,7 +151,7 @@ class ProtectedRoutesTest {
 
     private fun moduleWithRedirect() = createNavigationModule {
         rootGraph {
-            entry(startScreen)
+            start(startScreen)
             screens(startScreen, loginScreen)
             intercept(
                 guard = { store ->
@@ -160,7 +160,7 @@ class ProtectedRoutesTest {
                 }
             ) {
                 graph("workspace") {
-                    entry(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen)
                 }
             }
@@ -169,7 +169,7 @@ class ProtectedRoutesTest {
 
     private fun moduleWithPendAndRedirect(displayHint: String? = null) = createNavigationModule {
         rootGraph {
-            entry(startScreen)
+            start(startScreen)
             screens(startScreen, loginScreen, checkEmail, registerScreen)
             intercept(
                 guard = { store ->
@@ -182,7 +182,7 @@ class ProtectedRoutesTest {
                 }
             ) {
                 graph("workspace") {
-                    entry(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, inviteScreen)
                 }
             }
@@ -191,7 +191,7 @@ class ProtectedRoutesTest {
 
     private fun moduleWithDeepLinkAlias() = createNavigationModule {
         rootGraph {
-            entry(startScreen)
+            start(startScreen)
             screens(startScreen, loginScreen, checkEmail, registerScreen)
             intercept(
                 guard = { store ->
@@ -203,7 +203,7 @@ class ProtectedRoutesTest {
                 }
             ) {
                 graph("workspace") {
-                    entry(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, inviteScreen)
                 }
             }
@@ -221,7 +221,7 @@ class ProtectedRoutesTest {
     private fun moduleWithLoadingScreen() = createNavigationModule {
         loadingModal(loadingModal)
         rootGraph {
-            entry(startScreen)
+            start(startScreen)
             screens(startScreen, loginScreen)
             intercept(
                 guard = { store ->
@@ -230,7 +230,7 @@ class ProtectedRoutesTest {
                 }
             ) {
                 graph("workspace") {
-                    entry(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen)
                 }
             }
@@ -297,7 +297,7 @@ class ProtectedRoutesTest {
 
     private fun moduleWithUrlPatternAlias() = createNavigationModule {
         rootGraph {
-            entry(startScreen)
+            start(startScreen)
             screens(startScreen, loginScreen, checkEmail, registerScreen)
             intercept(
                 guard = { store ->
@@ -309,7 +309,7 @@ class ProtectedRoutesTest {
                 }
             ) {
                 graph("workspace") {
-                    entry(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, inviteScreen)
                 }
             }
@@ -387,7 +387,7 @@ class ProtectedRoutesTest {
 
     private fun moduleWithProtectedModal() = createNavigationModule {
         rootGraph {
-            entry(startScreen)
+            start(startScreen)
             screens(startScreen, loginScreen)
             intercept(
                 guard = { store ->
@@ -400,7 +400,7 @@ class ProtectedRoutesTest {
             ) {
                 modals(invitationModal)
                 graph("workspace") {
-                    entry(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen)
                 }
             }
@@ -684,10 +684,10 @@ class ProtectedRoutesTest {
                 module(createNavigationModule {
                     loadingModal(loadingModal)
                     rootGraph {
-                        entry(startScreen)
+                        start(startScreen)
                         screens(startScreen)
                         graph("workspace") {
-                            entry(route = { homeScreen })
+                            start(route = { homeScreen })
                             screens(homeScreen)
                         }
                     }
@@ -714,10 +714,10 @@ class ProtectedRoutesTest {
                 module(createNavigationModule {
                     loadingModal(loadingModal)
                     rootGraph {
-                        entry(startScreen)
+                        start(startScreen)
                         screens(startScreen)
                         graph("workspace") {
-                            entry(route = { entryGate.await() })
+                            start(route = { entryGate.await() })
                             screens(homeScreen)
                         }
                     }
@@ -786,13 +786,13 @@ class ProtectedRoutesTest {
             val navModule = createNavigationModule {
                 loadingModal(loadingModal)
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen)
                     intercept(
                         guard = { guardGate.await() }
                     ) {
                         graph("workspace") {
-                            entry(homeScreen)
+                            start(homeScreen)
                             screens(homeScreen)
                         }
                     }
@@ -829,11 +829,11 @@ class ProtectedRoutesTest {
             val navModule = createNavigationModule {
                 loadingModal(loadingModal)
                 rootGraph {
-                    entry(loginScreen)
+                    start(loginScreen)
                     screens(loginScreen, otpScreen)
                     intercept(guard = { guardGate.await() }) {
                         graph("workspace") {
-                            entry(homeScreen)
+                            start(homeScreen)
                             screens(homeScreen)
                         }
                     }
@@ -895,13 +895,13 @@ class ProtectedRoutesTest {
             val navModule = createNavigationModule {
                 loadingModal(loadingModal)
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { guardGate.await() }
                     ) {
                         graph("workspace") {
-                            entry(homeScreen)
+                            start(homeScreen)
                             screens(homeScreen)
                         }
                     }
@@ -1048,10 +1048,10 @@ class ProtectedRoutesTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen)
                     graph("content") {
-                        entry(
+                        start(
                             route = { store ->
                                 val state = store.selectState<ContentState>().value
                                 when {
@@ -1088,10 +1088,10 @@ class ProtectedRoutesTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen)
                     graph("content") {
-                        entry(
+                        start(
                             route = { store ->
                                 val state = store.selectState<ContentState>().value
                                 when {
@@ -1128,10 +1128,10 @@ class ProtectedRoutesTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen)
                     graph("content") {
-                        entry(
+                        start(
                             route = { store ->
                                 val state = store.selectState<ContentState>().value
                                 when {
@@ -1165,7 +1165,7 @@ class ProtectedRoutesTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1175,7 +1175,7 @@ class ProtectedRoutesTest {
                         }
                     ) {
                         graph("content") {
-                            entry(route = { noArtistScreen })
+                            start(route = { noArtistScreen })
                             screens(releasesScreen, artistScreen, noArtistScreen)
                         }
                     }
@@ -1201,7 +1201,7 @@ class ProtectedRoutesTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1211,7 +1211,7 @@ class ProtectedRoutesTest {
                         }
                     ) {
                         graph("content") {
-                            entry(route = { releasesScreen })
+                            start(route = { releasesScreen })
                             screens(releasesScreen, artistScreen, noArtistScreen)
                         }
                     }
@@ -1242,7 +1242,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1258,7 +1258,7 @@ class ProtectedRoutesTest {
                             }
                         ) {
                             graph("workspace") {
-                                entry(homeScreen)
+                                start(homeScreen)
                                 screens(homeScreen)
                             }
                         }
@@ -1287,7 +1287,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1302,7 +1302,7 @@ class ProtectedRoutesTest {
                             }
                         ) {
                             graph("workspace") {
-                                entry(homeScreen)
+                                start(homeScreen)
                                 screens(homeScreen)
                             }
                         }
@@ -1334,7 +1334,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1349,7 +1349,7 @@ class ProtectedRoutesTest {
                             }
                         ) {
                             graph("workspace") {
-                                entry(homeScreen)
+                                start(homeScreen)
                                 screens(homeScreen)
                             }
                         }
@@ -1381,7 +1381,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1396,7 +1396,7 @@ class ProtectedRoutesTest {
                             }
                         ) {
                             graph("workspace") {
-                                entry(homeScreen)
+                                start(homeScreen)
                                 screens(homeScreen)
                             }
                         }
@@ -1429,7 +1429,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1444,7 +1444,7 @@ class ProtectedRoutesTest {
                             }
                         ) {
                             graph("workspace") {
-                                entry(homeScreen)
+                                start(homeScreen)
                                 screens(homeScreen)
                             }
                         }
@@ -1477,7 +1477,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { _ ->
@@ -1491,7 +1491,7 @@ class ProtectedRoutesTest {
                             }
                         ) {
                             graph("workspace") {
-                                entry(homeScreen)
+                                start(homeScreen)
                                 screens(homeScreen)
                             }
                         }
@@ -1520,7 +1520,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1541,7 +1541,7 @@ class ProtectedRoutesTest {
                                 }
                             ) {
                                 graph("premium") {
-                                    entry(premiumScreen)
+                                    start(premiumScreen)
                                     screens(premiumScreen)
                                 }
                             }
@@ -1576,7 +1576,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1597,7 +1597,7 @@ class ProtectedRoutesTest {
                                 }
                             ) {
                                 graph("premium") {
-                                    entry(premiumScreen)
+                                    start(premiumScreen)
                                     screens(premiumScreen)
                                 }
                             }
@@ -1630,7 +1630,7 @@ class ProtectedRoutesTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    entry(startScreen)
+                    start(startScreen)
                     screens(startScreen, loginScreen)
                     intercept(
                         guard = { store ->
@@ -1645,7 +1645,7 @@ class ProtectedRoutesTest {
                             }
                         ) {
                             graph("workspace") {
-                                entry(homeScreen)
+                                start(homeScreen)
                                 screens(homeScreen)
                             }
                         }
@@ -1662,7 +1662,7 @@ class ProtectedRoutesTest {
                                 }
                             ) {
                                 graph("premium") {
-                                    entry(premiumScreen)
+                                    start(premiumScreen)
                                     screens(premiumScreen)
                                 }
                             }
@@ -1715,7 +1715,7 @@ class ProtectedRoutesTest {
                             GuardResult.Allow
                         }) {
                             graph("workspace") {
-                                entry(home)
+                                start(home)
                                 screens(home)
                             }
                         }
@@ -1750,7 +1750,7 @@ class ProtectedRoutesTest {
                             )
                         }) {
                             graph("workspace") {
-                                entry(home)
+                                start(home)
                                 screens(home)
                             }
                         }
@@ -1779,14 +1779,14 @@ class ProtectedRoutesTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        entry(login)
+                        start(login)
                         screens(login)
                         intercept(guard = { _ ->
                             guardInvokeCount++
                             GuardResult.Allow
                         }) {
                             graph("workspace") {
-                                entry(home)
+                                start(home)
                                 screens(home, detail, profile)
                             }
                         }

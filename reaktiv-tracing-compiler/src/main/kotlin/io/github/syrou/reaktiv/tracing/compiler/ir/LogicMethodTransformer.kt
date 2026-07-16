@@ -76,6 +76,10 @@ class LogicMethodTransformer(
         logicTracerClass?.owner?.functions?.find { it.name.asString() == "notifyMethodFailed" }?.symbol
     }
 
+    private val tracerActiveGetter: IrSimpleFunctionSymbol? by lazy {
+        logicTracerClass?.owner?.properties?.find { it.name.asString() == "active" }?.getter?.symbol
+    }
+
     // Reference to kotlin.system.getTimeMillis() for timing
     private val getTimeMillisFun: IrSimpleFunctionSymbol? by lazy {
         val funRef = pluginContext.referenceFunctions(
@@ -182,16 +186,24 @@ class LogicMethodTransformer(
                 nameHint = "tracing_startTime"
             )
 
-            // Build params map with actual parameter values
+            // Build params map with actual parameter values, but only when tracing is active
             val paramsVar = irTemporary(
-                value = buildParamsMap(function),
+                value = if (emptyMapFun != null) {
+                    irIfTracerActive(
+                        type = irBuiltIns.mapClass.typeWith(irBuiltIns.stringType, irBuiltIns.stringType),
+                        thenPart = buildParamsMap(function),
+                        elsePart = buildEmptyParamsMap()
+                    )
+                } else {
+                    buildParamsMap(function)
+                },
                 nameHint = "tracing_params"
             )
 
             // Get source file and line number from the function declaration
-            val absoluteFilePath = function.fileEntry?.name
+            val absoluteFilePath = function.fileEntry.name
             val lineNumber = if (function.startOffset >= 0) {
-                function.fileEntry?.getLineNumber(function.startOffset)?.plus(1) // Line numbers are 0-based
+                function.fileEntry.getLineNumber(function.startOffset)?.plus(1) // Line numbers are 0-based
             } else null
 
             // Compute relative file path for source linking
@@ -339,7 +351,11 @@ class LogicMethodTransformer(
                                     +irCall(completedFun).apply {
                                         dispatchReceiver = irGetObject(tracerClass)
                                         arguments[completedValueParamOffset + 0] = irGet(callIdVar)
-                                        arguments[completedValueParamOffset + 1] = irToStringSafe(irGet(resultTmp))
+                                        arguments[completedValueParamOffset + 1] = irIfTracerActive(
+                                            type = irBuiltIns.stringType.makeNullable(),
+                                            thenPart = irToStringSafe(irGet(resultTmp)),
+                                            elsePart = irNull()
+                                        )
                                         arguments[completedValueParamOffset + 2] = irString(returnType.classFqName?.shortName()?.asString() ?: "Unknown")
                                         arguments[completedValueParamOffset + 3] = irComputeDuration(startTimeVar)
                                     }
@@ -363,7 +379,11 @@ class LogicMethodTransformer(
                             +irCall(completedFun).apply {
                                 dispatchReceiver = irGetObject(tracerClass)
                                 arguments[completedValueParamOffset + 0] = irGet(callIdVar)
-                                arguments[completedValueParamOffset + 1] = irToStringSafe(irGet(resultTmp))
+                                arguments[completedValueParamOffset + 1] = irIfTracerActive(
+                                            type = irBuiltIns.stringType.makeNullable(),
+                                            thenPart = irToStringSafe(irGet(resultTmp)),
+                                            elsePart = irNull()
+                                        )
                                 arguments[completedValueParamOffset + 2] = irString(returnType.classFqName?.shortName()?.asString() ?: "Unknown")
                                 arguments[completedValueParamOffset + 3] = irComputeDuration(startTimeVar)
                             }
@@ -525,6 +545,21 @@ class LogicMethodTransformer(
         return irCall(toStringFun).apply {
             dispatchReceiver = value
         }
+    }
+
+    private fun IrBuilderWithScope.irIfTracerActive(
+        type: IrType,
+        thenPart: IrExpression,
+        elsePart: IrExpression
+    ): IrExpression {
+        val getter = tracerActiveGetter ?: return thenPart
+        val tracer = logicTracerClass ?: return thenPart
+        return irIfThenElse(
+            type = type,
+            condition = irCall(getter).apply { dispatchReceiver = irGetObject(tracer) },
+            thenPart = thenPart,
+            elsePart = elsePart
+        )
     }
 
     private fun shouldTrace(function: IrFunction): Boolean {
@@ -712,7 +747,11 @@ class LogicMethodTransformer(
                 +irCall(completedFun).apply {
                     dispatchReceiver = irGetObject(tracerClass)
                     arguments[completedValueParamOffset + 0] = irGet(callIdVar)
-                    arguments[completedValueParamOffset + 1] = irToStringSafe(irGet(resultTmp))
+                    arguments[completedValueParamOffset + 1] = irIfTracerActive(
+                                            type = irBuiltIns.stringType.makeNullable(),
+                                            thenPart = irToStringSafe(irGet(resultTmp)),
+                                            elsePart = irNull()
+                                        )
                     arguments[completedValueParamOffset + 2] = irString(returnType.classFqName?.shortName()?.asString() ?: "Unknown")
                     arguments[completedValueParamOffset + 3] = irComputeDuration(startTimeVar)
                 }
@@ -725,62 +764,6 @@ class LogicMethodTransformer(
                     returnTargetSymbol = expression.returnTargetSymbol,
                     value = irGet(resultTmp)
                 )
-            }
-        }
-
-        private fun IrBuilderWithScope.irToStringSafe(value: IrExpression): IrExpression {
-            val toStringFun = irBuiltIns.anyClass.owner.functions.find { fn ->
-                fn.name.asString() == "toString" &&
-                fn.parameters.none { it.kind == org.jetbrains.kotlin.ir.declarations.IrParameterKind.Regular }
-            }?.symbol
-
-            if (toStringFun == null) {
-                return irString("<unknown>")
-            }
-
-            if ((value.type as? IrSimpleType)?.isMarkedNullable() == true) {
-                return irBlock(resultType = irBuiltIns.stringType) {
-                    val tmp = irTemporary(value, nameHint = "tracing_nullCheck")
-                    +irIfThenElse(
-                        type = irBuiltIns.stringType,
-                        condition = irNotEquals(irGet(tmp), irNull()),
-                        thenPart = irCall(toStringFun).apply {
-                            dispatchReceiver = irGet(tmp)
-                        },
-                        elsePart = irString("null")
-                    )
-                }
-            }
-
-            return irCall(toStringFun).apply {
-                dispatchReceiver = value
-            }
-        }
-
-        private fun IrBuilderWithScope.irComputeDuration(startTimeVar: IrVariable): IrExpression {
-            val timeFun = getTimeMillisFun
-            if (timeFun == null) {
-                return irLong(0L)
-            }
-
-            val currentTime = irCall(timeFun)
-            val startTime = irGet(startTimeVar)
-
-            // Find Long.minus(other: Long) - 1 regular parameter, dispatch receiver is separate
-            val minusFun = irBuiltIns.longClass.owner.functions.firstOrNull { fn ->
-                fn.name.asString() == "minus" &&
-                fn.parameters.count { it.kind == org.jetbrains.kotlin.ir.declarations.IrParameterKind.Regular } == 1 &&
-                fn.parameters.any { it.type.isLong() }
-            }
-
-            return if (minusFun != null) {
-                irCall(minusFun.symbol).apply {
-                    dispatchReceiver = currentTime
-                    val paramOffset = if (minusFun.dispatchReceiverParameter != null) 1 else 0
-                    arguments[paramOffset] = startTime
-                }
-            } else {
-                irLong(0L)
             }
         }
     }

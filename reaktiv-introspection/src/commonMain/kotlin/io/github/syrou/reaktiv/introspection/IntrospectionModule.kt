@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.introspection
 
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
@@ -9,22 +10,15 @@ import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
-import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.tracing.IntrospectionLogicObserver
-import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.MapSerializer
-import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kotlin.time.Clock
 
 /**
  * State for introspection module.
  * Minimal state - just tracks if capture is active.
  */
 @Serializable
-data class IntrospectionState(
+public data class IntrospectionState(
     val isCapturing: Boolean = false
 ) : ModuleState
 
@@ -32,13 +26,7 @@ data class IntrospectionState(
  * Actions for introspection module.
  */
 @Serializable
-sealed class IntrospectionAction : ModuleAction(IntrospectionModule::class) {
-    @Serializable
-    internal data object StartCapture : IntrospectionAction()
-
-    @Serializable
-    internal data object StopCapture : IntrospectionAction()
-}
+public sealed class IntrospectionAction : ModuleAction(IntrospectionModule::class)
 
 /**
  * Logic class for introspection and session capture operations.
@@ -57,7 +45,7 @@ sealed class IntrospectionAction : ModuleAction(IntrospectionModule::class) {
  * val path = introspectionLogic.exportSessionToDownloads()
  * ```
  */
-class IntrospectionLogic internal constructor(
+public class IntrospectionLogic internal constructor(
     private val storeAccessor: StoreAccessor,
     private val config: IntrospectionConfig,
     private val sessionCapture: SessionCapture,
@@ -72,7 +60,7 @@ class IntrospectionLogic internal constructor(
             if (!sessionCapture.isStarted()) {
                 sessionCapture.start(config.clientId, config.clientName, config.platform)
             }
-            logicObserver = IntrospectionLogicObserver(config.clientId, sessionCapture)
+            logicObserver = IntrospectionLogicObserver(sessionCapture)
             LogicTracer.addObserver(logicObserver!!)
         }
     }
@@ -89,14 +77,14 @@ class IntrospectionLogic internal constructor(
      * @return SessionCapture instance
      */
 
-    fun getSessionCapture(): SessionCapture = sessionCapture
+    public fun getSessionCapture(): SessionCapture = sessionCapture
 
     /**
      * Exports the current session as a JSON string.
      *
      * @return JSON string that can be imported as a ghost device in DevTools
      */
-    fun exportSessionJson(): String = sessionCapture.exportSession()
+    public suspend fun exportSessionJson(): String = sessionCapture.exportSession()
 
     /**
      * Exports the current session with crash information.
@@ -104,7 +92,7 @@ class IntrospectionLogic internal constructor(
      * @param throwable The exception that caused the crash
      * @return JSON string with crash info
      */
-    fun exportCrashSessionJson(throwable: Throwable): String =
+    public suspend fun exportCrashSessionJson(throwable: Throwable): String =
         sessionCapture.exportCrashSession(throwable)
 
     /**
@@ -113,10 +101,10 @@ class IntrospectionLogic internal constructor(
      * @param fileName Optional custom file name (defaults to timestamped name)
      * @return Path where the file was saved
      */
-    fun exportSessionToDownloads(fileName: String? = null): String {
+    public suspend fun exportSessionToDownloads(fileName: String? = null): String {
         val json = sessionCapture.exportSession()
         val actualFileName = fileName
-            ?: "reaktiv_session_${Clock.System.now().toEpochMilliseconds()}.json"
+            ?: "reaktiv_session_${currentTimeMillis()}.json"
         return sessionFileExport.saveToDownloads(json, actualFileName)
     }
 
@@ -127,17 +115,17 @@ class IntrospectionLogic internal constructor(
      * @param fileName Optional custom file name (defaults to timestamped name)
      * @return Path where the file was saved
      */
-    fun exportCrashSessionToDownloads(throwable: Throwable, fileName: String? = null): String {
+    public suspend fun exportCrashSessionToDownloads(throwable: Throwable, fileName: String? = null): String {
         val json = sessionCapture.exportCrashSession(throwable)
         val actualFileName = fileName
-            ?: "reaktiv_crash_${Clock.System.now().toEpochMilliseconds()}.json"
+            ?: "reaktiv_crash_${currentTimeMillis()}.json"
         return sessionFileExport.saveToDownloads(json, actualFileName)
     }
 
     /**
      * Cleans up resources.
      */
-    fun cleanup() {
+    public suspend fun cleanup() {
         logicObserver?.let { observer ->
             LogicTracer.removeObserver(observer)
         }
@@ -175,20 +163,15 @@ class IntrospectionLogic internal constructor(
  * @param sessionCapture Shared SessionCapture instance for recording events
  * @param platformContext Platform-specific context for file operations
  */
-class IntrospectionModule(
+public class IntrospectionModule(
     private val config: IntrospectionConfig,
     private val sessionCapture: SessionCapture,
     private val platformContext: PlatformContext
 ) : ModuleWithLogic<IntrospectionState, IntrospectionAction, IntrospectionLogic> {
 
-    override val initialState = IntrospectionState(isCapturing = config.enabled)
+    override val initialState: IntrospectionState = IntrospectionState(isCapturing = config.enabled)
 
-    override val reducer: (IntrospectionState, IntrospectionAction) -> IntrospectionState = { state, action ->
-        when (action) {
-            is IntrospectionAction.StartCapture -> state.copy(isCapturing = true)
-            is IntrospectionAction.StopCapture -> state.copy(isCapturing = false)
-        }
-    }
+    override val reducer: (IntrospectionState, IntrospectionAction) -> IntrospectionState = { state, _ -> state }
 
     override val createLogic: (StoreAccessor) -> IntrospectionLogic = { storeAccessor ->
         IntrospectionLogic(storeAccessor, config, sessionCapture, platformContext)
@@ -201,12 +184,14 @@ class IntrospectionModule(
 
 /**
  * Middleware that captures all dispatched actions.
+ *
+ * Capture calls only enqueue records on the shared [SessionCapture]; JSON encoding
+ * and storage writes happen on the capture worker, off the dispatch path.
  */
 internal class IntrospectionMiddleware(
     private val config: IntrospectionConfig,
     private val sessionCapture: SessionCapture
 ) {
-    private lateinit var json: Json
     private var initialized = false
     private var initialStateCaptured = false
 
@@ -218,52 +203,20 @@ internal class IntrospectionMiddleware(
 
         if (!initialized) {
             initialized = true
-            val serializers = (storeAccessor as? Store)?.serializersModule
-            json = Json {
-                if (serializers != null) {
-                    serializersModule = serializers
-                }
-                ignoreUnknownKeys = true
+            (storeAccessor as? Store)?.serializersModule?.let {
+                sessionCapture.attachStateSerializers(it)
             }
         }
 
         if (!initialStateCaptured && sessionCapture.isStarted() && action !is IntrospectionAction) {
             initialStateCaptured = true
-            try {
-                val allStates = getAllStates()
-                val mapSerializer = MapSerializer(
-                    String.serializer(),
-                    PolymorphicSerializer(ModuleState::class)
-                )
-                val initialStateJson = json.encodeToString(mapSerializer, allStates)
-                sessionCapture.captureInitialState(initialStateJson)
-            } catch (e: Exception) {
-                println("IntrospectionMiddleware: Failed to capture initial state - ${e.message}")
-            }
+            sessionCapture.captureInitialState(getAllStates())
         }
 
         val result = updatedState(action)
 
         if (sessionCapture.isStarted() && action !is IntrospectionAction) {
-            try {
-                val moduleName = result::class.qualifiedName ?: result::class.simpleName ?: "Unknown"
-                val stateJson = json.encodeToString(
-                    PolymorphicSerializer(ModuleState::class),
-                    result
-                )
-
-                val capturedAction = CapturedAction(
-                    clientId = config.clientId,
-                    timestamp = Clock.System.now().toEpochMilliseconds(),
-                    actionType = action::class.simpleName ?: "Unknown",
-                    actionData = action.toString(),
-                    stateDeltaJson = stateJson,
-                    moduleName = moduleName
-                )
-                sessionCapture.captureAction(capturedAction)
-            } catch (e: Exception) {
-                println("IntrospectionMiddleware: Failed to capture action - ${e.message}")
-            }
+            sessionCapture.captureDispatchedAction(action, result)
         }
     }
 }

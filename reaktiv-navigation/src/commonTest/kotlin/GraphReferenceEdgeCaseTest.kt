@@ -59,30 +59,30 @@ class GraphReferenceEdgeCaseTest {
 
     private fun createUserExactNavigationModule() = createNavigationModule {
         rootGraph {
-            startScreen(splashScreen)
+            start(splashScreen)
             screens(splashScreen, settingsScreen)
 
             graph("home") {
                 // This is the key line that was causing issues
-                startGraph("news")
+                start("news")
 
                 graph("news") {
                     // This should be the final destination
-                    startScreen(newsOverviewScreen)
+                    start(newsOverviewScreen)
                     screens(newsOverviewScreen, newsListScreen)
                 }
 
                 graph("workspace") {
-                    startScreen(workspaceScreen)
+                    start(workspaceScreen)
 
                     graph("projects") {
-                        startScreen(projectOverviewScreen)
+                        start(projectOverviewScreen)
                         screens(projectOverviewScreen, projectTasksScreen)
                     }
                 }
 
                 graph("leaderboard") {
-                    startScreen(leaderboardScreen)
+                    start(leaderboardScreen)
                 }
             }
         }
@@ -230,20 +230,20 @@ class GraphReferenceEdgeCaseTest {
 
             val navigationModule = createNavigationModule {
                 rootGraph {
-                    startScreen(splashScreen)
+                    start(splashScreen)
                     screens(splashScreen)
 
                     graph("level1") {
                         // level1 -> level2
-                        startGraph("level2")
+                        start("level2")
 
                         graph("level2") {
                             // level2 -> level3
-                            startGraph("level3")
+                            start("level3")
 
                             graph("level3") {
                                 // Final destination
-                                startScreen(screenC)
+                                start(screenC)
                                 screens(screenC)
                             }
                         }
@@ -369,12 +369,12 @@ class GraphReferenceEdgeCaseTest {
         // Test what happens with a broken reference
         val brokenModule = createNavigationModule {
             rootGraph {
-                startScreen(splashScreen)
+                start(splashScreen)
                 screens(splashScreen)
 
                 graph("broken") {
                     // This graph doesn't exist
-                    startGraph("nonexistent")
+                    start("nonexistent")
                 }
             }
         }

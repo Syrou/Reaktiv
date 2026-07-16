@@ -23,7 +23,7 @@ import io.github.syrou.reaktiv.navigation.util.extractRouteParameterNames
  * }
  * ```
  */
-class DeepLinkAliasBuilder {
+public class DeepLinkAliasBuilder {
     internal val aliases = mutableListOf<DeepLinkAlias>()
 
     /**
@@ -33,7 +33,7 @@ class DeepLinkAliasBuilder {
      * @param targetRoute The canonical internal route to redirect to
      * @param paramsMapping Optional transform applied to the extracted params before navigating
      */
-    fun alias(
+    public fun alias(
         pattern: String,
         targetRoute: String,
         paramsMapping: (Params) -> Params = { it }
@@ -60,7 +60,7 @@ class DeepLinkAliasBuilder {
  * @param targetRoute The canonical internal route to navigate to
  * @param paramsMapping Optional transform applied to route params before passing to navigation
  */
-data class DeepLinkAlias(
+public data class DeepLinkAlias(
     val pattern: String,
     val targetRoute: String,
     val paramsMapping: (Params) -> Params = { it }
@@ -73,7 +73,7 @@ data class DeepLinkAlias(
      *
      * @return Extracted [Params] if the pattern matches, or `null` if it does not.
      */
-    fun matchAndExtract(url: String): Params? {
+    public fun matchAndExtract(url: String): Params? {
         val matchResult = compiledRegex.find(url) ?: return null
         val paramsMap = mutableMapOf<String, Any>()
         matchResult.groupValues.drop(1).forEachIndexed { index, value ->

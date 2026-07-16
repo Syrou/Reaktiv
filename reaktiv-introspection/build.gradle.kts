@@ -15,34 +15,9 @@ reaktivTracing {
     tracePrivateMethods.set(true)
 }
 
-group = "io.github.syrou"
-
 centralPublisher {
-    username.set(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_TOKEN"))
-    password.set(CentralPublisherCredentials.credentialProvider(project, "CENTRAL_PASSWORD"))
-    publishingType = PublishingType.AUTOMATIC
-
-    signingPassword.set(CentralPublisherCredentials.credentialProvider(project, "SIGNING_PASSWORD"))
-    signingSecretKey.set(CentralPublisherCredentials.credentialProvider(project, "SIGNING_SECRET_KEY"))
-
     projectName = "Reaktiv Introspection"
     projectDescription = "Session capture, protocol definitions, and crash handling for Reaktiv state management library"
-    projectUrl = "https://github.com/Syrou/Reaktiv"
-
-    licenseName = "Apache License 2.0"
-    licenseUrl = "https://opensource.org/license/apache-2-0"
-
-    developerId = "Syrou"
-    developerName = "Syrou"
-    developerEmail = "me@syrou.eu"
-
-    scmUrl = "https://github.com/Syrou/Reaktiv"
-    scmConnection = "scm:git:https://github.com/Syrou/Reaktiv.git"
-    scmDeveloperConnection = "scm:git:ssh://github.com/Syrou/Reaktiv.git"
-}
-
-repositories {
-    mavenCentral()
 }
 
 kotlin {
@@ -59,7 +34,6 @@ kotlin {
 
     linuxX64()
     linuxArm64()
-    macosX64()
     macosArm64()
     mingwX64()
 
@@ -71,27 +45,32 @@ kotlin {
     applyDefaultHierarchyTemplate()
 
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 implementation(project(":reaktiv-core"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.io.core)
             }
         }
 
-        val commonTest by getting {
+        getByName("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
     }
 
     compilerOptions {
-        freeCompilerArgs.add("-opt-in=kotlin.time.ExperimentalTime")
-        freeCompilerArgs.add("-opt-in=kotlinx.cinterop.ExperimentalForeignApi")
+        optIn.add("kotlin.time.ExperimentalTime")
     }
 
-    jvmToolchain(17)
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
+        compilations.configureEach {
+            compileTaskProvider.configure {
+                compilerOptions.optIn.add("kotlinx.cinterop.ExperimentalForeignApi")
+            }
+        }
+    }
 }

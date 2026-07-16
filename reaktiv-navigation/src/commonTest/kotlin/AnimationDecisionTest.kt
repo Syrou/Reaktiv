@@ -48,6 +48,8 @@ import kotlin.time.toDuration
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnimationDecisionTest {
 
+    private val registered = mutableMapOf<String, io.github.syrou.reaktiv.navigation.definition.Navigatable>()
+
     private fun screen(
         route: String,
         enterTransition: NavTransition = NavTransition.None,
@@ -59,7 +61,7 @@ class AnimationDecisionTest {
 
         @Composable
         override fun Content(params: Params) { Text(route) }
-    }
+    }.also { registered[route] = it }
 
     private fun modal(
         route: String,
@@ -72,10 +74,14 @@ class AnimationDecisionTest {
 
         @Composable
         override fun Content(params: Params) { Text(route) }
-    }
+    }.also { registered[route] = it }
 
-    private fun entry(route: String, stackPosition: Int) =
-        NavigationEntry(path = route, params = Params.empty(), stackPosition = stackPosition)
+    private fun start(route: String, stackPosition: Int) = NavigationEntry(
+        navigatable = registered.getValue(route),
+        path = route,
+        params = Params.empty(),
+        stackPosition = stackPosition
+    )
 
     private suspend fun TestScope.navModule(
         block: suspend (NavigationModule) -> Unit
@@ -89,7 +95,7 @@ class AnimationDecisionTest {
         val store = createStore {
             module(createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen, settingsScreen)
                     modals(notificationModal, alertModal)
                 }
@@ -106,8 +112,8 @@ class AnimationDecisionTest {
     fun `forward navigation isForward true and uses current screen enter transition`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry    = entry("home",    stackPosition = 1)
-                val profileEntry = entry("profile", stackPosition = 2)
+                val homeEntry    = start("home",    stackPosition = 1)
+                val profileEntry = start("profile", stackPosition = 2)
 
                 val decision = determineAnimationDecision(homeEntry, profileEntry, nm)
 
@@ -121,8 +127,8 @@ class AnimationDecisionTest {
     fun `forward navigation uses previous screen exit transition`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry    = entry("home",    stackPosition = 1)
-                val profileEntry = entry("profile", stackPosition = 2)
+                val homeEntry    = start("home",    stackPosition = 1)
+                val profileEntry = start("profile", stackPosition = 2)
 
                 val decision = determineAnimationDecision(homeEntry, profileEntry, nm)
 
@@ -135,8 +141,8 @@ class AnimationDecisionTest {
     fun `back navigation isForward false`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry    = entry("home",    stackPosition = 1)
-                val profileEntry = entry("profile", stackPosition = 2)
+                val homeEntry    = start("home",    stackPosition = 1)
+                val profileEntry = start("profile", stackPosition = 2)
 
                 val decision = determineAnimationDecision(profileEntry, homeEntry, nm)
 
@@ -148,8 +154,8 @@ class AnimationDecisionTest {
     fun `back navigation uses previous screen exit transition`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry    = entry("home",    stackPosition = 1)
-                val profileEntry = entry("profile", stackPosition = 2)
+                val homeEntry    = start("home",    stackPosition = 1)
+                val profileEntry = start("profile", stackPosition = 2)
 
                 val decision = determineAnimationDecision(profileEntry, homeEntry, nm)
 
@@ -162,8 +168,8 @@ class AnimationDecisionTest {
     fun `no animation when both transitions are None`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val e1 = entry("home", stackPosition = 1)
-                val e2 = entry("home", stackPosition = 2)
+                val e1 = start("home", stackPosition = 1)
+                val e2 = start("home", stackPosition = 2)
 
                 val decision = determineAnimationDecision(e1, e2, nm)
 
@@ -176,7 +182,7 @@ class AnimationDecisionTest {
     fun `same entry produces no animation`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry = entry("home", stackPosition = 1)
+                val homeEntry = start("home", stackPosition = 1)
 
                 val decision = determineAnimationDecision(homeEntry, homeEntry, nm)
 
@@ -189,8 +195,8 @@ class AnimationDecisionTest {
     fun `different screens at stackPosition 0 animate with configured transitions`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val e1 = entry("home",    stackPosition = 0)
-                val e2 = entry("profile", stackPosition = 0)
+                val e1 = start("home",    stackPosition = 0)
+                val e2 = start("profile", stackPosition = 0)
 
                 val decision = determineAnimationDecision(e1, e2, nm)
 
@@ -204,8 +210,8 @@ class AnimationDecisionTest {
     fun `screens with no configured transitions at stackPosition 0 produce no animation`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val e1 = entry("home", stackPosition = 0)
-                val e2 = entry("home", stackPosition = 0)
+                val e1 = start("home", stackPosition = 0)
+                val e2 = start("home", stackPosition = 0)
 
                 val decision = determineAnimationDecision(e1, e2, nm)
 
@@ -218,8 +224,8 @@ class AnimationDecisionTest {
     fun `clearBackStack navigation from higher position to 0 is treated as forward`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val e1 = entry("profile",  stackPosition = 1)
-                val e2 = entry("settings", stackPosition = 0)
+                val e1 = start("profile",  stackPosition = 1)
+                val e2 = start("settings", stackPosition = 0)
 
                 val decision = determineAnimationDecision(e1, e2, nm)
 
@@ -279,8 +285,8 @@ class AnimationDecisionTest {
     fun `content decision skips animation when current entry is modal layer`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry         = entry("home",         stackPosition = 1)
-                val notificationEntry = entry("notification", stackPosition = 2)
+                val homeEntry         = start("home",         stackPosition = 1)
+                val notificationEntry = start("notification", stackPosition = 2)
 
                 val decision = determineContentAnimationDecision(homeEntry, notificationEntry, nm)
 
@@ -293,8 +299,8 @@ class AnimationDecisionTest {
     fun `content decision skips animation when previous entry is modal layer`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val notificationEntry = entry("notification", stackPosition = 2)
-                val homeEntry         = entry("home",         stackPosition = 1)
+                val notificationEntry = start("notification", stackPosition = 2)
+                val homeEntry         = start("home",         stackPosition = 1)
 
                 val decision = determineContentAnimationDecision(notificationEntry, homeEntry, nm)
 
@@ -307,8 +313,8 @@ class AnimationDecisionTest {
     fun `content decision permits animation when both entries are screens`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry    = entry("home",    stackPosition = 1)
-                val profileEntry = entry("profile", stackPosition = 2)
+                val homeEntry    = start("home",    stackPosition = 1)
+                val profileEntry = start("profile", stackPosition = 2)
 
                 val decision = determineContentAnimationDecision(homeEntry, profileEntry, nm)
 
@@ -321,8 +327,8 @@ class AnimationDecisionTest {
     fun `forward navigation with active enter transition entering screen should be on top`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry    = entry("home",    stackPosition = 1)
-                val profileEntry = entry("profile", stackPosition = 2)
+                val homeEntry    = start("home",    stackPosition = 1)
+                val profileEntry = start("profile", stackPosition = 2)
 
                 val decision = determineAnimationDecision(homeEntry, profileEntry, nm)
 
@@ -341,7 +347,7 @@ class AnimationDecisionTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        startScreen(homeScreen)
+                        start(homeScreen)
                         screens(homeScreen, destScreen)
                     }
                 })
@@ -351,8 +357,8 @@ class AnimationDecisionTest {
 
             val nm = store.getModule<NavigationModule>()!!
 
-            val homeEntry = entry("home", stackPosition = 1)
-            val destEntry = entry("dest", stackPosition = 2)
+            val homeEntry = start("home", stackPosition = 1)
+            val destEntry = start("dest", stackPosition = 2)
 
             val decision = determineAnimationDecision(homeEntry, destEntry, nm)
             val shouldExitBeOnTop = decision.enterTransition is NavTransition.None &&
@@ -395,8 +401,8 @@ class AnimationDecisionTest {
     fun `settings screen with fade enter should animate enter but not exit`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
-                val homeEntry     = entry("home",     stackPosition = 1)
-                val settingsEntry = entry("settings", stackPosition = 2)
+                val homeEntry     = start("home",     stackPosition = 1)
+                val settingsEntry = start("settings", stackPosition = 2)
 
                 val decision = determineAnimationDecision(homeEntry, settingsEntry, nm)
 
@@ -417,7 +423,7 @@ class AnimationDecisionTest {
             val store = createStore {
                 module(createNavigationModule {
                     rootGraph {
-                        startScreen(homeScreen)
+                        start(homeScreen)
                         screens(homeScreen, profileScreen)
                     }
                 })
@@ -430,8 +436,8 @@ class AnimationDecisionTest {
 
             val nm = store.getModule<NavigationModule>()!!
 
-            val homeEntry    = entry("home",    stackPosition = 1)
-            val profileEntry = entry("profile", stackPosition = 2)
+            val homeEntry    = start("home",    stackPosition = 1)
+            val profileEntry = start("profile", stackPosition = 2)
 
             val fwdDecision = determineAnimationDecision(homeEntry, profileEntry, nm)
             assertTrue(fwdDecision.isForward)

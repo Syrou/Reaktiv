@@ -40,13 +40,13 @@ class ClearBackStackNavigateTest {
 
     private fun createTestNavigationModule() = createNavigationModule {
         rootGraph {
-            startScreen(splashScreen)
+            start(splashScreen)
             screens(splashScreen)
 
             graph("home") {
-                startGraph("news")
+                start("news")
                 graph("news") {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, listScreen)
                 }
             }

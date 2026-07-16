@@ -2,13 +2,12 @@ package io.github.syrou.reaktiv.core.persistance
 
 import io.github.syrou.reaktiv.core.ModuleState
 import kotlinx.serialization.encodeToString
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.Json
 
 internal class PersistenceManager(
     private val persistenceStrategy: PersistenceStrategy,
-    val json: Json = Json {
-        ignoreUnknownKeys = true
-    }
+    val json: Json = reaktivJson()
 ) {
     suspend fun persistState(state: Map<String, ModuleState>) {
         val serializedState = json.encodeToString(state)

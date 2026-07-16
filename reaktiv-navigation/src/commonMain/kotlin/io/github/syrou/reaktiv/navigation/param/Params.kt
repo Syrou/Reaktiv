@@ -28,27 +28,28 @@ import kotlin.jvm.JvmName
  * ```
  */
 @Serializable
-class Params private constructor(
+public class Params private constructor(
+    @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
     @Serializable(with = AnySerializer::class)
     private val values: Map<String, Any>
 ) {
-    val size: Int = values.size
+    public val size: Int = values.size
 
-    companion object {
+    public companion object {
         /**
          * Create empty Params
          */
-        fun empty() = Params(emptyMap())
+        public fun empty(): Params = Params(emptyMap())
         
         /**
          * Create Params from key-value pairs
          */
-        fun of(vararg pairs: Pair<String, Any>) = Params(pairs.toMap())
+        public fun of(vararg pairs: Pair<String, Any>): Params = Params(pairs.toMap())
         
         /**
          * Create Params from URL-encoded query string
          */
-        fun fromUrl(encodedQuery: String): Params {
+        public fun fromUrl(encodedQuery: String): Params {
             val encoder = DualNavigationParameterEncoder()
             val decoded = encoder.decodeSimpleQueryString(encodedQuery)
             return Params(decoded)
@@ -57,21 +58,21 @@ class Params private constructor(
         /**
          * Creates Params from Map<String, Any>
          */
-        fun fromMap(map: Map<String, Any>): Params {
+        public fun fromMap(map: Map<String, Any>): Params {
             return Params(map)
         }
     }
     
     // Fluent builder API for type safety
-    fun with(key: String, value: String) = Params(values + (key to value))
-    fun with(key: String, value: Int) = Params(values + (key to value))
-    fun with(key: String, value: Boolean) = Params(values + (key to value))
-    fun with(key: String, value: Double) = Params(values + (key to value))
-    fun with(key: String, value: Long) = Params(values + (key to value))
-    fun with(key: String, value: Float) = Params(values + (key to value))
+    public fun with(key: String, value: String): Params = Params(values + (key to value))
+    public fun with(key: String, value: Int): Params = Params(values + (key to value))
+    public fun with(key: String, value: Boolean): Params = Params(values + (key to value))
+    public fun with(key: String, value: Double): Params = Params(values + (key to value))
+    public fun with(key: String, value: Long): Params = Params(values + (key to value))
+    public fun with(key: String, value: Float): Params = Params(values + (key to value))
     
     // For complex types
-    fun <T : Any> withTyped(key: String, value: T, serializer: KSerializer<T>): Params {
+    public fun <T : Any> withTyped(key: String, value: T, serializer: KSerializer<T>): Params {
         val storedValue = when (value::class) {
             String::class, Int::class, Boolean::class, 
             Double::class, Long::class, Float::class -> value
@@ -81,44 +82,44 @@ class Params private constructor(
     }
     
     // Convenience inline version for reified types
-    inline fun <reified T : Any> withTyped(key: String, value: T): Params {
+    public inline fun <reified T : Any> withTyped(key: String, value: T): Params {
         return withTyped(key, value, serializer<T>())
     }
     
     // Type-safe retrieval
-    fun getString(key: String): String? = when (val value = values[key]) {
+    public fun getString(key: String): String? = when (val value = values[key]) {
         is String -> value
         else -> tryDecodeString(value?.toString())
     }
     
-    fun getInt(key: String): Int? = when (val value = values[key]) {
+    public fun getInt(key: String): Int? = when (val value = values[key]) {
         is Int -> value
         is String -> value.toIntOrNull()
         is Number -> value.toInt()
         else -> null
     }
     
-    fun getBoolean(key: String): Boolean? = when (val value = values[key]) {
+    public fun getBoolean(key: String): Boolean? = when (val value = values[key]) {
         is Boolean -> value
         is String -> value.toBooleanStrictOrNull()
         else -> null
     }
     
-    fun getDouble(key: String): Double? = when (val value = values[key]) {
+    public fun getDouble(key: String): Double? = when (val value = values[key]) {
         is Double -> value
         is String -> value.toDoubleOrNull()
         is Number -> value.toDouble()
         else -> null
     }
     
-    fun getLong(key: String): Long? = when (val value = values[key]) {
+    public fun getLong(key: String): Long? = when (val value = values[key]) {
         is Long -> value
         is String -> value.toLongOrNull()
         is Number -> value.toLong()
         else -> null
     }
     
-    fun getFloat(key: String): Float? = when (val value = values[key]) {
+    public fun getFloat(key: String): Float? = when (val value = values[key]) {
         is Float -> value
         is String -> value.toFloatOrNull()
         is Number -> value.toFloat()
@@ -126,7 +127,8 @@ class Params private constructor(
     }
     
     // For complex types with proper decoding
-    fun <T> getTyped(key: String, serializer: KSerializer<T>): T? {
+    @Suppress("UNCHECKED_CAST")
+    public fun <T> getTyped(key: String, serializer: KSerializer<T>): T? {
         return when (val value = values[key]) {
             is TypedParam<*> -> {
                 @Suppress("UNCHECKED_CAST")
@@ -138,47 +140,47 @@ class Params private constructor(
     }
     
     // Convenience inline version
-    inline fun <reified T> getTyped(key: String): T? {
+    public inline fun <reified T> getTyped(key: String): T? {
         return getTyped(key, serializer<T>())
     }
     
     
     // Required versions that throw if missing
-    fun requireString(key: String): String = getString(key) 
+    public fun requireString(key: String): String = getString(key) 
         ?: throw IllegalArgumentException("Required param '$key' not found")
-    fun requireInt(key: String): Int = getInt(key) 
+    public fun requireInt(key: String): Int = getInt(key) 
         ?: throw IllegalArgumentException("Required param '$key' not found")
-    fun requireBoolean(key: String): Boolean = getBoolean(key) 
+    public fun requireBoolean(key: String): Boolean = getBoolean(key) 
         ?: throw IllegalArgumentException("Required param '$key' not found")
-    fun requireDouble(key: String): Double = getDouble(key) 
+    public fun requireDouble(key: String): Double = getDouble(key) 
         ?: throw IllegalArgumentException("Required param '$key' not found")
-    fun requireLong(key: String): Long = getLong(key) 
+    public fun requireLong(key: String): Long = getLong(key) 
         ?: throw IllegalArgumentException("Required param '$key' not found")
-    fun requireFloat(key: String): Float = getFloat(key) 
+    public fun requireFloat(key: String): Float = getFloat(key) 
         ?: throw IllegalArgumentException("Required param '$key' not found")
     
-    inline fun <reified T> requireTyped(key: String): T = getTyped<T>(key) 
+    public inline fun <reified T> requireTyped(key: String): T = getTyped<T>(key) 
         ?: throw IllegalArgumentException("Required param '$key' not found")
     
     // Shorter alias for requireTyped
-    inline fun <reified T> require(key: String): T = getTyped<T>(key) 
+    public inline fun <reified T> require(key: String): T = getTyped<T>(key) 
         ?: throw IllegalArgumentException("Required param '$key' not found")
     
     // Combine params
-    operator fun plus(other: Params): Params = Params(values + other.values)
+    public operator fun plus(other: Params): Params = Params(values + other.values)
     
     // Remove a param
-    fun without(key: String): Params = Params(values - key)
+    public fun without(key: String): Params = Params(values - key)
     
     // Check if param exists
-    fun contains(key: String): Boolean = values.containsKey(key)
+    public fun contains(key: String): Boolean = values.containsKey(key)
     
     // Get all keys
-    fun keys(): Set<String> = values.keys
+    public fun keys(): Set<String> = values.keys
     
     // Check if empty
-    fun isEmpty(): Boolean = values.isEmpty()
-    fun isNotEmpty(): Boolean = values.isNotEmpty()
+    public fun isEmpty(): Boolean = values.isEmpty()
+    public fun isNotEmpty(): Boolean = values.isNotEmpty()
     
     // For URL generation only
     internal fun toQueryString(): String {
@@ -187,13 +189,13 @@ class Params private constructor(
     }
     
     // Raw parameter access (for testing and migration compatibility)
-    operator fun get(key: String): Any? = values[key]
+    public operator fun get(key: String): Any? = values[key]
     
     // Map-like containsKey for testing compatibility
-    fun containsKey(key: String): Boolean = values.containsKey(key)
+    public fun containsKey(key: String): Boolean = values.containsKey(key)
     
     // Internal access to raw values (for migration compatibility)
-    fun toMap(): Map<String, Any> = values
+    public fun toMap(): Map<String, Any> = values
     
     private fun tryDecodeString(value: String?): String? {
         if (value == null) return null
@@ -220,6 +222,7 @@ class Params private constructor(
         }
     }
     
+    @Suppress("UNCHECKED_CAST")
     private fun <T> trySimpleConversion(value: String, serializer: KSerializer<T>): T? {
         return try {
             when (serializer.descriptor.serialName) {
@@ -250,28 +253,28 @@ class Params private constructor(
 /**
  * Helper builder for fluent parameter construction
  */
-class ParamsBuilder {
+public class ParamsBuilder {
     @PublishedApi
-    internal var params = Params.empty()
-    
-    fun put(key: String, value: String) = apply { params = params.with(key, value) }
-    fun put(key: String, value: Int) = apply { params = params.with(key, value) }
-    fun put(key: String, value: Boolean) = apply { params = params.with(key, value) }
-    fun put(key: String, value: Double) = apply { params = params.with(key, value) }
-    fun put(key: String, value: Long) = apply { params = params.with(key, value) }
-    fun put(key: String, value: Float) = apply { params = params.with(key, value) }
-    
-    inline fun <reified T : Any> putTyped(key: String, value: T) = apply { 
-        params = params.withTyped(key, value) 
+    internal var params: Params = Params.empty()
+
+    public fun put(key: String, value: String): ParamsBuilder = apply { params = params.with(key, value) }
+    public fun put(key: String, value: Int): ParamsBuilder = apply { params = params.with(key, value) }
+    public fun put(key: String, value: Boolean): ParamsBuilder = apply { params = params.with(key, value) }
+    public fun put(key: String, value: Double): ParamsBuilder = apply { params = params.with(key, value) }
+    public fun put(key: String, value: Long): ParamsBuilder = apply { params = params.with(key, value) }
+    public fun put(key: String, value: Float): ParamsBuilder = apply { params = params.with(key, value) }
+
+    public inline fun <reified T : Any> putTyped(key: String, value: T): ParamsBuilder = apply {
+        params = params.withTyped(key, value)
     }
     
     internal fun build() = params
 }
 
 
-fun Map<String, Any>.requireString(key: String): String = Params.fromMap(this).requireString(key)
-fun Map<String, Any>.requireInt(key: String): Int = Params.fromMap(this).requireInt(key)
-fun Map<String, Any>.requireBoolean(key: String): Boolean = Params.fromMap(this).requireBoolean(key)
-fun Map<String, Any>.requireDouble(key: String): Double = Params.fromMap(this).requireDouble(key)
-fun Map<String, Any>.requireLong(key: String): Long = Params.fromMap(this).requireLong(key)
-fun Map<String, Any>.requireFloat(key: String): Float = Params.fromMap(this).requireFloat(key)
+public fun Map<String, Any>.requireString(key: String): String = Params.fromMap(this).requireString(key)
+public fun Map<String, Any>.requireInt(key: String): Int = Params.fromMap(this).requireInt(key)
+public fun Map<String, Any>.requireBoolean(key: String): Boolean = Params.fromMap(this).requireBoolean(key)
+public fun Map<String, Any>.requireDouble(key: String): Double = Params.fromMap(this).requireDouble(key)
+public fun Map<String, Any>.requireLong(key: String): Long = Params.fromMap(this).requireLong(key)
+public fun Map<String, Any>.requireFloat(key: String): Float = Params.fromMap(this).requireFloat(key)

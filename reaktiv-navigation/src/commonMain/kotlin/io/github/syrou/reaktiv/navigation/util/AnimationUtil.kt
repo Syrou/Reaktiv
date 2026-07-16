@@ -9,7 +9,7 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 /**
  * Represents the decision of what animations should run for a navigation transition
  */
-data class AnimationDecision(
+public data class AnimationDecision(
     val shouldAnimateEnter: Boolean,
     val shouldAnimateExit: Boolean,
     val isForward: Boolean,
@@ -21,7 +21,7 @@ data class AnimationDecision(
 /**
  * Centralized function to determine what animations should run for a navigation transition
  */
-fun determineAnimationDecision(
+public fun determineAnimationDecision(
     previousEntry: NavigationEntry,
     currentEntry: NavigationEntry,
     navModule: NavigationModule,
@@ -41,17 +41,17 @@ fun determineAnimationDecision(
         else -> true
     }
 
-    val prevNavigatable = navModule.resolveNavigatable(previousEntry)
-    val currNavigatable = navModule.resolveNavigatable(currentEntry)
+    val prevNavigatable = previousEntry.navigatable
+    val currNavigatable = currentEntry.navigatable
 
     val enterTransition = when {
-        !isForward -> prevNavigatable?.popEnterTransition ?: currNavigatable?.enterTransition ?: NavTransition.None
-        else -> currNavigatable?.enterTransition ?: NavTransition.None
+        !isForward -> prevNavigatable.popEnterTransition ?: currNavigatable.enterTransition ?: NavTransition.None
+        else -> currNavigatable.enterTransition ?: NavTransition.None
     }
 
     val exitTransition = when {
-        isForward -> currNavigatable?.popExitTransition ?: prevNavigatable?.exitTransition ?: NavTransition.None
-        else -> prevNavigatable?.exitTransition ?: NavTransition.None
+        isForward -> currNavigatable.popExitTransition ?: prevNavigatable.exitTransition ?: NavTransition.None
+        else -> prevNavigatable.exitTransition ?: NavTransition.None
     }
 
     val shouldAnimateEnter = enterTransition != NavTransition.None
@@ -67,14 +67,14 @@ fun determineAnimationDecision(
     return AnimationDecision(shouldAnimateEnter, shouldAnimateExit, isForward, enterTransition, exitTransition)
 }
 
-fun determineContentAnimationDecision(
+public fun determineContentAnimationDecision(
     previousEntry: NavigationEntry,
     currentEntry: NavigationEntry,
     navModule: NavigationModule,
     isExplicitBackNavigation: Boolean = false
 ): AnimationDecision {
-    val prevLayer = navModule.resolveNavigatable(previousEntry)?.renderLayer ?: RenderLayer.CONTENT
-    val currLayer = navModule.resolveNavigatable(currentEntry)?.renderLayer ?: RenderLayer.CONTENT
+    val prevLayer = previousEntry.navigatable.renderLayer ?: RenderLayer.CONTENT
+    val currLayer = currentEntry.navigatable.renderLayer ?: RenderLayer.CONTENT
     if (prevLayer != RenderLayer.CONTENT || currLayer != RenderLayer.CONTENT) {
         return AnimationDecision(
             shouldAnimateEnter = false,

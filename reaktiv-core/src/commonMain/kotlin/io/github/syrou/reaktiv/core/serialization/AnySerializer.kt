@@ -25,9 +25,9 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.long
 import kotlinx.serialization.json.longOrNull
 
-typealias StringAnyMap = Map<String, @Serializable(with = AnySerializer::class) Any>
+public typealias StringAnyMap = Map<String, @Serializable(with = AnySerializer::class) Any>
 
-object AnySerializer : KSerializer<Any> {
+public object AnySerializer : KSerializer<Any> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Any")
 
     override fun serialize(encoder: Encoder, value: Any) {
@@ -79,7 +79,6 @@ object AnySerializer : KSerializer<Any> {
 
             is JsonArray -> element.map { deserialize(it) }
             is JsonObject -> element.mapValues { deserialize(it.value) }
-            else -> throw SerializationException("Unsupported JSON element: $element")
         }
     }
 }

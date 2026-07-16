@@ -8,11 +8,11 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * This is an expect/actual class with platform-specific implementations.
  */
-expect class DevToolsConnection(serverUrl: String) {
+public expect class DevToolsConnection(serverUrl: String) {
     /**
      * Current connection state.
      */
-    val connectionState: StateFlow<ConnectionState>
+    public val connectionState: StateFlow<ConnectionState>
 
     /**
      * Connects to the DevTools server and sends registration.
@@ -21,29 +21,29 @@ expect class DevToolsConnection(serverUrl: String) {
      * @param clientName Display name for the client
      * @param platform Platform/device description
      */
-    suspend fun connect(clientId: String, clientName: String, platform: String)
+    public suspend fun connect(clientId: String, clientName: String, platform: String)
 
     /**
      * Sends a message to the server.
      *
      * @param message Message to send
      */
-    suspend fun send(message: DevToolsMessage)
+    public suspend fun send(message: DevToolsMessage)
 
     /**
      * Registers a handler for incoming messages from the server.
      *
      * @param handler Function to handle incoming messages
      */
-    fun observeMessages(handler: suspend (DevToolsMessage) -> Unit)
+    public fun observeMessages(handler: suspend (DevToolsMessage) -> Unit)
 
     /**
      * Disconnects from the server and closes the connection.
      */
-    suspend fun disconnect()
+    public suspend fun disconnect()
 }
 
-enum class ConnectionState {
+public enum class ConnectionState {
     DISCONNECTED,
     CONNECTING,
     CONNECTED,

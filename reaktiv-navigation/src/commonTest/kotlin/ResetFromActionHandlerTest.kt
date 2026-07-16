@@ -122,7 +122,7 @@ class ResetFromActionHandlerTest {
 
             val navModule = createNavigationModule {
                 rootGraph {
-                    startScreen(homeScreen)
+                    start(homeScreen)
                     screens(homeScreen, profileScreen, settingsScreen)
                 }
             }

@@ -16,29 +16,29 @@ import io.github.syrou.reaktiv.navigation.definition.Navigatable
  * }
  * ```
  */
-sealed class GuardResult {
+public sealed class GuardResult {
     /**
      * Allow the navigation to proceed normally.
      */
-    object Allow : GuardResult()
+    public object Allow : GuardResult()
 
     /**
      * Silently drop the navigation without any redirect or state change.
      */
-    object Reject : GuardResult()
+    public object Reject : GuardResult()
 
     /**
      * Redirect to another route without storing the original destination.
      *
      * @param route The route to redirect to
      */
-    data class RedirectTo(val route: String) : GuardResult() {
+    public data class RedirectTo(val route: String) : GuardResult() {
         /**
          * Redirect to a typed screen object.
          *
          * @param navigatable The screen or modal to redirect to
          */
-        constructor(navigatable: Navigatable) : this(navigatable.route)
+        public constructor(navigatable: Navigatable) : this(navigatable.route)
     }
 
     /**
@@ -51,7 +51,7 @@ sealed class GuardResult {
      * @param metadata Arbitrary string key-value pairs stored with the pending navigation
      * @param displayHint Optional human-readable hint shown during the auth flow
      */
-    data class PendAndRedirectTo(
+    public data class PendAndRedirectTo(
         val route: String,
         val metadata: Map<String, String> = emptyMap(),
         val displayHint: String? = null
@@ -63,7 +63,7 @@ sealed class GuardResult {
          * @param metadata Arbitrary string key-value pairs stored with the pending navigation
          * @param displayHint Optional human-readable hint shown during the auth flow
          */
-        constructor(
+        public constructor(
             navigatable: Navigatable,
             metadata: Map<String, String> = emptyMap(),
             displayHint: String? = null

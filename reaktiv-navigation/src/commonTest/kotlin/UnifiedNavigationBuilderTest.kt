@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.extension.navigation
+import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,22 +30,22 @@ class UnifiedNavigationBuilderTest {
 
     private fun createTestNavigationModule() = createNavigationModule {
         rootGraph {
-            startScreen(SplashScreen)
+            start(SplashScreen)
             screens(SettingsScreen)
 
             graph("home") {
-                startScreen(HomeScreen)
+                start(HomeScreen)
 
                 graph("news") {
-                    startScreen(NewsOverviewScreen)
+                    start(NewsOverviewScreen)
                     screens(NewsListScreen)
                 }
 
                 graph("workspace") {
-                    startScreen(WorkspaceOverviewScreen)
+                    start(WorkspaceOverviewScreen)
 
                     graph("projects") {
-                        startScreen(ProjectOverviewScreen)
+                        start(ProjectOverviewScreen)
                         screens(ProjectTaskScreen)
                     }
                 }
@@ -71,6 +72,33 @@ class UnifiedNavigationBuilderTest {
             assertEquals("settings", state.currentEntry.route)
             assertEquals("root", state.currentEntry.graphId)
             assertEquals("settings", state.currentFullPath)
+        }
+
+    @Test
+    fun `entries resolve navigatable directly and via path fallback after deserialization`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val navigationModule = createTestNavigationModule()
+            val store = createStore {
+                module(navigationModule)
+                coroutineContext(testDispatcher)
+            }
+
+            store.navigation {
+                navigateTo<SettingsScreen>()
+            }
+            advanceUntilIdle()
+
+            val entry = store.selectState<NavigationState>().first().currentEntry
+            assertEquals(SettingsScreen, entry.navigatable)
+
+            val json = kotlinx.serialization.json.Json {
+                ignoreUnknownKeys = true
+                serializersModule = store.serializersModule
+            }
+            val decoded = json.decodeFromString<NavigationEntry>(json.encodeToString(entry))
+            assertEquals(entry, decoded)
+            assertEquals(SettingsScreen, decoded.navigatable)
         }
 
     @Test
@@ -238,14 +266,14 @@ class UnifiedNavigationBuilderTest {
 
         val navigationModule = createNavigationModule {
             rootGraph {
-                startScreen(SplashScreen)
+                start(SplashScreen)
                 screens(SplashScreen, SettingsScreen)
 
                 graph("home") {
-                    startScreen(HomeScreen)
+                    start(HomeScreen)
 
                     graph("leaderboard") {
-                        startScreen(WorkspaceOverviewScreen)
+                        start(WorkspaceOverviewScreen)
                         screens(StatsScreen)
                     }
                 }
@@ -315,7 +343,7 @@ class UnifiedNavigationBuilderTest {
 
         val navigationModule = createNavigationModule {
             rootGraph {
-                startScreen(SplashScreen)
+                start(SplashScreen)
                 screens(userProfileScreen, postDetailsScreen)
             }
         }
@@ -365,7 +393,7 @@ class UnifiedNavigationBuilderTest {
 
         val navigationModule = createNavigationModule {
             rootGraph {
-                startScreen(SplashScreen)
+                start(SplashScreen)
                 screens(MultiParamScreen)
             }
         }

@@ -2,13 +2,13 @@ package io.github.syrou.reaktiv.navigation.transition
 
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 
-enum class GestureAxis {
+public enum class GestureAxis {
     Horizontal,
     Vertical,
     Neutral
 }
 
-fun NavTransition.presentationAxis(): GestureAxis = when (this) {
+public fun NavTransition.presentationAxis(): GestureAxis = when (this) {
     is NavTransition.SlideInRight,
     is NavTransition.SlideOutRight,
     is NavTransition.SlideInLeft,
@@ -36,6 +36,15 @@ internal data class BackGesturePlan(
     val revealed: ScrubTransform
 )
 
+private fun NavTransition?.scrubOrNull(
+    screenWidth: Float,
+    screenHeight: Float,
+    isForward: Boolean,
+    reversedProgress: Boolean
+): ScrubTransform? = this
+    ?.takeUnless { it == NavTransition.None }
+    ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward), reversedProgress) }
+
 internal fun computeBackGesturePlan(
     top: Navigatable,
     revealed: Navigatable,
@@ -43,22 +52,16 @@ internal fun computeBackGesturePlan(
     screenHeight: Float
 ): BackGesturePlan {
     val topTransform = top.popExitTransition
-        .takeUnless { it == null || it == NavTransition.None }
-        ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward = false), reversedProgress = false) }
-        ?: top.enterTransition
-            .takeUnless { it == NavTransition.None }
-            ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward = true), reversedProgress = true) }
+        .scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
+        ?: top.enterTransition.scrubOrNull(screenWidth, screenHeight, isForward = true, reversedProgress = true)
         ?: ScrubTransform(
             NavTransition.IOSSlideIn.resolve(screenWidth, screenHeight, isForward = true),
             reversedProgress = true
         )
 
     val revealedTransform = top.popEnterTransition
-        .takeUnless { it == null || it == NavTransition.None }
-        ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward = false), reversedProgress = false) }
-        ?: revealed.exitTransition
-            .takeUnless { it == NavTransition.None }
-            ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward = true), reversedProgress = true) }
+        .scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
+        ?: revealed.exitTransition.scrubOrNull(screenWidth, screenHeight, isForward = true, reversedProgress = true)
         ?: ScrubTransform(
             NavTransition.IOSSlideOut.resolve(screenWidth, screenHeight, isForward = true),
             reversedProgress = true
@@ -76,22 +79,16 @@ internal fun computeDismissGesturePlan(
     screenHeight: Float
 ): BackGesturePlan {
     val topTransform = top.popExitTransition
-        .takeUnless { it == null || it == NavTransition.None }
-        ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward = false), reversedProgress = false) }
-        ?: top.exitTransition
-            .takeUnless { it == NavTransition.None }
-            ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward = false), reversedProgress = false) }
+        .scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
+        ?: top.exitTransition.scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
         ?: ScrubTransform(
             NavTransition.SlideOutBottom.resolve(screenWidth, screenHeight, isForward = false),
             reversedProgress = false
         )
 
     val revealedTransform = top.popEnterTransition
-        .takeUnless { it == null || it == NavTransition.None }
-        ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward = false), reversedProgress = false) }
-        ?: revealed?.exitTransition
-            .takeUnless { it == null || it == NavTransition.None }
-            ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward = true), reversedProgress = true) }
+        .scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
+        ?: revealed?.exitTransition.scrubOrNull(screenWidth, screenHeight, isForward = true, reversedProgress = true)
         ?: ScrubTransform(
             ResolvedNavTransition(
                 durationMillis = 0,

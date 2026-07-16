@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.core.tracing
 
+import kotlinx.serialization.Serializable
+
 /**
  * Event fired when a traced logic method starts execution.
  *
@@ -12,7 +14,8 @@ package io.github.syrou.reaktiv.core.tracing
  * @param lineNumber Line number where the method is defined (for IDE navigation)
  * @param githubSourceUrl Full GitHub URL to the source line (built at compile time by the tracing plugin)
  */
-data class LogicMethodStart(
+@Serializable
+public data class LogicMethodStart(
     val logicClass: String,
     val methodName: String,
     val params: Map<String, String>,
@@ -30,12 +33,15 @@ data class LogicMethodStart(
  * @param result String representation of the return value (may be obfuscated), null for Unit returns
  * @param resultType Simple name of the result type
  * @param durationMs Time in milliseconds from method start to completion
+ * @param timestampMs Epoch milliseconds when the method completed
  */
-data class LogicMethodCompleted(
+@Serializable
+public data class LogicMethodCompleted(
     val callId: String,
     val result: String?,
     val resultType: String,
-    val durationMs: Long
+    val durationMs: Long,
+    val timestampMs: Long = 0L
 )
 
 /**
@@ -46,11 +52,14 @@ data class LogicMethodCompleted(
  * @param exceptionMessage The exception message (may be null)
  * @param stackTrace Full stack trace string (may be null on some platforms)
  * @param durationMs Time in milliseconds from method start to failure
+ * @param timestampMs Epoch milliseconds when the method failed
  */
-data class LogicMethodFailed(
+@Serializable
+public data class LogicMethodFailed(
     val callId: String,
     val exceptionType: String,
     val exceptionMessage: String?,
     val stackTrace: String?,
-    val durationMs: Long
+    val durationMs: Long,
+    val timestampMs: Long = 0L
 )

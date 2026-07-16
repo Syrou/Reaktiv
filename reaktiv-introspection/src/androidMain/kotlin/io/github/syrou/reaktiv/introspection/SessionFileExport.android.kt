@@ -7,10 +7,10 @@ import android.provider.MediaStore
 import java.io.File
 import java.io.FileOutputStream
 
-actual class SessionFileExport actual constructor(private val platformContext: PlatformContext) {
+public actual class SessionFileExport actual constructor(private val platformContext: PlatformContext) {
 
     @Suppress("DEPRECATION")
-    actual fun saveToDownloads(json: String, fileName: String): String {
+    public actual fun saveToDownloads(json: String, fileName: String): String {
         val context = platformContext.context
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

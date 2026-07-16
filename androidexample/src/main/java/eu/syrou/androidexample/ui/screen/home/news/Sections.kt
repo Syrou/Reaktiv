@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -252,7 +252,7 @@ fun LiveStreamsSection() {
                                 }
                             }
                         )
-                        if (index < 2) Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                        if (index < 2) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                     }
                 }
             }

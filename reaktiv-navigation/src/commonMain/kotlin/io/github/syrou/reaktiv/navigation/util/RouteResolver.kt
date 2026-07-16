@@ -11,19 +11,18 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.model.ScreenResolution
 
 
-class RouteResolver private constructor(
+public class RouteResolver private constructor(
     private val routeToNavigatable: Map<String, Navigatable>,
     private val navigatableToFullPath: Map<Navigatable, String>,
     private val graphToStartNavigatable: Map<String, ScreenResolution>,
     private val graphHierarchy: Map<String, List<String>>, // graph -> path to root
-    private val parentGraphLookup: Map<String, String>, // child -> parent
     private val fullPathToResolution: Map<String, RouteResolution>,
     private val graphDefinitions: Map<String, NavigationGraph>,
     private val parameterizedRouteIndex: Map<ParameterizedRouteKey, List<ParameterizedRouteEntry>>,
     private val notFoundScreen: Screen? = null
 ) {
 
-    companion object {
+    public companion object {
 
         private fun findGraphForNavigatable(
             navigatable: Navigatable?,
@@ -38,42 +37,20 @@ class RouteResolver private constructor(
             return null
         }
 
-        fun create(
+        public fun create(
             graphDefinitions: Map<String, NavigationGraph>,
+            routeToNavigatable: Map<String, Navigatable>,
+            navigatableToFullPath: Map<Navigatable, String>,
+            graphHierarchy: Map<String, List<String>>,
             notFoundScreen: Screen? = null
         ): RouteResolver {
-            val routeToNavigatable = mutableMapOf<String, Navigatable>()
-            val navigatableToFullPath = mutableMapOf<Navigatable, String>()
             val graphToStartNavigatable = mutableMapOf<String, ScreenResolution>()
-            val graphHierarchy = mutableMapOf<String, List<String>>()
-            val parentGraphLookup = mutableMapOf<String, String>()
             val fullPathToResolution = mutableMapOf<String, RouteResolution>()
             val parameterizedRouteIndex = mutableMapOf<ParameterizedRouteKey, MutableList<ParameterizedRouteEntry>>()
-            for ((parentId, parentGraph) in graphDefinitions) {
-                for (nestedGraph in parentGraph.nestedGraphs) {
-                    parentGraphLookup[nestedGraph.route] = parentId
-                }
-            }
-            for (graphId in graphDefinitions.keys) {
-                graphHierarchy[graphId] = buildHierarchyPath(graphId, parentGraphLookup)
-            }
             for ((graphId, graph) in graphDefinitions) {
                 val graphPath = buildGraphPath(graphId, graphHierarchy)
                 for (navigatable in graph.navigatables) {
-                    val fullPath = if (graphPath.isEmpty()) navigatable.route else "$graphPath/${navigatable.route}"
-
-                    // Only register by full path to avoid route collisions between graphs
-                    // For root graph screens, fullPath == navigatable.route (no prefix)
-                    if (routeToNavigatable.containsKey(fullPath)) {
-                        val existing = routeToNavigatable[fullPath]
-                        throw IllegalStateException(
-                            "Route collision detected: '$fullPath' is already registered to " +
-                            "'${existing?.route}' in graph '${findGraphForNavigatable(existing, graphDefinitions)}'. " +
-                            "Each screen must have a unique full path."
-                        )
-                    }
-                    routeToNavigatable[fullPath] = navigatable
-                    navigatableToFullPath[navigatable] = fullPath
+                    val fullPath = navigatableToFullPath[navigatable] ?: continue
 
                     if (navigatable.route.contains("{")) {
                         val entry = ParameterizedRouteEntry(
@@ -128,24 +105,11 @@ class RouteResolver private constructor(
                 navigatableToFullPath = navigatableToFullPath,
                 graphToStartNavigatable = graphToStartNavigatable,
                 graphHierarchy = graphHierarchy,
-                parentGraphLookup = parentGraphLookup,
                 fullPathToResolution = fullPathToResolution,
                 graphDefinitions = graphDefinitions,
                 parameterizedRouteIndex = parameterizedRouteIndex,
                 notFoundScreen = notFoundScreen
             )
-        }
-
-        private fun buildHierarchyPath(graphId: String, parentLookup: Map<String, String>): List<String> {
-            val path = mutableListOf<String>()
-            var current: String? = graphId
-
-            while (current != null && current != "root") {
-                path.add(0, current)
-                current = parentLookup[current]
-            }
-
-            return path
         }
 
         private fun buildGraphPath(graphId: String, hierarchies: Map<String, List<String>>): String {
@@ -174,7 +138,7 @@ class RouteResolver private constructor(
     }
 
     
-    fun resolve(
+    public fun resolve(
         route: String,
         availableNavigatables: Map<String, Navigatable> = emptyMap()
     ): RouteResolution? {
@@ -283,14 +247,11 @@ class RouteResolver private constructor(
                 val (navigatable, fullPath) = matches.first()
                 val graphId = findGraphForNavigatable(navigatable) ?: "root"
 
-                // Log deprecation warning
-                println(
-                    "⚠️ Navigation Warning: Using simple route '$simpleRoute' is deprecated. " +
-                    "Please use the full path '$fullPath' or type-safe navigation " +
-                    "(e.g., navigateTo<${navigatable::class.simpleName}>()) instead. " +
-                    "Simple route resolution may be removed in a future version."
+                ReaktivDebug.warn(
+                    "Simple route '$simpleRoute' resolved via fallback to '$fullPath'. " +
+                    "Prefer the full path or type-safe navigation " +
+                    "(e.g., navigateTo<${navigatable::class.simpleName}>())."
                 )
-                ReaktivDebug.nav("⚠️ Simple route fallback used: '$simpleRoute' -> '$fullPath'")
 
                 RouteResolution(
                     targetNavigatable = navigatable,
@@ -302,12 +263,10 @@ class RouteResolver private constructor(
 
             else -> {
                 val paths = matches.map { it.second }
-                println(
-                    "❌ Navigation Error: Ambiguous route '$simpleRoute' matches multiple screens: " +
-                    "${paths.joinToString(", ")}. " +
-                    "Please use the full path or type-safe navigation to disambiguate."
+                ReaktivDebug.error(
+                    "Ambiguous route '$simpleRoute' matches multiple screens: ${paths.joinToString(", ")}. " +
+                    "Use the full path or type-safe navigation to disambiguate."
                 )
-                ReaktivDebug.nav("❌ Ambiguous simple route: '$simpleRoute' matches: $paths")
                 null
             }
         }
@@ -358,16 +317,7 @@ class RouteResolver private constructor(
         return null
     }
 
-    
-    fun findPathToNavigatable(
-        navigatable: Navigatable,
-        preferredGraphId: String? = null
-    ): String? {
-        return navigatableToFullPath[navigatable]
-    }
-
-
-    fun findRouteInBackStack(
+    public fun findRouteInBackStack(
         targetRoute: String,
         backStack: List<NavigationEntry>
     ): Int {
@@ -392,7 +342,7 @@ class RouteResolver private constructor(
     }
 
 
-    fun buildFullPathForEntry(entry: NavigationEntry): String {
+    public fun buildFullPathForEntry(entry: NavigationEntry): String {
         return substituteRouteParameters(entry.path, entry.params)
     }
 
@@ -413,14 +363,12 @@ class RouteResolver private constructor(
         return resolvedRoute
     }
 
-    fun getNavigatableNotFoundHint(
+    public fun getNavigatableNotFoundHint(
         navigatable: Navigatable
     ): String {
         val allRoutes = fullPathToResolution.keys.sorted()
         return "Navigatable with route '${navigatable.route}' not found. Available routes: ${allRoutes.take(10).joinToString(", ")}${if (allRoutes.size > 10) "..." else ""}"
     }
-
-    fun findParentGraphId(graphId: String): String? = parentGraphLookup[graphId]
 
     /**
      * Check if a path resolves to a valid backstack entry.
@@ -431,7 +379,7 @@ class RouteResolver private constructor(
      * - Path doesn't resolve
      * - It's an umbrella graph (no startDestination)
      */
-    fun resolveForBackstackSynthesis(path: String): RouteResolution? {
+    public fun resolveForBackstackSynthesis(path: String): RouteResolution? {
         val cleanPath = path.trimStart('/').trimEnd('/')
         if (cleanPath.isEmpty()) return null
 
@@ -455,7 +403,7 @@ class RouteResolver private constructor(
      * Build the hierarchy of paths for backstack synthesis.
      * For a path like "auth/signup/verify", returns ["auth", "auth/signup", "auth/signup/verify"]
      */
-    fun buildPathHierarchy(fullPath: String): List<String> {
+    public fun buildPathHierarchy(fullPath: String): List<String> {
         val cleanPath = fullPath.trimStart('/').trimEnd('/')
         if (cleanPath.isEmpty()) return emptyList()
 

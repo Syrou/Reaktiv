@@ -5,6 +5,7 @@ package io.github.syrou.reaktiv.core
 import io.github.syrou.reaktiv.core.persistance.PersistenceManager
 import io.github.syrou.reaktiv.core.persistance.PersistenceStrategy
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -28,11 +29,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
-import kotlinx.coroutines.yield
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.PolymorphicModuleBuilder
 import kotlinx.serialization.modules.SerializersModule
@@ -48,12 +49,12 @@ import kotlin.reflect.KClass
     level = RequiresOptIn.Level.WARNING
 )
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
-annotation class ExperimentalReaktivApi
+public annotation class ExperimentalReaktivApi
 
 /**
  * Determines how the Store should handle a crash after listeners are notified.
  */
-enum class CrashRecovery {
+public enum class CrashRecovery {
     /**
      * Navigate to crash screen and do NOT re-throw.
      * The developer is responsible for reporting to Crashlytics via recordException().
@@ -77,8 +78,8 @@ enum class CrashRecovery {
  * via `storeAccessor.launch` from a logic method.
  */
 @ExperimentalReaktivApi
-interface CrashListener {
-    suspend fun onLogicCrash(exception: Throwable, action: ModuleAction?): CrashRecovery
+public interface CrashListener {
+    public suspend fun onLogicCrash(exception: Throwable, action: ModuleAction?): CrashRecovery
 }
 
 
@@ -98,7 +99,7 @@ interface CrashListener {
  * ) : ModuleState
  * ```
  */
-interface ModuleState
+public interface ModuleState
 
 
 /**
@@ -116,7 +117,7 @@ interface ModuleState
  * }
  * ```
  */
-interface HighPriorityAction
+public interface HighPriorityAction
 
 
 /**
@@ -137,24 +138,23 @@ interface HighPriorityAction
  * @param moduleTag The KClass of the module that handles this action
  */
 @Serializable
-abstract class ModuleAction(@Transient internal val moduleTag: KClass<*> = KClass::class)
+public abstract class ModuleAction(@Transient internal val moduleTag: KClass<*> = KClass::class)
 
 
-typealias Dispatch = (ModuleAction) -> Unit
-typealias DispatchSuspend = (suspend (ModuleAction) -> Unit)
+public typealias Dispatch = (ModuleAction) -> Unit
 
 /**
  * Result of a dispatch operation, indicating whether the action was processed.
  */
-sealed class DispatchResult {
+public sealed class DispatchResult {
     /** Action was processed and applied to state */
-    data object Processed : DispatchResult()
+    public data object Processed : DispatchResult()
 
     /** Action was blocked by middleware (e.g., spam protection) */
-    data object Blocked : DispatchResult()
+    public data object Blocked : DispatchResult()
 
     /** Action processing failed with an error */
-    data class Error(val cause: Throwable) : DispatchResult()
+    public data class Error(val cause: Throwable) : DispatchResult()
 }
 
 /**
@@ -167,7 +167,7 @@ internal data class DispatchEnvelope(
 )
 
 
-interface Logic
+public interface Logic
 
 
 /**
@@ -200,10 +200,8 @@ interface Logic
  *     }
  * }
  * ```
- *
- * @param A The action type this logic handles
  */
-open class ModuleLogic : Logic {
+public open class ModuleLogic : Logic {
 
     /**
      * Called on the **current** logic instance just before the store is reset.
@@ -231,7 +229,7 @@ open class ModuleLogic : Logic {
      * }
      * ```
      */
-    open suspend fun beforeReset() {}
+    public open suspend fun beforeReset() {}
 }
 
 /**
@@ -275,7 +273,7 @@ open class ModuleLogic : Logic {
  * @param A The action type for this module (must extend ModuleAction)
  * @param L The logic type for this module (must extend ModuleLogic)
  */
-interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic> : Module<S, A> {
+public interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic> : Module<S, A> {
 
     override val createLogic: (StoreAccessor) -> L
 
@@ -285,7 +283,7 @@ interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic> : 
      * @param store The store to select logic from
      * @return The typed logic instance
      */
-    suspend fun selectLogicTyped(store: StoreAccessor): L {
+    public suspend fun selectLogicTyped(store: StoreAccessor): L {
         @Suppress("UNCHECKED_CAST")
         return selectLogic(store) as L
     }
@@ -299,15 +297,15 @@ interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic> : 
  *
  * For type-safe logic access without casting, prefer [ModuleWithLogic].
  */
-interface Module<S : ModuleState, A : ModuleAction> {
+public interface Module<S : ModuleState, A : ModuleAction> {
 
-    val initialState: S
-
-
-    val reducer: (S, A) -> S
+    public val initialState: S
 
 
-    val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic
+    public val reducer: (S, A) -> S
+
+
+    public val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic
 
     /**
      * Optional factory for creating a middleware provided by this module.
@@ -331,16 +329,16 @@ interface Module<S : ModuleState, A : ModuleAction> {
      * }
      * ```
      */
-    val createMiddleware: (() -> Middleware)?
+    public val createMiddleware: (() -> Middleware)?
         get() = null
 
-    fun selectStateFlowNonSuspend(store: StoreAccessor): StateFlow<S> {
+    public fun selectStateFlowNonSuspend(store: StoreAccessor): StateFlow<S> {
         @Suppress("UNCHECKED_CAST")
         return store.getStateFlowForModule(this) as? StateFlow<S>
             ?: error("No state found for module $this")
     }
 
-    suspend fun selectLogic(store: StoreAccessor): ModuleLogic {
+    public suspend fun selectLogic(store: StoreAccessor): ModuleLogic {
         return store.getLogicForModule(this)
             ?: error("No logic found for module $this")
     }
@@ -378,7 +376,7 @@ internal data class ModuleInfo(
  * @param storeAccessor Access to dispatch, state selection, and logic selection
  * @param updatedState Function to continue processing the action and get the resulting state
  */
-typealias Middleware = suspend (
+public typealias Middleware = suspend (
     action: ModuleAction,
     getAllStates: suspend () -> Map<String, ModuleState>,
     storeAccessor: StoreAccessor,
@@ -400,7 +398,7 @@ typealias Middleware = suspend (
  * architecture and should be avoided.
  */
 @ExperimentalReaktivApi
-interface InternalStoreOperations {
+public interface InternalStoreOperations {
     /**
      * Applies external state updates directly to the store, bypassing the
      * action/reducer/logic pipeline.
@@ -420,7 +418,7 @@ interface InternalStoreOperations {
      *
      * @param states Map of state class qualified names to new state instances
      */
-    suspend fun applyExternalStates(states: Map<String, ModuleState>)
+    public suspend fun applyExternalStates(states: Map<String, ModuleState>)
 }
 
 
@@ -447,7 +445,7 @@ interface InternalStoreOperations {
  * }
  * ```
  */
-abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
+public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     override val coroutineContext: CoroutineContext = scope.coroutineContext
 
     /**
@@ -456,7 +454,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @param stateClass The KClass of the state to select
      * @return StateFlow of the requested state type
      */
-    abstract suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
+    public abstract suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
 
     /**
      * Select a module's logic instance by its class.
@@ -464,13 +462,13 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @param logicClass The KClass of the logic to select
      * @return The logic instance
      */
-    abstract suspend fun <L : ModuleLogic> selectLogic(logicClass: KClass<L>): L
+    public abstract suspend fun <L : ModuleLogic> selectLogic(logicClass: KClass<L>): L
 
     /**
      * The dispatch function for sending actions to the store.
      * This is fire-and-forget - it returns immediately without waiting for processing.
      */
-    abstract val dispatch: Dispatch
+    public abstract val dispatch: Dispatch
 
     /**
      * Dispatch an action and wait for it to be processed.
@@ -485,7 +483,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      *         [DispatchResult.Blocked] if middleware blocked the action,
      *         [DispatchResult.Error] if processing failed
      */
-    abstract suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult
+    public abstract suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult
 
     /**
      * Resets the store by cancelling all child coroutines and restarting action processing.
@@ -504,7 +502,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @return true if reset was executed, false if skipped due to concurrent reset
      * @throws IllegalArgumentException if the store is not initialized
      */
-    abstract suspend fun reset(): Boolean
+    public abstract suspend fun reset(): Boolean
 
     /**
      * Non-suspend convenience function that resets the store asynchronously.
@@ -517,7 +515,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      *
      * @return A [Job] that completes when the reset finishes.
      */
-    abstract fun resetAsync(): Job
+    public abstract fun resetAsync(): Job
 
     /**
      * Provides access to internal store operations for specialized use cases.
@@ -532,7 +530,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @return InternalStoreOperations instance or null if not supported
      */
     @ExperimentalReaktivApi
-    fun asInternalOperations(): InternalStoreOperations? = this as? InternalStoreOperations
+    public fun asInternalOperations(): InternalStoreOperations? = this as? InternalStoreOperations
 
     /**
      * Get a module instance by its class.
@@ -552,7 +550,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @see getModule reified overload for compile-time known types
      * @see getRegisteredModules for Swift/Obj-C interop
      */
-    abstract fun <M : Any> getModule(moduleClass: KClass<M>): M?
+    public abstract fun <M : Any> getModule(moduleClass: KClass<M>): M?
 
     /**
      * Convenience reified overload for [getModule].
@@ -568,7 +566,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @return The module instance if registered, null otherwise
      * @see getRegisteredModules for Swift/Obj-C interop
      */
-    inline fun <reified M : Any> getModule(): M? = getModule(M::class)
+    public inline fun <reified M : Any> getModule(): M? = getModule(M::class)
 
     /**
      * Returns all modules registered in this store.
@@ -591,7 +589,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @return Snapshot list of all registered module instances
      * @see getModule for Kotlin callers
      */
-    abstract fun getRegisteredModules(): List<Module<*, *>>
+    public abstract fun getRegisteredModules(): List<Module<*, *>>
 
     /**
      * Returns the [StateFlow] for the given module's state, or null if the module
@@ -604,7 +602,7 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @param module The module whose state flow to retrieve
      * @return The [StateFlow] of the module's state, or null if not registered
      */
-    abstract fun getStateFlowForModule(module: Module<*, *>): StateFlow<ModuleState>?
+    public abstract fun getStateFlowForModule(module: Module<*, *>): StateFlow<ModuleState>?
 
     /**
      * Returns the logic instance for the given module, suspending until the store
@@ -613,31 +611,31 @@ abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @param module The module whose logic to retrieve
      * @return The logic instance, or null if the module is not registered
      */
-    abstract suspend fun getLogicForModule(module: Module<*, *>): ModuleLogic?
+    public abstract suspend fun getLogicForModule(module: Module<*, *>): ModuleLogic?
 
     /**
      * Registers a [CrashListener] to be notified when logic invocation throws.
      */
     @ExperimentalReaktivApi
-    abstract fun addCrashListener(listener: CrashListener)
+    public abstract fun addCrashListener(listener: CrashListener)
 
     /**
      * Removes a previously registered [CrashListener].
      */
     @ExperimentalReaktivApi
-    abstract fun removeCrashListener(listener: CrashListener)
+    public abstract fun removeCrashListener(listener: CrashListener)
 
 }
 
 
 @OptIn(ExperimentalReaktivApi::class)
-class Store private constructor(
+public class Store private constructor(
     private val coroutineScope: CoroutineScope,
     private val middlewares: List<Middleware>,
     @PublishedApi
     internal val modules: List<Module<ModuleState, ModuleAction>>,
     private val persistenceManager: PersistenceManager?,
-    val serializersModule: SerializersModule,
+    public val serializersModule: SerializersModule,
 ) : StoreAccessor(coroutineScope), InternalStoreOperations {
     private val stateUpdateMutex = Mutex()
     private val resetMutex = Mutex()
@@ -645,22 +643,12 @@ class Store private constructor(
     private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
     private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
 
-    private fun infoByModule(module: Module<*, *>): ModuleInfo? =
-        moduleInfo[module::class.qualifiedName!!]
+    private fun info(key: KClass<*>): ModuleInfo? = moduleInfo[key.qualifiedName]
 
-    private fun infoByModuleTag(moduleTag: KClass<*>): ModuleInfo? =
-        moduleInfo[moduleTag.qualifiedName]
+    private fun info(qualifiedName: String): ModuleInfo? = moduleInfo[qualifiedName]
 
-    private fun infoByStateClass(stateClass: KClass<*>): ModuleInfo? =
-        moduleInfo[stateClass.qualifiedName]
-
-    private fun infoByStateClassName(qualifiedName: String): ModuleInfo? =
-        moduleInfo[qualifiedName]
-
-    private fun infoByLogicClass(logicClass: KClass<*>): ModuleInfo? =
-        moduleInfo[logicClass.qualifiedName]
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
+    public val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
     private val crashListeners = mutableListOf<CrashListener>()
 
     private val baseContext: CoroutineContext =
@@ -734,12 +722,14 @@ class Store private constructor(
         }
     }
 
+    private fun createLogicFor(module: Module<*, *>) {
+        val info = info(module::class)!!
+        info.logic = module.createLogic(this)
+        info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
+    }
+
     private suspend fun initializeModules() = stateUpdateMutex.withLock {
-        modules.forEach { module ->
-            val info = moduleInfo[module::class.qualifiedName!!]!!
-            info.logic = module.createLogic(this)
-            info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
-        }
+        modules.forEach(::createLogicFor)
         _initialized.update { true }
     }
 
@@ -747,13 +737,9 @@ class Store private constructor(
         _initialized.update { false }
         stateUpdateMutex.withLock {
             modules.forEach { module ->
-                infoByModule(module)!!.state.update { module.initialState }
+                info(module::class)!!.state.update { module.initialState }
             }
-            modules.forEach { module ->
-                val info = infoByModule(module)!!
-                info.logic = module.createLogic(this)
-                info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
-            }
+            modules.forEach(::createLogicFor)
         }
         _initialized.update { true }
     }
@@ -843,11 +829,12 @@ class Store private constructor(
         onActionApplied: () -> Unit
     ): suspend (ModuleAction) -> Unit {
         val baseHandler: suspend (ModuleAction) -> Unit = { action ->
-            val info = infoByModuleTag(action.moduleTag) ?: throw IllegalArgumentException(
+            val info = info(action.moduleTag) ?: throw IllegalArgumentException(
                 "No module found for action: ${action::class}"
             )
 
             val currentState = info.state.value
+            @Suppress("UNCHECKED_CAST")
             val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
             updateState(newState::class.qualifiedName!!, newState)
 
@@ -887,7 +874,7 @@ class Store private constructor(
     }
 
     private suspend fun updateState(stateClass: String, newState: ModuleState) = stateUpdateMutex.withLock {
-        infoByStateClassName(stateClass)?.state?.value = newState
+        info(stateClass)?.state?.value = newState
     }
 
     private suspend fun getAllStates(): Map<String, ModuleState> = stateUpdateMutex.withLock {
@@ -895,17 +882,17 @@ class Store private constructor(
     }
 
     @ExperimentalReaktivApi
-    override suspend fun applyExternalStates(states: Map<String, ModuleState>) = stateUpdateMutex.withLock {
+    override suspend fun applyExternalStates(states: Map<String, ModuleState>): Unit = stateUpdateMutex.withLock {
         states.forEach { (stateClassName, newState) ->
-            val info = infoByStateClassName(stateClassName)
+            val info = info(stateClassName)
 
             when {
                 info == null -> {
-                    println("DevTools: Cannot apply state for unknown module: $stateClassName")
+                    ReaktivDebug.warn("DevTools: Cannot apply state for unknown module: $stateClassName")
                 }
 
                 info.state.value::class != newState::class -> {
-                    println("DevTools: State type mismatch for $stateClassName - expected ${info.state.value::class.simpleName}, got ${newState::class.simpleName}")
+                    ReaktivDebug.warn("DevTools: State type mismatch for $stateClassName - expected ${info.state.value::class.simpleName}, got ${newState::class.simpleName}")
                 }
 
                 else -> {
@@ -927,8 +914,8 @@ class Store private constructor(
         }
     }
 
-    fun <S : ModuleState> selectStateNonSuspend(stateClass: KClass<S>): StateFlow<S> {
-        val info = infoByStateClass(stateClass)
+    public fun <S : ModuleState> selectStateNonSuspend(stateClass: KClass<S>): StateFlow<S> {
+        val info = info(stateClass)
         @Suppress("UNCHECKED_CAST")
         return info?.state?.asStateFlow() as? StateFlow<S>
             ?: throw IllegalStateException(
@@ -937,9 +924,9 @@ class Store private constructor(
     }
 
 
-    suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = selectState(S::class)
+    public suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = selectState(S::class)
 
-    inline fun <reified S : ModuleState> selectStateNonSuspend(): StateFlow<S> = selectStateNonSuspend(S::class)
+    public inline fun <reified S : ModuleState> selectStateNonSuspend(): StateFlow<S> = selectStateNonSuspend(S::class)
 
 
     @Suppress("UNCHECKED_CAST")
@@ -947,7 +934,7 @@ class Store private constructor(
         initialized.first { it }
         stateUpdateMutex.lock()
         try {
-            return infoByLogicClass(logicClass)?.logic as? L
+            return info(logicClass)?.logic as? L
                 ?: throw IllegalStateException("No logic found for logic class: $logicClass")
         } finally {
             stateUpdateMutex.unlock()
@@ -962,31 +949,31 @@ class Store private constructor(
     override fun getRegisteredModules(): List<Module<*, *>> = modules.toList()
 
     override fun getStateFlowForModule(module: Module<*, *>): StateFlow<ModuleState>? =
-        infoByModule(module)?.state?.asStateFlow()
+        info(module::class)?.state?.asStateFlow()
 
     override suspend fun getLogicForModule(module: Module<*, *>): ModuleLogic? {
         initialized.first { it }
-        return infoByModule(module)?.logic
+        return info(module::class)?.logic
     }
 
-    suspend inline fun <reified L : ModuleLogic> selectLogic(): L = selectLogic(L::class)
+    public suspend inline fun <reified L : ModuleLogic> selectLogic(): L = selectLogic(L::class)
 
-    fun cleanup() {
+    public fun cleanup() {
         coroutineScope.cancel()
         highPriorityChannel.close()
         lowPriorityChannel.close()
     }
 
 
-    suspend fun saveState(state: Map<String, ModuleState>) {
+    public suspend fun saveState(state: Map<String, ModuleState>) {
         persistenceManager?.persistState(state) ?: throw IllegalStateException("No persistence strategy set")
     }
 
 
-    suspend fun loadState() {
+    public suspend fun loadState() {
         val restoredState = persistenceManager?.restoreState()
         if (restoredState == null) {
-            println("Warning, no persistence strategy set when using loadState")
+            ReaktivDebug.warn("No persistence strategy set when using loadState")
         }
         restoredState?.forEach { (key, state) ->
             updateState(key, state)
@@ -994,9 +981,9 @@ class Store private constructor(
     }
 
 
-    suspend fun hasPersistedState(): Boolean = persistenceManager?.hasPersistedState() ?: false
+    public suspend fun hasPersistedState(): Boolean = persistenceManager?.hasPersistedState() ?: false
 
-    companion object {
+    public companion object {
         internal fun create(
             coroutineScope: CoroutineScope,
             middlewares: List<Middleware>,
@@ -1016,7 +1003,7 @@ class Store private constructor(
 }
 
 
-class StoreDSL {
+public class StoreDSL {
     private var coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val middlewares = mutableListOf<Middleware>()
     private val modules: MutableList<Module<ModuleState, ModuleAction>> = mutableListOf()
@@ -1026,7 +1013,7 @@ class StoreDSL {
 
     @OptIn(InternalSerializationApi::class)
 
-    fun <S : ModuleState, A : ModuleAction> module(
+    public fun <S : ModuleState, A : ModuleAction> module(
         stateClass: KClass<S>,
         module: Module<S, A>
     ) {
@@ -1041,11 +1028,12 @@ class StoreDSL {
             )
         }
 
+        @Suppress("UNCHECKED_CAST")
         modules.add(module as Module<ModuleState, ModuleAction>)
         moduleStateRegistrations[stateClassName] = { builder ->
             @Suppress("UNCHECKED_CAST")
             val actualStateClass = module.initialState::class as KClass<S>
-            builder.subclass(actualStateClass, actualStateClass.serializer() as KSerializer<S>)
+            builder.subclass(actualStateClass, actualStateClass.serializer())
         }
 
         if (module is CustomTypeRegistrar) {
@@ -1054,22 +1042,22 @@ class StoreDSL {
     }
 
 
-    inline fun <reified S : ModuleState, A : ModuleAction> module(module: Module<S, A>) {
+    public inline fun <reified S : ModuleState, A : ModuleAction> module(module: Module<S, A>) {
         module(S::class, module)
     }
 
 
-    fun middlewares(vararg newMiddlewares: Middleware) {
+    public fun middlewares(vararg newMiddlewares: Middleware) {
         middlewares.addAll(newMiddlewares)
     }
 
 
-    fun coroutineContext(context: CoroutineContext) {
+    public fun coroutineContext(context: CoroutineContext) {
         coroutineScope = CoroutineScope(SupervisorJob() + context.minusKey(Job))
     }
 
 
-    fun persistenceManager(persistenceStrategy: PersistenceStrategy) {
+    public fun persistenceManager(persistenceStrategy: PersistenceStrategy) {
         this.persistenceStrategy = persistenceStrategy
     }
 
@@ -1085,10 +1073,7 @@ class StoreDSL {
 
         val persistenceManager = persistenceStrategy?.let {
             PersistenceManager(
-                json = Json {
-                    ignoreUnknownKeys = true
-                    this.serializersModule = serializersModule
-                },
+                json = reaktivJson(serializersModule),
                 persistenceStrategy = it
             )
         }
@@ -1125,7 +1110,7 @@ class StoreDSL {
  * @param block DSL block for configuring the store
  * @return The configured Store instance
  */
-fun createStore(block: StoreDSL.() -> Unit): Store {
+public fun createStore(block: StoreDSL.() -> Unit): Store {
     val dsl = StoreDSL().apply(block)
     return dsl.build()
 }

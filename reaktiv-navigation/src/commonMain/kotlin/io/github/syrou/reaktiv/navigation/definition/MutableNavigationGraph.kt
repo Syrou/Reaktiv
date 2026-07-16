@@ -7,7 +7,7 @@ import io.github.syrou.reaktiv.navigation.model.NavigatableInterceptMap
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class MutableNavigationGraph(
+public data class MutableNavigationGraph(
     override val route: String,
     override val startDestination: StartDestination? = null,
     override val navigatables: List<Navigatable>,

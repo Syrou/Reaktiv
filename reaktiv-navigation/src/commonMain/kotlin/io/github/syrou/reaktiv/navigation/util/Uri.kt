@@ -38,7 +38,7 @@ internal fun createRouteRegex(route: String): Regex {
  * Parse URL-style string with query parameters
  * Returns a Pair of (cleanPath, queryParams)
  */
-fun parseUrlWithQueryParams(url: String): Pair<String, Map<String, String>> {
+public fun parseUrlWithQueryParams(url: String): Pair<String, Map<String, String>> {
     val urlEncoder = CommonUrlEncoder()
 
     // Split on first occurrence of '?'

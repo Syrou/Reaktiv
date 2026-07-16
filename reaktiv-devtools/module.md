@@ -106,16 +106,14 @@ Export a recorded session from the DevTools UI and import it later for offline d
 or post-mortem analysis.
 
 ```kotlin
-// Install crash handler so sessions are saved on crash
-val store = createStore {
-    module(IntrospectionModule(config, sessionCapture, platformContext))
-    module(CrashModule(platformContext, sessionCapture))
-}
+// Install the crash handler so sessions are saved on crash
+CrashHandler(platformContext, sessionCapture).install()
 
 // Export a session manually (e.g. from a debug menu)
-val devToolsMiddleware = store.getMiddleware<DevToolsMiddleware>()
-val json = devToolsMiddleware.exportSessionJson()
-// Save or share `json` however is appropriate for your platform
+store.launch {
+    val json = sessionCapture.exportSession()
+    // Save or share `json` however is appropriate for your platform
+}
 ```
 
 Crash sessions are saved to the device's Downloads (Android) or Documents (iOS) folder.
@@ -147,6 +145,6 @@ values in the trace output — see `reaktiv-tracing-annotations` for details.
 - `IntrospectionConfig` — shared identity used by both DevTools and Introspection modules
 - `SessionCapture` — records actions and logic events for export or crash reports
 - `IntrospectionModule` — manages session recording and platform context
-- `CrashModule` — installs a crash handler that saves the session to disk
+- `CrashHandler` — installs a crash handler that saves the session to disk
 - `DevToolsAction` — `Connect`, `Disconnect`, `Reconnect` dispatch targets
 - `ClientRole` — `PUBLISHER`, `LISTENER`, `ORCHESTRATOR`

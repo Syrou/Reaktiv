@@ -7,7 +7,7 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 
 
 @Composable
-fun NavigationDebugger(navigationState: NavigationState, store: io.github.syrou.reaktiv.core.Store) {
+public fun NavigationDebugger(navigationState: NavigationState, store: io.github.syrou.reaktiv.core.Store) {
     LaunchedEffect(navigationState) {
         val graphKeys = store.getNavigationModule().getGraphDefinitions().keys
         ReaktivDebug.nav("=== Simplified Navigation Debug ===")

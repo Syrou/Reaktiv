@@ -1,13 +1,13 @@
 package io.github.syrou.reaktiv.navigation.definition
 
 
-interface UrlEncoder {
+public interface UrlEncoder {
     
-    fun encodePath(value: String): String
-    
-    
-    fun encodeQuery(value: String): String
+    public fun encodePath(value: String): String
     
     
-    fun decode(encoded: String): String
+    public fun encodeQuery(value: String): String
+    
+    
+    public fun decode(encoded: String): String
 }

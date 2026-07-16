@@ -84,7 +84,7 @@ class BackGestureArmingTest {
 
     private fun createModule() = createNavigationModule {
         rootGraph {
-            startScreen(homeScreen)
+            start(homeScreen)
             screens(homeScreen, profileScreen, lockedScreen, sheetScreen)
             modals(testModal)
         }

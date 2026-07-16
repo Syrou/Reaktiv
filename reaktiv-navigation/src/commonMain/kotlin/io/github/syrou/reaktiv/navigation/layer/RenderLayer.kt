@@ -3,7 +3,7 @@ package io.github.syrou.reaktiv.navigation.layer
 /**
  * Defines where a navigatable should render in the layer hierarchy
  */
-enum class RenderLayer {
+public enum class RenderLayer {
     /**
      * Renders in the normal navigation flow, respects graph layouts
      */

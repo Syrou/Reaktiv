@@ -42,7 +42,7 @@ import io.github.syrou.reaktiv.introspection.IntrospectionConfig
  * @param allowStateCapture Allow sending state changes to the DevTools server
  * @param defaultRole The role to request automatically on connect. Null means no auto-request.
  */
-data class DevToolsConfig(
+public data class DevToolsConfig(
     val introspectionConfig: IntrospectionConfig,
     val serverUrl: String? = null,
     val enabled: Boolean = true,

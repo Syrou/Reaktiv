@@ -40,7 +40,7 @@ class NavigateBackSafetyTest {
 
     private fun createSimpleNavigationModule() = createNavigationModule {
         rootGraph {
-            startScreen(homeScreen)
+            start(homeScreen)
             screens(homeScreen, profileScreen, settingsScreen)
         }
     }

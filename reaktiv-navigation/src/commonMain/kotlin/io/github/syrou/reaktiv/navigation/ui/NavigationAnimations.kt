@@ -47,119 +47,37 @@ import kotlinx.coroutines.launch
 /**
  * Unified animation system for all navigation layers
  */
-object NavigationAnimations {
+public object NavigationAnimations {
     
-    enum class AnimationType {
-        SCREEN_ENTER,
-        SCREEN_EXIT,
+    public enum class AnimationType {
         MODAL_ENTER,
         MODAL_EXIT
     }
-    
+
     /**
-     * Animated content wrapper that handles all types of navigation animations
+     * Animated content wrapper for overlay and system layer modal entries
      */
     @Composable
     internal fun AnimatedEntry(
         entry: NavigationEntry,
         animationType: AnimationType,
-        animationDecision: AnimationDecision?,
         screenWidth: Float,
         screenHeight: Float,
         zIndex: Float = 0f,
         onAnimationComplete: (() -> Unit)? = null,
-        progressDriver: TransitionProgressDriver = TransitionProgressDriver.Timed,
         content: @Composable () -> Unit
     ) {
-        when (animationType) {
-            AnimationType.SCREEN_ENTER, AnimationType.SCREEN_EXIT -> {
-                AnimatedScreenEntry(
-                    entry = entry,
-                    isEntering = animationType == AnimationType.SCREEN_ENTER,
-                    animationDecision = animationDecision,
-                    screenWidth = screenWidth,
-                    screenHeight = screenHeight,
-                    zIndex = zIndex,
-                    onAnimationComplete = onAnimationComplete,
-                    progressDriver = progressDriver,
-                    content = content
-                )
-            }
-            AnimationType.MODAL_ENTER, AnimationType.MODAL_EXIT -> {
-                AnimatedModalEntry(
-                    entry = entry,
-                    isEntering = animationType == AnimationType.MODAL_ENTER,
-                    screenWidth = screenWidth,
-                    screenHeight = screenHeight,
-                    zIndex = zIndex,
-                    onAnimationComplete = onAnimationComplete,
-                    content = content
-                )
-            }
-        }
+        AnimatedModalEntry(
+            entry = entry,
+            isEntering = animationType == AnimationType.MODAL_ENTER,
+            screenWidth = screenWidth,
+            screenHeight = screenHeight,
+            zIndex = zIndex,
+            onAnimationComplete = onAnimationComplete,
+            content = content
+        )
     }
-    
-    /**
-     * Screen animation for content layer entries
-     */
-    @Composable
-    private fun AnimatedScreenEntry(
-        entry: NavigationEntry,
-        isEntering: Boolean,
-        animationDecision: AnimationDecision?,
-        screenWidth: Float,
-        screenHeight: Float,
-        zIndex: Float,
-        onAnimationComplete: (() -> Unit)? = null,
-        progressDriver: TransitionProgressDriver = TransitionProgressDriver.Timed,
-        content: @Composable () -> Unit
-    ) {
-        val transition = if (isEntering) {
-            animationDecision?.enterTransition ?: NavTransition.None
-        } else {
-            animationDecision?.exitTransition ?: NavTransition.None
-        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(zIndex)
-                .animateNavTransition(
-                    transition = transition,
-                    isEntering = isEntering,
-                    animationDecision = animationDecision,
-                    screenWidth = screenWidth,
-                    screenHeight = screenHeight,
-                    entryKey = entry.stableKey,
-                    onAnimationComplete = onAnimationComplete,
-                    progressDriver = progressDriver
-                )
-                .let { modifier ->
-                    // Block interactions for exit animations
-                    if (!isEntering) {
-                        modifier.pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    event.changes.forEach { it.consume() }
-                                }
-                            }
-                        }
-                    } else {
-                        modifier
-                    }
-                }
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(rememberNavigationBackgroundColor())
-            ) {
-                content()
-            }
-        }
-    }
-    
     /**
      * Modal animation for overlay layer entries
      */
@@ -174,15 +92,15 @@ object NavigationAnimations {
         content: @Composable () -> Unit
     ) {
         val navModule = LocalNavigationModule.current
-        val navigatable = navModule.resolveNavigatable(entry)
+        val navigatable = entry.navigatable
         val modal = navigatable as? Modal
         val scope = rememberCoroutineScope()
         val store = rememberStore()
         val controller = LocalInteractiveTransitionController.current
 
         val transition = when {
-            isEntering -> navigatable?.popEnterTransition ?: navigatable?.enterTransition ?: NavTransition.None
-            else -> navigatable?.popExitTransition ?: navigatable?.exitTransition ?: NavTransition.None
+            isEntering -> navigatable.popEnterTransition ?: navigatable.enterTransition ?: NavTransition.None
+            else -> navigatable.popExitTransition ?: navigatable.exitTransition ?: NavTransition.None
         }
 
         val shouldAnimate = transition != NavTransition.None
@@ -301,7 +219,7 @@ object NavigationAnimations {
                 }
         ) {
             // Background layer — always captures taps to prevent click pass-through.
-            // Invokes tapOutsideClick when set; does nothing when null.
+            // Invokes onDismissRequest when set; does nothing when null.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -315,9 +233,7 @@ object NavigationAnimations {
                         indication = null,
                         enabled = isEntering
                     ) {
-                        @Suppress("DEPRECATION")
-                        val handler = modal?.onDismissRequest ?: modal?.tapOutsideClick
-                        handler?.let { scope.launch { it(store) } }
+                        modal?.onDismissRequest?.let { scope.launch { it(store) } }
                     }
             )
 
@@ -383,7 +299,7 @@ internal suspend fun completeModalDismiss(
             return
         }
         controller.armModalHandoff(entry.stableKey)
-        val dismissHandler = navModule.resolveNavigatable(entry)?.onDismissRequest
+        val dismissHandler = entry.navigatable.onDismissRequest
         if (dismissHandler != null) {
             dismissHandler.invoke(store)
         } else {
@@ -402,7 +318,7 @@ internal suspend fun completeModalDismiss(
  * Modifier extension for screen transition animations
  */
 @Composable
-private fun Modifier.animateNavTransition(
+internal fun Modifier.animateNavTransition(
     transition: NavTransition,
     isEntering: Boolean,
     animationDecision: AnimationDecision?,

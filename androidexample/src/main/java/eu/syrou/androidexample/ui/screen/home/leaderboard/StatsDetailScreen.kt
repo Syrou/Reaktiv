@@ -134,14 +134,15 @@ object StatsDetailScreen : Screen {
                     }
 
                     "team" -> {
-                        if (teamData!!.competitiveStats.tournamentHistory.isNotEmpty()) {
+                        val team = teamData!!
+                        if (team.competitiveStats.tournamentHistory.isNotEmpty()) {
                             item {
-                                TournamentHistoryCard(teamData!!.competitiveStats.tournamentHistory)
+                                TournamentHistoryCard(team.competitiveStats.tournamentHistory)
                             }
                         }
-                        if (teamData!!.competitiveStats.rivalries.isNotEmpty()) {
+                        if (team.competitiveStats.rivalries.isNotEmpty()) {
                             item {
-                                RivalriesCard(teamData!!.competitiveStats.rivalries)
+                                RivalriesCard(team.competitiveStats.rivalries)
                             }
                         }
                     }

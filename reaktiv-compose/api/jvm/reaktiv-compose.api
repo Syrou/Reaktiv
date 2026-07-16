@@ -1,0 +1,6 @@
+public final class io/github/syrou/reaktiv/compose/StoreProviderKt {
+	public static final fun StoreProvider (Lio/github/syrou/reaktiv/core/Store;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun rememberDispatcher (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function1;
+	public static final fun rememberStore (Landroidx/compose/runtime/Composer;I)Lio/github/syrou/reaktiv/core/Store;
+}
+

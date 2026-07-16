@@ -18,6 +18,6 @@ import io.github.syrou.reaktiv.introspection.capture.SessionCapture
  * @param platformContext The platform context for file access
  * @param sessionCapture The session capture instance for recording events
  */
-expect class CrashHandler(platformContext: PlatformContext, sessionCapture: SessionCapture) {
-    fun install()
+public expect class CrashHandler(platformContext: PlatformContext, sessionCapture: SessionCapture) {
+    public fun install()
 }

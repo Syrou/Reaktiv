@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.devtools.server
 
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
@@ -7,13 +8,13 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.Json
-import kotlin.time.Clock
 
 /**
  * Represents a ghost device imported from a recorded session.
  */
-data class GhostDevice(
+public data class GhostDevice(
     val ghostClientId: String,
     val originalClientInfo: ClientInfo,
     val sessionStartTime: Long,
@@ -26,31 +27,29 @@ data class GhostDevice(
 /**
  * Manages connected clients and their WebSocket sessions.
  */
-class ClientManager {
+public class ClientManager {
     private val mutex = Mutex()
     private val clients = mutableMapOf<String, ConnectedClient>()
     private val subscriptions = mutableMapOf<String, MutableSet<String>>()
     private val ghostDevices = mutableMapOf<String, GhostDevice>()
     private var currentPublisherId: String? = null
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-    }
+    private val json = reaktivJson()
 
     /**
      * Registers a new client connection.
      */
-    suspend fun registerClient(
+    public suspend fun registerClient(
         session: WebSocketSession,
         registration: DevToolsMessage.ClientRegistration
-    ) = mutex.withLock {
+    ): Unit = mutex.withLock {
         val clientInfo = ClientInfo(
             clientId = registration.clientId,
             clientName = registration.clientName,
             platform = registration.platform,
             role = ClientRole.UNASSIGNED,
             publisherClientId = null,
-            connectedAt = Clock.System.now().toEpochMilliseconds()
+            connectedAt = currentTimeMillis()
         )
 
         clients[registration.clientId] = ConnectedClient(
@@ -78,7 +77,7 @@ class ClientManager {
     /**
      * Unregisters a client and removes all subscriptions.
      */
-    suspend fun unregisterClient(clientId: String) = mutex.withLock {
+    public suspend fun unregisterClient(clientId: String): Unit = mutex.withLock {
         val client = clients.remove(clientId)
 
         if (client?.info?.role == ClientRole.LISTENER || client?.info?.role == ClientRole.ORCHESTRATOR) {
@@ -106,11 +105,11 @@ class ClientManager {
     /**
      * Assigns a role to a client.
      */
-    suspend fun assignRole(
+    public suspend fun assignRole(
         clientId: String,
         role: ClientRole,
         publisherClientId: String?
-    ) = mutex.withLock {
+    ): Unit = mutex.withLock {
         val client = clients[clientId] ?: return@withLock
 
         if ((client.info.role == ClientRole.LISTENER || client.info.role == ClientRole.ORCHESTRATOR) && client.info.publisherClientId != null) {
@@ -142,7 +141,7 @@ class ClientManager {
     /**
      * Broadcasts a message to all listeners of a publisher.
      */
-    suspend fun broadcastToListeners(publisherId: String, message: DevToolsMessage) = mutex.withLock {
+    public suspend fun broadcastToListeners(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
         val listeners = subscriptions[publisherId] ?: emptySet()
 
         listeners.forEach { listenerId ->
@@ -154,7 +153,7 @@ class ClientManager {
      * Broadcasts the current client list to all connected clients.
      * Includes both real clients and ghost devices.
      */
-    suspend fun broadcastClientList() {
+    public suspend fun broadcastClientList() {
         val realClients = clients.values.map { it.info }
         val ghostClients = ghostDevices.values.map { ghost ->
             ClientInfo(
@@ -178,7 +177,7 @@ class ClientManager {
     /**
      * Sends a message to the publisher client.
      */
-    suspend fun sendToPublisher(publisherId: String, message: DevToolsMessage) = mutex.withLock {
+    public suspend fun sendToPublisher(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
         sendToClient(publisherId, message)
     }
 
@@ -199,14 +198,14 @@ class ClientManager {
     /**
      * Gets information about a specific client.
      */
-    suspend fun getClient(clientId: String): ClientInfo? = mutex.withLock {
+    public suspend fun getClient(clientId: String): ClientInfo? = mutex.withLock {
         clients[clientId]?.info
     }
 
     /**
      * Gets all connected clients including ghost devices.
      */
-    suspend fun getAllClients(): List<ClientInfo> = mutex.withLock {
+    public suspend fun getAllClients(): List<ClientInfo> = mutex.withLock {
         val realClients = clients.values.map { it.info }
         val ghostClients = ghostDevices.values.map { ghost ->
             ClientInfo(
@@ -226,7 +225,7 @@ class ClientManager {
      * Registers a ghost device from an imported session.
      * Ghost devices can be played back and will broadcast events to listeners.
      */
-    suspend fun registerGhostDevice(registration: DevToolsMessage.GhostDeviceRegistration): String = mutex.withLock {
+    public suspend fun registerGhostDevice(registration: DevToolsMessage.GhostDeviceRegistration): String = mutex.withLock {
         val ghostId = "ghost-${registration.sessionId}"
 
         ghostDevices[ghostId] = GhostDevice(
@@ -253,7 +252,7 @@ class ClientManager {
     /**
      * Removes a ghost device.
      */
-    suspend fun removeGhostDevice(ghostId: String) = mutex.withLock {
+    public suspend fun removeGhostDevice(ghostId: String): Unit = mutex.withLock {
         val removed = ghostDevices.remove(ghostId)
         if (removed != null) {
             println("DevTools Server: Ghost device removed - $ghostId")
@@ -273,14 +272,14 @@ class ClientManager {
     /**
      * Gets a ghost device by ID.
      */
-    suspend fun getGhostDevice(ghostId: String): GhostDevice? = mutex.withLock {
+    public suspend fun getGhostDevice(ghostId: String): GhostDevice? = mutex.withLock {
         ghostDevices[ghostId]
     }
 
     /**
      * Checks if a client ID belongs to a ghost device.
      */
-    suspend fun isGhostDevice(clientId: String): Boolean = mutex.withLock {
+    public suspend fun isGhostDevice(clientId: String): Boolean = mutex.withLock {
         ghostDevices.containsKey(clientId)
     }
 
@@ -288,7 +287,7 @@ class ClientManager {
      * Sets the current publisher. Only one publisher is allowed at a time.
      * If the new publisher is a real device and there's a ghost publisher, the ghost is removed.
      */
-    suspend fun setPublisher(clientId: String, reason: String) = mutex.withLock {
+    public suspend fun setPublisher(clientId: String, reason: String): Unit = mutex.withLock {
         val previousPublisher = currentPublisherId
 
         if (previousPublisher != null && previousPublisher != clientId) {
@@ -329,18 +328,8 @@ class ClientManager {
     /**
      * Gets the current publisher ID.
      */
-    suspend fun getCurrentPublisher(): String? = mutex.withLock {
+    public suspend fun getCurrentPublisher(): String? = mutex.withLock {
         currentPublisherId
-    }
-
-    /**
-     * Broadcasts a ghost device's events to all listeners.
-     */
-    suspend fun broadcastGhostEvent(ghostId: String, message: DevToolsMessage) = mutex.withLock {
-        val listeners = subscriptions[ghostId] ?: emptySet()
-        listeners.forEach { listenerId ->
-            sendToClient(listenerId, message)
-        }
     }
 
     /**
@@ -366,7 +355,7 @@ class ClientManager {
 /**
  * Represents a connected client with their session and info.
  */
-data class ConnectedClient(
+public data class ConnectedClient(
     val session: WebSocketSession,
     var info: ClientInfo
 )

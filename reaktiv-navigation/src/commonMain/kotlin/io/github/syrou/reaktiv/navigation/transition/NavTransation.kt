@@ -18,75 +18,75 @@ import kotlinx.serialization.Transient
  * ```
  */
 @Serializable
-sealed class NavTransition(@Transient open val durationMillis: Int = DEFAULT_ANIMATION_DURATION) {
+public sealed class NavTransition(@Transient public open val durationMillis: Int = DEFAULT_ANIMATION_DURATION) {
 
     /** No animation; the screen appears or disappears instantly. */
     @Serializable
-    data object None : NavTransition(0)
+    public data object None : NavTransition(0)
 
     /** Cross-fade in — opacity goes from 0 to 1. */
     @Serializable
-    data object Fade : NavTransition()
+    public data object Fade : NavTransition()
 
     /** Cross-fade out — opacity goes from 1 to 0. */
     @Serializable
-    data object FadeOut : NavTransition()
+    public data object FadeOut : NavTransition()
 
     /** Screen slides in from the right edge. */
     @Serializable
-    data object SlideInRight : NavTransition()
+    public data object SlideInRight : NavTransition()
 
     /** Screen slides out toward the right edge. */
     @Serializable
-    data object SlideOutRight : NavTransition()
+    public data object SlideOutRight : NavTransition()
 
     /** Screen slides in from the left edge. */
     @Serializable
-    data object SlideInLeft : NavTransition()
+    public data object SlideInLeft : NavTransition()
 
     /** Screen slides out toward the left edge. */
     @Serializable
-    data object SlideOutLeft : NavTransition()
+    public data object SlideOutLeft : NavTransition()
 
     /** Screen slides up from the bottom edge. */
     @Serializable
-    data object SlideUpBottom : NavTransition()
+    public data object SlideUpBottom : NavTransition()
 
     /** Screen slides down and exits through the bottom edge. */
     @Serializable
-    data object SlideOutBottom : NavTransition()
+    public data object SlideOutBottom : NavTransition()
 
     /** Screen scales up (80 % → 100 %) while fading in. */
     @Serializable
-    class Scale(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
+    public class Scale(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
 
     /** Screen scales down (100 % → 80 %) while fading out. */
     @Serializable
-    class ScaleOut(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
+    public class ScaleOut(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
 
     /** iOS-style push: new screen slides in from the right edge. */
     @Serializable
-    data object IOSSlideIn : NavTransition()
+    public data object IOSSlideIn : NavTransition()
 
     /** iOS-style pop: outgoing screen slides left with a parallax scale-down effect. */
     @Serializable
-    data object IOSSlideOut : NavTransition()
+    public data object IOSSlideOut : NavTransition()
 
     /** Material Design 3 forward enter: slide in from right with subtle scale and fade. */
     @Serializable
-    data object MaterialSlideIn : NavTransition()
+    public data object MaterialSlideIn : NavTransition()
 
     /** Material Design 3 forward exit: slide out to the left with a trailing fade. */
     @Serializable
-    data object MaterialSlideOut : NavTransition()
+    public data object MaterialSlideOut : NavTransition()
 
     /** Card-stack push: new screen rises from the bottom with a scale-up and fade. */
     @Serializable
-    data object StackPush : NavTransition()
+    public data object StackPush : NavTransition()
 
     /** Card-stack pop: outgoing screen falls down and fades out. */
     @Serializable
-    data object StackPop : NavTransition()
+    public data object StackPop : NavTransition()
 
     /**
      * Fully custom transition using per-frame transform lambdas.
@@ -104,18 +104,18 @@ sealed class NavTransition(@Transient open val durationMillis: Int = DEFAULT_ANI
      * @param rotationZ Maps progress → rotation around the Z-axis in degrees.
      */
     @Serializable
-    class Custom(
+    public class Custom(
         override val durationMillis: Int = DEFAULT_ANIMATION_DURATION,
-        @Transient val alpha: (Float) -> Float = { 1f },
-        @Transient val scaleX: (Float) -> Float = { 1f },
-        @Transient val scaleY: (Float) -> Float = { 1f },
-        @Transient val translationX: (Float) -> Float = { 0f },
-        @Transient val translationY: (Float) -> Float = { 0f },
-        @Transient val rotationZ: (Float) -> Float = { 0f }
+        @Transient public val alpha: (Float) -> Float = { 1f },
+        @Transient public val scaleX: (Float) -> Float = { 1f },
+        @Transient public val scaleY: (Float) -> Float = { 1f },
+        @Transient public val translationX: (Float) -> Float = { 0f },
+        @Transient public val translationY: (Float) -> Float = { 0f },
+        @Transient public val rotationZ: (Float) -> Float = { 0f }
     ) : NavTransition(durationMillis)
 
-    companion object {
-        const val DEFAULT_ANIMATION_DURATION = 200
+    public companion object {
+        public const val DEFAULT_ANIMATION_DURATION: Int = 200
     }
 }
 /**
@@ -132,7 +132,7 @@ sealed class NavTransition(@Transient open val durationMillis: Int = DEFAULT_ANI
  * @property translationY Progress → vertical pixel offset mapping.
  * @property rotationZ Progress → Z-axis rotation in degrees mapping.
  */
-data class ResolvedNavTransition(
+public data class ResolvedNavTransition(
     val durationMillis: Int,
     val alpha: (Float) -> Float = { 1f },
     val scaleX: (Float) -> Float = { 1f },
@@ -150,7 +150,7 @@ data class ResolvedNavTransition(
  * @param isForward `true` when navigating forward (push); `false` when navigating backward (pop).
  * @return A [ResolvedNavTransition] ready for consumption by the animation system.
  */
-fun NavTransition.resolve(
+public fun NavTransition.resolve(
     screenWidth: Float,
     screenHeight: Float,
     isForward: Boolean = true

@@ -16,25 +16,25 @@ package io.github.syrou.reaktiv.core.persistance
  * All methods are `suspend` so that I/O can be performed on the appropriate dispatcher without
  * blocking the calling coroutine.
  */
-interface PersistenceStrategy {
+public interface PersistenceStrategy {
     /**
      * Persist the full serialized store state.
      *
      * @param serializedState A JSON string produced by the store's serialization layer.
      */
-    suspend fun saveState(serializedState: String)
+    public suspend fun saveState(serializedState: String)
 
     /**
      * Load a previously persisted state string, or `null` if no state has been saved yet.
      *
      * @return The serialized JSON string, or `null` if storage is empty.
      */
-    suspend fun loadState(): String?
+    public suspend fun loadState(): String?
 
     /**
      * Returns `true` if a previously persisted state is available to be loaded.
      *
      * Callers use this to decide whether to call [loadState] or start from the initial state.
      */
-    suspend fun hasPersistedState(): Boolean
+    public suspend fun hasPersistedState(): Boolean
 }

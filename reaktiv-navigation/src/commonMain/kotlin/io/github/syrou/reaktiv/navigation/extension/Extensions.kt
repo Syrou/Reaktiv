@@ -15,16 +15,16 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.flow.first
 
-suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit) {
+public suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() -> Unit) {
     val navigationLogic = selectLogic<NavigationLogic>()
     navigationLogic.navigate(block)
 }
 
-suspend fun StoreAccessor.navigateBack() {
+public suspend fun StoreAccessor.navigateBack() {
     selectLogic<NavigationLogic>().navigateBack()
 }
 
-suspend fun StoreAccessor.navigate(route: String, params: Params? = null) {
+public suspend fun StoreAccessor.navigate(route: String, params: Params? = null) {
     navigation {
         navigateTo(route) {
             params?.let { params(it) }
@@ -32,7 +32,7 @@ suspend fun StoreAccessor.navigate(route: String, params: Params? = null) {
     }
 }
 
-suspend inline fun <reified T : Navigatable> StoreAccessor.navigate(params: Params? = null) {
+public suspend inline fun <reified T : Navigatable> StoreAccessor.navigate(params: Params? = null) {
     navigation {
         navigateTo<T> {
             params?.let { params(it) }
@@ -40,7 +40,7 @@ suspend inline fun <reified T : Navigatable> StoreAccessor.navigate(params: Para
     }
 }
 
-suspend inline fun <reified T : Modal> StoreAccessor.presentModal(
+public suspend inline fun <reified T : Modal> StoreAccessor.presentModal(
     noinline config: (suspend NavigationBuilder.() -> Unit)? = null
 ) {
     navigation {
@@ -49,11 +49,11 @@ suspend inline fun <reified T : Modal> StoreAccessor.presentModal(
     }
 }
 
-suspend fun StoreAccessor.dismissModal() {
+public suspend fun StoreAccessor.dismissModal() {
     navigateBack()
 }
 
-inline fun Modifier.applyIf(condition: Boolean, modifier: Modifier.() -> Modifier): Modifier {
+public inline fun Modifier.applyIf(condition: Boolean, modifier: Modifier.() -> Modifier): Modifier {
     return if (condition) {
         then(modifier(Modifier))
     } else {
@@ -61,9 +61,9 @@ inline fun Modifier.applyIf(condition: Boolean, modifier: Modifier.() -> Modifie
     }
 }
 
-suspend fun StoreAccessor.dismissModal(modalEntry: NavigationEntry) {
+public suspend fun StoreAccessor.dismissModal(modalEntry: NavigationEntry) {
     val navModule = getNavigationModule()
-    if (navModule.resolveNavigatable(modalEntry) is Modal) {
+    if (modalEntry.navigatable is Modal) {
         selectLogic<NavigationLogic>().popUpTo(modalEntry.path, inclusive = true)
     }
 }
@@ -74,15 +74,15 @@ suspend fun StoreAccessor.dismissModal(modalEntry: NavigationEntry) {
  * @param route The deep link path (may include query parameters)
  * @param params Additional parameters merged with any extracted from the route
  */
-suspend fun StoreAccessor.navigateDeepLink(route: String, params: Params = Params.empty()) {
+public suspend fun StoreAccessor.navigateDeepLink(route: String, params: Params = Params.empty()) {
     selectLogic<NavigationLogic>().navigateDeepLink(route, params)
 }
 
-suspend fun StoreAccessor.clearAllModals() {
+public suspend fun StoreAccessor.clearAllModals() {
     val navigationState = selectState<NavigationState>().first()
     val navModule = getNavigationModule()
     val lastScreen = navigationState.orderedBackStack.reversed().firstOrNull {
-        navModule.resolveNavigatable(it) is Screen
+        it.navigatable is Screen
     }
 
     if (lastScreen != null) {

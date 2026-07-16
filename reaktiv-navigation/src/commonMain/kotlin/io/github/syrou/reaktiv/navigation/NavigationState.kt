@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
@@ -24,12 +25,12 @@ import kotlin.time.Duration
  */
 @Stable
 @Serializable
-data class NavigationState(
+public data class NavigationState(
     // Core navigation state
     /** The entry that is currently active (top of stack). */
-    val currentEntry: NavigationEntry,
+    @Contextual val currentEntry: NavigationEntry,
     /** Ordered back stack; the last element is always equal to [currentEntry]. */
-    val backStack: List<NavigationEntry>,
+    val backStack: List<@Contextual NavigationEntry>,
 
     /** The most recent action dispatched by the navigation system, used for content preservation. */
     val lastNavigationAction: NavigationAction? = null,
@@ -39,7 +40,7 @@ data class NavigationState(
 
     // Computed properties — set by the reducer, fully serializable
     /** Entries that should be rendered, ordered from bottom to top layer. */
-    val visibleLayers: List<NavigationEntry>,
+    val visibleLayers: List<@Contextual NavigationEntry>,
     /** The full slash-separated path for [currentEntry], e.g. `"auth/login"`. */
     val currentFullPath: String,
     /** Ordered list of graph IDs from root to the graph containing [currentEntry]. */
@@ -57,15 +58,15 @@ data class NavigationState(
 
     // Layer entries — computed by the reducer
     /** Entries assigned to [RenderLayer.CONTENT]. */
-    val contentLayerEntries: List<NavigationEntry>,
+    val contentLayerEntries: List<@Contextual NavigationEntry>,
     /** Entries assigned to [RenderLayer.GLOBAL_OVERLAY]. */
-    val globalOverlayEntries: List<NavigationEntry>,
+    val globalOverlayEntries: List<@Contextual NavigationEntry>,
     /** Entries assigned to [RenderLayer.SYSTEM] (e.g. loading modals). */
-    val systemLayerEntries: List<NavigationEntry>,
+    val systemLayerEntries: List<@Contextual NavigationEntry>,
     /** The screen rendered underneath the current modal, or `null` if not in a modal. */
-    val underlyingScreen: NavigationEntry?,
+    @Contextual val underlyingScreen: NavigationEntry?,
     /** All modal entries currently present in [backStack]. */
-    val modalsInStack: List<NavigationEntry>,
+    val modalsInStack: List<@Contextual NavigationEntry>,
 
     /**
      * Graph hierarchy of [underlyingScreen], used so that [isInGraph] works correctly
@@ -95,13 +96,7 @@ data class NavigationState(
      * [io.github.syrou.reaktiv.navigation.definition.LoadingModal] directly as a
      * boolean-controlled overlay rather than a backstack entry while this is `true`.
      */
-    val isEvaluatingNavigation: Boolean = false,
-
-    /**
-     * Resolved title string for [currentEntry], populated by [NavigationRender] after
-     * invoking the navigatable's `titleResource` inside the Compose tree.
-     */
-    val currentTitle: String? = null
+    val isEvaluatingNavigation: Boolean = false
 ) : ModuleState {
 
     /** `true` when there is more than one entry in [backStack] and a back navigation is possible. */
@@ -138,7 +133,7 @@ data class NavigationState(
      *
      * @param graphId The route identifier of the graph to test membership in.
      */
-    fun isInGraph(graphId: String): Boolean {
+    public fun isInGraph(graphId: String): Boolean {
         return if (!isCurrentModal) {
             currentGraphHierarchy.contains(graphId)
         } else {
@@ -152,7 +147,7 @@ data class NavigationState(
      * @param path A slash-separated path or plain route to match against [currentFullPath]
      *   or any entry in [visibleLayers].
      */
-    fun isAtPath(path: String): Boolean {
+    public fun isAtPath(path: String): Boolean {
         val cleanPath = path.trimStart('/').trimEnd('/')
         return currentFullPath == cleanPath ||
                 visibleLayers.any { it.route == cleanPath || it.path == cleanPath }
@@ -167,7 +162,7 @@ data class NavigationState(
  * @property isGraph `true` when this segment corresponds to a [NavigationGraph] route rather than a screen.
  */
 @Serializable
-data class NavigationBreadcrumb(
+public data class NavigationBreadcrumb(
     val label: String,
     val path: String,
     val isGraph: Boolean

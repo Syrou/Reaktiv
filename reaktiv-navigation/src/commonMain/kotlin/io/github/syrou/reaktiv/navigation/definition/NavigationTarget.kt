@@ -7,16 +7,16 @@ import kotlinx.serialization.Serializable
 
 
 @Serializable
-sealed class NavigationTarget {
-    data class Path(val path: String) : NavigationTarget()
-    data class NavigatableObject(val navigatable: Navigatable) : NavigationTarget()
-    data class NavigatableObjectWithGraph(
+public sealed class NavigationTarget {
+    public data class Path(val path: String) : NavigationTarget()
+    public data class NavigatableObject(val navigatable: Navigatable) : NavigationTarget()
+    public data class NavigatableObjectWithGraph(
         val navigatable: Navigatable,
         val preferredGraphId: String
     ) : NavigationTarget()
 
     
-    fun resolve(precomputedData: PrecomputedNavigationData): String {
+    public fun resolve(precomputedData: PrecomputedNavigationData): String {
         return when (this) {
             is Path -> path
 

@@ -29,6 +29,7 @@ import eu.syrou.androidexample.ui.screen.InvitationModal
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.LoginScreen
 import eu.syrou.androidexample.ui.screen.NotFoundScreen
+import eu.syrou.androidexample.ui.screen.PullToRefreshDemoScreen
 import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.screen.StreamsListScreen
 import eu.syrou.androidexample.ui.screen.SystemAlertModal
@@ -58,7 +59,7 @@ import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.devtools.DevToolsModule
 import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
-import io.github.syrou.reaktiv.introspection.CrashModule
+import io.github.syrou.reaktiv.introspection.CrashHandler
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.IntrospectionModule
 import io.github.syrou.reaktiv.introspection.PlatformContext
@@ -132,6 +133,7 @@ class CustomApplication : Application() {
                 StreamsListScreen,
                 DevToolsScreen,
                 DeepLinkAliasTestScreen,
+                PullToRefreshDemoScreen,
             )
             modals(NotificationModal, SystemAlertModal)
 
@@ -248,7 +250,6 @@ class CustomApplication : Application() {
         module(introspectionModule)
         module(navigationModule)
         module(devToolsModule)
-        module(CrashModule(PlatformContext(this@CustomApplication), sessionCapture))
         middlewares(
             loggingMiddleware,
             createTestNavigationMiddleware()
@@ -263,6 +264,7 @@ class CustomApplication : Application() {
     override fun onCreate() {
         customApp = this
         super.onCreate()
+        CrashHandler(PlatformContext(this), sessionCapture).install()
     }
 
     private fun fetchNewsPeriodicly() {
@@ -275,7 +277,6 @@ class CustomApplication : Application() {
             15, TimeUnit.MINUTES
         ).build()
 
-        println("KASTRULL - WORK REQUEST SHOULD HAVE BEEN PUT IN QUEUE")
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "fetch_periodic_news",
             ExistingPeriodicWorkPolicy.UPDATE,

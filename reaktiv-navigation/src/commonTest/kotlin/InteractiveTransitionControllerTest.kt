@@ -1,6 +1,9 @@
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MonotonicFrameClock
+import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
+import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.ui.InteractiveTransitionController
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -16,15 +19,26 @@ import kotlin.time.toDuration
 
 class InteractiveTransitionControllerTest {
 
-    private fun entry(route: String, position: Int) = NavigationEntry(
+    private fun testScreen(route: String) = object : Screen {
+        override val route = route
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+
+        @Composable
+        override fun Content(params: Params) {
+        }
+    }
+
+    private fun start(route: String, position: Int) = NavigationEntry(
+        navigatable = testScreen(route),
         path = route,
         params = Params.empty(),
         stackPosition = position
     )
 
     private fun contentBack() = InteractiveTransitionController.ScrubKind.ContentBack(
-        topEntry = entry("detail", 1),
-        revealedEntry = entry("home", 0)
+        topEntry = start("detail", 1),
+        revealedEntry = start("home", 0)
     )
 
     @Test

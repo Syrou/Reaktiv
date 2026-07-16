@@ -1,0 +1,9 @@
+public abstract interface annotation class io/github/syrou/reaktiv/tracing/annotations/NoTrace : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class io/github/syrou/reaktiv/tracing/annotations/PII : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class io/github/syrou/reaktiv/tracing/annotations/Sensitive : java/lang/annotation/Annotation {
+}
+

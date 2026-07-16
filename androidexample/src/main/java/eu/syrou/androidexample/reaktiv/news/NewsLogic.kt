@@ -40,7 +40,6 @@ class NewsLogic(storeAccessor: StoreAccessor) : ModuleLogic() {
 
     suspend fun countDown() = withContext(Dispatchers.Default){
         (10 downTo 0).forEach {
-            println("HERPADERPA - Count down: $it")
             delay(1000)
         }
     }

@@ -89,7 +89,7 @@ internal class PlatformBackCoordinator(
 internal suspend fun dispatchBackDismissal(store: Store, navModule: NavigationModule) {
     val state = store.selectState<NavigationState>().first()
     if (!canHandleBack(state, navModule)) return
-    val handler = navModule.resolveNavigatable(state.currentEntry)?.onDismissRequest
+    val handler = state.currentEntry.navigatable.onDismissRequest
     if (handler != null) {
         handler.invoke(store)
     } else {
