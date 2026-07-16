@@ -105,7 +105,7 @@ class AnimationDecisionTest {
         advanceUntilIdle()
         val nm = store.getModule<NavigationModule>()
         assertNotNull(nm)
-        block(nm!!)
+        block(nm)
     }
 
     @Test

@@ -59,7 +59,7 @@ class LogicMethodTransformer(
 
     // Lazy references to LogicTracer methods
     private val logicTracerClass: IrClassSymbol? by lazy {
-        pluginContext.referenceClass(
+        pluginContext.finderForBuiltins().findClass(
             ClassId(FqName("io.github.syrou.reaktiv.core.tracing"), Name.identifier("LogicTracer"))
         )
     }
@@ -80,21 +80,21 @@ class LogicMethodTransformer(
         logicTracerClass?.owner?.properties?.find { it.name.asString() == "active" }?.getter?.symbol
     }
 
-    // Reference to kotlin.system.getTimeMillis() for timing
+    // Reference to the multiplatform io.github.syrou.reaktiv.core.util.currentTimeMillis() for timing
     private val getTimeMillisFun: IrSimpleFunctionSymbol? by lazy {
-        val funRef = pluginContext.referenceFunctions(
-            CallableId(FqName("kotlin.system"), Name.identifier("getTimeMillis"))
+        val funRef = pluginContext.finderForBuiltins().findFunctions(
+            CallableId(FqName("io.github.syrou.reaktiv.core.util"), Name.identifier("currentTimeMillis"))
         ).firstOrNull()
         messageCollector.report(
             org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-            "ReaktivTracing: getTimeMillis resolved: ${funRef != null}"
+            "ReaktivTracing: currentTimeMillis resolved: ${funRef != null}"
         )
         funRef
     }
 
     // Map building references
     private val mutableMapOfFun: IrSimpleFunctionSymbol? by lazy {
-        pluginContext.referenceFunctions(
+        pluginContext.finderForBuiltins().findFunctions(
             CallableId(FqName("kotlin.collections"), Name.identifier("mutableMapOf"))
         ).firstOrNull { fn ->
             // Find the no-arg mutableMapOf function (only has type parameters, no value params)
@@ -103,7 +103,7 @@ class LogicMethodTransformer(
     }
 
     private val mapPutFun: IrSimpleFunctionSymbol? by lazy {
-        pluginContext.referenceClass(
+        pluginContext.finderForBuiltins().findClass(
             ClassId(FqName("kotlin.collections"), Name.identifier("MutableMap"))
         )?.owner?.functions?.find { fn ->
             fn.name.asString() == "put" &&
@@ -113,7 +113,7 @@ class LogicMethodTransformer(
 
     // Empty map reference (fallback)
     private val emptyMapFun: IrSimpleFunctionSymbol? by lazy {
-        pluginContext.referenceFunctions(
+        pluginContext.finderForBuiltins().findFunctions(
             CallableId(FqName("kotlin.collections"), Name.identifier("emptyMap"))
         ).firstOrNull()
     }
@@ -203,7 +203,7 @@ class LogicMethodTransformer(
             // Get source file and line number from the function declaration
             val absoluteFilePath = function.fileEntry.name
             val lineNumber = if (function.startOffset >= 0) {
-                function.fileEntry.getLineNumber(function.startOffset)?.plus(1) // Line numbers are 0-based
+                function.fileEntry.getLineNumber(function.startOffset) + 1 // Line numbers are 0-based
             } else null
 
             // Compute relative file path for source linking
@@ -320,8 +320,8 @@ class LogicMethodTransformer(
                                 val lastStatementDetail = when (lastStatement) {
                                     is IrTry -> "IrTry (hasFinally=${lastStatement.finallyExpression != null})"
                                     is IrReturn -> "IrReturn"
-                                    is IrCall -> "IrCall (${(lastStatement as IrCall).symbol.owner.name})"
-                                    is IrBlock -> "IrBlock (size=${(lastStatement as IrBlock).statements.size})"
+                                    is IrCall -> "IrCall (${lastStatement.symbol.owner.name})"
+                                    is IrBlock -> "IrBlock (size=${lastStatement.statements.size})"
                                     else -> lastStatement::class.simpleName ?: "unknown"
                                 }
                                 messageCollector.report(
@@ -430,7 +430,7 @@ class LogicMethodTransformer(
         if (timeFun == null) {
             messageCollector.report(
                 org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING,
-                "ReaktivTracing: getTimeMillis not available, duration will be 0"
+                "ReaktivTracing: currentTimeMillis not available, duration will be 0"
             )
             return irLong(0L)
         }
@@ -704,12 +704,12 @@ class LogicMethodTransformer(
         private val methodName: String
     ) : IrElementTransformerVoid() {
 
-        override fun visitTry(expression: IrTry): IrExpression {
+        override fun visitTry(aTry: IrTry): IrExpression {
             messageCollector.report(
                 org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
                 "ReaktivTracing: $methodName - visiting IrTry block"
             )
-            return super.visitTry(expression)
+            return super.visitTry(aTry)
         }
 
         override fun visitReturn(expression: IrReturn): IrExpression {

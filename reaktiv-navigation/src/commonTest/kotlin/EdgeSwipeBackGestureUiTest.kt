@@ -218,6 +218,17 @@ class EdgeSwipeBackGestureUiTest {
         }
         waitUntilExactlyOneExists(hasText("Page 12"), timeoutMillis = UI_TEST_WAIT_MS)
         assertEquals(1, recorder.backActions.size, "Mid-content horizontal scrolling must remain untouched")
+
+        onRoot().performTouchInput {
+            down(Offset(centerX, centerY))
+            repeat(2) {
+                moveBy(Offset(width * 0.08f, 0f), delayMillis = 30)
+            }
+            up()
+        }
+        waitForIdle()
+        awaitCurrentScreen(store, "ui-h-pager")
+        assertEquals(1, recorder.backActions.size, "A rightward pan over a mid-position scrollable must scroll, not go back")
     }
 
     private object UiPagerHostScreen : Screen {
@@ -232,7 +243,7 @@ class EdgeSwipeBackGestureUiTest {
     }
 
     @Test
-    fun dragStartingAwayFromEdgeIsInert() = runComposeUiTest {
+    fun midScreenBackPanCommitsOnPlainContent() = runComposeUiTest {
         val recorder = BackActionRecorder()
         val store = buildStore(recorder)
         setContent {
@@ -247,15 +258,42 @@ class EdgeSwipeBackGestureUiTest {
         waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
 
         onRoot().performTouchInput {
-            down(Offset(300f, centerY))
-            moveBy(Offset(200f, 0f))
+            down(Offset(centerX, centerY))
+            repeat(8) {
+                moveBy(Offset(width * 0.08f, 0f), delayMillis = 30)
+            }
+            moveBy(Offset(2f, 0f), delayMillis = 100)
+            up()
+        }
+        awaitCurrentScreen(store, "ui-home")
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        assertEquals(1, recorder.backActions.size, "A mid-screen back pan on plain content must commit, matching native iOS")
+    }
+
+    @Test
+    fun midScreenForwardPanIsInert() = runComposeUiTest {
+        val recorder = BackActionRecorder()
+        val store = buildStore(recorder)
+        setContent {
+            StoreProvider(store) {
+                NavigationRender()
+            }
+        }
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+        store.launch { store.navigation { navigateTo("ui-detail") } }
+        awaitCurrentScreen(store, "ui-detail")
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+
+        onRoot().performTouchInput {
+            down(Offset(centerX, centerY))
+            repeat(6) {
+                moveBy(Offset(-width * 0.08f, 0f), delayMillis = 30)
+            }
+            up()
         }
         waitForIdle()
-        assertTrue(onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty())
-        onRoot().performTouchInput { up() }
-        waitForIdle()
         onNodeWithText("UI Detail").assertExists()
-        assertEquals(0, recorder.backActions.size)
+        assertEquals(0, recorder.backActions.size, "A forward pan must not trigger back")
     }
 
     @Test

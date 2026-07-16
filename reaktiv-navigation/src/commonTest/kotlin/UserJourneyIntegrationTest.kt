@@ -157,9 +157,9 @@ class UserJourneyIntegrationTest {
             val state = store.selectState<NavigationState>().first()
             assertEquals("login", state.currentEntry.route)
             assertNotNull(state.pendingNavigation)
-            assertEquals("workspace/home", state.pendingNavigation!!.route)
-            assertEquals("workspace", state.pendingNavigation!!.metadata["source"])
-            assertEquals("Please log in to continue", state.pendingNavigation!!.displayHint)
+            assertEquals("workspace/home", state.pendingNavigation.route)
+            assertEquals("workspace", state.pendingNavigation.metadata["source"])
+            assertEquals("Please log in to continue", state.pendingNavigation.displayHint)
         }
 
     @Test
@@ -183,7 +183,7 @@ class UserJourneyIntegrationTest {
             val atCheckEmail = store.selectState<NavigationState>().first()
             assertEquals("check-email", atCheckEmail.currentEntry.route)
             assertNotNull(atCheckEmail.pendingNavigation, "Pending must survive navigation to check-email")
-            assertEquals("Join your team", atCheckEmail.pendingNavigation!!.displayHint)
+            assertEquals("Join your team", atCheckEmail.pendingNavigation.displayHint)
 
             store.navigation { navigateTo("register") }
             advanceUntilIdle()
@@ -282,8 +282,8 @@ class UserJourneyIntegrationTest {
             val afterDeepLink = store.selectState<NavigationState>().first()
             assertEquals("login", afterDeepLink.currentEntry.route)
             assertNotNull(afterDeepLink.pendingNavigation)
-            assertEquals("workspace/tasks/{taskId}", afterDeepLink.pendingNavigation!!.route)
-            assertEquals("PENDING-99", afterDeepLink.pendingNavigation!!.params["taskId"] as? String)
+            assertEquals("workspace/tasks/{taskId}", afterDeepLink.pendingNavigation.route)
+            assertEquals("PENDING-99", afterDeepLink.pendingNavigation.params["taskId"] as? String)
 
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
@@ -313,7 +313,7 @@ class UserJourneyIntegrationTest {
 
             val pending = store.selectState<NavigationState>().first().pendingNavigation
             assertNotNull(pending)
-            assertEquals("TASK-42", pending!!.params["taskId"] as? String)
+            assertEquals("TASK-42", pending.params["taskId"] as? String)
 
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
@@ -459,7 +459,7 @@ class UserJourneyIntegrationTest {
             val afterLogoutNav = store.selectState<NavigationState>().first()
             assertEquals("login", afterLogoutNav.currentEntry.route)
             assertNotNull(afterLogoutNav.pendingNavigation)
-            assertEquals("workspace/settings", afterLogoutNav.pendingNavigation!!.route)
+            assertEquals("workspace/settings", afterLogoutNav.pendingNavigation.route)
 
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
@@ -499,7 +499,7 @@ class UserJourneyIntegrationTest {
             val afterReset = store.selectState<NavigationState>().first()
             assertEquals("login", afterReset.currentEntry.route)
             assertNotNull(afterReset.pendingNavigation)
-            assertEquals("workspace/settings", afterReset.pendingNavigation!!.route)
+            assertEquals("workspace/settings", afterReset.pendingNavigation.route)
         }
 
     @Test

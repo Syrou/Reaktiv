@@ -4,7 +4,9 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -113,6 +115,78 @@ internal fun Modifier.backGestureRecognizer(controller: InteractiveTransitionCon
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 if (!change.pressed) break
+                velocityTracker.addPosition(change.uptimeMillis, change.position)
+                if (latestState.value.currentEntry.stableKey != top.stableKey) {
+                    invalidated = true
+                }
+                if (!invalidated) {
+                    controller.scrubTo(progressOf(change.position.x))
+                }
+                change.consume()
+            }
+
+            val rawVelocityX = velocityTracker.calculateVelocity().x
+            val backVelocity = if (isLtr) rawVelocityX else -rawVelocityX
+            val commit = !invalidated && InteractiveTransitionController.shouldCommit(
+                progress = controller.progress,
+                velocity = backVelocity,
+                velocityThreshold = velocityThresholdPx
+            )
+            val progressVelocity = backVelocity / width
+            scope.launch {
+                completeContentGesture(commit, progressVelocity, controller, store, navModule, top, revealed)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun Modifier.fullSurfaceBackGestureRecognizer(controller: InteractiveTransitionController): Modifier {
+    val store = rememberStore()
+    val navModule = LocalNavigationModule.current
+    val navigationState by composeState<NavigationState>()
+    val latestState = rememberUpdatedState(navigationState)
+    val layoutDirection = LocalLayoutDirection.current
+    val scope = rememberCoroutineScope()
+
+    return this.pointerInput(navModule, layoutDirection) {
+        val velocityThresholdPx =
+            InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            val width = size.width.toFloat()
+            if (width <= 0f) return@awaitEachGesture
+            val isLtr = layoutDirection == LayoutDirection.Ltr
+            val state = latestState.value
+            if (!canArmInteractiveBackGesture(state, navModule)) return@awaitEachGesture
+            if (controller.contentTransitionActive) return@awaitEachGesture
+            val top = state.currentEntry
+            val revealed = revealedEntryForBack(state) ?: return@awaitEachGesture
+
+            val slopChange = awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
+                val towardsBack = if (isLtr) overSlop > 0f else overSlop < 0f
+                if (towardsBack) {
+                    change.consume()
+                }
+            } ?: return@awaitEachGesture
+
+            val kind = InteractiveTransitionController.ScrubKind.ContentBack(top, revealed)
+            if (!controller.beginScrub(kind)) return@awaitEachGesture
+
+            val velocityTracker = VelocityTracker()
+            velocityTracker.addPosition(down.uptimeMillis, down.position)
+            velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
+
+            fun progressOf(x: Float): Float = if (isLtr) {
+                (x - down.position.x) / width
+            } else {
+                (down.position.x - x) / width
+            }
+
+            controller.scrubTo(progressOf(slopChange.position.x))
+
+            var invalidated = false
+            horizontalDrag(down.id) { change ->
                 velocityTracker.addPosition(change.uptimeMillis, change.position)
                 if (latestState.value.currentEntry.stableKey != top.stableKey) {
                     invalidated = true

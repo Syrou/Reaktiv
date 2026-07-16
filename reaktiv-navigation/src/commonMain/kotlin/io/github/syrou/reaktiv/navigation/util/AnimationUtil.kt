@@ -45,13 +45,13 @@ public fun determineAnimationDecision(
     val currNavigatable = currentEntry.navigatable
 
     val enterTransition = when {
-        !isForward -> prevNavigatable.popEnterTransition ?: currNavigatable.enterTransition ?: NavTransition.None
-        else -> currNavigatable.enterTransition ?: NavTransition.None
+        !isForward -> prevNavigatable.popEnterTransition ?: currNavigatable.enterTransition
+        else -> currNavigatable.enterTransition
     }
 
     val exitTransition = when {
-        isForward -> currNavigatable.popExitTransition ?: prevNavigatable.exitTransition ?: NavTransition.None
-        else -> prevNavigatable.exitTransition ?: NavTransition.None
+        isForward -> currNavigatable.popExitTransition ?: prevNavigatable.exitTransition
+        else -> prevNavigatable.exitTransition
     }
 
     val shouldAnimateEnter = enterTransition != NavTransition.None
@@ -73,8 +73,8 @@ public fun determineContentAnimationDecision(
     navModule: NavigationModule,
     isExplicitBackNavigation: Boolean = false
 ): AnimationDecision {
-    val prevLayer = previousEntry.navigatable.renderLayer ?: RenderLayer.CONTENT
-    val currLayer = currentEntry.navigatable.renderLayer ?: RenderLayer.CONTENT
+    val prevLayer = previousEntry.navigatable.renderLayer
+    val currLayer = currentEntry.navigatable.renderLayer
     if (prevLayer != RenderLayer.CONTENT || currLayer != RenderLayer.CONTENT) {
         return AnimationDecision(
             shouldAnimateEnter = false,

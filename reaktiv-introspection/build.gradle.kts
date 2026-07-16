@@ -64,6 +64,7 @@ kotlin {
 
     compilerOptions {
         optIn.add("kotlin.time.ExperimentalTime")
+        optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
     }
 
     sourceSets.configureEach {

@@ -154,6 +154,7 @@ public fun NavigationRender(
                 .let {
                     if (platformEdgeSwipeBackEnabled()) {
                         it.backGestureRecognizer(interactiveController)
+                            .fullSurfaceBackGestureRecognizer(interactiveController)
                     } else {
                         it
                     }

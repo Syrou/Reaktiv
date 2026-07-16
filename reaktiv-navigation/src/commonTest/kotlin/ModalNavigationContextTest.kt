@@ -113,7 +113,7 @@ class ModalNavigationContextTest {
             assertEquals("notification", state.currentEntry.route, "Should be back to the notification modal")
             assertTrue(state.isCurrentModal, "Should be showing a modal")
             assertNotNull(state.underlyingScreen, "Should have an underlying screen")
-            assertEquals("workspace", state.underlyingScreen!!.route, "Underlying screen should be workspace")
+            assertEquals("workspace", state.underlyingScreen.route, "Underlying screen should be workspace")
         }
 
     @Test

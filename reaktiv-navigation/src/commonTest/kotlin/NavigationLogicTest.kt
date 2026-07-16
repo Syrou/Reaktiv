@@ -324,7 +324,6 @@ class NavigationLogicTest {
             state.backStack.forEach { entry ->
                 assertTrue(entry.route.isNotEmpty())
                 assertTrue(entry.graphId.isNotEmpty())
-                assertTrue(entry.params != null) // Should never be null
             }
 
             // Verify canGoBack consistency
@@ -367,7 +366,7 @@ class NavigationLogicTest {
         // Profile's parameters should be preserved
         val profileEntry = state.backStack.find { it.route == "profile" }
         assertNotNull(profileEntry)
-        assertEquals("123", profileEntry!!.params["userId"])
+        assertEquals("123", profileEntry.params["userId"])
 
         // About's parameters should be set
         assertEquals("menu", state.currentEntry.params["source"])

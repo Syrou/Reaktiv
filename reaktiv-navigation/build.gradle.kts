@@ -72,5 +72,16 @@ kotlin {
 
     compilerOptions {
         freeCompilerArgs.add("-opt-in=kotlin.time.ExperimentalTime")
+        optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
+        optIn.add("androidx.compose.ui.test.ExperimentalTestApi")
+    }
+}
+
+// The UI test suite deliberately stays on the v1 runComposeUiTest: the v2 API defaults to
+// StandardTestDispatcher, which changes coroutine execution timing the gesture tests depend on.
+// Suppress the deprecation in test compilations only, leaving production code fully warning-checked.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+    if (name.contains("Test")) {
+        compilerOptions.freeCompilerArgs.add("-Xwarning-level=DEPRECATION:disabled")
     }
 }

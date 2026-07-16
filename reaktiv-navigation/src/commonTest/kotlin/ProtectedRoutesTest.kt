@@ -426,7 +426,7 @@ class ProtectedRoutesTest {
             val state = store.selectState<NavigationState>().first()
             assertEquals("login", state.currentEntry.route)
             assertNotNull(state.pendingNavigation)
-            assertEquals("invitation/{type}", state.pendingNavigation!!.route)
+            assertEquals("invitation/{type}", state.pendingNavigation.route)
         }
 
     @Test
@@ -471,7 +471,7 @@ class ProtectedRoutesTest {
 
             val pending = store.selectState<NavigationState>().first().pendingNavigation
             assertNotNull(pending)
-            assertEquals("Login required", pending!!.displayHint)
+            assertEquals("Login required", pending.displayHint)
         }
 
     @Test
@@ -572,7 +572,7 @@ class ProtectedRoutesTest {
             val state = store.selectState<NavigationState>().first()
             assertEquals("login", state.currentEntry.route)
             assertNotNull(state.pendingNavigation)
-            assertEquals("workspace/home", state.pendingNavigation!!.route)
+            assertEquals("workspace/home", state.pendingNavigation.route)
         }
 
     @Test
@@ -590,7 +590,7 @@ class ProtectedRoutesTest {
 
             val pending = store.selectState<NavigationState>().first().pendingNavigation
             assertNotNull(pending)
-            assertEquals("protected-route", pending!!.metadata["source"])
+            assertEquals("protected-route", pending.metadata["source"])
         }
 
     @Test
@@ -608,7 +608,7 @@ class ProtectedRoutesTest {
 
             val pending = store.selectState<NavigationState>().first().pendingNavigation
             assertNotNull(pending)
-            assertEquals("You have a pending invite to join an artist team", pending!!.displayHint)
+            assertEquals("You have a pending invite to join an artist team", pending.displayHint)
         }
 
     @Test
@@ -630,7 +630,7 @@ class ProtectedRoutesTest {
             val state = store.selectState<NavigationState>().first()
             assertEquals("login", state.currentEntry.route)
             assertNotNull(state.pendingNavigation)
-            assertEquals("workspace/invite/{token}", state.pendingNavigation!!.route)
+            assertEquals("workspace/invite/{token}", state.pendingNavigation.route)
         }
 
     @Test
@@ -969,7 +969,7 @@ class ProtectedRoutesTest {
             val atCheckEmail = store.selectState<NavigationState>().first()
             assertEquals("check-email", atCheckEmail.currentEntry.route)
             assertNotNull(atCheckEmail.pendingNavigation)
-            assertEquals("Pending invite", atCheckEmail.pendingNavigation!!.displayHint)
+            assertEquals("Pending invite", atCheckEmail.pendingNavigation.displayHint)
 
             store.navigation { navigateTo("register") }
             advanceUntilIdle()
@@ -995,9 +995,9 @@ class ProtectedRoutesTest {
             val afterAlias = store.selectState<NavigationState>().first()
             assertEquals("login", afterAlias.currentEntry.route)
             assertNotNull(afterAlias.pendingNavigation)
-            assertEquals("workspace/invite/{token}", afterAlias.pendingNavigation!!.route)
-            assertEquals("INVITE_TOKEN", afterAlias.pendingNavigation!!.params["token"] as? String)
-            assertEquals("You have a pending invite", afterAlias.pendingNavigation!!.displayHint)
+            assertEquals("workspace/invite/{token}", afterAlias.pendingNavigation.route)
+            assertEquals("INVITE_TOKEN", afterAlias.pendingNavigation.params["token"] as? String)
+            assertEquals("You have a pending invite", afterAlias.pendingNavigation.displayHint)
 
             store.navigation { navigateTo("check-email") }
             advanceUntilIdle()
@@ -1419,7 +1419,7 @@ class ProtectedRoutesTest {
             val state = store.selectState<NavigationState>().first()
             assertEquals("login", state.currentEntry.route)
             assertNotNull(state.pendingNavigation)
-            assertEquals("workspace/home", state.pendingNavigation!!.route)
+            assertEquals("workspace/home", state.pendingNavigation.route)
         }
 
     @Test

@@ -45,7 +45,7 @@ jobs:
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Build and test (excluding androidexample)
-        run: ./gradlew build -x :androidexample:build -x :androidexample:testDebugUnitTest
+        run: ./gradlew build -x :androidexample:build -x :androidexample:testDebugUnitTest --no-parallel --max-workers=2
 
       - name: Build tracing-compiler
         run: ./gradlew -p reaktiv-tracing-compiler build
@@ -56,7 +56,7 @@ jobs:
       - name: Deploy to Maven Central
         run: |
           echo "🚀 Deploying to Maven Central..."
-          ./gradlew uploadToCentral
+          ./gradlew uploadToCentral --no-parallel --max-workers=2
           ./gradlew -p reaktiv-tracing-compiler uploadToCentral
           ./gradlew -p reaktiv-tracing-gradle uploadToCentral
 

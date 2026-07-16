@@ -99,8 +99,8 @@ public object NavigationAnimations {
         val controller = LocalInteractiveTransitionController.current
 
         val transition = when {
-            isEntering -> navigatable.popEnterTransition ?: navigatable.enterTransition ?: NavTransition.None
-            else -> navigatable.popExitTransition ?: navigatable.exitTransition ?: NavTransition.None
+            isEntering -> navigatable.popEnterTransition ?: navigatable.enterTransition
+            else -> navigatable.popExitTransition ?: navigatable.exitTransition
         }
 
         val shouldAnimate = transition != NavTransition.None

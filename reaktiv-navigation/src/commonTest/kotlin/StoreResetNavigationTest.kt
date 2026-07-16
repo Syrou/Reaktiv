@@ -251,7 +251,7 @@ class StoreResetNavigationTest {
             val afterNav = store.selectState<NavigationState>().first()
             assertEquals("login", afterNav.currentEntry.route)
             assertTrue(afterNav.pendingNavigation != null)
-            assertEquals("protected/workspace", afterNav.pendingNavigation!!.route)
+            assertEquals("protected/workspace", afterNav.pendingNavigation.route)
         }
 
     @Test

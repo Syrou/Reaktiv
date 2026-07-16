@@ -1081,6 +1081,11 @@ zone. This guarantees dismissability even when a component owns at-top downward 
 way nested scrolling cannot observe, such as `PullToRefreshBox`, without any per-screen
 wiring. Taps and horizontal drags in the zone pass through untouched; content pulls below
 the zone still refresh.
+On platforms where the in-app edge swipe is active (Apple, desktop, Android button
+navigation), the horizontal back pan also arms from anywhere on the screen when no child
+claims the drag, matching modern iOS full-surface interactive pop: scrollables and other
+drag consumers always win, the edge zone still steals over horizontal scrollables, and
+mid-position horizontal scrollables hand off to the back scrub when they reach their start.
 
 ---
 
