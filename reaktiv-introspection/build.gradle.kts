@@ -66,11 +66,10 @@ kotlin {
         optIn.add("kotlin.time.ExperimentalTime")
     }
 
-    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
-        compilations.configureEach {
-            compileTaskProvider.configure {
-                compilerOptions.optIn.add("kotlinx.cinterop.ExperimentalForeignApi")
-            }
+    sourceSets.configureEach {
+        val nativePrefixes = listOf("native", "apple", "ios", "macos", "linux", "mingw")
+        if (nativePrefixes.any { name.startsWith(it) }) {
+            languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
         }
     }
 }
