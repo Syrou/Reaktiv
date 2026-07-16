@@ -984,16 +984,13 @@ class CentralPublisherPlugin : Plugin<Project> {
                         useInMemoryPgpKeys(processedKey, signingPassword)
                     }
 
-                    // Sign all publications
+                    // Sign all publications via the live container so publications
+                    // registered after this afterEvaluate block (e.g. Apple targets
+                    // under lazy KMP registration) also get signing tasks
                     val publishingExtension = project.extensions.findByType<PublishingExtension>()
                     publishingExtension?.let { publishing ->
-                        sign(*publishing.publications.toTypedArray())
-                        project.logger.lifecycle("🔐 Configured automatic GPG signing for ${publishing.publications.size} publications")
-
-                        // List all publications being signed
-                        publishing.publications.forEach { publication ->
-                            project.logger.info("   📝 Signing publication: ${publication.name}")
-                        }
+                        sign(publishing.publications)
+                        project.logger.lifecycle("🔐 Configured automatic GPG signing for all publications")
                     }
                 }
 
