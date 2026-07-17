@@ -151,7 +151,7 @@ class AnimationDecisionTest {
         }
 
     @Test
-    fun `back navigation uses previous screen exit transition`() =
+    fun `back navigation pops previous screen by reversing its enter transition`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             navModule { nm ->
                 val homeEntry    = start("home",    stackPosition = 1)
@@ -159,7 +159,8 @@ class AnimationDecisionTest {
 
                 val decision = determineAnimationDecision(profileEntry, homeEntry, nm)
 
-                assertEquals(NavTransition.SlideOutLeft, decision.exitTransition)
+                assertEquals(NavTransition.SlideInRight, decision.exitTransition)
+                assertTrue(decision.exitReversed)
                 assertTrue(decision.shouldAnimateExit)
             }
         }
@@ -446,7 +447,141 @@ class AnimationDecisionTest {
 
             val bwdDecision = determineAnimationDecision(profileEntry, homeEntry, nm)
             assertFalse(bwdDecision.isForward)
-            assertEquals(NavTransition.SlideOutLeft, bwdDecision.exitTransition)
+            assertEquals(NavTransition.SlideInRight, bwdDecision.exitTransition)
+            assertTrue(bwdDecision.exitReversed)
             assertTrue(bwdDecision.shouldAnimateExit)
+        }
+
+    @Test
+    fun `back navigation honours explicit pop overrides on their owning screens`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val homeScreen = object : Screen {
+                override val route = "home"
+                override val enterTransition = NavTransition.SlideInRight
+                override val exitTransition = NavTransition.SlideOutLeft
+                override val popEnterTransition = NavTransition.Fade
+
+                @Composable
+                override fun Content(params: Params) { Text(route) }
+            }
+            val detailScreen = object : Screen {
+                override val route = "detail"
+                override val enterTransition = NavTransition.SlideInRight
+                override val exitTransition = NavTransition.None
+                override val popExitTransition = NavTransition.SlideOutRight
+
+                @Composable
+                override fun Content(params: Params) { Text(route) }
+            }
+            val store = createStore {
+                module(createNavigationModule {
+                    rootGraph {
+                        start(homeScreen)
+                        screens(homeScreen, detailScreen)
+                    }
+                })
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceUntilIdle()
+            val nm = store.getModule<NavigationModule>()!!
+
+            val homeEntry = NavigationEntry(homeScreen, "home", Params.empty(), stackPosition = 1)
+            val detailEntry = NavigationEntry(detailScreen, "detail", Params.empty(), stackPosition = 2)
+
+            val decision = determineAnimationDecision(detailEntry, homeEntry, nm)
+
+            assertFalse(decision.isForward)
+            assertEquals(NavTransition.SlideOutRight, decision.exitTransition)
+            assertFalse(decision.exitReversed)
+            assertEquals(NavTransition.Fade, decision.enterTransition)
+            assertFalse(decision.enterReversed)
+        }
+
+    @Test
+    fun `forward navigation never consults pop transitions`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val homeScreen = object : Screen {
+                override val route = "home"
+                override val enterTransition = NavTransition.None
+                override val exitTransition = NavTransition.SlideOutLeft
+                override val popExitTransition = NavTransition.SlideOutRight
+
+                @Composable
+                override fun Content(params: Params) { Text(route) }
+            }
+            val detailScreen = object : Screen {
+                override val route = "detail"
+                override val enterTransition = NavTransition.SlideInRight
+                override val exitTransition = NavTransition.None
+                override val popEnterTransition = NavTransition.Fade
+                override val popExitTransition = NavTransition.SlideOutBottom
+
+                @Composable
+                override fun Content(params: Params) { Text(route) }
+            }
+            val store = createStore {
+                module(createNavigationModule {
+                    rootGraph {
+                        start(homeScreen)
+                        screens(homeScreen, detailScreen)
+                    }
+                })
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceUntilIdle()
+            val nm = store.getModule<NavigationModule>()!!
+
+            val homeEntry = NavigationEntry(homeScreen, "home", Params.empty(), stackPosition = 1)
+            val detailEntry = NavigationEntry(detailScreen, "detail", Params.empty(), stackPosition = 2)
+
+            val decision = determineAnimationDecision(homeEntry, detailEntry, nm)
+
+            assertTrue(decision.isForward)
+            assertEquals(NavTransition.SlideInRight, decision.enterTransition)
+            assertEquals(NavTransition.SlideOutLeft, decision.exitTransition)
+            assertFalse(decision.enterReversed)
+            assertFalse(decision.exitReversed)
+        }
+
+    @Test
+    fun `explicit None pop override disables the pop animation`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val homeScreen = object : Screen {
+                override val route = "home"
+                override val enterTransition = NavTransition.SlideInRight
+                override val exitTransition = NavTransition.None
+
+                @Composable
+                override fun Content(params: Params) { Text(route) }
+            }
+            val detailScreen = object : Screen {
+                override val route = "detail"
+                override val enterTransition = NavTransition.SlideInRight
+                override val exitTransition = NavTransition.None
+                override val popExitTransition: NavTransition = NavTransition.None
+
+                @Composable
+                override fun Content(params: Params) { Text(route) }
+            }
+            val store = createStore {
+                module(createNavigationModule {
+                    rootGraph {
+                        start(homeScreen)
+                        screens(homeScreen, detailScreen)
+                    }
+                })
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceUntilIdle()
+            val nm = store.getModule<NavigationModule>()!!
+
+            val homeEntry = NavigationEntry(homeScreen, "home", Params.empty(), stackPosition = 1)
+            val detailEntry = NavigationEntry(detailScreen, "detail", Params.empty(), stackPosition = 2)
+
+            val decision = determineAnimationDecision(detailEntry, homeEntry, nm)
+
+            assertFalse(decision.isForward)
+            assertEquals(NavTransition.None, decision.exitTransition)
+            assertFalse(decision.shouldAnimateExit)
         }
 }

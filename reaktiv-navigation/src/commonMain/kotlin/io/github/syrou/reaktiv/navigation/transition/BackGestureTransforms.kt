@@ -36,14 +36,8 @@ internal data class BackGesturePlan(
     val revealed: ScrubTransform
 )
 
-private fun NavTransition?.scrubOrNull(
-    screenWidth: Float,
-    screenHeight: Float,
-    isForward: Boolean,
-    reversedProgress: Boolean
-): ScrubTransform? = this
-    ?.takeUnless { it == NavTransition.None }
-    ?.let { ScrubTransform(it.resolve(screenWidth, screenHeight, isForward), reversedProgress) }
+private fun PopTransitionSpec.toScrub(screenWidth: Float, screenHeight: Float): ScrubTransform =
+    ScrubTransform(transition.resolve(screenWidth, screenHeight, isForward = reversedProgress), reversedProgress)
 
 internal fun computeBackGesturePlan(
     top: Navigatable,
@@ -51,17 +45,13 @@ internal fun computeBackGesturePlan(
     screenWidth: Float,
     screenHeight: Float
 ): BackGesturePlan {
-    val topTransform = top.popExitTransition
-        .scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
-        ?: top.enterTransition.scrubOrNull(screenWidth, screenHeight, isForward = true, reversedProgress = true)
+    val topTransform = popExitSpec(top)?.toScrub(screenWidth, screenHeight)
         ?: ScrubTransform(
             NavTransition.IOSSlideIn.resolve(screenWidth, screenHeight, isForward = true),
             reversedProgress = true
         )
 
-    val revealedTransform = top.popEnterTransition
-        .scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
-        ?: revealed.exitTransition.scrubOrNull(screenWidth, screenHeight, isForward = true, reversedProgress = true)
+    val revealedTransform = popEnterSpec(revealed)?.toScrub(screenWidth, screenHeight)
         ?: ScrubTransform(
             NavTransition.IOSSlideOut.resolve(screenWidth, screenHeight, isForward = true),
             reversedProgress = true
@@ -78,17 +68,14 @@ internal fun computeDismissGesturePlan(
     screenWidth: Float,
     screenHeight: Float
 ): BackGesturePlan {
-    val topTransform = top.popExitTransition
-        .scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
-        ?: top.exitTransition.scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
+    val topTransform = popExitSpec(top)?.toScrub(screenWidth, screenHeight)
         ?: ScrubTransform(
             NavTransition.SlideOutBottom.resolve(screenWidth, screenHeight, isForward = false),
             reversedProgress = false
         )
 
-    val revealedTransform = top.popEnterTransition
-        .scrubOrNull(screenWidth, screenHeight, isForward = false, reversedProgress = false)
-        ?: revealed?.exitTransition.scrubOrNull(screenWidth, screenHeight, isForward = true, reversedProgress = true)
+    val revealedTransform = revealed
+        ?.let { popEnterSpec(it, includeEnterFallback = false)?.toScrub(screenWidth, screenHeight) }
         ?: ScrubTransform(
             ResolvedNavTransition(
                 durationMillis = 0,

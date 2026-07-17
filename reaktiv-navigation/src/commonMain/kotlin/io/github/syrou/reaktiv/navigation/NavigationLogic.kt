@@ -30,6 +30,7 @@ import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
+import io.github.syrou.reaktiv.navigation.transition.popExitSpec
 import io.github.syrou.reaktiv.navigation.util.NavigationStackMath
 import io.github.syrou.reaktiv.navigation.util.StackSnapshot
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
@@ -965,8 +966,19 @@ public class NavigationLogic(
         }
 
         removedEntries.forEach { entry ->
-            entryLifecycles.remove(entry.stableKey)?.runRemovalHandlers(RemovalReason.NAVIGATION)
-            entryLifecycleJobs.remove(entry.stableKey)?.cancel()
+            val lifecycle = entryLifecycles.remove(entry.stableKey)
+            val lifecycleJob = entryLifecycleJobs.remove(entry.stableKey)
+            val exitMs = popExitSpec(entry.navigatable)?.transition?.durationMillis?.toLong() ?: 0L
+            if (exitMs <= 0L) {
+                lifecycle?.runRemovalHandlers(RemovalReason.NAVIGATION)
+                lifecycleJob?.cancel()
+            } else {
+                storeAccessor.launch {
+                    delay(exitMs)
+                    lifecycle?.runRemovalHandlers(RemovalReason.NAVIGATION)
+                    lifecycleJob?.cancel()
+                }
+            }
         }
     }
 

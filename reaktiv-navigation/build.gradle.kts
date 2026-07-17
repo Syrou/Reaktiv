@@ -73,7 +73,6 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-opt-in=kotlin.time.ExperimentalTime")
         optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
-        optIn.add("androidx.compose.ui.test.ExperimentalTestApi")
     }
 }
 
@@ -83,5 +82,6 @@ kotlin {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
     if (name.contains("Test")) {
         compilerOptions.freeCompilerArgs.add("-Xwarning-level=DEPRECATION:disabled")
+        compilerOptions.optIn.add("androidx.compose.ui.test.ExperimentalTestApi")
     }
 }

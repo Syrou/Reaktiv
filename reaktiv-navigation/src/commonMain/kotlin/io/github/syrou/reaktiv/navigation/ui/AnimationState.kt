@@ -99,10 +99,8 @@ public fun rememberLayerAnimationState(
 
     LaunchedEffect(currentEntry.stableKey) {
         if (previousEntry != null && animationDecision != null) {
-            val prevNavigatable = previousEntry.navigatable
-            val currNavigatable = currentEntry.navigatable
-            val exitDuration = prevNavigatable.exitTransition.durationMillis
-            val enterDuration = currNavigatable.enterTransition.durationMillis
+            val exitDuration = animationDecision.exitTransition.durationMillis
+            val enterDuration = animationDecision.enterTransition.durationMillis
             val animationDuration = maxOf(exitDuration, enterDuration).toLong()
             if (animationDuration > 0) {
                 delay(animationDuration)

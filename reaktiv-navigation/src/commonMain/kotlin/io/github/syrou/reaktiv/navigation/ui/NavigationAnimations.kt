@@ -370,9 +370,12 @@ internal fun Modifier.animateNavTransition(
         onAnimationComplete?.invoke()
     }
 
-    val resolvedTransition = remember(transition, screenWidth, screenHeight, animationDecision.isForward) {
-        transition.resolve(screenWidth, screenHeight, animationDecision.isForward)
+    val reversed = if (isEntering) animationDecision.enterReversed else animationDecision.exitReversed
+    val resolvedTransition = remember(transition, screenWidth, screenHeight, animationDecision.isForward, reversed) {
+        transition.resolve(screenWidth, screenHeight, animationDecision.isForward || reversed)
     }
 
-    return navTransitionGraphics(resolvedTransition) { animatable.value }
+    return navTransitionGraphics(resolvedTransition) {
+        if (reversed) 1f - animatable.value else animatable.value
+    }
 }

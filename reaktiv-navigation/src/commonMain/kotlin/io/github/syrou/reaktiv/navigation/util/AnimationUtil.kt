@@ -5,6 +5,8 @@ import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.transition.popEnterSpec
+import io.github.syrou.reaktiv.navigation.transition.popExitSpec
 
 /**
  * Represents the decision of what animations should run for a navigation transition
@@ -14,7 +16,9 @@ public data class AnimationDecision(
     val shouldAnimateExit: Boolean,
     val isForward: Boolean,
     val enterTransition: NavTransition,
-    val exitTransition: NavTransition
+    val exitTransition: NavTransition,
+    val enterReversed: Boolean = false,
+    val exitReversed: Boolean = false
 )
 
 
@@ -44,27 +48,33 @@ public fun determineAnimationDecision(
     val prevNavigatable = previousEntry.navigatable
     val currNavigatable = currentEntry.navigatable
 
-    val enterTransition = when {
-        !isForward -> prevNavigatable.popEnterTransition ?: currNavigatable.enterTransition
-        else -> currNavigatable.enterTransition
-    }
+    val enterSpec = if (!isForward) popEnterSpec(currNavigatable) else null
+    val exitSpec = if (!isForward) popExitSpec(prevNavigatable) else null
 
-    val exitTransition = when {
-        isForward -> currNavigatable.popExitTransition ?: prevNavigatable.exitTransition
-        else -> prevNavigatable.exitTransition
-    }
+    val enterTransition = if (isForward) currNavigatable.enterTransition else enterSpec?.transition ?: NavTransition.None
+    val exitTransition = if (isForward) prevNavigatable.exitTransition else exitSpec?.transition ?: NavTransition.None
+    val enterReversed = enterSpec?.reversedProgress ?: false
+    val exitReversed = exitSpec?.reversedProgress ?: false
 
     val shouldAnimateEnter = enterTransition != NavTransition.None
     val shouldAnimateExit = exitTransition != NavTransition.None
 
     if (ReaktivDebug.isEnabled) {
         ReaktivDebug.nav("🎯 Animation Decision:")
-        ReaktivDebug.nav("  Enter animate: $shouldAnimateEnter ($enterTransition)")
-        ReaktivDebug.nav("  Exit animate: $shouldAnimateExit ($exitTransition)")
+        ReaktivDebug.nav("  Enter animate: $shouldAnimateEnter ($enterTransition, reversed=$enterReversed)")
+        ReaktivDebug.nav("  Exit animate: $shouldAnimateExit ($exitTransition, reversed=$exitReversed)")
         ReaktivDebug.nav("  Direction: ${if (isForward) "forward" else "backward"}")
     }
 
-    return AnimationDecision(shouldAnimateEnter, shouldAnimateExit, isForward, enterTransition, exitTransition)
+    return AnimationDecision(
+        shouldAnimateEnter,
+        shouldAnimateExit,
+        isForward,
+        enterTransition,
+        exitTransition,
+        enterReversed,
+        exitReversed
+    )
 }
 
 public fun determineContentAnimationDecision(

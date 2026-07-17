@@ -14,6 +14,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.syrou.androidexample.ui.screen.LifecycleDemoScreen
 import eu.syrou.androidexample.ui.screen.PullToRefreshDemoScreen
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.extension.navigation
@@ -62,6 +63,20 @@ object NewsScreen : Screen {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Pull To Refresh + Swipe Dismiss Demo")
+                }
+            }
+            item {
+                Button(
+                    onClick = {
+                        store.launch {
+                            store.navigation {
+                                navigateTo(LifecycleDemoScreen.route)
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Lifecycle Demo (fields clear on exit)")
                 }
             }
             item { NewsSection() }

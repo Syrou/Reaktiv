@@ -8,8 +8,8 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 public interface Modal : Navigatable {
     override val actionResource: ActionResource? get() = null
     override val titleResource: TitleResource? get() = null
-    override val popEnterTransition: NavTransition? get() = NavTransition.None
-    override val popExitTransition: NavTransition? get() = NavTransition.None
+    override val popEnterTransition: NavTransition? get() = null
+    override val popExitTransition: NavTransition? get() = null
 
     override val swipeToDismiss: Boolean get() = true
 

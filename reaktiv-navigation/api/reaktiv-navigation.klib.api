@@ -825,10 +825,14 @@ final class io.github.syrou.reaktiv.navigation.ui/ModalEntryState { // io.github
 }
 
 final class io.github.syrou.reaktiv.navigation.util/AnimationDecision { // io.github.syrou.reaktiv.navigation.util/AnimationDecision|null[0]
-    constructor <init>(kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, io.github.syrou.reaktiv.navigation.transition/NavTransition, io.github.syrou.reaktiv.navigation.transition/NavTransition) // io.github.syrou.reaktiv.navigation.util/AnimationDecision.<init>|<init>(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;io.github.syrou.reaktiv.navigation.transition.NavTransition;io.github.syrou.reaktiv.navigation.transition.NavTransition){}[0]
+    constructor <init>(kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, io.github.syrou.reaktiv.navigation.transition/NavTransition, io.github.syrou.reaktiv.navigation.transition/NavTransition, kotlin/Boolean = ..., kotlin/Boolean = ...) // io.github.syrou.reaktiv.navigation.util/AnimationDecision.<init>|<init>(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;io.github.syrou.reaktiv.navigation.transition.NavTransition;io.github.syrou.reaktiv.navigation.transition.NavTransition;kotlin.Boolean;kotlin.Boolean){}[0]
 
+    final val enterReversed // io.github.syrou.reaktiv.navigation.util/AnimationDecision.enterReversed|{}enterReversed[0]
+        final fun <get-enterReversed>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.util/AnimationDecision.enterReversed.<get-enterReversed>|<get-enterReversed>(){}[0]
     final val enterTransition // io.github.syrou.reaktiv.navigation.util/AnimationDecision.enterTransition|{}enterTransition[0]
         final fun <get-enterTransition>(): io.github.syrou.reaktiv.navigation.transition/NavTransition // io.github.syrou.reaktiv.navigation.util/AnimationDecision.enterTransition.<get-enterTransition>|<get-enterTransition>(){}[0]
+    final val exitReversed // io.github.syrou.reaktiv.navigation.util/AnimationDecision.exitReversed|{}exitReversed[0]
+        final fun <get-exitReversed>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.util/AnimationDecision.exitReversed.<get-exitReversed>|<get-exitReversed>(){}[0]
     final val exitTransition // io.github.syrou.reaktiv.navigation.util/AnimationDecision.exitTransition|{}exitTransition[0]
         final fun <get-exitTransition>(): io.github.syrou.reaktiv.navigation.transition/NavTransition // io.github.syrou.reaktiv.navigation.util/AnimationDecision.exitTransition.<get-exitTransition>|<get-exitTransition>(){}[0]
     final val isForward // io.github.syrou.reaktiv.navigation.util/AnimationDecision.isForward|{}isForward[0]
@@ -843,7 +847,9 @@ final class io.github.syrou.reaktiv.navigation.util/AnimationDecision { // io.gi
     final fun component3(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.util/AnimationDecision.component3|component3(){}[0]
     final fun component4(): io.github.syrou.reaktiv.navigation.transition/NavTransition // io.github.syrou.reaktiv.navigation.util/AnimationDecision.component4|component4(){}[0]
     final fun component5(): io.github.syrou.reaktiv.navigation.transition/NavTransition // io.github.syrou.reaktiv.navigation.util/AnimationDecision.component5|component5(){}[0]
-    final fun copy(kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., io.github.syrou.reaktiv.navigation.transition/NavTransition = ..., io.github.syrou.reaktiv.navigation.transition/NavTransition = ...): io.github.syrou.reaktiv.navigation.util/AnimationDecision // io.github.syrou.reaktiv.navigation.util/AnimationDecision.copy|copy(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;io.github.syrou.reaktiv.navigation.transition.NavTransition;io.github.syrou.reaktiv.navigation.transition.NavTransition){}[0]
+    final fun component6(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.util/AnimationDecision.component6|component6(){}[0]
+    final fun component7(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.util/AnimationDecision.component7|component7(){}[0]
+    final fun copy(kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., io.github.syrou.reaktiv.navigation.transition/NavTransition = ..., io.github.syrou.reaktiv.navigation.transition/NavTransition = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): io.github.syrou.reaktiv.navigation.util/AnimationDecision // io.github.syrou.reaktiv.navigation.util/AnimationDecision.copy|copy(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;io.github.syrou.reaktiv.navigation.transition.NavTransition;io.github.syrou.reaktiv.navigation.transition.NavTransition;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.navigation.util/AnimationDecision.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.navigation.util/AnimationDecision.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.navigation.util/AnimationDecision.toString|toString(){}[0]

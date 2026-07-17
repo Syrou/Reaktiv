@@ -29,6 +29,8 @@ import eu.syrou.androidexample.ui.screen.InvitationModal
 import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.LoginScreen
 import eu.syrou.androidexample.ui.screen.NotFoundScreen
+import eu.syrou.androidexample.reaktiv.lifecycledemo.LifecycleDemoModule
+import eu.syrou.androidexample.ui.screen.LifecycleDemoScreen
 import eu.syrou.androidexample.ui.screen.PullToRefreshDemoScreen
 import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.screen.StreamsListScreen
@@ -134,6 +136,7 @@ class CustomApplication : Application() {
                 DevToolsScreen,
                 DeepLinkAliasTestScreen,
                 PullToRefreshDemoScreen,
+                LifecycleDemoScreen,
             )
             modals(NotificationModal, SystemAlertModal)
 
@@ -243,6 +246,7 @@ class CustomApplication : Application() {
             NewsModule
         )
         module(SettingsModule)
+        module(LifecycleDemoModule)
         module(VideosModule)
         module(TestNavigationModule)
         module(TwitchStreamsModule)

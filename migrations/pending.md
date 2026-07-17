@@ -1096,7 +1096,7 @@ mid-position horizontal scrollables hand off to the back scrub when they reach t
 **Grep:** `onDismissRequest`
 **File glob:** `**/*.kt`
 
-**Replaces:** `Modal.tapOutsideClick` (now deprecated, still functional)
+**Replaces:** `Modal.tapOutsideClick` (removed, see BC-29)
 
 **Example:**
 ```kotlin
@@ -1115,9 +1115,9 @@ object EditorSheet : Screen {
 
 **Notes:** One optional handler invoked by every dismiss input: edge-swipe commit, swipe-down
 commit, Android system back and (for modals) tap-outside. When null, gestures and system back
-default to navigateBack() and tap-outside falls back to the deprecated tapOutsideClick (which
-still defaults to doing nothing). If the handler declines (navigation state unchanged), the
-scrubbed screen animates back into place.
+default to navigateBack() and tap-outside does nothing. If the handler declines (navigation
+state unchanged), the scrubbed screen animates back into place. The deprecated tapOutsideClick
+it replaced has since been removed (see BC-29).
 
 ---
 
@@ -1775,3 +1775,122 @@ remains as the dismiss zone fallback.
 
 ---
 
+### [BC-29] Modal.tapOutsideClick removed
+
+**Type:** Deprecation-removal
+
+**Grep:** `tapOutsideClick`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+object FilterModal : Modal {
+    override val route = "filters"
+    override val tapOutsideClick: (suspend StoreAccessor.() -> Unit) = {
+        navigateBack()
+    }
+}
+```
+
+**After:**
+```kotlin
+object FilterModal : Modal {
+    override val route = "filters"
+    override val onDismissRequest: (suspend StoreAccessor.() -> Unit) = {
+        navigateBack()
+    }
+}
+```
+
+**Notes:** Pure rename for the tap-outside case: a null handler still does nothing on
+outside tap, matching the old default. One semantic difference: onDismissRequest is
+declared on Navigatable and is the unified dismiss funnel, so a custom handler now also
+fires for edge-swipe commits, swipe-down commits and Android system back, not only
+tap-outside. A handler that must react differently per input should inspect its own
+state rather than assume the tap-outside origin. Replacement API documented in AD-20.
+
+---
+### [BC-30] Pop transition resolution unified across timed and gesture paths
+
+**Type:** Behavioural
+
+**Grep:** `popEnterTransition|popExitTransition`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Three sites resolved pop transitions with three different conventions:
+// the timed path read popEnterTransition from the POPPED screen and never
+// consulted popExitTransition on back navigation (it was consulted on
+// forward pushes instead); the gesture path read both overrides from the
+// popped screen; the overlay-modal path consulted pop transitions on plain
+// forward entry, and Modal defaulted them to None (non-null), silently
+// disabling declared enter/exit animations for overlay modals.
+```
+
+**After:**
+```kotlin
+// One shared resolver defines the semantics everywhere:
+// - popExitTransition belongs to the screen being popped
+// - popEnterTransition belongs to the screen being revealed
+// - fallback: the pop plays the opposite transition in reverse
+//   (popped screen reverses its enterTransition; revealed screen
+//   reverses its exitTransition), then the same-side transition mirrored
+// - explicit NavTransition.None disables the pop animation on timed paths;
+//   gestures fall back to their kind default (a finger always needs
+//   something to drag)
+object DetailScreen : Screen {
+    override val route = "detail"
+    override val enterTransition = NavTransition.SlideInRight
+    override val popExitTransition = NavTransition.SlideOutRight
+}
+object HomeScreen : Screen {
+    override val route = "home"
+    override val popEnterTransition = NavTransition.Fade
+}
+```
+
+**Notes:** Ownership now matches androidx navigation. Button back, system back,
+predictive back and edge-swipe gestures resolve transitions through the same
+functions, so they can no longer diverge. AnimationDecision gained enterReversed
+and exitReversed fields. Modal.popEnterTransition/popExitTransition defaults
+changed from None to null, so overlay modals now animate with their declared
+enter/exit transitions. Forward navigation never consults pop transitions. Apps
+that placed popEnterTransition on the popped screen (the old accidental
+convention) must move it to the screen being returned to.
+
+---
+### [BC-31] invokeOnRemoval fires after the screen is visually gone
+
+**Type:** Behavioural
+
+**Grep:** `invokeOnRemoval`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Removal handlers ran the instant the backstack state changed, while the
+// exit animation still had the removed screen composed on the UI side.
+// Cleanup that tore down state the screen was rendering could glitch the
+// exit animation.
+```
+
+**After:**
+```kotlin
+// Removal handlers (and the entry's lifecycle scope cancellation) are
+// deferred by the entry's resolved pop exit duration, the same value the
+// renderer animates with via the unified pop transition resolution (BC-30).
+// Screens with no pop transition keep the previous immediate behaviour.
+lifecycle.invokeOnRemoval { reason ->
+    // now runs after the exit animation completes
+}
+```
+
+**Notes:** RESET-reason handlers still run immediately during store reset, since
+no animation plays there. Gesture-committed backs already have the screen
+off-screen at dispatch, so handlers run slightly after the visual removal, never
+before. Tests using virtual time pass unchanged; tests asserting a handler ran
+synchronously after dispatch for a screen with a pop transition must advance the
+scheduler past the transition duration.
+
+---
