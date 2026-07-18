@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.introspection.ClientMetadata
 import io.github.syrou.reaktiv.introspection.StateRedactor
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
@@ -16,6 +17,7 @@ import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
+import io.github.syrou.reaktiv.introspection.protocol.CrashOrigin
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
 import io.github.syrou.reaktiv.introspection.protocol.SessionExport
@@ -87,6 +89,7 @@ public class SessionCapture(
     private val logicStartedStorage: CaptureStorage = createCaptureStorage("logic_started")
     private val logicCompletedStorage: CaptureStorage = createCaptureStorage("logic_completed")
     private val logicFailedStorage: CaptureStorage = createCaptureStorage("logic_failed")
+    private val crashStorage: CaptureStorage = createCaptureStorage("crashes")
 
     private var sessionStartTime: Long = 0
     private var clientId: String = ""
@@ -135,6 +138,7 @@ public class SessionCapture(
     private class LogicStarted(val event: LogicMethodStart) : Record
     private class LogicCompleted(val event: LogicMethodCompleted) : Record
     private class LogicFailed(val event: LogicMethodFailed) : Record
+    private class CrashRecord(val info: CrashInfo) : Record
 
     /**
      * Starts a new session capture and its background worker.
@@ -163,7 +167,9 @@ public class SessionCapture(
         logicStartedStorage.clear()
         logicCompletedStorage.clear()
         logicFailedStorage.clear()
+        crashStorage.clear()
         previousModuleJson.clear()
+        actionCount = 0
 
         val newChannel = Channel<Record>(capacity = Channel.UNLIMITED)
         val newScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -256,15 +262,20 @@ public class SessionCapture(
      */
     public fun reportCrash(crash: CrashInfo) {
         if (!started) return
-        capturedCrash = crash
-        _crashes.tryEmit(crash)
+        enqueue(CrashRecord(crash))
     }
 
     /**
      * Reports a crash from a throwable.
      */
-    public fun reportCrash(throwable: Throwable) {
-        reportCrash(CrashInfo(timestamp = currentTimeMillis(), exception = throwable.toCrashException()))
+    public fun reportCrash(throwable: Throwable, origin: CrashOrigin = CrashOrigin.MANUAL) {
+        reportCrash(
+            CrashInfo(
+                timestamp = currentTimeMillis(),
+                exception = throwable.toCrashException(),
+                origin = origin
+            )
+        )
     }
 
     /**
@@ -304,8 +315,10 @@ public class SessionCapture(
      * @return JSON string that can be imported as a ghost device in DevTools
      */
     @OptIn(ExperimentalUuidApi::class)
-    public suspend fun exportSession(crash: CrashInfo? = capturedCrash): String {
+    public suspend fun exportSession(crash: CrashInfo? = null): String {
         flush()
+        val allCrashes = readCrashes()
+        val resolvedCrash = crash ?: capturedCrash ?: allCrashes.lastOrNull()
         val now = currentTimeMillis()
         val export = SessionExport(
             version = SessionExportFormat.VERSION,
@@ -317,7 +330,8 @@ public class SessionCapture(
                 platform = platform,
                 metadata = clientMetadata
             ),
-            crash = crash,
+            crash = resolvedCrash,
+            crashes = allCrashes,
             session = SessionData(
                 startTime = sessionStartTime,
                 endTime = now,
@@ -337,7 +351,7 @@ public class SessionCapture(
      * Typically called by platform crash handlers for uncaught exceptions.
      */
     public suspend fun exportCrashSession(throwable: Throwable): String {
-        reportCrash(throwable)
+        reportCrash(throwable, CrashOrigin.UNCAUGHT)
         return exportSession()
     }
 
@@ -350,7 +364,9 @@ public class SessionCapture(
         logicStartedStorage.clear()
         logicCompletedStorage.clear()
         logicFailedStorage.clear()
+        crashStorage.clear()
         previousModuleJson.clear()
+        actionCount = 0
         capturedCrash = null
     }
 
@@ -366,6 +382,7 @@ public class SessionCapture(
         logicStartedStorage.delete()
         logicCompletedStorage.delete()
         logicFailedStorage.delete()
+        crashStorage.delete()
     }
 
     private fun stopWorker() {
@@ -408,6 +425,13 @@ public class SessionCapture(
     }
 
     private val previousModuleJson = mutableMapOf<String, JsonObject>()
+    private var actionCount = 0
+
+    private fun currentRouteFromShadow(): String? {
+        val navKey = previousModuleJson.keys.firstOrNull { it.endsWith(".NavigationState") } ?: return null
+        val currentEntry = previousModuleJson[navKey]?.get("currentEntry") as? JsonObject ?: return null
+        return (currentEntry["path"] as? JsonPrimitive)?.content
+    }
 
     private fun encodeModuleObject(moduleName: String, state: ModuleState): JsonObject {
         val element = stateJson.encodeToJsonElement(PolymorphicSerializer(ModuleState::class), state)
@@ -437,6 +461,7 @@ public class SessionCapture(
         val startedLines = ArrayList<String>()
         val completedLines = ArrayList<String>()
         val failedLines = ArrayList<String>()
+        val crashLines = ArrayList<String>()
 
         for (record in batch) {
             try {
@@ -456,10 +481,12 @@ public class SessionCapture(
                             deltaKind = deltaKind
                         )
                         actionLines.add(json.encodeToString(event))
+                        actionCount += 1
                         _actions.tryEmit(event)
                     }
                     is PrebuiltAction -> {
                         actionLines.add(json.encodeToString(record.event))
+                        actionCount += 1
                         _actions.tryEmit(record.event)
                     }
                     is InitialState -> {
@@ -472,6 +499,19 @@ public class SessionCapture(
                     is LogicStarted -> startedLines.add(json.encodeToString(record.event))
                     is LogicCompleted -> completedLines.add(json.encodeToString(record.event))
                     is LogicFailed -> failedLines.add(json.encodeToString(record.event))
+                    is CrashRecord -> {
+                        val enriched = record.info.copy(
+                            route = record.info.route ?: currentRouteFromShadow(),
+                            afterActionIndex = if (record.info.afterActionIndex >= 0) {
+                                record.info.afterActionIndex
+                            } else {
+                                actionCount - 1
+                            }
+                        )
+                        crashLines.add(json.encodeToString(enriched))
+                        capturedCrash = enriched
+                        _crashes.tryEmit(enriched)
+                    }
                 }
             } catch (e: Exception) {
                 ReaktivDebug.warn("SessionCapture failed to encode record: ${e.message}")
@@ -488,6 +528,7 @@ public class SessionCapture(
         if (startedLines.isNotEmpty()) logicStartedStorage.appendLines(startedLines)
         if (completedLines.isNotEmpty()) logicCompletedStorage.appendLines(completedLines)
         if (failedLines.isNotEmpty()) logicFailedStorage.appendLines(failedLines)
+        if (crashLines.isNotEmpty()) crashStorage.appendLines(crashLines)
         trimLogicEvents()
     }
 
@@ -520,6 +561,9 @@ public class SessionCapture(
 
     private fun readLogicFailed(): List<LogicMethodFailed> =
         logicFailedStorage.readLines().map { json.decodeFromString(it) }
+
+    private fun readCrashes(): List<CrashInfo> =
+        crashStorage.readLines().map { json.decodeFromString(it) }
 
     private companion object {
         const val HIGH_WATER_MARK: Long = 50_000L

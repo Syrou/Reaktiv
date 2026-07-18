@@ -6,6 +6,23 @@
 // - Show declarations: true
 
 // Library unique name: <io.github.syrou:reaktiv-introspection>
+final enum class io.github.syrou.reaktiv.introspection.protocol/CrashOrigin : kotlin/Enum<io.github.syrou.reaktiv.introspection.protocol/CrashOrigin> { // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin|null[0]
+    enum entry LOGIC_METHOD // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.LOGIC_METHOD|null[0]
+    enum entry MANUAL // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.MANUAL|null[0]
+    enum entry UNCAUGHT // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.UNCAUGHT|null[0]
+
+    final val entries // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.syrou.reaktiv.introspection.protocol/CrashOrigin> // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.syrou.reaktiv.introspection.protocol/CrashOrigin // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.syrou.reaktiv.introspection.protocol/CrashOrigin> // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.values|values#static(){}[0]
+
+    final object Companion : kotlinx.serialization.internal/SerializerFactory { // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.Companion|null[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.introspection.protocol/CrashOrigin> // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.Companion.serializer|serializer(){}[0]
+        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
+    }
+}
+
 final enum class io.github.syrou.reaktiv.introspection.protocol/DeltaKind : kotlin/Enum<io.github.syrou.reaktiv.introspection.protocol/DeltaKind> { // io.github.syrou.reaktiv.introspection.protocol/DeltaKind|null[0]
     enum entry FIELDS // io.github.syrou.reaktiv.introspection.protocol/DeltaKind.FIELDS|null[0]
     enum entry FULL // io.github.syrou.reaktiv.introspection.protocol/DeltaKind.FULL|null[0]
@@ -76,7 +93,7 @@ final class io.github.syrou.reaktiv.introspection.capture/SessionCapture { // io
     final fun getInitialStateJson(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionCapture.getInitialStateJson|getInitialStateJson(){}[0]
     final fun isStarted(): kotlin/Boolean // io.github.syrou.reaktiv.introspection.capture/SessionCapture.isStarted|isStarted(){}[0]
     final fun reportCrash(io.github.syrou.reaktiv.introspection.protocol/CrashInfo) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.reportCrash|reportCrash(io.github.syrou.reaktiv.introspection.protocol.CrashInfo){}[0]
-    final fun reportCrash(kotlin/Throwable) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.reportCrash|reportCrash(kotlin.Throwable){}[0]
+    final fun reportCrash(kotlin/Throwable, io.github.syrou.reaktiv.introspection.protocol/CrashOrigin = ...) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.reportCrash|reportCrash(kotlin.Throwable;io.github.syrou.reaktiv.introspection.protocol.CrashOrigin){}[0]
     final fun start(kotlin/String, kotlin/String, kotlin/String, io.github.syrou.reaktiv.introspection/ClientMetadata? = ...) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.start|start(kotlin.String;kotlin.String;kotlin.String;io.github.syrou.reaktiv.introspection.ClientMetadata?){}[0]
     final fun suggestFileName(kotlin/String? = ...): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionCapture.suggestFileName|suggestFileName(kotlin.String?){}[0]
     final suspend fun clear() // io.github.syrou.reaktiv.introspection.capture/SessionCapture.clear|clear(){}[0]
@@ -212,16 +229,34 @@ final class io.github.syrou.reaktiv.introspection.protocol/CrashException { // i
 }
 
 final class io.github.syrou.reaktiv.introspection.protocol/CrashInfo { // io.github.syrou.reaktiv.introspection.protocol/CrashInfo|null[0]
-    constructor <init>(kotlin/Long, io.github.syrou.reaktiv.introspection.protocol/CrashException) // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.<init>|<init>(kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.CrashException){}[0]
+    constructor <init>(kotlin/Long, io.github.syrou.reaktiv.introspection.protocol/CrashException, io.github.syrou.reaktiv.introspection.protocol/CrashOrigin = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Int = ...) // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.<init>|<init>(kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.CrashException;io.github.syrou.reaktiv.introspection.protocol.CrashOrigin;kotlin.String?;kotlin.String?;kotlin.String?;kotlin.String?;kotlin.Int){}[0]
 
+    final val afterActionIndex // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.afterActionIndex|{}afterActionIndex[0]
+        final fun <get-afterActionIndex>(): kotlin/Int // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.afterActionIndex.<get-afterActionIndex>|<get-afterActionIndex>(){}[0]
+    final val callId // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.callId|{}callId[0]
+        final fun <get-callId>(): kotlin/String? // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.callId.<get-callId>|<get-callId>(){}[0]
     final val exception // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.exception|{}exception[0]
         final fun <get-exception>(): io.github.syrou.reaktiv.introspection.protocol/CrashException // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.exception.<get-exception>|<get-exception>(){}[0]
+    final val logicClass // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.logicClass|{}logicClass[0]
+        final fun <get-logicClass>(): kotlin/String? // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.logicClass.<get-logicClass>|<get-logicClass>(){}[0]
+    final val methodName // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.methodName|{}methodName[0]
+        final fun <get-methodName>(): kotlin/String? // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.methodName.<get-methodName>|<get-methodName>(){}[0]
+    final val origin // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.origin|{}origin[0]
+        final fun <get-origin>(): io.github.syrou.reaktiv.introspection.protocol/CrashOrigin // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.origin.<get-origin>|<get-origin>(){}[0]
+    final val route // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.route|{}route[0]
+        final fun <get-route>(): kotlin/String? // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.route.<get-route>|<get-route>(){}[0]
     final val timestamp // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.timestamp|{}timestamp[0]
         final fun <get-timestamp>(): kotlin/Long // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.timestamp.<get-timestamp>|<get-timestamp>(){}[0]
 
     final fun component1(): kotlin/Long // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.component1|component1(){}[0]
     final fun component2(): io.github.syrou.reaktiv.introspection.protocol/CrashException // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.component2|component2(){}[0]
-    final fun copy(kotlin/Long = ..., io.github.syrou.reaktiv.introspection.protocol/CrashException = ...): io.github.syrou.reaktiv.introspection.protocol/CrashInfo // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.copy|copy(kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.CrashException){}[0]
+    final fun component3(): io.github.syrou.reaktiv.introspection.protocol/CrashOrigin // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.component3|component3(){}[0]
+    final fun component4(): kotlin/String? // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.component4|component4(){}[0]
+    final fun component5(): kotlin/String? // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.component5|component5(){}[0]
+    final fun component6(): kotlin/String? // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.component6|component6(){}[0]
+    final fun component7(): kotlin/String? // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.component7|component7(){}[0]
+    final fun component8(): kotlin/Int // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.component8|component8(){}[0]
+    final fun copy(kotlin/Long = ..., io.github.syrou.reaktiv.introspection.protocol/CrashException = ..., io.github.syrou.reaktiv.introspection.protocol/CrashOrigin = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Int = ...): io.github.syrou.reaktiv.introspection.protocol/CrashInfo // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.copy|copy(kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.CrashException;io.github.syrou.reaktiv.introspection.protocol.CrashOrigin;kotlin.String?;kotlin.String?;kotlin.String?;kotlin.String?;kotlin.Int){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.toString|toString(){}[0]
@@ -236,6 +271,8 @@ final class io.github.syrou.reaktiv.introspection.protocol/CrashInfo { // io.git
     }
 
     final object Companion { // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.Companion|null[0]
+        final val $childSerializers // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.Companion.$childSerializers|{}$childSerializers[0]
+
         final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> // io.github.syrou.reaktiv.introspection.protocol/CrashInfo.Companion.serializer|serializer(){}[0]
     }
 }
@@ -331,12 +368,14 @@ final class io.github.syrou.reaktiv.introspection.protocol/SessionData { // io.g
 }
 
 final class io.github.syrou.reaktiv.introspection.protocol/SessionExport { // io.github.syrou.reaktiv.introspection.protocol/SessionExport|null[0]
-    constructor <init>(kotlin/String = ..., kotlin/String, kotlin/Long, io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo, io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ..., io.github.syrou.reaktiv.introspection.protocol/SessionData, kotlin/Long = ...) // io.github.syrou.reaktiv.introspection.protocol/SessionExport.<init>|<init>(kotlin.String;kotlin.String;kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo;io.github.syrou.reaktiv.introspection.protocol.CrashInfo?;io.github.syrou.reaktiv.introspection.protocol.SessionData;kotlin.Long){}[0]
+    constructor <init>(kotlin/String = ..., kotlin/String, kotlin/Long, io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo, io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ..., io.github.syrou.reaktiv.introspection.protocol/SessionData, kotlin/Long = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> = ...) // io.github.syrou.reaktiv.introspection.protocol/SessionExport.<init>|<init>(kotlin.String;kotlin.String;kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo;io.github.syrou.reaktiv.introspection.protocol.CrashInfo?;io.github.syrou.reaktiv.introspection.protocol.SessionData;kotlin.Long;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CrashInfo>){}[0]
 
     final val clientInfo // io.github.syrou.reaktiv.introspection.protocol/SessionExport.clientInfo|{}clientInfo[0]
         final fun <get-clientInfo>(): io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo // io.github.syrou.reaktiv.introspection.protocol/SessionExport.clientInfo.<get-clientInfo>|<get-clientInfo>(){}[0]
     final val crash // io.github.syrou.reaktiv.introspection.protocol/SessionExport.crash|{}crash[0]
         final fun <get-crash>(): io.github.syrou.reaktiv.introspection.protocol/CrashInfo? // io.github.syrou.reaktiv.introspection.protocol/SessionExport.crash.<get-crash>|<get-crash>(){}[0]
+    final val crashes // io.github.syrou.reaktiv.introspection.protocol/SessionExport.crashes|{}crashes[0]
+        final fun <get-crashes>(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> // io.github.syrou.reaktiv.introspection.protocol/SessionExport.crashes.<get-crashes>|<get-crashes>(){}[0]
     final val droppedRecords // io.github.syrou.reaktiv.introspection.protocol/SessionExport.droppedRecords|{}droppedRecords[0]
         final fun <get-droppedRecords>(): kotlin/Long // io.github.syrou.reaktiv.introspection.protocol/SessionExport.droppedRecords.<get-droppedRecords>|<get-droppedRecords>(){}[0]
     final val exportedAt // io.github.syrou.reaktiv.introspection.protocol/SessionExport.exportedAt|{}exportedAt[0]
@@ -355,7 +394,8 @@ final class io.github.syrou.reaktiv.introspection.protocol/SessionExport { // io
     final fun component5(): io.github.syrou.reaktiv.introspection.protocol/CrashInfo? // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component5|component5(){}[0]
     final fun component6(): io.github.syrou.reaktiv.introspection.protocol/SessionData // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component6|component6(){}[0]
     final fun component7(): kotlin/Long // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component7|component7(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo = ..., io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ..., io.github.syrou.reaktiv.introspection.protocol/SessionData = ..., kotlin/Long = ...): io.github.syrou.reaktiv.introspection.protocol/SessionExport // io.github.syrou.reaktiv.introspection.protocol/SessionExport.copy|copy(kotlin.String;kotlin.String;kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo;io.github.syrou.reaktiv.introspection.protocol.CrashInfo?;io.github.syrou.reaktiv.introspection.protocol.SessionData;kotlin.Long){}[0]
+    final fun component8(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component8|component8(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo = ..., io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ..., io.github.syrou.reaktiv.introspection.protocol/SessionData = ..., kotlin/Long = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> = ...): io.github.syrou.reaktiv.introspection.protocol/SessionExport // io.github.syrou.reaktiv.introspection.protocol/SessionExport.copy|copy(kotlin.String;kotlin.String;kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo;io.github.syrou.reaktiv.introspection.protocol.CrashInfo?;io.github.syrou.reaktiv.introspection.protocol.SessionData;kotlin.Long;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CrashInfo>){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection.protocol/SessionExport.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection.protocol/SessionExport.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/SessionExport.toString|toString(){}[0]
@@ -370,6 +410,8 @@ final class io.github.syrou.reaktiv.introspection.protocol/SessionExport { // io
     }
 
     final object Companion { // io.github.syrou.reaktiv.introspection.protocol/SessionExport.Companion|null[0]
+        final val $childSerializers // io.github.syrou.reaktiv.introspection.protocol/SessionExport.Companion.$childSerializers|{}$childSerializers[0]
+
         final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.introspection.protocol/SessionExport> // io.github.syrou.reaktiv.introspection.protocol/SessionExport.Companion.serializer|serializer(){}[0]
     }
 }

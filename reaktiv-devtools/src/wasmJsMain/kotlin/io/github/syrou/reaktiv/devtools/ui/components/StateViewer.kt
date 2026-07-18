@@ -69,38 +69,23 @@ fun StateViewer(
     val isActionSelected = selectedEvent != null && !isLogicMethodSelected && !isCrashSelected
 
     // Reconstruct state at crash time
-    val crashReconstructedState = remember(isCrashSelected, crashEvent?.timestamp, initialStateJson, actionStateHistory.size) {
+    val crashReconstructedState = remember(isCrashSelected, crashEvent?.info, initialStateJson, actionStateHistory.size) {
         if (!isCrashSelected || crashEvent == null) return@remember null
         if (actionStateHistory.isEmpty()) return@remember initialStateJson
-        val lastActionIndex = actionStateHistory.indexOfLast { it.timestamp <= crashEvent.timestamp }
-        if (lastActionIndex < 0) return@remember initialStateJson
-        val capturedActions = actionStateHistory.map { event ->
-            CapturedAction(
-                clientId = event.clientId,
-                timestamp = event.timestamp,
-                actionType = event.actionType,
-                actionData = event.actionData,
-                stateDeltaJson = event.stateDeltaJson,
-                moduleName = event.moduleName
-            )
+        val exactIndex = crashEvent.info.afterActionIndex
+        val lastActionIndex = if (exactIndex in actionStateHistory.indices) {
+            exactIndex
+        } else {
+            actionStateHistory.indexOfLast { it.timestamp <= crashEvent.timestamp }
         }
-        StateReconstructor.reconstructAtIndex(initialStateJson, capturedActions, lastActionIndex)
+        if (lastActionIndex < 0) return@remember initialStateJson
+        StateReconstructor.reconstructAtIndex(initialStateJson, actionStateHistory, lastActionIndex)
     }
 
     // Cache reconstructed states for the State tab
     val reconstructedState = remember(selectedActionIndex, initialStateJson, actionStateHistory.size) {
         if (selectedActionIndex == null || !isActionSelected) return@remember null
-        val capturedActions = actionStateHistory.map { event ->
-            CapturedAction(
-                clientId = event.clientId,
-                timestamp = event.timestamp,
-                actionType = event.actionType,
-                actionData = event.actionData,
-                stateDeltaJson = event.stateDeltaJson,
-                moduleName = event.moduleName
-            )
-        }
-        StateReconstructor.reconstructAtIndex(initialStateJson, capturedActions, selectedActionIndex)
+        StateReconstructor.reconstructAtIndex(initialStateJson, actionStateHistory, selectedActionIndex)
     }
 
     val previousReconstructedState = remember(selectedActionIndex, initialStateJson, actionStateHistory.size, showAsDiff) {
@@ -113,17 +98,7 @@ fun StateViewer(
             }
             if (idx >= 0) idx else null
         } ?: return@remember null
-        val capturedActions = actionStateHistory.map { event ->
-            CapturedAction(
-                clientId = event.clientId,
-                timestamp = event.timestamp,
-                actionType = event.actionType,
-                actionData = event.actionData,
-                stateDeltaJson = event.stateDeltaJson,
-                moduleName = event.moduleName
-            )
-        }
-        StateReconstructor.reconstructAtIndex(initialStateJson, capturedActions, prevIndex)
+        StateReconstructor.reconstructAtIndex(initialStateJson, actionStateHistory, prevIndex)
     }
 
     Column(
@@ -778,6 +753,36 @@ private fun CrashDataView(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
+
+                Text(
+                    text = "Origin: ${crashOriginLabel(crashEvent.info.origin)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+
+                crashLocationLabel(crashEvent.info)?.let { location ->
+                    Text(
+                        text = "Location: $location",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+
+                crashEvent.info.route?.let { route ->
+                    Text(
+                        text = "Route: $route",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+
+                if (crashEvent.info.afterActionIndex >= 0) {
+                    Text(
+                        text = "After action #${crashEvent.info.afterActionIndex}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
 
                 val message = crashEvent.exception.message
                 if (message != null) {

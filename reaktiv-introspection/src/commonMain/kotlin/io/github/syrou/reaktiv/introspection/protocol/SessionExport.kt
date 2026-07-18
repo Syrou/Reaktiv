@@ -39,7 +39,8 @@ public data class SessionExport(
     val clientInfo: ExportedClientInfo,
     val crash: CrashInfo? = null,
     val session: SessionData,
-    val droppedRecords: Long = 0
+    val droppedRecords: Long = 0,
+    val crashes: List<CrashInfo> = emptyList()
 )
 
 /**
@@ -57,9 +58,18 @@ public data class ExportedClientInfo(
  * Crash information with timestamp and exception details.
  */
 @Serializable
+public enum class CrashOrigin { LOGIC_METHOD, UNCAUGHT, MANUAL }
+
+@Serializable
 public data class CrashInfo(
     val timestamp: Long,
-    val exception: CrashException
+    val exception: CrashException,
+    val origin: CrashOrigin = CrashOrigin.MANUAL,
+    val logicClass: String? = null,
+    val methodName: String? = null,
+    val callId: String? = null,
+    val route: String? = null,
+    val afterActionIndex: Int = -1
 )
 
 /**
@@ -109,6 +119,8 @@ public fun LogicMethodFailed.toCrashInfo(): CrashInfo {
             exceptionType = exceptionType,
             message = exceptionMessage,
             stackTrace = stackTrace ?: ""
-        )
+        ),
+        origin = CrashOrigin.LOGIC_METHOD,
+        callId = callId
     )
 }

@@ -9,7 +9,6 @@ import io.github.syrou.reaktiv.devtools.client.DevToolsConnection
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
-import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.KeyframedReconstructor
@@ -335,7 +334,7 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
             val message = DevToolsMessage.GhostDeviceRegistration(
                 sessionId = export.sessionId,
                 originalClientInfo = originalClientInfo,
-                crashException = export.crash?.exception,
+                crashException = (export.crashes.lastOrNull() ?: export.crash)?.exception,
                 eventCount = export.session.actions.size,
                 logicEventCount = totalLogicEvents,
                 sessionStartTime = export.session.startTime,
@@ -378,12 +377,11 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
     private suspend fun applyGhostSessionToState(export: GhostSessionExport) {
         storeAccessor.dispatch(DevToolsUiAction.SetInitialState(export.session.initialStateJson))
 
-        val crashInfo = export.crash
+        val crashInfo = export.crashes.lastOrNull() ?: export.crash
         if (crashInfo != null) {
             val crashEvent = CrashEventInfo(
-                timestamp = crashInfo.timestamp,
                 clientId = export.clientInfo.clientId,
-                exception = crashInfo.exception
+                info = crashInfo
             )
             storeAccessor.dispatch(DevToolsUiAction.SetCrashEvent(crashEvent))
         }
@@ -429,12 +427,7 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
     ): String {
         val now = currentTimeMillis()
 
-        val crashInfo = crashEvent?.let {
-            CrashInfo(
-                timestamp = it.timestamp,
-                exception = it.exception
-            )
-        }
+        val crashInfo = crashEvent?.info
 
         val export = GhostSessionExport(
             version = GhostSessionFormat.VERSION,
@@ -446,6 +439,7 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
                 platform = clientInfo.platform
             ),
             crash = crashInfo,
+            crashes = listOfNotNull(crashInfo),
             session = SessionData(
                 startTime = sessionStartTime,
                 endTime = now,
@@ -512,9 +506,8 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
 
             is DevToolsMessage.CrashReport -> {
                 val crashEvent = CrashEventInfo(
-                    timestamp = message.crash.timestamp,
                     clientId = message.clientId,
-                    exception = message.crash.exception
+                    info = message.crash
                 )
                 storeAccessor.dispatch(DevToolsUiAction.SetCrashEvent(crashEvent))
             }

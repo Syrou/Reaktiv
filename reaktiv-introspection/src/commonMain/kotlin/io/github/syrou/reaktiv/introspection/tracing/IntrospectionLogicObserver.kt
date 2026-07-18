@@ -22,16 +22,26 @@ public class IntrospectionLogicObserver(
     private val sessionCapture: SessionCapture
 ) : LogicObserver {
 
+    private val inFlight = mutableMapOf<String, Pair<String, String>>()
+
     override fun onMethodStart(event: LogicMethodStart) {
+        inFlight[event.callId] = event.logicClass to event.methodName
         sessionCapture.captureLogicStarted(event)
     }
 
     override fun onMethodCompleted(event: LogicMethodCompleted) {
+        inFlight.remove(event.callId)
         sessionCapture.captureLogicCompleted(event)
     }
 
     override fun onMethodFailed(event: LogicMethodFailed) {
+        val method = inFlight.remove(event.callId)
         sessionCapture.captureLogicFailed(event)
-        sessionCapture.reportCrash(event.toCrashInfo())
+        sessionCapture.reportCrash(
+            event.toCrashInfo().copy(
+                logicClass = method?.first,
+                methodName = method?.second
+            )
+        )
     }
 }

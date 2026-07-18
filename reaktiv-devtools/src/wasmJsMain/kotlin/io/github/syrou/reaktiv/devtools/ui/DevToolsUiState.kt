@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.devtools.client.ConnectionState
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
+import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import kotlinx.serialization.Serializable
 
 /**
@@ -48,10 +49,12 @@ data class DevToolsUiState(
  */
 @Serializable
 data class CrashEventInfo(
-    val timestamp: Long,
     val clientId: String,
-    val exception: CrashException
-)
+    val info: CrashInfo
+) {
+    val timestamp: Long get() = info.timestamp
+    val exception: CrashException get() = info.exception
+}
 
 /**
  * Actions for the DevTools UI.

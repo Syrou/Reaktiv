@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
+import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
+import io.github.syrou.reaktiv.introspection.protocol.CrashOrigin
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
@@ -111,12 +113,44 @@ fun CrashEventCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            val whereParts = buildList {
+                crashLocationLabel(crashEvent.info)?.let { add(it) }
+                crashEvent.info.route?.let { add("route $it") }
+                if (crashEvent.info.afterActionIndex >= 0) {
+                    add("after action #${crashEvent.info.afterActionIndex}")
+                }
+            }
+            if (whereParts.isNotEmpty()) {
+                Text(
+                    text = whereParts.joinToString(" | "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                )
+            }
+
             Text(
                 text = "Client: ${crashEvent.clientId}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
             )
         }
+    }
+}
+
+internal fun crashOriginLabel(origin: CrashOrigin): String = when (origin) {
+    CrashOrigin.LOGIC_METHOD -> "Logic method failure"
+    CrashOrigin.UNCAUGHT -> "Uncaught exception"
+    CrashOrigin.MANUAL -> "Manual report"
+}
+
+internal fun crashLocationLabel(info: CrashInfo): String? {
+    val logicClass = info.logicClass
+    val methodName = info.methodName
+    return when {
+        logicClass != null && methodName != null -> "$logicClass.$methodName"
+        logicClass != null -> logicClass
+        methodName != null -> methodName
+        else -> null
     }
 }
 

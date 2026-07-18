@@ -2197,3 +2197,33 @@ never-released interaction telemetry channel (InteractionTracer/Projector, the
 Interaction wire message, capture interaction events) was removed in its favor.
 
 ---
+### [AD-37] Unified crash representation with crash location
+
+**Type:** Addition
+
+**Grep:** `CrashOrigin|afterActionIndex|crashes`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val export: SessionExport = reaktivJson().decodeFromString(json)
+export.crashes.forEach { crash ->
+    println("${crash.origin} at ${crash.route} after action #${crash.afterActionIndex}")
+    println("in ${crash.logicClass}.${crash.methodName}")
+}
+```
+
+**Notes:** CrashInfo is now the single canonical crash representation and carries
+where the crash happened: origin (LOGIC_METHOD, UNCAUGHT, MANUAL), logicClass and
+methodName (correlated from the traced method start via callId), route (read from
+the NavigationState shadow the capture worker already keeps for deltas), and
+afterActionIndex (the exact timeline index, from the worker's processed-action
+count). SessionCapture stores every reported crash in its own JSONL storage;
+SessionExport gains crashes: List<CrashInfo> with crash kept as the last-crash
+convenience. exportCrashSession marks UNCAUGHT; reportCrash(throwable) accepts an
+origin. The wasm UI CrashEventInfo now wraps the full CrashInfo, the crash card
+and detail panel show location and origin, and state-at-crash reconstruction uses
+afterActionIndex exactly instead of guessing by timestamp. Export format stays
+3.2; older files decode with MANUAL origin and no location.
+
+---
