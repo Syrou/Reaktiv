@@ -12,8 +12,11 @@ import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
+import io.github.syrou.reaktiv.introspection.protocol.KeyframedReconstructor
+import io.github.syrou.reaktiv.introspection.protocol.NavigationStatePatch
 import io.github.syrou.reaktiv.devtools.protocol.GhostSessionExport
 import io.github.syrou.reaktiv.devtools.protocol.GhostSessionFormat
+import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
 import io.github.syrou.reaktiv.introspection.protocol.StateReconstructor
 import kotlinx.coroutines.launch
@@ -24,36 +27,36 @@ import kotlinx.serialization.json.Json
 /**
  * Reaktiv module for DevTools UI state management.
  */
-object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsLogic> {
-    override val initialState: DevToolsState = DevToolsState()
+object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, DevToolsUiLogic> {
+    override val initialState: DevToolsUiState = DevToolsUiState()
 
-    override val reducer: (DevToolsState, DevToolsAction) -> DevToolsState = { state, action ->
+    override val reducer: (DevToolsUiState, DevToolsUiAction) -> DevToolsUiState = { state, action ->
         when (action) {
-            is DevToolsAction.UpdateConnectionState -> {
+            is DevToolsUiAction.UpdateConnectionState -> {
                 state.copy(connectionState = action.state)
             }
 
-            is DevToolsAction.UpdateClientList -> {
+            is DevToolsUiAction.UpdateClientList -> {
                 state.copy(connectedClients = action.clients)
             }
 
-            is DevToolsAction.AddActionStateEvent -> {
+            is DevToolsUiAction.AddActionStateEvent -> {
                 state.copy(actionStateHistory = state.actionStateHistory + action.event)
             }
 
-            is DevToolsAction.SelectPublisher -> {
+            is DevToolsUiAction.SelectPublisher -> {
                 state.copy(selectedPublisher = action.clientId)
             }
 
-            is DevToolsAction.SelectListener -> {
+            is DevToolsUiAction.SelectListener -> {
                 state.copy(selectedListener = action.clientId)
             }
 
-            is DevToolsAction.ToggleStateViewMode -> {
+            is DevToolsUiAction.ToggleStateViewMode -> {
                 state.copy(showStateAsDiff = !state.showStateAsDiff)
             }
 
-            is DevToolsAction.SelectAction -> {
+            is DevToolsUiAction.SelectAction -> {
                 state.copy(
                     selectedActionIndex = action.index,
                     selectedLogicMethodCallId = if (action.index != null) null else state.selectedLogicMethodCallId,
@@ -61,15 +64,15 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                 )
             }
 
-            is DevToolsAction.ToggleDevicePanel -> {
+            is DevToolsUiAction.ToggleDevicePanel -> {
                 state.copy(devicePanelExpanded = !state.devicePanelExpanded)
             }
 
-            is DevToolsAction.ToggleAutoSelectLatest -> {
+            is DevToolsUiAction.ToggleAutoSelectLatest -> {
                 state.copy(autoSelectLatest = !state.autoSelectLatest)
             }
 
-            is DevToolsAction.ClearHistory -> {
+            is DevToolsUiAction.ClearHistory -> {
                 state.copy(
                     actionStateHistory = emptyList(),
                     logicMethodEvents = emptyList(),
@@ -77,19 +80,19 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                 )
             }
 
-            is DevToolsAction.AddActionExclusion -> {
+            is DevToolsUiAction.AddActionExclusion -> {
                 state.copy(excludedActionTypes = state.excludedActionTypes + action.actionType)
             }
 
-            is DevToolsAction.RemoveActionExclusion -> {
+            is DevToolsUiAction.RemoveActionExclusion -> {
                 state.copy(excludedActionTypes = state.excludedActionTypes - action.actionType)
             }
 
-            is DevToolsAction.SetActionExclusions -> {
+            is DevToolsUiAction.SetActionExclusions -> {
                 state.copy(excludedActionTypes = action.actionTypes)
             }
 
-            is DevToolsAction.ToggleTimeTravel -> {
+            is DevToolsUiAction.ToggleTimeTravel -> {
                 val newEnabled = !state.timeTravelEnabled
                 state.copy(
                     timeTravelEnabled = newEnabled,
@@ -98,14 +101,14 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                 )
             }
 
-            is DevToolsAction.SetTimeTravelPosition -> {
+            is DevToolsUiAction.SetTimeTravelPosition -> {
                 state.copy(
                     timeTravelPosition = action.position,
                     selectedActionIndex = action.position
                 )
             }
 
-            is DevToolsAction.AddLogicMethodEvent -> {
+            is DevToolsUiAction.AddLogicMethodEvent -> {
                 val newCallIdMap = if (action.event is LogicMethodEvent.Started) {
                     val started = action.event as LogicMethodEvent.Started
                     state.callIdToMethodIdentifier + (started.callId to "${started.logicClass}.${started.methodName}")
@@ -118,15 +121,15 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                 )
             }
 
-            is DevToolsAction.ToggleShowActions -> {
+            is DevToolsUiAction.ToggleShowActions -> {
                 state.copy(showActions = !state.showActions)
             }
 
-            is DevToolsAction.ToggleShowLogicMethods -> {
+            is DevToolsUiAction.ToggleShowLogicMethods -> {
                 state.copy(showLogicMethods = !state.showLogicMethods)
             }
 
-            is DevToolsAction.SelectLogicMethodEvent -> {
+            is DevToolsUiAction.SelectLogicMethodEvent -> {
                 state.copy(
                     selectedLogicMethodCallId = action.callId,
                     selectedActionIndex = if (action.callId != null) null else state.selectedActionIndex,
@@ -134,31 +137,31 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                 )
             }
 
-            is DevToolsAction.AddLogicMethodExclusion -> {
+            is DevToolsUiAction.AddLogicMethodExclusion -> {
                 state.copy(excludedLogicMethods = state.excludedLogicMethods + action.methodIdentifier)
             }
 
-            is DevToolsAction.RemoveLogicMethodExclusion -> {
+            is DevToolsUiAction.RemoveLogicMethodExclusion -> {
                 state.copy(excludedLogicMethods = state.excludedLogicMethods - action.methodIdentifier)
             }
 
-            is DevToolsAction.SetLogicMethodExclusions -> {
+            is DevToolsUiAction.SetLogicMethodExclusions -> {
                 state.copy(excludedLogicMethods = action.methodIdentifiers)
             }
 
-            is DevToolsAction.ShowImportGhostDialog -> {
+            is DevToolsUiAction.ShowImportGhostDialog -> {
                 state.copy(showImportGhostDialog = true)
             }
 
-            is DevToolsAction.HideImportGhostDialog -> {
+            is DevToolsUiAction.HideImportGhostDialog -> {
                 state.copy(showImportGhostDialog = false)
             }
 
-            is DevToolsAction.SetCrashEvent -> {
+            is DevToolsUiAction.SetCrashEvent -> {
                 state.copy(crashEvent = action.crashEvent)
             }
 
-            is DevToolsAction.SelectCrash -> {
+            is DevToolsUiAction.SelectCrash -> {
                 state.copy(
                     crashSelected = action.selected,
                     selectedActionIndex = if (action.selected) null else state.selectedActionIndex,
@@ -166,11 +169,11 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                 )
             }
 
-            is DevToolsAction.SetActiveGhostId -> {
+            is DevToolsUiAction.SetActiveGhostId -> {
                 state.copy(activeGhostId = action.ghostId)
             }
 
-            is DevToolsAction.EnableTimeTravelWithGhost -> {
+            is DevToolsUiAction.EnableTimeTravelWithGhost -> {
                 state.copy(
                     activeGhostId = action.ghostId,
                     timeTravelEnabled = true,
@@ -179,19 +182,19 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                 )
             }
 
-            is DevToolsAction.SetPublisherSessionStart -> {
+            is DevToolsUiAction.SetPublisherSessionStart -> {
                 state.copy(publisherSessionStart = action.startTime)
             }
 
-            is DevToolsAction.SetCanExportSession -> {
+            is DevToolsUiAction.SetCanExportSession -> {
                 state.copy(canExportSession = action.canExport)
             }
 
-            is DevToolsAction.BulkAddActionStateEvents -> {
+            is DevToolsUiAction.BulkAddActionStateEvents -> {
                 state.copy(actionStateHistory = state.actionStateHistory + action.events)
             }
 
-            is DevToolsAction.BulkAddLogicMethodEvents -> {
+            is DevToolsUiAction.BulkAddLogicMethodEvents -> {
                 val newCallIdEntries = action.events
                     .filterIsInstance<LogicMethodEvent.Started>()
                     .associate { it.callId to "${it.logicClass}.${it.methodName}" }
@@ -201,21 +204,21 @@ object DevToolsModule : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsL
                 )
             }
 
-            is DevToolsAction.SetInitialState -> {
+            is DevToolsUiAction.SetInitialState -> {
                 state.copy(initialStateJson = action.json)
             }
         }
     }
 
-    override val createLogic: (StoreAccessor) -> DevToolsLogic = { storeAccessor ->
-        DevToolsLogic(storeAccessor)
+    override val createLogic: (StoreAccessor) -> DevToolsUiLogic = { storeAccessor ->
+        DevToolsUiLogic(storeAccessor)
     }
 }
 
 /**
  * Logic for handling DevTools UI side effects.
  */
-class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
+class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
     private lateinit var connection: DevToolsConnection
 
     private val json = reaktivJson()
@@ -225,7 +228,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
 
         storeAccessor.launch {
             connection.connectionState.collect { state ->
-                storeAccessor.dispatch(DevToolsAction.UpdateConnectionState(state))
+                storeAccessor.dispatch(DevToolsUiAction.UpdateConnectionState(state))
             }
         }
 
@@ -248,6 +251,44 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
         }
     }
 
+    private var reconstructorCache: Triple<String, Int, KeyframedReconstructor>? = null
+
+    private fun reconstructorFor(
+        initialStateJson: String,
+        actionHistory: List<CapturedAction>
+    ): KeyframedReconstructor {
+        val cached = reconstructorCache
+        if (cached != null && cached.first == initialStateJson && cached.second == actionHistory.size) {
+            return cached.third
+        }
+        val fresh = KeyframedReconstructor(initialStateJson, actionHistory)
+        reconstructorCache = Triple(initialStateJson, actionHistory.size, fresh)
+        return fresh
+    }
+
+    private suspend fun appendHistorySlice(
+        clientId: String,
+        history: SessionHistory,
+        isFirstSlice: Boolean
+    ) {
+        if (isFirstSlice) {
+            storeAccessor.dispatch(DevToolsUiAction.SetPublisherSessionStart(history.startTime))
+            storeAccessor.dispatch(DevToolsUiAction.SetCanExportSession(true))
+            storeAccessor.dispatch(DevToolsUiAction.SetInitialState(history.initialStateJson))
+        }
+        if (history.actions.isNotEmpty()) {
+            storeAccessor.dispatch(DevToolsUiAction.BulkAddActionStateEvents(history.actions))
+        }
+        val logicEvents = buildList<LogicMethodEvent> {
+            history.logicStarted.forEach { add(LogicMethodEvent.Started(clientId, it)) }
+            history.logicCompleted.forEach { add(LogicMethodEvent.Completed(clientId, it)) }
+            history.logicFailed.forEach { add(LogicMethodEvent.Failed(clientId, it)) }
+        }
+        if (logicEvents.isNotEmpty()) {
+            storeAccessor.dispatch(DevToolsUiAction.BulkAddLogicMethodEvents(logicEvents))
+        }
+    }
+
     suspend fun sendTimeTravelSync(
         actionHistory: List<CapturedAction>,
         initialStateJson: String,
@@ -255,15 +296,13 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
         publisherClientId: String
     ) {
         try {
-            val fullStateJson = StateReconstructor.reconstructAtIndex(
-                initialStateJson, actionHistory, position
-            )
+            val fullStateJson = reconstructorFor(initialStateJson, actionHistory).stateAt(position)
 
             val event = actionHistory.getOrNull(position) ?: return
             val message = DevToolsMessage.StateSync(
                 fromClientId = publisherClientId,
                 timestamp = event.timestamp,
-                stateJson = fullStateJson
+                stateJson = NavigationStatePatch.clearBootstrapping(fullStateJson)
             )
             connection.send(message)
             println("DevTools UI: Sent time travel sync for action ${event.actionType} from publisher $publisherClientId")
@@ -308,7 +347,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
 
             applyGhostSessionToState(export)
 
-            storeAccessor.dispatch(DevToolsAction.HideImportGhostDialog)
+            storeAccessor.dispatch(DevToolsUiAction.HideImportGhostDialog)
 
             println("DevTools UI: Ghost session imported - ${export.sessionId}")
         } catch (e: Exception) {
@@ -337,7 +376,7 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
      * Shared by both initial import and server-side restore paths.
      */
     private suspend fun applyGhostSessionToState(export: GhostSessionExport) {
-        storeAccessor.dispatch(DevToolsAction.SetInitialState(export.session.initialStateJson))
+        storeAccessor.dispatch(DevToolsUiAction.SetInitialState(export.session.initialStateJson))
 
         val crashInfo = export.crash
         if (crashInfo != null) {
@@ -346,10 +385,10 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
                 clientId = export.clientInfo.clientId,
                 exception = crashInfo.exception
             )
-            storeAccessor.dispatch(DevToolsAction.SetCrashEvent(crashEvent))
+            storeAccessor.dispatch(DevToolsUiAction.SetCrashEvent(crashEvent))
         }
 
-        storeAccessor.dispatch(DevToolsAction.BulkAddActionStateEvents(export.session.actions))
+        storeAccessor.dispatch(DevToolsUiAction.BulkAddActionStateEvents(export.session.actions))
 
         val ghostClientId = export.clientInfo.clientId
         val logicEvents = buildList<LogicMethodEvent> {
@@ -357,11 +396,11 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
             export.session.logicCompletedEvents.forEach { add(LogicMethodEvent.Completed(ghostClientId, it)) }
             export.session.logicFailedEvents.forEach { add(LogicMethodEvent.Failed(ghostClientId, it)) }
         }
-        storeAccessor.dispatch(DevToolsAction.BulkAddLogicMethodEvents(logicEvents))
+        storeAccessor.dispatch(DevToolsUiAction.BulkAddLogicMethodEvents(logicEvents))
 
         val ghostId = "ghost-${export.sessionId}"
-        storeAccessor.dispatch(DevToolsAction.SelectPublisher(ghostId))
-        storeAccessor.dispatch(DevToolsAction.EnableTimeTravelWithGhost(ghostId))
+        storeAccessor.dispatch(DevToolsUiAction.SelectPublisher(ghostId))
+        storeAccessor.dispatch(DevToolsUiAction.EnableTimeTravelWithGhost(ghostId))
     }
 
     /**
@@ -424,63 +463,51 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
     private suspend fun handleServerMessage(message: DevToolsMessage) {
         when (message) {
             is DevToolsMessage.ClientListUpdate -> {
-                storeAccessor.dispatch(DevToolsAction.UpdateClientList(message.clients))
+                storeAccessor.dispatch(DevToolsUiAction.UpdateClientList(message.clients))
 
                 // Auto-select devices based on their server-assigned roles
-                val state = storeAccessor.selectState<DevToolsState>().value
+                val state = storeAccessor.selectState<DevToolsUiState>().value
                 val publisher = message.clients.find { it.role == ClientRole.PUBLISHER && !it.isGhost }
                 val listener = message.clients.find {
                     it.role == ClientRole.LISTENER && it.clientId != "devtools-ui"
                 }
 
                 if (publisher != null && state.selectedPublisher != publisher.clientId) {
-                    storeAccessor.dispatch(DevToolsAction.SelectPublisher(publisher.clientId))
+                    storeAccessor.dispatch(DevToolsUiAction.SelectPublisher(publisher.clientId))
                 }
                 if (listener != null && state.selectedListener != listener.clientId) {
-                    storeAccessor.dispatch(DevToolsAction.SelectListener(listener.clientId))
+                    storeAccessor.dispatch(DevToolsUiAction.SelectListener(listener.clientId))
                 }
             }
 
             is DevToolsMessage.ActionDispatched -> {
-                storeAccessor.dispatch(DevToolsAction.AddActionStateEvent(message.event))
+                storeAccessor.dispatch(DevToolsUiAction.AddActionStateEvent(message.event))
             }
 
             is DevToolsMessage.LogicMethodStarted -> {
                 storeAccessor.dispatch(
-                    DevToolsAction.AddLogicMethodEvent(LogicMethodEvent.Started(message.clientId, message.event))
+                    DevToolsUiAction.AddLogicMethodEvent(LogicMethodEvent.Started(message.clientId, message.event))
                 )
             }
 
             is DevToolsMessage.LogicMethodCompleted -> {
                 storeAccessor.dispatch(
-                    DevToolsAction.AddLogicMethodEvent(LogicMethodEvent.Completed(message.clientId, message.event))
+                    DevToolsUiAction.AddLogicMethodEvent(LogicMethodEvent.Completed(message.clientId, message.event))
                 )
             }
 
             is DevToolsMessage.LogicMethodFailed -> {
                 storeAccessor.dispatch(
-                    DevToolsAction.AddLogicMethodEvent(LogicMethodEvent.Failed(message.clientId, message.event))
+                    DevToolsUiAction.AddLogicMethodEvent(LogicMethodEvent.Failed(message.clientId, message.event))
                 )
             }
 
             is DevToolsMessage.SessionHistorySync -> {
-                val history = message.history
-                storeAccessor.dispatch(DevToolsAction.SetPublisherSessionStart(history.startTime))
-                storeAccessor.dispatch(DevToolsAction.SetCanExportSession(true))
-                storeAccessor.dispatch(DevToolsAction.SetInitialState(history.initialStateJson))
+                appendHistorySlice(message.clientId, message.history, isFirstSlice = true)
+            }
 
-                if (history.actions.isNotEmpty()) {
-                    storeAccessor.dispatch(DevToolsAction.BulkAddActionStateEvents(history.actions))
-                }
-
-                val logicEvents = buildList<LogicMethodEvent> {
-                    history.logicStarted.forEach { add(LogicMethodEvent.Started(message.clientId, it)) }
-                    history.logicCompleted.forEach { add(LogicMethodEvent.Completed(message.clientId, it)) }
-                    history.logicFailed.forEach { add(LogicMethodEvent.Failed(message.clientId, it)) }
-                }
-                if (logicEvents.isNotEmpty()) {
-                    storeAccessor.dispatch(DevToolsAction.BulkAddLogicMethodEvents(logicEvents))
-                }
+            is DevToolsMessage.SessionHistoryChunk -> {
+                appendHistorySlice(message.clientId, message.history, isFirstSlice = message.chunkIndex == 0)
             }
 
             is DevToolsMessage.CrashReport -> {
@@ -489,46 +516,51 @@ class DevToolsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
                     clientId = message.clientId,
                     exception = message.crash.exception
                 )
-                storeAccessor.dispatch(DevToolsAction.SetCrashEvent(crashEvent))
+                storeAccessor.dispatch(DevToolsUiAction.SetCrashEvent(crashEvent))
             }
 
             is DevToolsMessage.PublisherChanged -> {
                 println("DevTools UI: Publisher changed - ${message.previousPublisherId} -> ${message.newPublisherId}: ${message.reason}")
                 if (message.newPublisherId != null) {
                     // Auto-select the new publisher
-                    storeAccessor.dispatch(DevToolsAction.SelectPublisher(message.newPublisherId))
+                    storeAccessor.dispatch(DevToolsUiAction.SelectPublisher(message.newPublisherId))
                     // Enable export capability immediately rather than waiting for SessionHistorySync
                     // which can be lost due to race conditions between publisher role assignment and
                     // orchestrator subscription
-                    storeAccessor.dispatch(DevToolsAction.SetPublisherSessionStart(currentTimeMillis()))
-                    storeAccessor.dispatch(DevToolsAction.SetCanExportSession(true))
+                    storeAccessor.dispatch(DevToolsUiAction.SetPublisherSessionStart(currentTimeMillis()))
+                    storeAccessor.dispatch(DevToolsUiAction.SetCanExportSession(true))
                     // Auto-assign WASM UI as orchestrator for the new publisher
                     assignRole("devtools-ui", ClientRole.ORCHESTRATOR, message.newPublisherId)
                     println("DevTools UI: Auto-assigned as orchestrator for ${message.newPublisherId}")
                 } else {
-                    storeAccessor.dispatch(DevToolsAction.SelectPublisher(null))
-                    storeAccessor.dispatch(DevToolsAction.SetPublisherSessionStart(null))
-                    storeAccessor.dispatch(DevToolsAction.SetCanExportSession(false))
+                    storeAccessor.dispatch(DevToolsUiAction.SelectPublisher(null))
+                    storeAccessor.dispatch(DevToolsUiAction.SetPublisherSessionStart(null))
+                    storeAccessor.dispatch(DevToolsUiAction.SetCanExportSession(false))
                 }
             }
 
             is DevToolsMessage.ListenerAttached -> {
                 // For ghost publishers: orchestrator sends reconstructed state to the new listener
-                val state = storeAccessor.selectState<DevToolsState>().value
+                val state = storeAccessor.selectState<DevToolsUiState>().value
                 val publisherId = state.selectedPublisher
                 if (publisherId != null && state.initialStateJson != "{}") {
                     val actions = state.actionStateHistory
+                    val position = if (state.timeTravelEnabled) {
+                        state.timeTravelPosition.coerceIn(0, (actions.size - 1).coerceAtLeast(0))
+                    } else {
+                        actions.size - 1
+                    }
                     if (actions.isNotEmpty()) {
-                        sendTimeTravelSync(actions, state.initialStateJson, actions.size - 1, publisherId)
+                        sendTimeTravelSync(actions, state.initialStateJson, position, publisherId)
                     } else {
                         val syncMessage = DevToolsMessage.StateSync(
                             fromClientId = publisherId,
                             timestamp = currentTimeMillis(),
-                            stateJson = state.initialStateJson
+                            stateJson = NavigationStatePatch.clearBootstrapping(state.initialStateJson)
                         )
                         connection.send(syncMessage)
                     }
-                    println("DevTools UI: Sent ghost state to new listener ${message.listenerId}")
+                    println("DevTools UI: Sent ghost state at position $position to new listener ${message.listenerId}")
                 }
             }
 

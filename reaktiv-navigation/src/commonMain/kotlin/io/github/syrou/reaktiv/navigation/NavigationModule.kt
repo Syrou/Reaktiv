@@ -1,10 +1,12 @@
 package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.CrashRecovery
+import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
+import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
@@ -285,7 +287,20 @@ public class NavigationModule internal constructor(
     private fun NavigationState.toStackSnapshot(): StackSnapshot =
         StackSnapshot(currentEntry, backStack, activeModalContexts)
 
-    private fun reduceAction(state: NavigationState, action: NavigationAction): NavigationState = when (action) {
+    private fun reduceAction(state: NavigationState, action: NavigationAction): NavigationState {
+        val reduced = reduceNavigation(state, action)
+        return when {
+            action is NavigationAction.ScrubUpdate -> reduced
+            reduced.activeScrub != null -> reduced.copy(activeScrub = null)
+            else -> reduced
+        }
+    }
+
+    private fun reduceNavigation(state: NavigationState, action: NavigationAction): NavigationState = when (action) {
+        is NavigationAction.ScrubUpdate -> state.copy(activeScrub = action.scrub)
+
+        is NavigationAction.ScrubEnd -> state.copy(activeScrub = null)
+
         is NavigationAction.AtomicBatch -> action.actions.fold(state, ::reduceAction)
 
         is NavigationAction.Navigate -> {
@@ -349,6 +364,20 @@ public class NavigationModule internal constructor(
             precomputedData = precomputedData,
             onCrash = onCrash
         )
+    }
+
+    override val createMiddleware: (() -> Middleware) = {
+        middleware@{ action, _, storeAccessor, updatedState ->
+            if (action !is NavigationAction) {
+                updatedState(action)
+                return@middleware
+            }
+            val result = updatedState(action)
+            val isScrub = action is NavigationAction.ScrubUpdate || action is NavigationAction.ScrubEnd
+            if (!isScrub && result is NavigationState) {
+                storeAccessor.selectLogic<NavigationLogic>().syncLifecycle(result.backStack)
+            }
+        }
     }
 
     public companion object {

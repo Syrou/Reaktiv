@@ -85,7 +85,7 @@ fun DevToolsApp(store: Store, serverUrl: String = "ws://localhost:8080/ws") {
         if(!storePrepared) return@LaunchedEffect
         try {
             println("DevToolsApp: LaunchedEffect starting")
-            val logic = DevToolsModule.selectLogicTyped(store)
+            val logic = DevToolsUiModule.selectLogicTyped(store)
             println("DevToolsApp: Logic retrieved")
             connection?.let {
                 logic.setConnection(it)
@@ -113,14 +113,14 @@ fun DevToolsApp(store: Store, serverUrl: String = "ws://localhost:8080/ws") {
 
 @Composable
 private fun DevToolsContent(store: Store) {
-    val state by composeState<DevToolsState>()
+    val state by composeState<DevToolsUiState>()
     val dispatch = rememberDispatcher()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(state.timeTravelEnabled, state.timeTravelPosition, state.selectedPublisher) {
         val publisher = state.selectedPublisher
         if (state.timeTravelEnabled && state.timeTravelPosition < state.actionStateHistory.size && publisher != null) {
-            val logic = DevToolsModule.selectLogicTyped(store)
+            val logic = DevToolsUiModule.selectLogicTyped(store)
             logic.sendTimeTravelSync(
                 actionHistory = state.actionStateHistory,
                 initialStateJson = state.initialStateJson,
@@ -138,7 +138,7 @@ private fun DevToolsContent(store: Store) {
             }
 
             if (latestNonExcludedIndex >= 0 && state.selectedActionIndex != latestNonExcludedIndex) {
-                dispatch(DevToolsAction.SelectAction(latestNonExcludedIndex))
+                dispatch(DevToolsUiAction.SelectAction(latestNonExcludedIndex))
             }
         }
     }
@@ -153,7 +153,7 @@ private fun DevToolsContent(store: Store) {
                     connectionState = state.connectionState,
                     deviceCount = state.connectedClients.size,
                     isDevicePanelExpanded = state.devicePanelExpanded,
-                    onToggleDevicePanel = { dispatch(DevToolsAction.ToggleDevicePanel) }
+                    onToggleDevicePanel = { dispatch(DevToolsUiAction.ToggleDevicePanel) }
                 )
 
                 Row(
@@ -180,19 +180,19 @@ private fun DevToolsContent(store: Store) {
                             timeTravelEnabled = state.timeTravelEnabled,
                             showActions = state.showActions,
                             showLogicMethods = state.showLogicMethods,
-                            onSelectAction = { dispatch(DevToolsAction.SelectAction(it)) },
-                            onSelectLogicMethod = { dispatch(DevToolsAction.SelectLogicMethodEvent(it)) },
-                            onSelectCrash = { dispatch(DevToolsAction.SelectCrash(it)) },
-                            onToggleAutoSelect = { dispatch(DevToolsAction.ToggleAutoSelectLatest) },
-                            onAddExclusion = { dispatch(DevToolsAction.AddActionExclusion(it)) },
-                            onRemoveExclusion = { dispatch(DevToolsAction.RemoveActionExclusion(it)) },
-                            onSetExclusions = { dispatch(DevToolsAction.SetActionExclusions(it)) },
-                            onAddLogicMethodExclusion = { dispatch(DevToolsAction.AddLogicMethodExclusion(it)) },
-                            onRemoveLogicMethodExclusion = { dispatch(DevToolsAction.RemoveLogicMethodExclusion(it)) },
-                            onToggleTimeTravel = { dispatch(DevToolsAction.ToggleTimeTravel) },
-                            onToggleShowActions = { dispatch(DevToolsAction.ToggleShowActions) },
-                            onToggleShowLogicMethods = { dispatch(DevToolsAction.ToggleShowLogicMethods) },
-                            onClear = { dispatch(DevToolsAction.ClearHistory) }
+                            onSelectAction = { dispatch(DevToolsUiAction.SelectAction(it)) },
+                            onSelectLogicMethod = { dispatch(DevToolsUiAction.SelectLogicMethodEvent(it)) },
+                            onSelectCrash = { dispatch(DevToolsUiAction.SelectCrash(it)) },
+                            onToggleAutoSelect = { dispatch(DevToolsUiAction.ToggleAutoSelectLatest) },
+                            onAddExclusion = { dispatch(DevToolsUiAction.AddActionExclusion(it)) },
+                            onRemoveExclusion = { dispatch(DevToolsUiAction.RemoveActionExclusion(it)) },
+                            onSetExclusions = { dispatch(DevToolsUiAction.SetActionExclusions(it)) },
+                            onAddLogicMethodExclusion = { dispatch(DevToolsUiAction.AddLogicMethodExclusion(it)) },
+                            onRemoveLogicMethodExclusion = { dispatch(DevToolsUiAction.RemoveLogicMethodExclusion(it)) },
+                            onToggleTimeTravel = { dispatch(DevToolsUiAction.ToggleTimeTravel) },
+                            onToggleShowActions = { dispatch(DevToolsUiAction.ToggleShowActions) },
+                            onToggleShowLogicMethods = { dispatch(DevToolsUiAction.ToggleShowLogicMethods) },
+                            onClear = { dispatch(DevToolsUiAction.ClearHistory) }
                         )
 
                         if (state.timeTravelEnabled && state.actionStateHistory.isNotEmpty()) {
@@ -200,11 +200,11 @@ private fun DevToolsContent(store: Store) {
                                 currentPosition = state.timeTravelPosition,
                                 totalEvents = state.actionStateHistory.size,
                                 isGhostMode = state.activeGhostId != null,
-                                onPositionChange = { dispatch(DevToolsAction.SetTimeTravelPosition(it)) },
+                                onPositionChange = { dispatch(DevToolsUiAction.SetTimeTravelPosition(it)) },
                                 onClose = {
-                                    dispatch(DevToolsAction.ToggleTimeTravel)
+                                    dispatch(DevToolsUiAction.ToggleTimeTravel)
                                     if (state.activeGhostId != null) {
-                                        dispatch(DevToolsAction.SetActiveGhostId(null))
+                                        dispatch(DevToolsUiAction.SetActiveGhostId(null))
                                     }
                                 },
                                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -233,8 +233,8 @@ private fun DevToolsContent(store: Store) {
                             showAsDiff = state.showStateAsDiff,
                             excludedActionTypes = state.excludedActionTypes,
                             initialStateJson = state.initialStateJson,
-                            onToggleDiffMode = { dispatch(DevToolsAction.ToggleStateViewMode) },
-                            onClear = { dispatch(DevToolsAction.ClearHistory) }
+                            onToggleDiffMode = { dispatch(DevToolsUiAction.ToggleStateViewMode) },
+                            onClear = { dispatch(DevToolsUiAction.ClearHistory) }
                         )
                     }
                 }
@@ -256,54 +256,54 @@ private fun DevToolsContent(store: Store) {
                         selectedListener = state.selectedListener,
                         canExportSession = state.canExportSession,
                         onPublisherSelected = { clientId ->
-                            dispatch(DevToolsAction.SelectPublisher(clientId))
+                            dispatch(DevToolsUiAction.SelectPublisher(clientId))
                             if (clientId != null && clientId == state.selectedListener) {
-                                dispatch(DevToolsAction.SelectListener(null))
+                                dispatch(DevToolsUiAction.SelectListener(null))
                             }
                             clientId?.let {
-                                dispatch(DevToolsAction.SetPublisherSessionStart(
+                                dispatch(DevToolsUiAction.SetPublisherSessionStart(
                                     currentTimeMillis()
                                 ))
-                                dispatch(DevToolsAction.SetCanExportSession(true))
+                                dispatch(DevToolsUiAction.SetCanExportSession(true))
                                 scope.launch {
-                                    val logic = DevToolsModule.selectLogicTyped(store)
+                                    val logic = DevToolsUiModule.selectLogicTyped(store)
                                     logic.assignRole("devtools-ui", ClientRole.ORCHESTRATOR, it)
                                     logic.assignRole(it, ClientRole.PUBLISHER)
                                 }
                             } ?: run {
-                                dispatch(DevToolsAction.SetPublisherSessionStart(null))
-                                dispatch(DevToolsAction.SetCanExportSession(false))
+                                dispatch(DevToolsUiAction.SetPublisherSessionStart(null))
+                                dispatch(DevToolsUiAction.SetCanExportSession(false))
                             }
                         },
                         onListenerSelected = { clientId ->
-                            dispatch(DevToolsAction.SelectListener(clientId))
+                            dispatch(DevToolsUiAction.SelectListener(clientId))
                             if (clientId != null && clientId == state.selectedPublisher) {
-                                dispatch(DevToolsAction.SelectPublisher(null))
-                                dispatch(DevToolsAction.SetPublisherSessionStart(null))
-                                dispatch(DevToolsAction.SetCanExportSession(false))
+                                dispatch(DevToolsUiAction.SelectPublisher(null))
+                                dispatch(DevToolsUiAction.SetPublisherSessionStart(null))
+                                dispatch(DevToolsUiAction.SetCanExportSession(false))
                             }
                         },
                         onAssignRole = { listener, publisher ->
                             if (listener == publisher) return@ClientList
                             scope.launch {
-                                val logic = DevToolsModule.selectLogicTyped(store)
+                                val logic = DevToolsUiModule.selectLogicTyped(store)
                                 logic.assignRole(publisher, ClientRole.PUBLISHER)
                                 logic.assignRole(listener, ClientRole.LISTENER, publisher)
                             }
                         },
                         onRemoveGhost = { ghostId ->
                             scope.launch {
-                                val logic = DevToolsModule.selectLogicTyped(store)
+                                val logic = DevToolsUiModule.selectLogicTyped(store)
                                 logic.removeGhostDevice(ghostId)
                             }
                         },
-                        onImportGhost = { dispatch(DevToolsAction.ShowImportGhostDialog) },
+                        onImportGhost = { dispatch(DevToolsUiAction.ShowImportGhostDialog) },
                         onExportSession = {
                             val publisher = state.connectedClients.find { it.clientId == state.selectedPublisher }
                             val sessionStart = state.publisherSessionStart
                             if (publisher != null && sessionStart != null) {
                                 scope.launch {
-                                    val logic = DevToolsModule.selectLogicTyped(store)
+                                    val logic = DevToolsUiModule.selectLogicTyped(store)
                                     val json = logic.exportSessionAsGhost(
                                         clientInfo = publisher,
                                         actionHistory = state.actionStateHistory,
@@ -325,11 +325,11 @@ private fun DevToolsContent(store: Store) {
                 GhostImportDialog(
                     onImport = { json ->
                         scope.launch {
-                            val logic = DevToolsModule.selectLogicTyped(store)
+                            val logic = DevToolsUiModule.selectLogicTyped(store)
                             logic.importGhostSession(json)
                         }
                     },
-                    onDismiss = { dispatch(DevToolsAction.HideImportGhostDialog) }
+                    onDismiss = { dispatch(DevToolsUiAction.HideImportGhostDialog) }
                 )
             }
         }

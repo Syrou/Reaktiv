@@ -35,17 +35,21 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import eu.syrou.androidexample.reaktiv.crashtest.CrashTestLogic
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
 import eu.syrou.androidexample.ui.components.NotificationPermissionHandler
-import eu.syrou.androidexample.ui.screen.DevToolsScreen
 import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.theme.ReaktivTheme
 import io.github.syrou.reaktiv.compose.StoreProvider
@@ -114,17 +118,27 @@ class MainActivity : ComponentActivity() {
 fun MainRender() {
     val store = rememberStore()
     val settingsState by composeState<SettingsModule.SettingsState>()
-    val drawerValue: DrawerValue = if (settingsState.drawerOpen) DrawerValue.Open else DrawerValue.Closed
-    val drawerState = remember(drawerValue) {
-        DrawerState(drawerValue) { newValue ->
-            val isClosed = newValue == DrawerValue.Closed
-            if (settingsState.drawerOpen && isClosed) {
-                store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(false))
-            } else {
-                store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(true))
-            }
-            false
+    val drawerState = rememberDrawerState(
+        initialValue = if (settingsState.drawerOpen) DrawerValue.Open else DrawerValue.Closed
+    )
+    val latestDrawerOpen by rememberUpdatedState(settingsState.drawerOpen)
+
+    LaunchedEffect(settingsState.drawerOpen) {
+        val target = if (settingsState.drawerOpen) DrawerValue.Open else DrawerValue.Closed
+        if (drawerState.targetValue != target) {
+            if (settingsState.drawerOpen) drawerState.open() else drawerState.close()
         }
+    }
+
+    LaunchedEffect(drawerState) {
+        snapshotFlow { drawerState.currentValue }
+            .drop(1)
+            .collect { value ->
+                val open = value == DrawerValue.Open
+                if (open != latestDrawerOpen) {
+                    store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(open))
+                }
+            }
     }
 
     val items =
@@ -172,7 +186,7 @@ fun MainRender() {
                                         "DevTools" -> {
                                             store.launch {
                                                 store.navigation {
-                                                    navigateTo(DevToolsScreen.route)
+                                                    navigateTo("devtools")
                                                 }
                                             }
                                         }

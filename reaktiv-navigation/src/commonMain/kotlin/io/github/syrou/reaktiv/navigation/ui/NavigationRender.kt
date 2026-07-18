@@ -12,8 +12,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.zIndex
+import androidx.compose.runtime.LaunchedEffect
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
+import androidx.compose.runtime.snapshotFlow
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
@@ -131,6 +133,13 @@ public fun NavigationRender(
     }
 
     val interactiveController = remember { InteractiveTransitionController() }
+
+    LaunchedEffect(interactiveController) {
+        interactiveController.scrubDispatch = { action -> store.dispatch(action) }
+        snapshotFlow { latestNavigationState.value }.collect { state ->
+            driveControllerFromScrubState(interactiveController, state)
+        }
+    }
 
     CompositionLocalProvider(
         LocalNavigationModule provides navModule,

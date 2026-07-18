@@ -39,7 +39,7 @@ import androidx.compose.ui.window.Dialog
  * if (showImportDialog) {
  *     GhostImportDialog(
  *         onImport = { json -> logic.importGhostSession(json) },
- *         onDismiss = { dispatch(DevToolsAction.HideImportGhostDialog) }
+ *         onDismiss = { dispatch(DevToolsUiAction.HideImportGhostDialog) }
  *     )
  * }
  * ```

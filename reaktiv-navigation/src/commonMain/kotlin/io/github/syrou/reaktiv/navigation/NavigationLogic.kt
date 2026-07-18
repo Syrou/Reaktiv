@@ -43,10 +43,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
@@ -103,7 +100,6 @@ public class NavigationLogic(
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
 
     init {
-        startLifecycleObservation()
         registerCrashListenerIfNeeded()
         bootstrapRootEntryIfNeeded()
     }
@@ -219,18 +215,12 @@ public class NavigationLogic(
         }
     }
 
-    private fun startLifecycleObservation() {
-        storeAccessor.launch {
-            storeAccessor.selectState<NavigationState>()
-                .map { it.backStack }
-                .distinctUntilChanged { old, new -> old.map { it.stableKey } == new.map { it.stableKey } }
-                .scan(emptyList<NavigationEntry>() to emptyList<NavigationEntry>()) { (_, prev), current ->
-                    prev to current
-                }
-                .collect { (previousBackStack, newBackStack) ->
-                    invokeLifecycleCallbacks(previousBackStack, newBackStack)
-                }
-        }
+    internal suspend fun syncLifecycle(newBackStack: List<NavigationEntry>) {
+        invokeLifecycleCallbacks(newBackStack)
+    }
+
+    public suspend fun adoptCurrentBackstack() {
+        syncLifecycle(storeAccessor.selectState<NavigationState>().first().backStack)
     }
 
     /**
@@ -938,15 +928,11 @@ public class NavigationLogic(
     /**
      * Invokes lifecycle callbacks for entries that were added or removed from the backstack.
      */
-    private suspend fun invokeLifecycleCallbacks(
-        previousBackStack: List<NavigationEntry>,
-        newBackStack: List<NavigationEntry>
-    ) {
-        val previousKeys = previousBackStack.map { it.stableKey }.toSet()
+    private suspend fun invokeLifecycleCallbacks(newBackStack: List<NavigationEntry>) {
         val newKeys = newBackStack.map { it.stableKey }.toSet()
 
-        val addedEntries = newBackStack.filter { it.stableKey !in previousKeys }
-        val removedEntries = previousBackStack.filter { it.stableKey !in newKeys }
+        val addedEntries = newBackStack.filter { it.stableKey !in entryLifecycles }
+        val removedLifecycles = entryLifecycles.filterKeys { it !in newKeys }
 
         val navigationStateFlow = storeAccessor.selectState<NavigationState>()
 
@@ -965,17 +951,17 @@ public class NavigationLogic(
             }
         }
 
-        removedEntries.forEach { entry ->
-            val lifecycle = entryLifecycles.remove(entry.stableKey)
-            val lifecycleJob = entryLifecycleJobs.remove(entry.stableKey)
-            val exitMs = popExitSpec(entry.navigatable)?.transition?.durationMillis?.toLong() ?: 0L
+        removedLifecycles.forEach { (key, lifecycle) ->
+            entryLifecycles.remove(key)
+            val lifecycleJob = entryLifecycleJobs.remove(key)
+            val exitMs = popExitSpec(lifecycle.entry.navigatable)?.transition?.durationMillis?.toLong() ?: 0L
             if (exitMs <= 0L) {
-                lifecycle?.runRemovalHandlers(RemovalReason.NAVIGATION)
+                lifecycle.runRemovalHandlers(RemovalReason.NAVIGATION)
                 lifecycleJob?.cancel()
             } else {
                 storeAccessor.launch {
                     delay(exitMs)
-                    lifecycle?.runRemovalHandlers(RemovalReason.NAVIGATION)
+                    lifecycle.runRemovalHandlers(RemovalReason.NAVIGATION)
                     lifecycleJob?.cancel()
                 }
             }

@@ -14,6 +14,7 @@ repositories {
 reaktivTracing {
     enabled.set(true)
     tracePrivateMethods.set(true)
+    buildTypes.set(setOf("debug"))
 }
 
 android {
@@ -113,6 +114,7 @@ dependencies {
     implementation(project(":reaktiv-core"))
     implementation(project(":reaktiv-compose"))
     implementation(project(":reaktiv-navigation"))
-    implementation(project(":reaktiv-devtools"))
     implementation(project(":reaktiv-tracing-annotations"))
+    debugImplementation(project(":reaktiv-introspection"))
+    debugImplementation(project(":reaktiv-devtools"))
 }

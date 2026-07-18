@@ -71,6 +71,7 @@ kotlin {
         val nativePrefixes = listOf("native", "apple", "ios", "macos", "linux", "mingw")
         if (nativePrefixes.any { name.startsWith(it) }) {
             languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+            languageSettings.optIn("kotlinx.cinterop.BetaInteropApi")
         }
     }
 }

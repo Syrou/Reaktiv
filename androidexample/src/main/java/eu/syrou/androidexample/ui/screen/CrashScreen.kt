@@ -29,7 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.introspection.IntrospectionLogic
+import eu.syrou.androidexample.tooling.exportCapturedSession
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -125,9 +125,11 @@ object CrashScreen : Screen {
                     onClick = {
                         scope.launch {
                             try {
-                                val logic = store.selectLogic<IntrospectionLogic>()
-                                val savedPath = logic.exportSessionToDownloads()
-                                snackbarHostState.showSnackbar("Session saved to $savedPath")
+                                val savedPath = exportCapturedSession(store)
+                                snackbarHostState.showSnackbar(
+                                    if (savedPath != null) "Session saved to $savedPath"
+                                    else "Session export unavailable in this build"
+                                )
                             } catch (e: Exception) {
                                 snackbarHostState.showSnackbar("Failed to export: ${e.message}")
                             }

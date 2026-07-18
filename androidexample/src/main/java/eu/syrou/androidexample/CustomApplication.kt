@@ -26,7 +26,8 @@ import eu.syrou.androidexample.ui.screen.DeepLinkAliasTestScreen
 import eu.syrou.androidexample.ui.screen.deeplink.DeeplinkDemoScreen
 import eu.syrou.androidexample.ui.screen.deeplink.DeeplinkDetailScreen
 import eu.syrou.androidexample.ui.screen.InvitationModal
-import eu.syrou.androidexample.ui.screen.DevToolsScreen
+import eu.syrou.androidexample.tooling.toolingModule
+import eu.syrou.androidexample.tooling.toolingScreens
 import eu.syrou.androidexample.ui.screen.LoginScreen
 import eu.syrou.androidexample.ui.screen.NotFoundScreen
 import eu.syrou.androidexample.reaktiv.lifecycledemo.LifecycleDemoModule
@@ -58,21 +59,11 @@ import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.devtools.DevToolsModule
-import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
-import io.github.syrou.reaktiv.devtools.protocol.ClientRole
-import io.github.syrou.reaktiv.introspection.CrashHandler
-import io.github.syrou.reaktiv.introspection.IntrospectionConfig
-import io.github.syrou.reaktiv.introspection.IntrospectionModule
-import io.github.syrou.reaktiv.introspection.PlatformContext
-import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import io.github.syrou.reaktiv.navigation.param.Params
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
@@ -133,10 +124,10 @@ class CustomApplication : Application() {
                 TwitchAuthWebViewScreen,
                 VideosListScreen,
                 StreamsListScreen,
-                DevToolsScreen,
                 DeepLinkAliasTestScreen,
                 PullToRefreshDemoScreen,
                 LifecycleDemoScreen,
+                *toolingScreens().toTypedArray(),
             )
             modals(NotificationModal, SystemAlertModal)
 
@@ -213,31 +204,7 @@ class CustomApplication : Application() {
         screenRetentionDuration(0.toDuration(DurationUnit.SECONDS))
     }
 
-    private val introspectionConfig = IntrospectionConfig(
-        clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
-        platform = "Android ${Build.VERSION.RELEASE}"
-    )
-
-    val sessionCapture = SessionCapture()
-
-    private val introspectionModule = IntrospectionModule(
-        config = introspectionConfig,
-        sessionCapture = sessionCapture,
-        platformContext = PlatformContext(this)
-    )
-
-    private val devToolsModule = DevToolsModule(
-        config = DevToolsConfig(
-            introspectionConfig = introspectionConfig,
-            serverUrl = "ws://100.125.101.2:8080/ws",
-            enabled = true,
-            defaultRole = ClientRole.PUBLISHER
-        ),
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-        sessionCapture = sessionCapture
-    )
-
-    val store = createStore {
+    val store by lazy { createStore {
         /*persistenceManager(
             PlatformPersistenceStrategy(this@CustomApplication)
         )*/
@@ -251,15 +218,14 @@ class CustomApplication : Application() {
         module(TestNavigationModule)
         module(TwitchStreamsModule)
         module(CrashTestModule)
-        module(introspectionModule)
+        toolingModule(this@CustomApplication)?.let { module(it) }
         module(navigationModule)
-        module(devToolsModule)
         middlewares(
             loggingMiddleware,
             createTestNavigationMiddleware()
         )
         coroutineContext(Dispatchers.Default)
-    }
+    } }
 
     init {
         ReaktivDebug.enable()
@@ -268,7 +234,6 @@ class CustomApplication : Application() {
     override fun onCreate() {
         customApp = this
         super.onCreate()
-        CrashHandler(PlatformContext(this), sessionCapture).install()
     }
 
     private fun fetchNewsPeriodicly() {

@@ -7,7 +7,9 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
-import io.github.syrou.reaktiv.introspection.capture.SessionCapture
+import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.introspection.tooling.ToolingLogic
+import io.github.syrou.reaktiv.introspection.tooling.createToolingModule
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -52,7 +54,6 @@ class StoreResetMemorySafetyTest {
     @Test
     fun `store reset clears session capture and leaves no leaked tracer entries`() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
-        val sessionCapture = SessionCapture(maxActions = 500, maxLogicEvents = 500)
         val config = IntrospectionConfig(
             clientId = "test-client",
             clientName = "MemorySafetyTest",
@@ -61,12 +62,13 @@ class StoreResetMemorySafetyTest {
 
         val store = createStore {
             coroutineContext(testDispatcher)
-            module(IntrospectionModule(config, sessionCapture, PlatformContext()))
+            module(createToolingModule(config, PlatformContext()))
             module(HeavyModule)
         }
 
         advanceUntilIdle()
 
+        val sessionCapture = store.selectLogic<ToolingLogic>().getSessionCapture()
         val heavyLogic = HeavyModule.selectLogic(store) as HeavyLogic
 
         // Dispatch many actions

@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
  * State for the DevTools WASM UI.
  */
 @Serializable
-data class DevToolsState(
+data class DevToolsUiState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val connectedClients: List<ClientInfo> = emptyList(),
     val actionStateHistory: List<CapturedAction> = emptyList(),
@@ -56,41 +56,41 @@ data class CrashEventInfo(
 /**
  * Actions for the DevTools UI.
  */
-sealed class DevToolsAction : ModuleAction(DevToolsModule::class) {
-    data class UpdateConnectionState(val state: ConnectionState) : DevToolsAction()
-    data class UpdateClientList(val clients: List<ClientInfo>) : DevToolsAction()
-    data class AddActionStateEvent(val event: CapturedAction) : DevToolsAction()
-    data class AddLogicMethodEvent(val event: LogicMethodEvent) : DevToolsAction()
-    data class SelectPublisher(val clientId: String?) : DevToolsAction()
-    data class SelectListener(val clientId: String?) : DevToolsAction()
-    data object ToggleStateViewMode : DevToolsAction()
-    data class SelectAction(val index: Int?) : DevToolsAction()
-    data object ToggleDevicePanel : DevToolsAction()
-    data object ToggleAutoSelectLatest : DevToolsAction()
-    data object ClearHistory : DevToolsAction()
-    data class AddActionExclusion(val actionType: String) : DevToolsAction()
-    data class RemoveActionExclusion(val actionType: String) : DevToolsAction()
-    data class SetActionExclusions(val actionTypes: Set<String>) : DevToolsAction()
-    data object ToggleTimeTravel : DevToolsAction()
-    data class SetTimeTravelPosition(val position: Int) : DevToolsAction()
-    data object ToggleShowActions : DevToolsAction()
-    data object ToggleShowLogicMethods : DevToolsAction()
-    data class SelectLogicMethodEvent(val callId: String?) : DevToolsAction()
+sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
+    data class UpdateConnectionState(val state: ConnectionState) : DevToolsUiAction()
+    data class UpdateClientList(val clients: List<ClientInfo>) : DevToolsUiAction()
+    data class AddActionStateEvent(val event: CapturedAction) : DevToolsUiAction()
+    data class AddLogicMethodEvent(val event: LogicMethodEvent) : DevToolsUiAction()
+    data class SelectPublisher(val clientId: String?) : DevToolsUiAction()
+    data class SelectListener(val clientId: String?) : DevToolsUiAction()
+    data object ToggleStateViewMode : DevToolsUiAction()
+    data class SelectAction(val index: Int?) : DevToolsUiAction()
+    data object ToggleDevicePanel : DevToolsUiAction()
+    data object ToggleAutoSelectLatest : DevToolsUiAction()
+    data object ClearHistory : DevToolsUiAction()
+    data class AddActionExclusion(val actionType: String) : DevToolsUiAction()
+    data class RemoveActionExclusion(val actionType: String) : DevToolsUiAction()
+    data class SetActionExclusions(val actionTypes: Set<String>) : DevToolsUiAction()
+    data object ToggleTimeTravel : DevToolsUiAction()
+    data class SetTimeTravelPosition(val position: Int) : DevToolsUiAction()
+    data object ToggleShowActions : DevToolsUiAction()
+    data object ToggleShowLogicMethods : DevToolsUiAction()
+    data class SelectLogicMethodEvent(val callId: String?) : DevToolsUiAction()
 
-    data class AddLogicMethodExclusion(val methodIdentifier: String) : DevToolsAction()
-    data class RemoveLogicMethodExclusion(val methodIdentifier: String) : DevToolsAction()
-    data class SetLogicMethodExclusions(val methodIdentifiers: Set<String>) : DevToolsAction()
-    data object ShowImportGhostDialog : DevToolsAction()
-    data object HideImportGhostDialog : DevToolsAction()
-    data class SetCrashEvent(val crashEvent: CrashEventInfo?) : DevToolsAction()
-    data class SelectCrash(val selected: Boolean) : DevToolsAction()
-    data class SetPublisherSessionStart(val startTime: Long?) : DevToolsAction()
-    data class SetCanExportSession(val canExport: Boolean) : DevToolsAction()
-    data class BulkAddActionStateEvents(val events: List<CapturedAction>) : DevToolsAction()
-    data class BulkAddLogicMethodEvents(val events: List<LogicMethodEvent>) : DevToolsAction()
-    data class SetActiveGhostId(val ghostId: String?) : DevToolsAction()
-    data class EnableTimeTravelWithGhost(val ghostId: String) : DevToolsAction()
-    data class SetInitialState(val json: String) : DevToolsAction()
+    data class AddLogicMethodExclusion(val methodIdentifier: String) : DevToolsUiAction()
+    data class RemoveLogicMethodExclusion(val methodIdentifier: String) : DevToolsUiAction()
+    data class SetLogicMethodExclusions(val methodIdentifiers: Set<String>) : DevToolsUiAction()
+    data object ShowImportGhostDialog : DevToolsUiAction()
+    data object HideImportGhostDialog : DevToolsUiAction()
+    data class SetCrashEvent(val crashEvent: CrashEventInfo?) : DevToolsUiAction()
+    data class SelectCrash(val selected: Boolean) : DevToolsUiAction()
+    data class SetPublisherSessionStart(val startTime: Long?) : DevToolsUiAction()
+    data class SetCanExportSession(val canExport: Boolean) : DevToolsUiAction()
+    data class BulkAddActionStateEvents(val events: List<CapturedAction>) : DevToolsUiAction()
+    data class BulkAddLogicMethodEvents(val events: List<LogicMethodEvent>) : DevToolsUiAction()
+    data class SetActiveGhostId(val ghostId: String?) : DevToolsUiAction()
+    data class EnableTimeTravelWithGhost(val ghostId: String) : DevToolsUiAction()
+    data class SetInitialState(val json: String) : DevToolsUiAction()
 }
 
 /**

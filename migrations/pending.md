@@ -1894,3 +1894,306 @@ synchronously after dispatch for a screen with a pop transition must advance the
 scheduler past the transition duration.
 
 ---
+### [BC-32] Navigation lifecycle is action-driven
+
+**Type:** Behavioural
+
+**Grep:** `onLifecycleCreated|invokeOnRemoval`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Lifecycle callbacks fired from an observer collecting the NavigationState
+// flow: ANY backstack change, including externally applied state (DevTools
+// listener sync, persistence restore), triggered onLifecycleCreated and
+// invokeOnRemoval side effects.
+```
+
+**After:**
+```kotlin
+// Lifecycle is invoked by the navigation module's dispatch middleware, only
+// when a NavigationAction is reduced. The logic diffs the reduced backstack
+// against its own lifecycle bookkeeping, so the mechanism is idempotent and
+// self-healing. Externally applied states (applyExternalStates) and
+// Store.loadState() persistence restores no longer fire lifecycle hooks.
+// To initialize lifecycles for a restored backstack explicitly:
+storeAccessor.selectLogic<NavigationLogic>().adoptCurrentBackstack()
+```
+
+**Notes:** Side effects belong to the action pipeline in MVLI; state-flow
+collectors should be render-pure. This makes session replication and DevTools
+listener sync structurally incapable of triggering screen side effects. Store
+reset semantics are unchanged (RESET-reason handlers still run via
+beforeReset). See AD-28 for the adoption API.
+
+---
+
+### [AD-28] NavigationLogic.adoptCurrentBackstack
+
+**Type:** Addition
+
+**Grep:** `adoptCurrentBackstack`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+store.loadState()
+store.selectLogic<NavigationLogic>().adoptCurrentBackstack()
+```
+
+**Notes:** Initializes lifecycles (onLifecycleCreated and removal handler
+registration) for every entry in the current backstack that does not already
+have one. Needed after restoring persisted navigation state, since restores
+bypass the action pipeline and therefore no longer fire creation hooks
+(see BC-32). Idempotent: entries with live lifecycles are untouched.
+
+---
+### [AD-29] Session quality: metadata, redaction, consent, full-session retention
+
+**Type:** Addition
+
+**Grep:** `ClientMetadata|StateRedactor|droppedRecords|suggestFileName`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val config = IntrospectionConfig(
+    platform = "Android 15",
+    autoStart = false,
+    clientMetadata = ClientMetadata(appVersion = "1.4.2", osVersion = "15"),
+    redactor = StateRedactor { moduleName, state -> state }
+)
+```
+
+**Notes:** SessionExport is now format 3.1 (3.0 files still decode): ExportedClientInfo
+carries ClientMetadata and SessionExport carries droppedRecords. SessionCapture
+retention caps are optional and default unbounded;
+the enqueue channel is unlimited with a 50k high-water valve that drops new records
+and counts them, so droppedRecords is zero in every healthy session. The redactor
+runs on the capture worker against both the initial snapshot and every per-action
+delta. autoStart=false plus IntrospectionLogic.startCapture()/stopCapture() enable
+consent-gated production capture. Export file names follow
+reaktiv_{crash|session}_{client}_{appVersion}_{timestamp}.json via
+SessionCapture.suggestFileName.
+
+---
+
+### [BC-33] IntrospectionModule replaced by createToolingModule
+
+**Type:** Breaking
+
+**Grep:** `IntrospectionModule|IntrospectionLogic|IntrospectionAction|IntrospectionState`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val sessionCapture = SessionCapture()
+val store = createStore {
+    module(IntrospectionModule(introspectionConfig, sessionCapture, platformContext))
+}
+CrashHandler(platformContext, sessionCapture).install()
+```
+
+**After:**
+```kotlin
+val store = createStore {
+    module(createToolingModule(introspectionConfig, platformContext))
+}
+```
+
+**Notes:** ToolingModule owns its SessionCapture internally (reach it via
+selectLogic<ToolingLogic>().getSessionCapture()) and installs the platform
+CrashHandler automatically (opt out with installCrashHandler = false). Export
+methods and startCapture/stopCapture live on ToolingLogic. See AD-30/AD-31.
+
+---
+
+### [BC-34] Device-side DevToolsModule replaced by DevToolsService
+
+**Type:** Breaking
+
+**Grep:** `DevToolsModule|DevToolsMiddleware|DevToolsAction|DevToolsState|DevToolsLogic`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+module(DevToolsModule(DevToolsConfig(introspectionConfig, serverUrl), scope, sessionCapture))
+dispatch(DevToolsAction.Connect("ws://host:8080/ws"))
+```
+
+**After:**
+```kotlin
+module(createToolingModule(introspectionConfig, platformContext) {
+    install(DevToolsService(DevToolsConfig(serverUrl = "ws://host:8080/ws", autoConnect = false)))
+})
+dispatch(DevToolsCommands.connect(role = ClientRole.PUBLISHER))
+```
+
+**Notes:** DevToolsConfig no longer wraps IntrospectionConfig (identity comes from
+the tooling module) and gains autoConnect. Connection status surfaces in
+ToolingState.services under "devtools" instead of DevToolsState. Runtime control is
+typed: DevToolsCommands.connect/disconnect/reconnect/follow/unfollow build
+ToolingAction.ServiceCommand carrying the DevToolsCommand enum. Programmatic use:
+storeAccessor.toolingService("devtools") as DevToolsService.
+
+---
+
+### [AD-30] createToolingModule DSL
+
+**Type:** Replaces-deprecated
+
+**Grep:** `createToolingModule`
+**File glob:** `**/*.kt`
+
+**Replaces:** hand-wired IntrospectionModule + DevToolsModule sharing a SessionCapture
+
+**Example:**
+```kotlin
+val store = createStore {
+    module(createToolingModule(config, platformContext) {
+        install(DevToolsService(DevToolsConfig(serverUrl = "ws://host:8080/ws")))
+    })
+}
+```
+
+**Notes:** One module owns the capture nexus, the capture middleware, service
+lifecycle (started by ToolingLogic, stopped in beforeReset), and
+ToolingState(isCapturing, services) for status UI. The nullable-module source-set
+seam (fun toolingModule(context): Module<*, *>?) keeps production classpaths free
+of tooling code.
+
+---
+
+### [AD-31] ToolingService contract with enum commands
+
+**Type:** Addition
+
+**Grep:** `ToolingService|ToolingCommand|ServiceCommand`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+enum class MyCommand : ToolingCommand { PING }
+
+class MyService : ToolingService {
+    override val name = "my-service"
+    override suspend fun start(context: ToolingServiceContext) { context.setStatus(ServiceStatus(ServiceState.RUNNING)) }
+    override suspend fun stop() {}
+    override suspend fun onCommand(command: ToolingCommand, args: Map<String, String>) {}
+}
+```
+
+**Notes:** Services may contribute middleware (outer, may block; the capture
+middleware is innermost and always proceeds, so blocked actions are never captured
+and projections never enter capture). Debug menus control services with plain
+dispatch of ToolingAction.ServiceCommand(service, command: ToolingCommand, args);
+commands are typed per-service enums implementing the ToolingCommand marker.
+
+---
+### [AD-32] Multi-device session replication (follower mode)
+
+**Type:** Addition
+
+**Grep:** `DevToolsCommands.follow|activeScrub|KeyframedReconstructor`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+dispatch(DevToolsCommands.follow())
+dispatch(DevToolsCommands.unfollow())
+```
+
+**Notes:** A follower is a LISTENER-role device: local dispatch blocked (tooling
+commands still pass), incoming StateSync projected via applyExternalStates, and
+gesture scrubs mirrored through NavigationState.activeScrub (see AD-36). Exit
+restores a clean state via store
+reset. The wasm UI seeds newly attached ghost followers at the current timeline
+position (bootstrapping flags patched via NavigationStatePatch), and its timeline
+playback drives all subscribers. Publisher wire traffic conflates same-module
+deltas in a 75ms window (the capture file keeps every record); ghost scrubbing uses
+KeyframedReconstructor (keyframe every 500 actions) so seeking large sessions is
+O(interval) instead of O(n). Large session histories sync in slices via
+DevToolsMessage.SessionHistoryChunk (SessionHistory.chunked, 250 actions per chunk;
+small sessions keep the single SessionHistorySync frame).
+
+---
+
+### [AD-34] StoreDSL.module accepts star-projected modules
+
+**Type:** Addition
+
+**Grep:** `Module<\*, \*>`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+fun toolingModule(context: Context): Module<*, *>? = ...
+
+val store = createStore {
+    toolingModule(context)?.let { module(it) }
+}
+```
+
+**Notes:** Enables the variant source-set seam pattern where production source
+sets return null and debug source sets return a real module: the erased overload
+registers state serialization from the module's runtime state class, identical to
+the reified path. See docs/tooling-attachment-android.md and
+docs/tooling-attachment-ios.md.
+
+---
+### [AD-35] Field-level state deltas (export v3.2)
+
+**Type:** Addition
+
+**Grep:** `DeltaKind|mergeCapturedDeltas`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val action: CapturedAction = ...
+if (action.deltaKind == DeltaKind.FIELDS) {
+    merged = mergeFieldJson(shadowJson, action.stateDeltaJson)
+}
+```
+
+**Notes:** CapturedAction.stateDeltaJson now carries only the changed top-level
+fields (plus the type discriminator) when deltaKind is FIELDS; the first capture
+per module, class changes, and keyframes stay FULL. Capture encodes states with
+encodeDefaults=true so a field reverting to its default is still expressed.
+StateReconstructor gains an action-aware applyDelta that merges FIELDS into the
+module entry; followers keep a JSON shadow per module, merge deltas, and decode
+the merged object before applyExternalStates. Conflation merges pending deltas
+(never drops: a delta chain is stateful) via mergeCapturedDeltas. The server only
+synthesizes legacy per-module StateSync for FULL events, so old listeners degrade
+gracefully instead of corrupting. Export format is 3.2; 3.0/3.1 files decode with
+deltaKind defaulting to FULL. This is the groundwork for moving gesture scrub
+state into NavigationState.
+
+---
+### [AD-36] Gesture scrubs are navigation state
+
+**Type:** Addition
+
+**Grep:** `activeScrub|ScrubUpdate|ScrubEnd`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val scrubbing = selectState<NavigationState>().value.activeScrub != null
+```
+
+**Notes:** NavigationState.activeScrub (ScrubState: kind, topKey, revealedKey,
+progress) mirrors live gesture scrubs into state, updated by
+NavigationAction.ScrubUpdate/ScrubEnd. The leader's own rendering stays
+controller-direct at full frequency; the controller dispatches throttled scrub
+actions (16ms or 1 percent progress) so state is the transport truth. Any other
+navigation action clears activeScrub, so a committed gesture's Back and the scrub
+clearing arrive as one ordered state change, and followers drive their controller
+from an activeScrub collector with handoffs armed at scrub begin: the
+hold-until-projection machinery is gone because a single channel cannot
+desynchronize. Scrub actions skip lifecycle sync and, being tiny FIELDS deltas
+(AD-35), cost roughly forty bytes each on the wire and in session files. The
+never-released interaction telemetry channel (InteractionTracer/Projector, the
+Interaction wire message, capture interaction events) was removed in its favor.
+
+---

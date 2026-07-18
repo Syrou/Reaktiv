@@ -3,13 +3,14 @@ package io.github.syrou.reaktiv.introspection.protocol
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
+import io.github.syrou.reaktiv.introspection.ClientMetadata
 import kotlinx.serialization.Serializable
 
 /**
  * JSON export format version for captured sessions.
  */
 public object SessionExportFormat {
-    public const val VERSION: String = "3.0"
+    public const val VERSION: String = "3.2"
 }
 
 /**
@@ -37,7 +38,8 @@ public data class SessionExport(
     val exportedAt: Long,
     val clientInfo: ExportedClientInfo,
     val crash: CrashInfo? = null,
-    val session: SessionData
+    val session: SessionData,
+    val droppedRecords: Long = 0
 )
 
 /**
@@ -47,7 +49,8 @@ public data class SessionExport(
 public data class ExportedClientInfo(
     val clientId: String,
     val clientName: String,
-    val platform: String
+    val platform: String,
+    val metadata: ClientMetadata? = null
 )
 
 /**

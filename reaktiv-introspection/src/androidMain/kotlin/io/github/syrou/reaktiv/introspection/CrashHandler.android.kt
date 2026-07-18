@@ -21,8 +21,7 @@ public actual class CrashHandler actual constructor(
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
                 val json = runBlocking { sessionCapture.exportCrashSession(throwable) }
-                val timestamp = currentTimeMillis()
-                val fileName = "reaktiv_crash_$timestamp.json"
+                val fileName = sessionCapture.suggestFileName("crash")
                 val savedPath = sessionExport.saveToDownloads(json, fileName)
                 println("Introspection: Crash session saved to $savedPath")
             } catch (e: Exception) {

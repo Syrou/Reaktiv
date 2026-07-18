@@ -6,9 +6,15 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.introspection.ClientMetadata
+import io.github.syrou.reaktiv.introspection.StateRedactor
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
+import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
@@ -73,8 +79,9 @@ import kotlin.uuid.Uuid
  */
 @OptIn(ExperimentalAtomicApi::class)
 public class SessionCapture(
-    private val maxActions: Int = 1000,
-    private val maxLogicEvents: Int = 2000
+    private val maxActions: Int? = null,
+    private val maxLogicEvents: Int? = null,
+    private val redactor: StateRedactor? = null
 ) {
     private val actionsStorage: CaptureStorage = createCaptureStorage("actions")
     private val logicStartedStorage: CaptureStorage = createCaptureStorage("logic_started")
@@ -85,9 +92,11 @@ public class SessionCapture(
     private var clientId: String = ""
     private var clientName: String = ""
     private var platform: String = ""
+    private var clientMetadata: ClientMetadata? = null
     private var started = false
     private var initialStateJson: String = "{}"
     private var capturedCrash: CrashInfo? = null
+    private val droppedCount = AtomicLong(0L)
 
     private val json = reaktivJson(encodeDefaults = true)
     private var stateJson: Json = reaktivJson()
@@ -134,21 +143,29 @@ public class SessionCapture(
      * @param clientName The display name for this client
      * @param platform The platform description
      */
-    public fun start(clientId: String, clientName: String, platform: String) {
+    public fun start(
+        clientId: String,
+        clientName: String,
+        platform: String,
+        metadata: ClientMetadata? = null
+    ) {
         stopWorker()
         this.clientId = clientId
         this.clientName = clientName
         this.platform = platform
+        this.clientMetadata = metadata
         this.sessionStartTime = currentTimeMillis()
         this.initialStateJson = "{}"
         this.capturedCrash = null
+        droppedCount.store(0L)
 
         actionsStorage.clear()
         logicStartedStorage.clear()
         logicCompletedStorage.clear()
         logicFailedStorage.clear()
+        previousModuleJson.clear()
 
-        val newChannel = Channel<Record>(capacity = 1024)
+        val newChannel = Channel<Record>(capacity = Channel.UNLIMITED)
         val newScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         channel = newChannel
         workerScope = newScope
@@ -161,7 +178,7 @@ public class SessionCapture(
      * Called by IntrospectionMiddleware during initialization.
      */
     public fun attachStateSerializers(serializersModule: SerializersModule) {
-        stateJson = reaktivJson(serializersModule)
+        stateJson = reaktivJson(serializersModule, encodeDefaults = true)
     }
 
     /**
@@ -221,6 +238,17 @@ public class SessionCapture(
      */
     public fun captureLogicFailed(event: LogicMethodFailed) {
         enqueue(LogicFailed(event))
+    }
+
+    /**
+     * Suggests an export file name carrying client identity and app version.
+     * The prefix defaults to crash when a crash has been captured, session otherwise.
+     */
+    public fun suggestFileName(prefix: String? = null): String {
+        val effectivePrefix = prefix ?: if (capturedCrash != null) "crash" else "session"
+        val client = clientName.ifBlank { "client" }.replace(Regex("[^A-Za-z0-9._-]"), "-")
+        val version = clientMetadata?.appVersion ?: "na"
+        return "reaktiv_${effectivePrefix}_${client}_${version}_${currentTimeMillis()}.json"
     }
 
     /**
@@ -286,7 +314,8 @@ public class SessionCapture(
             clientInfo = ExportedClientInfo(
                 clientId = clientId,
                 clientName = clientName,
-                platform = platform
+                platform = platform,
+                metadata = clientMetadata
             ),
             crash = crash,
             session = SessionData(
@@ -297,7 +326,8 @@ public class SessionCapture(
                 logicStartedEvents = readLogicStarted(),
                 logicCompletedEvents = readLogicCompleted(),
                 logicFailedEvents = readLogicFailed()
-            )
+            ),
+            droppedRecords = droppedCount.load()
         )
         return json.encodeToString(export)
     }
@@ -320,6 +350,7 @@ public class SessionCapture(
         logicStartedStorage.clear()
         logicCompletedStorage.clear()
         logicFailedStorage.clear()
+        previousModuleJson.clear()
         capturedCrash = null
     }
 
@@ -349,6 +380,10 @@ public class SessionCapture(
     private fun enqueue(record: Record) {
         if (!started) return
         val target = channel ?: return
+        if (enqueuedCount.load() - processedCount.load() >= HIGH_WATER_MARK) {
+            droppedCount.addAndFetch(1L)
+            return
+        }
         if (target.trySend(record).isSuccess) {
             enqueuedCount.addAndFetch(1L)
         }
@@ -372,6 +407,31 @@ public class SessionCapture(
         }
     }
 
+    private val previousModuleJson = mutableMapOf<String, JsonObject>()
+
+    private fun encodeModuleObject(moduleName: String, state: ModuleState): JsonObject {
+        val element = stateJson.encodeToJsonElement(PolymorphicSerializer(ModuleState::class), state)
+        val redacted = redactor?.redact(moduleName, element) ?: element
+        return redacted as? JsonObject ?: buildJsonObject {}
+    }
+
+    private fun diffAgainstShadow(moduleName: String, full: JsonObject): Pair<String, DeltaKind> {
+        val previous = previousModuleJson[moduleName]
+        previousModuleJson[moduleName] = full
+        if (previous == null || previous["type"] != full["type"]) {
+            return full.toString() to DeltaKind.FULL
+        }
+        val changed = buildJsonObject {
+            full["type"]?.let { put("type", it) }
+            full.forEach { (key, value) ->
+                if (key != "type" && previous[key] != value) {
+                    put(key, value)
+                }
+            }
+        }
+        return changed.toString() to DeltaKind.FIELDS
+    }
+
     private fun process(batch: List<Record>) {
         val actionLines = ArrayList<String>()
         val startedLines = ArrayList<String>()
@@ -382,16 +442,18 @@ public class SessionCapture(
             try {
                 when (record) {
                     is DispatchedAction -> {
+                        val moduleName = record.state::class.qualifiedName
+                            ?: record.state::class.simpleName ?: "Unknown"
+                        val full = encodeModuleObject(moduleName, record.state)
+                        val (deltaJson, deltaKind) = diffAgainstShadow(moduleName, full)
                         val event = CapturedAction(
                             clientId = clientId,
                             timestamp = record.timestamp,
                             actionType = record.action::class.simpleName ?: "Unknown",
                             actionData = record.action.toString(),
-                            stateDeltaJson = stateJson.encodeToString(
-                                PolymorphicSerializer(ModuleState::class), record.state
-                            ),
-                            moduleName = record.state::class.qualifiedName
-                                ?: record.state::class.simpleName ?: "Unknown"
+                            stateDeltaJson = deltaJson,
+                            moduleName = moduleName,
+                            deltaKind = deltaKind
                         )
                         actionLines.add(json.encodeToString(event))
                         _actions.tryEmit(event)
@@ -401,10 +463,11 @@ public class SessionCapture(
                         _actions.tryEmit(record.event)
                     }
                     is InitialState -> {
-                        initialStateJson = stateJson.encodeToString(
-                            MapSerializer(String.serializer(), PolymorphicSerializer(ModuleState::class)),
-                            record.states
-                        )
+                        val objects = record.states.mapValues { (key, state) ->
+                            encodeModuleObject(key, state)
+                        }
+                        objects.forEach { (key, value) -> previousModuleJson[key] = value }
+                        initialStateJson = JsonObject(objects).toString()
                     }
                     is LogicStarted -> startedLines.add(json.encodeToString(record.event))
                     is LogicCompleted -> completedLines.add(json.encodeToString(record.event))
@@ -417,8 +480,9 @@ public class SessionCapture(
 
         if (actionLines.isNotEmpty()) {
             actionsStorage.appendLines(actionLines)
-            if (actionsStorage.lineCount() > maxActions + maxActions / 4) {
-                actionsStorage.trimTo(maxActions)
+            val cap = maxActions
+            if (cap != null && actionsStorage.lineCount() > cap + cap / 4) {
+                actionsStorage.trimTo(cap)
             }
         }
         if (startedLines.isNotEmpty()) logicStartedStorage.appendLines(startedLines)
@@ -428,6 +492,7 @@ public class SessionCapture(
     }
 
     private fun trimLogicEvents() {
+        val maxLogicEvents = this.maxLogicEvents ?: return
         val total = logicStartedStorage.lineCount() +
                 logicCompletedStorage.lineCount() +
                 logicFailedStorage.lineCount()
@@ -455,6 +520,10 @@ public class SessionCapture(
 
     private fun readLogicFailed(): List<LogicMethodFailed> =
         logicFailedStorage.readLines().map { json.decodeFromString(it) }
+
+    private companion object {
+        const val HIGH_WATER_MARK: Long = 50_000L
+    }
 }
 
 /**
@@ -469,3 +538,32 @@ public data class SessionHistory(
     val logicCompleted: List<LogicMethodCompleted>,
     val logicFailed: List<LogicMethodFailed>
 )
+
+public fun SessionHistory.chunked(
+    actionsPerChunk: Int = 250,
+    eventsPerChunk: Int = 1000
+): List<SessionHistory> {
+    fun chunksNeeded(size: Int, per: Int): Int = if (size == 0) 0 else (size + per - 1) / per
+    val totalChunks = maxOf(
+        chunksNeeded(actions.size, actionsPerChunk),
+        chunksNeeded(logicStarted.size, eventsPerChunk),
+        chunksNeeded(logicCompleted.size, eventsPerChunk),
+        chunksNeeded(logicFailed.size, eventsPerChunk),
+        1
+    )
+    fun <T> slice(list: List<T>, index: Int, per: Int): List<T> {
+        val from = index * per
+        if (from >= list.size) return emptyList()
+        return list.subList(from, minOf(from + per, list.size)).toList()
+    }
+    return List(totalChunks) { index ->
+        SessionHistory(
+            startTime = startTime,
+            initialStateJson = if (index == 0) initialStateJson else "{}",
+            actions = slice(actions, index, actionsPerChunk),
+            logicStarted = slice(logicStarted, index, eventsPerChunk),
+            logicCompleted = slice(logicCompleted, index, eventsPerChunk),
+            logicFailed = slice(logicFailed, index, eventsPerChunk)
+        )
+    }
+}

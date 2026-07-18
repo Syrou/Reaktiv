@@ -40,6 +40,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import kotlin.coroutines.CoroutineContext
+import kotlin.jvm.JvmName
 import kotlin.reflect.KClass
 
 
@@ -1044,6 +1045,12 @@ public class StoreDSL {
 
     public inline fun <reified S : ModuleState, A : ModuleAction> module(module: Module<S, A>) {
         module(S::class, module)
+    }
+
+    @JvmName("moduleErased")
+    public fun module(module: Module<*, *>) {
+        @Suppress("UNCHECKED_CAST")
+        module(module.initialState::class as KClass<ModuleState>, module as Module<ModuleState, ModuleAction>)
     }
 
 

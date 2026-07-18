@@ -29,6 +29,25 @@ public object StateReconstructor {
      * @param deltaJson The new state for that module as a JSON string
      * @return Updated full state JSON string with the module key replaced
      */
+    public fun applyDelta(currentStateJson: String, action: CapturedAction): String {
+        if (action.deltaKind == DeltaKind.FULL) {
+            return applyDelta(currentStateJson, action.moduleName, action.stateDeltaJson)
+        }
+        if (action.moduleName.isBlank()) return currentStateJson
+        val currentState = try {
+            json.parseToJsonElement(currentStateJson) as? JsonObject ?: return currentStateJson
+        } catch (e: Exception) {
+            return currentStateJson
+        }
+        val existing = currentState[action.moduleName] as? JsonObject
+        val merged = if (existing == null) {
+            action.stateDeltaJson
+        } else {
+            mergeFieldJson(json.encodeToString(JsonObject.serializer(), existing), action.stateDeltaJson)
+        }
+        return applyDelta(currentStateJson, action.moduleName, merged)
+    }
+
     public fun applyDelta(currentStateJson: String, moduleName: String, deltaJson: String): String {
         if (moduleName.isBlank()) return currentStateJson
 
@@ -75,7 +94,7 @@ public object StateReconstructor {
         val end = index.coerceIn(0, actions.size - 1)
         for (i in 0..end) {
             val action = actions[i]
-            state = applyDelta(state, action.moduleName, action.stateDeltaJson)
+            state = applyDelta(state, action)
         }
         return state
     }

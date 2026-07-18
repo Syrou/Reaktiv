@@ -5,7 +5,7 @@ import androidx.compose.ui.window.ComposeViewport
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.devtools.ui.DevToolsApp
-import io.github.syrou.reaktiv.devtools.ui.DevToolsModule
+import io.github.syrou.reaktiv.devtools.ui.DevToolsUiModule
 import io.github.syrou.reaktiv.devtools.ui.DevToolsTheme
 import kotlinx.coroutines.Dispatchers
 
@@ -24,7 +24,7 @@ fun main() {
     println("Main: windowProtocol=$windowProtocol, windowHost=$windowHost")
     println("DevToolsApp: Creating store")
     val store = createStore {
-        module(DevToolsModule)
+        module(DevToolsUiModule)
         coroutineContext(Dispatchers.Default)
     }
     val protocol = if (windowProtocol == "https:") "wss:" else "ws:"

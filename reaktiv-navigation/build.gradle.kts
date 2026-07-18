@@ -83,5 +83,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
     if (name.contains("Test")) {
         compilerOptions.freeCompilerArgs.add("-Xwarning-level=DEPRECATION:disabled")
         compilerOptions.optIn.add("androidx.compose.ui.test.ExperimentalTestApi")
+        compilerOptions.optIn.add("io.github.syrou.reaktiv.core.ExperimentalReaktivApi")
     }
 }

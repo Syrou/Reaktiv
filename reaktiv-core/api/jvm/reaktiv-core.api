@@ -164,6 +164,7 @@ public final class io/github/syrou/reaktiv/core/StoreDSL {
 	public final fun coroutineContext (Lkotlin/coroutines/CoroutineContext;)V
 	public final fun middlewares ([Lkotlin/jvm/functions/Function5;)V
 	public final fun module (Lkotlin/reflect/KClass;Lio/github/syrou/reaktiv/core/Module;)V
+	public final fun moduleErased (Lio/github/syrou/reaktiv/core/Module;)V
 	public final fun persistenceManager (Lio/github/syrou/reaktiv/core/persistance/PersistenceStrategy;)V
 }
 

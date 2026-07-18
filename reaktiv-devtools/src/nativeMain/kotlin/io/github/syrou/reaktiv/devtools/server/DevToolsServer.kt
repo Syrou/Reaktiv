@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.devtools.server
 
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
+import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -133,6 +134,7 @@ public object DevToolsServer {
                 println("DevTools Server: Action from ${message.clientId} - ${message.event.actionType}")
                 clientManager.broadcastToListeners(message.clientId, message)
 
+                if (message.event.deltaKind != DeltaKind.FULL) return
                 val stateSync = DevToolsMessage.StateSync(
                     fromClientId = message.clientId,
                     timestamp = message.event.timestamp,
@@ -146,6 +148,7 @@ public object DevToolsServer {
                 println("DevTools Server: StateSync from ${message.fromClientId}")
                 clientManager.broadcastToListeners(message.fromClientId, message)
             }
+
 
             is DevToolsMessage.RoleAssignment -> {
                 println("DevTools Server: Role assignment request - ${message.role} for ${message.targetClientId}")
@@ -242,6 +245,10 @@ public object DevToolsServer {
 
             is DevToolsMessage.SessionHistorySync -> {
                 println("DevTools Server: SessionHistorySync from ${message.clientId} (${message.history.actions.size} actions)")
+                clientManager.broadcastToListeners(message.clientId, message)
+            }
+
+            is DevToolsMessage.SessionHistoryChunk -> {
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 

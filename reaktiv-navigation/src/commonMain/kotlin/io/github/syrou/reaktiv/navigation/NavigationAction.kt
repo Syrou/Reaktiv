@@ -92,4 +92,18 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
      */
     @Serializable
     public data class SetEvaluating(val isEvaluating: Boolean) : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    public data class ScrubUpdate(val scrub: ScrubState) : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    public object ScrubEnd : NavigationAction(), HighPriorityAction
 }
+
+@Serializable
+public data class ScrubState(
+    val kind: String,
+    val topKey: String,
+    val revealedKey: String? = null,
+    val progress: Float = 0f
+)

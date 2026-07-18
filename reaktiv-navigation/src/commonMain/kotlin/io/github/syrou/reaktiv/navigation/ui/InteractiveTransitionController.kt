@@ -9,6 +9,9 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.LayoutCoordinates
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
+import io.github.syrou.reaktiv.navigation.NavigationAction
+import io.github.syrou.reaktiv.navigation.ScrubState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import kotlin.math.abs
 
@@ -62,20 +65,57 @@ internal class InteractiveTransitionController {
 
     private var pendingHandoff: Handoff? = null
 
+    internal var externallyDriven: Boolean = false
+
+    internal var scrubDispatch: ((NavigationAction) -> Unit)? = null
+
+    private var lastReportedAtMs: Long = 0L
+    private var lastReportedProgress: Float = 0f
+
+    private fun ScrubKind.scrubKindName(): String = when (this) {
+        is ScrubKind.ContentBack -> "back-scrub"
+        is ScrubKind.ContentDismiss -> "dismiss-scrub"
+        is ScrubKind.ModalDismiss -> "modal-dismiss-scrub"
+    }
+
+    private fun ScrubKind.toScrubState(progressValue: Float): ScrubState = when (this) {
+        is ScrubKind.ContentBack -> ScrubState(scrubKindName(), topEntry.stableKey, revealedEntry.stableKey, progressValue)
+        is ScrubKind.ContentDismiss -> ScrubState(scrubKindName(), topEntry.stableKey, revealedEntry?.stableKey, progressValue)
+        is ScrubKind.ModalDismiss -> ScrubState(scrubKindName(), modalEntry.stableKey, null, progressValue)
+    }
+
+    private fun dispatchScrubUpdate(progressValue: Float) {
+        if (externallyDriven) return
+        val kind = scrubKind ?: return
+        scrubDispatch?.invoke(NavigationAction.ScrubUpdate(kind.toScrubState(progressValue)))
+    }
+
     fun beginScrub(kind: ScrubKind): Boolean {
         if (phase != Phase.Idle) return false
         scrubKind = kind
         phase = Phase.Scrubbing
+        lastReportedAtMs = 0L
+        lastReportedProgress = 0f
+        dispatchScrubUpdate(progressState.value)
         return true
     }
 
     fun scrubTo(value: Float) {
         if (phase != Phase.Scrubbing) return
         progressState.value = value.coerceIn(0f, 1f)
+        val now = currentTimeMillis()
+        if (now - lastReportedAtMs >= 16L || abs(progressState.value - lastReportedProgress) >= 0.01f) {
+            lastReportedAtMs = now
+            lastReportedProgress = progressState.value
+            dispatchScrubUpdate(progressState.value)
+        }
     }
 
     suspend fun settle(commit: Boolean, initialVelocity: Float = 0f) {
         if (phase == Phase.Idle) return
+        if (!externallyDriven && !commit) {
+            scrubDispatch?.invoke(NavigationAction.ScrubEnd)
+        }
         phase = Phase.Settling
         val target = if (commit) 1f else 0f
         val start = progressState.value
@@ -105,6 +145,11 @@ internal class InteractiveTransitionController {
         val handoff = pendingHandoff ?: return false
         pendingHandoff = null
         return handoff.poppedKey == oldKey && handoff.targetKey == newKey
+    }
+
+    fun clearHandoffs() {
+        pendingHandoff = null
+        pendingModalHandoff = null
     }
 
     fun armModalHandoff(modalKey: String) {

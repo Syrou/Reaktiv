@@ -23,8 +23,7 @@ public actual class CrashHandler actual constructor(
                     val exporter = State.sessionFileExport ?: return@staticCFunction
                     val throwable = Exception(exception.reason ?: "Unknown NSException")
                     val json = runBlocking { capture.exportCrashSession(throwable) }
-                    val timestamp = currentTimeMillis()
-                    val fileName = "reaktiv_crash_$timestamp.json"
+                    val fileName = capture.suggestFileName("crash")
                     exporter.saveToDownloads(json, fileName)
                 } catch (_: Exception) {
                     // Best effort during crash

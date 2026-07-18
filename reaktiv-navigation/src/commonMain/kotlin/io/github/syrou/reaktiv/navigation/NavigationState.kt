@@ -96,7 +96,14 @@ public data class NavigationState(
      * [io.github.syrou.reaktiv.navigation.definition.LoadingModal] directly as a
      * boolean-controlled overlay rather than a backstack entry while this is `true`.
      */
-    val isEvaluatingNavigation: Boolean = false
+    val isEvaluatingNavigation: Boolean = false,
+
+    /**
+     * Live gesture scrub progress mirrored into state so followers and session
+     * captures can replicate interactive gestures. Cleared by any other
+     * navigation action.
+     */
+    val activeScrub: ScrubState? = null
 ) : ModuleState {
 
     /** `true` when there is more than one entry in [backStack] and a back navigation is possible. */

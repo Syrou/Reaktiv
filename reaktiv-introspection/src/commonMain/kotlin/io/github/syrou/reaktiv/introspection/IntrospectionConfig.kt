@@ -2,6 +2,20 @@ package io.github.syrou.reaktiv.introspection
 
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+
+@Serializable
+public data class ClientMetadata(
+    val appVersion: String? = null,
+    val osVersion: String? = null,
+    val reaktivVersion: String? = null,
+    val locale: String? = null
+)
+
+public fun interface StateRedactor {
+    public fun redact(moduleName: String, state: JsonElement): JsonElement
+}
 
 /**
  * Configuration for introspection identity and behavior.
@@ -23,5 +37,11 @@ public data class IntrospectionConfig @OptIn(ExperimentalUuidApi::class) constru
     val clientId: String = Uuid.random().toString(),
     val clientName: String = "Client-${clientId.take(8)}",
     val platform: String,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val autoStart: Boolean = true,
+    val installCrashHandler: Boolean = true,
+    val clientMetadata: ClientMetadata? = null,
+    val redactor: StateRedactor? = null,
+    val maxActions: Int? = null,
+    val maxLogicEvents: Int? = null
 )

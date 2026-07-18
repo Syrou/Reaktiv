@@ -1,56 +1,44 @@
 package io.github.syrou.reaktiv.devtools.middleware
 
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
-import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 
 /**
- * Configuration for DevTools middleware.
+ * Configuration for the DevTools service.
  *
- * Identity properties (clientId, clientName, platform) are read from the shared
- * [IntrospectionConfig], ensuring consistent identification across introspection
- * and DevTools.
+ * Client identity (clientId, clientName, platform) comes from the tooling module's
+ * IntrospectionConfig, so it never needs to be repeated here.
  *
  * Example usage:
  * ```kotlin
- * val introspectionConfig = IntrospectionConfig(
- *     clientName = "MyApp",
- *     platform = "${Build.MANUFACTURER} ${Build.MODEL}"
- * )
- *
  * val config = DevToolsConfig(
- *     introspectionConfig = introspectionConfig,
  *     serverUrl = "ws://192.168.1.100:8080/ws",
  *     defaultRole = ClientRole.PUBLISHER
  * )
  * ```
  *
- * Example usage for ad-hoc connection (connect later via action):
+ * Example usage for manual connection timing:
  * ```kotlin
  * val config = DevToolsConfig(
- *     introspectionConfig = introspectionConfig,
- *     serverUrl = null // Don't auto-connect
+ *     serverUrl = "ws://192.168.1.100:8080/ws",
+ *     autoConnect = false
  * )
  *
- * // Later, connect via dispatched action:
- * dispatch(DevToolsAction.Connect("ws://192.168.1.100:8080/ws"))
+ * // Later, from a debug menu:
+ * dispatch(ToolingAction.ServiceCommand("devtools", "connect", mapOf("role" to "PUBLISHER")))
  * ```
  *
- * @param introspectionConfig Shared configuration providing clientId, clientName, and platform
- * @param serverUrl WebSocket server URL. If null, won't auto-connect (use DevToolsAction.Connect)
+ * @param serverUrl WebSocket server URL. Null means no connection until connect is called with a URL
  * @param enabled Enable/disable DevTools functionality
+ * @param autoConnect Connect on service start when true; wait for an explicit connect when false
  * @param allowActionCapture Allow sending dispatched actions to the DevTools server
  * @param allowStateCapture Allow sending state changes to the DevTools server
  * @param defaultRole The role to request automatically on connect. Null means no auto-request.
  */
 public data class DevToolsConfig(
-    val introspectionConfig: IntrospectionConfig,
     val serverUrl: String? = null,
     val enabled: Boolean = true,
+    val autoConnect: Boolean = true,
     val allowActionCapture: Boolean = true,
     val allowStateCapture: Boolean = true,
     val defaultRole: ClientRole? = null
-) {
-    val clientId: String get() = introspectionConfig.clientId
-    val clientName: String get() = introspectionConfig.clientName
-    val platform: String get() = introspectionConfig.platform
-}
+)

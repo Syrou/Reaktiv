@@ -172,6 +172,19 @@ public sealed class DevToolsMessage {
         val clientId: String,
         val history: SessionHistory
     ) : DevToolsMessage()
+
+
+    /**
+     * One slice of a large session history. The first chunk carries the
+     * initial state snapshot; receivers append slices in chunkIndex order.
+     */
+    @Serializable
+    public data class SessionHistoryChunk(
+        val clientId: String,
+        val chunkIndex: Int,
+        val totalChunks: Int,
+        val history: SessionHistory
+    ) : DevToolsMessage()
 }
 
 @Serializable
