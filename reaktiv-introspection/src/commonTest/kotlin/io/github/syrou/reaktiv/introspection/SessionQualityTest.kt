@@ -1,4 +1,4 @@
-package io.github.syrou.reaktiv.introspection
+﻿package io.github.syrou.reaktiv.introspection
 
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.util.reaktivJson
@@ -43,7 +43,7 @@ class SessionQualityTest {
 
         val export = json.decodeFromString<SessionExport>(capture.exportSession())
 
-        assertEquals("3.2", export.version)
+        assertEquals("3.3", export.version)
         assertEquals("1.2.3", export.clientInfo.metadata?.appVersion)
         assertEquals("sv_SE", export.clientInfo.metadata?.locale)
         assertEquals(0, export.droppedRecords)

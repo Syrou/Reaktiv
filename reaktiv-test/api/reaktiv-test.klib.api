@@ -1,0 +1,31 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, linuxArm64, linuxX64, macosArm64, mingwX64, wasmJs]
+// Alias: native => [iosArm64, iosSimulatorArm64, linuxArm64, linuxX64, macosArm64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <io.github.syrou:reaktiv-test>
+final class io.github.syrou.reaktiv.test/ReaktivTestScope { // io.github.syrou.reaktiv.test/ReaktivTestScope|null[0]
+    final val dispatchedActions // io.github.syrou.reaktiv.test/ReaktivTestScope.dispatchedActions|{}dispatchedActions[0]
+        final fun <get-dispatchedActions>(): kotlin.collections/List<io.github.syrou.reaktiv.core/ModuleAction> // io.github.syrou.reaktiv.test/ReaktivTestScope.dispatchedActions.<get-dispatchedActions>|<get-dispatchedActions>(){}[0]
+    final val store // io.github.syrou.reaktiv.test/ReaktivTestScope.store|{}store[0]
+        final fun <get-store>(): io.github.syrou.reaktiv.core/Store // io.github.syrou.reaktiv.test/ReaktivTestScope.store.<get-store>|<get-store>(){}[0]
+    final val testScope // io.github.syrou.reaktiv.test/ReaktivTestScope.testScope|{}testScope[0]
+        final fun <get-testScope>(): kotlinx.coroutines.test/TestScope // io.github.syrou.reaktiv.test/ReaktivTestScope.testScope.<get-testScope>|<get-testScope>(){}[0]
+
+    final fun advanceTimeBy(kotlin.time/Duration) // io.github.syrou.reaktiv.test/ReaktivTestScope.advanceTimeBy|advanceTimeBy(kotlin.time.Duration){}[0]
+    final fun dispatch(io.github.syrou.reaktiv.core/ModuleAction) // io.github.syrou.reaktiv.test/ReaktivTestScope.dispatch|dispatch(io.github.syrou.reaktiv.core.ModuleAction){}[0]
+    final fun settle() // io.github.syrou.reaktiv.test/ReaktivTestScope.settle|settle(){}[0]
+    final inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleAction> assertDispatched(): #A1 // io.github.syrou.reaktiv.test/ReaktivTestScope.assertDispatched|assertDispatched(){0§<io.github.syrou.reaktiv.core.ModuleAction>}[0]
+    final inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleAction> assertNotDispatched() // io.github.syrou.reaktiv.test/ReaktivTestScope.assertNotDispatched|assertNotDispatched(){0§<io.github.syrou.reaktiv.core.ModuleAction>}[0]
+    final suspend inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleState> awaitState(noinline kotlin/Function1<#A1, kotlin/Boolean>): #A1 // io.github.syrou.reaktiv.test/ReaktivTestScope.awaitState|awaitState(kotlin.Function1<0:0,kotlin.Boolean>){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+    final suspend inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleState> currentState(): #A1 // io.github.syrou.reaktiv.test/ReaktivTestScope.currentState|currentState(){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+}
+
+// Targets: [native]
+final fun io.github.syrou.reaktiv.test/reaktivTest(kotlin/Array<out io.github.syrou.reaktiv.core/Module<*, *>>..., kotlin.time/Duration = ..., kotlin/Function1<io.github.syrou.reaktiv.core/StoreDSL, kotlin/Unit> = ..., kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.test/ReaktivTestScope, kotlin/Unit>) // io.github.syrou.reaktiv.test/reaktivTest|reaktivTest(kotlin.Array<out|io.github.syrou.reaktiv.core.Module<*,*>>...;kotlin.time.Duration;kotlin.Function1<io.github.syrou.reaktiv.core.StoreDSL,kotlin.Unit>;kotlin.coroutines.SuspendFunction1<io.github.syrou.reaktiv.test.ReaktivTestScope,kotlin.Unit>){}[0]
+
+// Targets: [wasmJs]
+final fun io.github.syrou.reaktiv.test/reaktivTest(kotlin/Array<out io.github.syrou.reaktiv.core/Module<*, *>>..., kotlin.time/Duration = ..., kotlin/Function1<io.github.syrou.reaktiv.core/StoreDSL, kotlin/Unit> = ..., kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.test/ReaktivTestScope, kotlin/Unit>): kotlinx.coroutines.test.internal/JsPromiseInterfaceForTesting // io.github.syrou.reaktiv.test/reaktivTest|reaktivTest(kotlin.Array<out|io.github.syrou.reaktiv.core.Module<*,*>>...;kotlin.time.Duration;kotlin.Function1<io.github.syrou.reaktiv.core.StoreDSL,kotlin.Unit>;kotlin.coroutines.SuspendFunction1<io.github.syrou.reaktiv.test.ReaktivTestScope,kotlin.Unit>){}[0]

@@ -5,6 +5,7 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
+import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.introspection.ClientMetadata
 import io.github.syrou.reaktiv.introspection.StateRedactor
@@ -90,6 +91,7 @@ public class SessionCapture(
     private val logicCompletedStorage: CaptureStorage = createCaptureStorage("logic_completed")
     private val logicFailedStorage: CaptureStorage = createCaptureStorage("logic_failed")
     private val crashStorage: CaptureStorage = createCaptureStorage("crashes")
+    private val stateReadStorage: CaptureStorage = createCaptureStorage("state_reads")
 
     private var sessionStartTime: Long = 0
     private var clientId: String = ""
@@ -131,6 +133,13 @@ public class SessionCapture(
      */
     public val crashes: SharedFlow<CrashInfo> = _crashes
 
+    private val _stateReads = MutableSharedFlow<StateRead>(
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
+    public val stateReads: SharedFlow<StateRead> = _stateReads
+
     private sealed interface Record
     private class DispatchedAction(val action: ModuleAction, val state: ModuleState, val timestamp: Long) : Record
     private class PrebuiltAction(val event: CapturedAction) : Record
@@ -139,6 +148,7 @@ public class SessionCapture(
     private class LogicCompleted(val event: LogicMethodCompleted) : Record
     private class LogicFailed(val event: LogicMethodFailed) : Record
     private class CrashRecord(val info: CrashInfo) : Record
+    private class StateReadRecord(val read: StateRead) : Record
 
     /**
      * Starts a new session capture and its background worker.
@@ -168,6 +178,7 @@ public class SessionCapture(
         logicCompletedStorage.clear()
         logicFailedStorage.clear()
         crashStorage.clear()
+        stateReadStorage.clear()
         previousModuleJson.clear()
         actionCount = 0
 
@@ -246,6 +257,10 @@ public class SessionCapture(
         enqueue(LogicFailed(event))
     }
 
+    public fun captureStateRead(read: StateRead) {
+        enqueue(StateReadRecord(read))
+    }
+
     /**
      * Suggests an export file name carrying client identity and app version.
      * The prefix defaults to crash when a crash has been captured, session otherwise.
@@ -304,7 +319,8 @@ public class SessionCapture(
             actions = readActions(),
             logicStarted = readLogicStarted(),
             logicCompleted = readLogicCompleted(),
-            logicFailed = readLogicFailed()
+            logicFailed = readLogicFailed(),
+            stateReads = readStateReads()
         )
     }
 
@@ -339,7 +355,8 @@ public class SessionCapture(
                 actions = readActions(),
                 logicStartedEvents = readLogicStarted(),
                 logicCompletedEvents = readLogicCompleted(),
-                logicFailedEvents = readLogicFailed()
+                logicFailedEvents = readLogicFailed(),
+                stateReads = readStateReads()
             ),
             droppedRecords = droppedCount.load()
         )
@@ -365,6 +382,7 @@ public class SessionCapture(
         logicCompletedStorage.clear()
         logicFailedStorage.clear()
         crashStorage.clear()
+        stateReadStorage.clear()
         previousModuleJson.clear()
         actionCount = 0
         capturedCrash = null
@@ -383,6 +401,7 @@ public class SessionCapture(
         logicCompletedStorage.delete()
         logicFailedStorage.delete()
         crashStorage.delete()
+        stateReadStorage.delete()
     }
 
     private fun stopWorker() {
@@ -462,6 +481,7 @@ public class SessionCapture(
         val completedLines = ArrayList<String>()
         val failedLines = ArrayList<String>()
         val crashLines = ArrayList<String>()
+        val stateReadLines = ArrayList<String>()
 
         for (record in batch) {
             try {
@@ -499,6 +519,10 @@ public class SessionCapture(
                     is LogicStarted -> startedLines.add(json.encodeToString(record.event))
                     is LogicCompleted -> completedLines.add(json.encodeToString(record.event))
                     is LogicFailed -> failedLines.add(json.encodeToString(record.event))
+                    is StateReadRecord -> {
+                        stateReadLines.add(json.encodeToString(record.read))
+                        _stateReads.tryEmit(record.read)
+                    }
                     is CrashRecord -> {
                         val enriched = record.info.copy(
                             route = record.info.route ?: currentRouteFromShadow(),
@@ -529,6 +553,7 @@ public class SessionCapture(
         if (completedLines.isNotEmpty()) logicCompletedStorage.appendLines(completedLines)
         if (failedLines.isNotEmpty()) logicFailedStorage.appendLines(failedLines)
         if (crashLines.isNotEmpty()) crashStorage.appendLines(crashLines)
+        if (stateReadLines.isNotEmpty()) stateReadStorage.appendLines(stateReadLines)
         trimLogicEvents()
     }
 
@@ -565,6 +590,9 @@ public class SessionCapture(
     private fun readCrashes(): List<CrashInfo> =
         crashStorage.readLines().map { json.decodeFromString(it) }
 
+    private fun readStateReads(): List<StateRead> =
+        stateReadStorage.readLines().map { json.decodeFromString(it) }
+
     private companion object {
         const val HIGH_WATER_MARK: Long = 50_000L
     }
@@ -580,7 +608,8 @@ public data class SessionHistory(
     val actions: List<CapturedAction>,
     val logicStarted: List<LogicMethodStart>,
     val logicCompleted: List<LogicMethodCompleted>,
-    val logicFailed: List<LogicMethodFailed>
+    val logicFailed: List<LogicMethodFailed>,
+    val stateReads: List<StateRead> = emptyList()
 )
 
 public fun SessionHistory.chunked(
@@ -607,7 +636,8 @@ public fun SessionHistory.chunked(
             actions = slice(actions, index, actionsPerChunk),
             logicStarted = slice(logicStarted, index, eventsPerChunk),
             logicCompleted = slice(logicCompleted, index, eventsPerChunk),
-            logicFailed = slice(logicFailed, index, eventsPerChunk)
+            logicFailed = slice(logicFailed, index, eventsPerChunk),
+            stateReads = if (index == 0) stateReads else emptyList()
         )
     }
 }

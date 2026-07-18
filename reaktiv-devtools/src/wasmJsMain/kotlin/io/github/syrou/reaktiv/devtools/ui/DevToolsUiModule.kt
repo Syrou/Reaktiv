@@ -13,6 +13,7 @@ import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.KeyframedReconstructor
 import io.github.syrou.reaktiv.introspection.protocol.NavigationStatePatch
+import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.devtools.protocol.GhostSessionExport
 import io.github.syrou.reaktiv.devtools.protocol.GhostSessionFormat
 import io.github.syrou.reaktiv.introspection.capture.SessionHistory
@@ -75,7 +76,11 @@ object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, Dev
                 state.copy(
                     actionStateHistory = emptyList(),
                     logicMethodEvents = emptyList(),
-                    selectedActionIndex = null
+                    selectedActionIndex = null,
+                    selectedLogicMethodCallId = null,
+                    crashEvent = null,
+                    crashSelected = false,
+                    stateReads = emptyList()
                 )
             }
 
@@ -158,6 +163,19 @@ object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, Dev
 
             is DevToolsUiAction.SetCrashEvent -> {
                 state.copy(crashEvent = action.crashEvent)
+            }
+
+            is DevToolsUiAction.SetPerformancePanel -> {
+                state.copy(showPerformancePanel = action.visible)
+            }
+
+            is DevToolsUiAction.AddStateRead -> {
+                if (action.read in state.stateReads) state
+                else state.copy(stateReads = state.stateReads + action.read)
+            }
+
+            is DevToolsUiAction.SetStateReads -> {
+                state.copy(stateReads = (state.stateReads + action.reads).distinct())
             }
 
             is DevToolsUiAction.SelectCrash -> {
@@ -278,6 +296,9 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
         if (history.actions.isNotEmpty()) {
             storeAccessor.dispatch(DevToolsUiAction.BulkAddActionStateEvents(history.actions))
         }
+        if (history.stateReads.isNotEmpty()) {
+            storeAccessor.dispatch(DevToolsUiAction.SetStateReads(history.stateReads))
+        }
         val logicEvents = buildList<LogicMethodEvent> {
             history.logicStarted.forEach { add(LogicMethodEvent.Started(clientId, it)) }
             history.logicCompleted.forEach { add(LogicMethodEvent.Completed(clientId, it)) }
@@ -386,6 +407,10 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
             storeAccessor.dispatch(DevToolsUiAction.SetCrashEvent(crashEvent))
         }
 
+        if (export.session.stateReads.isNotEmpty()) {
+            storeAccessor.dispatch(DevToolsUiAction.SetStateReads(export.session.stateReads))
+        }
+
         storeAccessor.dispatch(DevToolsUiAction.BulkAddActionStateEvents(export.session.actions))
 
         val ghostClientId = export.clientInfo.clientId
@@ -423,7 +448,8 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
         logicEvents: List<LogicMethodEvent>,
         sessionStartTime: Long,
         initialStateJson: String = "{}",
-        crashEvent: CrashEventInfo? = null
+        crashEvent: CrashEventInfo? = null,
+        stateReads: List<StateRead> = emptyList()
     ): String {
         val now = currentTimeMillis()
 
@@ -447,7 +473,8 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
                 actions = actionHistory,
                 logicStartedEvents = logicEvents.filterIsInstance<LogicMethodEvent.Started>().map { it.event },
                 logicCompletedEvents = logicEvents.filterIsInstance<LogicMethodEvent.Completed>().map { it.event },
-                logicFailedEvents = logicEvents.filterIsInstance<LogicMethodEvent.Failed>().map { it.event }
+                logicFailedEvents = logicEvents.filterIsInstance<LogicMethodEvent.Failed>().map { it.event },
+                stateReads = stateReads
             )
         )
 
@@ -510,6 +537,10 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
                     info = message.crash
                 )
                 storeAccessor.dispatch(DevToolsUiAction.SetCrashEvent(crashEvent))
+            }
+
+            is DevToolsMessage.StateReadReport -> {
+                storeAccessor.dispatch(DevToolsUiAction.AddStateRead(message.read))
             }
 
             is DevToolsMessage.PublisherChanged -> {

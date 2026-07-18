@@ -24,7 +24,7 @@ public typealias NavigatableInterceptMap = Map<Navigatable, InterceptDefinition>
  * [outerGuards] (outermost first). At runtime [NavigationLogic] iterates [outerGuards] before
  * evaluating [guard] (the innermost guard).
  *
- * Example — three-level chain (startup → auth → premium):
+ * Example — three-level chain (startup -> auth -> premium):
  * ```kotlin
  * intercept(guard = { store ->
  *     if (store.selectState<AppState>().value.startupReady) GuardResult.Allow
@@ -64,7 +64,7 @@ public data class InterceptDefinition(
      * Returns a new [InterceptDefinition] that evaluates [outer]'s full guard chain before
      * this definition's own [outerGuards] and [guard].
      *
-     * The resulting order is: outer's outerGuards → outer's guard → this.outerGuards → this.guard.
+     * The resulting order is: outer's outerGuards -> outer's guard -> this.outerGuards -> this.guard.
      * This preserves any guards already accumulated on both sides, making the combinator safe
      * to apply at arbitrary nesting depth.
      */

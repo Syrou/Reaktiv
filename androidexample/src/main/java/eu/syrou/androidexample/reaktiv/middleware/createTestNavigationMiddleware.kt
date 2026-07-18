@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 fun createTestNavigationMiddleware(): Middleware = { action, getAllStates, storeAccessor, updatedState ->
     when (action) {
         is TestNavigationAction.TriggerMultipleNavigation -> {
-            ReaktivDebug.nav("🧪 Test: Starting multiple navigation sequence")
+            ReaktivDebug.nav("Test: Starting multiple navigation sequence")
 
             // Execute the original action first
             updatedState(action)
@@ -21,7 +21,7 @@ fun createTestNavigationMiddleware(): Middleware = { action, getAllStates, store
                     navigateTo("home/leaderboard/detail/weekly")
                     navigateTo("home/leaderboard/player/1")
                 }
-                ReaktivDebug.nav("🧪 Test: Multiple navigation sequence completed")
+                ReaktivDebug.nav("Test: Multiple navigation sequence completed")
             }
         }
 

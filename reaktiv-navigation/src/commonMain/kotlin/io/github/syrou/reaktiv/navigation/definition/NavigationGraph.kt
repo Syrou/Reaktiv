@@ -48,7 +48,7 @@ public interface NavigationGraph : NavigationNode {
     public val navigatableIntercepts: NavigatableInterceptMap get() = emptyMap()
 
     /**
-     * Returns a flat map of route → [Navigatable] for this graph and all nested graphs.
+     * Returns a flat map of route -> [Navigatable] for this graph and all nested graphs.
      */
     public fun getAllNavigatables(): Map<String, Navigatable> = buildMap {
         navigatables.forEach { navigatable -> put(navigatable.route, navigatable) }

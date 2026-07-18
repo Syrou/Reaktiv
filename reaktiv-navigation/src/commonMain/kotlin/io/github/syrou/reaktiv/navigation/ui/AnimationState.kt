@@ -39,8 +39,8 @@ public data class LayerAnimationState(
  * Manages animation state for content layer screen transitions
  *
  * Strategy:
- * - Forward navigation (A → B): Keep both A and B composed; A preserved for back navigation
- * - Back navigation (B → A): Keep both during animation, dispose B after completion
+ * - Forward navigation (A -> B): Keep both A and B composed; A preserved for back navigation
+ * - Back navigation (B -> A): Keep both during animation, dispose B after completion
  *
  * Previous entry is tracked locally in Compose and cleared after animation duration.
  * This avoids storing animation state in NavigationState.

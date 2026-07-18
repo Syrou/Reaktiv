@@ -31,6 +31,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,6 +56,7 @@ import io.github.syrou.reaktiv.devtools.ui.components.ActionStream
 import io.github.syrou.reaktiv.devtools.ui.components.ClientList
 import io.github.syrou.reaktiv.devtools.ui.components.ConnectionStatus
 import io.github.syrou.reaktiv.devtools.ui.components.GhostImportDialog
+import io.github.syrou.reaktiv.devtools.ui.components.PerformancePanel
 import io.github.syrou.reaktiv.devtools.ui.components.StateViewer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -223,19 +226,38 @@ private fun DevToolsContent(store: Store) {
                             .fillMaxHeight()
                             .weight(0.4f)
                     ) {
-                        StateViewer(
-                            actionStateHistory = state.actionStateHistory,
-                            selectedActionIndex = state.selectedActionIndex,
-                            logicMethodEvents = state.logicMethodEvents,
-                            selectedLogicMethodCallId = state.selectedLogicMethodCallId,
-                            crashEvent = state.crashEvent,
-                            crashSelected = state.crashSelected,
-                            showAsDiff = state.showStateAsDiff,
-                            excludedActionTypes = state.excludedActionTypes,
-                            initialStateJson = state.initialStateJson,
-                            onToggleDiffMode = { dispatch(DevToolsUiAction.ToggleStateViewMode) },
-                            onClear = { dispatch(DevToolsUiAction.ClearHistory) }
-                        )
+                        TabRow(selectedTabIndex = if (state.showPerformancePanel) 1 else 0) {
+                            Tab(
+                                selected = !state.showPerformancePanel,
+                                onClick = { dispatch(DevToolsUiAction.SetPerformancePanel(false)) },
+                                text = { Text("State") }
+                            )
+                            Tab(
+                                selected = state.showPerformancePanel,
+                                onClick = { dispatch(DevToolsUiAction.SetPerformancePanel(true)) },
+                                text = { Text("Performance") }
+                            )
+                        }
+                        if (state.showPerformancePanel) {
+                            PerformancePanel(
+                                logicMethodEvents = state.logicMethodEvents
+                            )
+                        } else {
+                            StateViewer(
+                                actionStateHistory = state.actionStateHistory,
+                                selectedActionIndex = state.selectedActionIndex,
+                                logicMethodEvents = state.logicMethodEvents,
+                                selectedLogicMethodCallId = state.selectedLogicMethodCallId,
+                                crashEvent = state.crashEvent,
+                                crashSelected = state.crashSelected,
+                                showAsDiff = state.showStateAsDiff,
+                                excludedActionTypes = state.excludedActionTypes,
+                                initialStateJson = state.initialStateJson,
+                                stateReads = state.stateReads,
+                                onToggleDiffMode = { dispatch(DevToolsUiAction.ToggleStateViewMode) },
+                                onClear = { dispatch(DevToolsUiAction.ClearHistory) }
+                            )
+                        }
                     }
                 }
             }
@@ -310,7 +332,8 @@ private fun DevToolsContent(store: Store) {
                                         logicEvents = state.logicMethodEvents,
                                         sessionStartTime = sessionStart,
                                         initialStateJson = state.initialStateJson,
-                                        crashEvent = state.crashEvent
+                                        crashEvent = state.crashEvent,
+                                        stateReads = state.stateReads
                                     )
                                     downloadJson(json, "session_${publisher.clientId}.json")
                                 }

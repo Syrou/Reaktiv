@@ -303,12 +303,12 @@ class UnifiedNavigationBuilderTest {
         assertEquals("home/leaderboard/stats/individual", state.currentFullPath)
 
         // Verify path parameter extraction
-        assertEquals("individual", state.currentEntry.params["type"]) // ✅ Path parameter
+        assertEquals("individual", state.currentEntry.params["type"]) // Path parameter
 
         // Verify user parameters are preserved
-        assertEquals("player-123", state.currentEntry.params["playerId"]) // ✅ User parameter
-        assertEquals(true, state.currentEntry.params["showDetails"]) // ✅ User parameter
-        assertTrue(state.currentEntry.params.containsKey("playerData")) // ✅ User parameter
+        assertEquals("player-123", state.currentEntry.params["playerId"]) // User parameter
+        assertEquals(true, state.currentEntry.params["showDetails"]) // User parameter
+        assertTrue(state.currentEntry.params.containsKey("playerData")) // User parameter
 
         // Verify parameter count (should have all 4: type + 3 user params)
         assertEquals(4, state.currentEntry.params.size)
@@ -415,12 +415,12 @@ class UnifiedNavigationBuilderTest {
         val state = store.selectState<NavigationState>().first()
 
         // Verify multiple path parameters
-        assertEquals("acme-corp", state.currentEntry.params["companyId"]) // ✅ Path parameter 1
-        assertEquals("john-doe", state.currentEntry.params["userId"]) // ✅ Path parameter 2
+        assertEquals("acme-corp", state.currentEntry.params["companyId"]) // Path parameter 1
+        assertEquals("john-doe", state.currentEntry.params["userId"]) // Path parameter 2
 
         // Verify user parameters
-        assertEquals("settings", state.currentEntry.params["tab"]) // ✅ User parameter
-        assertEquals(2, state.currentEntry.params["version"]) // ✅ User parameter
+        assertEquals("settings", state.currentEntry.params["tab"]) // User parameter
+        assertEquals(2, state.currentEntry.params["version"]) // User parameter
 
         // Should have all 4 parameters: 2 path + 2 user
         assertEquals(4, state.currentEntry.params.size)

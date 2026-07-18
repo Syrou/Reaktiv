@@ -5,7 +5,7 @@ private val routeParamRegex = Regex("\\{([^}]+)\\}")
 /**
  * Extracts `{paramName}` placeholder names from a route template in declaration order.
  *
- * Example: `"user/{id}/posts/{postId}"` → `["id", "postId"]`
+ * Example: `"user/{id}/posts/{postId}"` -> `["id", "postId"]`
  */
 internal fun extractRouteParameterNames(route: String): List<String> =
     routeParamRegex.findAll(route).map { it.groupValues[1] }.toList()

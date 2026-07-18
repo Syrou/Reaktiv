@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.introspection.protocol
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
+import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.introspection.ClientMetadata
 import kotlinx.serialization.Serializable
 
@@ -10,7 +11,7 @@ import kotlinx.serialization.Serializable
  * JSON export format version for captured sessions.
  */
 public object SessionExportFormat {
-    public const val VERSION: String = "3.2"
+    public const val VERSION: String = "3.3"
 }
 
 /**
@@ -94,7 +95,8 @@ public data class SessionData(
     val actions: List<CapturedAction>,
     val logicStartedEvents: List<LogicMethodStart>,
     val logicCompletedEvents: List<LogicMethodCompleted>,
-    val logicFailedEvents: List<LogicMethodFailed>
+    val logicFailedEvents: List<LogicMethodFailed>,
+    val stateReads: List<StateRead> = emptyList()
 )
 
 /**

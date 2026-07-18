@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.devtools.protocol
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted as CoreLogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed as CoreLogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart as CoreLogicMethodStart
+import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
@@ -161,6 +162,12 @@ public sealed class DevToolsMessage {
         val clientId: String,
         val crash: CrashInfo,
         val sessionJson: String?
+    ) : DevToolsMessage()
+
+    @Serializable
+    public data class StateReadReport(
+        val clientId: String,
+        val read: StateRead
     ) : DevToolsMessage()
 
     /**

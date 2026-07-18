@@ -1,0 +1,14 @@
+public final class io/github/syrou/reaktiv/test/ReaktivTestKt {
+	public static final fun reaktivTest-dWUq8MI ([Lio/github/syrou/reaktiv/core/Module;JLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun reaktivTest-dWUq8MI$default ([Lio/github/syrou/reaktiv/core/Module;JLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+}
+
+public final class io/github/syrou/reaktiv/test/ReaktivTestScope {
+	public final fun advanceTimeBy-LRDsOJo (J)V
+	public final fun dispatch (Lio/github/syrou/reaktiv/core/ModuleAction;)V
+	public final fun getDispatchedActions ()Ljava/util/List;
+	public final fun getStore ()Lio/github/syrou/reaktiv/core/Store;
+	public final fun getTestScope ()Lkotlinx/coroutines/test/TestScope;
+	public final fun settle ()V
+}
+

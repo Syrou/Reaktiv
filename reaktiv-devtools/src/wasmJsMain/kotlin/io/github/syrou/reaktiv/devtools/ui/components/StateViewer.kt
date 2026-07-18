@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
@@ -44,6 +45,7 @@ fun StateViewer(
     showAsDiff: Boolean,
     excludedActionTypes: Set<String>,
     initialStateJson: String = "{}",
+    stateReads: List<StateRead> = emptyList(),
     onToggleDiffMode: () -> Unit,
     onClear: () -> Unit
 ) {
@@ -195,6 +197,11 @@ fun StateViewer(
                 }
             }
             else -> {
+                val observingComposables = stateReads
+                    .filter { it.stateClass == selectedEvent.moduleName }
+                    .map { shortComposableName(it.composable) }
+                    .distinct()
+                    .sorted()
                 when (activeTab) {
                     StateViewerTab.DELTA -> {
                         StateSnapshotView(
@@ -204,7 +211,8 @@ fun StateViewer(
                             showAsDiff = showAsDiff,
                             searchQuery = searchQuery,
                             onSearchQueryChange = { searchQuery = it },
-                            label = "Delta"
+                            label = "Delta",
+                            observingComposables = observingComposables
                         )
                     }
                     StateViewerTab.STATE -> {
@@ -215,7 +223,8 @@ fun StateViewer(
                             showAsDiff = showAsDiff,
                             searchQuery = searchQuery,
                             onSearchQueryChange = { searchQuery = it },
-                            label = "Full State"
+                            label = "Full State",
+                            observingComposables = observingComposables
                         )
                     }
                 }
@@ -232,7 +241,8 @@ private fun StateSnapshotView(
     showAsDiff: Boolean,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
-    label: String = "State Data"
+    label: String = "State Data",
+    observingComposables: List<String> = emptyList()
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -282,6 +292,14 @@ private fun StateSnapshotView(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (observingComposables.isNotEmpty()) {
+                    Text(
+                        text = "Recomposes: ${observingComposables.joinToString(", ")}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
             }
         }
 
@@ -696,6 +714,12 @@ private fun LogicMethodDataView(
             }
         }
     }
+}
+
+private fun shortComposableName(fqName: String): String {
+    val segments = fqName.split('.')
+    val display = segments.dropWhile { it.firstOrNull()?.isLowerCase() != false }
+    return if (display.isEmpty()) fqName else display.joinToString(".")
 }
 
 private fun formatTimestamp(timestamp: Long): String {

@@ -232,6 +232,10 @@ public object DevToolsServer {
                 clientManager.broadcastToListeners(message.clientId, message)
             }
 
+            is DevToolsMessage.StateReadReport -> {
+                clientManager.broadcastToListeners(message.clientId, message)
+            }
+
             is DevToolsMessage.GhostDeviceRegistration -> {
                 println("DevTools Server: Ghost device registration for session ${message.sessionId}")
                 val ghostId = clientManager.registerGhostDevice(message)

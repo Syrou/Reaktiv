@@ -752,8 +752,8 @@ class ProtectedRoutesTest {
             store.navigation { navigateTo("workspace/home") }
             advanceUntilIdle()
 
-            // Guard resolves immediately (faster than threshold) → loading screen never shown
-            // Guard returns Reject → navigation silently dropped
+            // Guard resolves immediately (faster than threshold) -> loading screen never shown
+            // Guard returns Reject -> navigation silently dropped
             val state = store.selectState<NavigationState>().first()
             assertEquals("start", state.currentEntry.route)
         }

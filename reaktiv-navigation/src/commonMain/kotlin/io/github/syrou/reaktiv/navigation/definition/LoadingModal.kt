@@ -12,8 +12,8 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
  * SYSTEM modals (e.g. system alerts) always render above it.
  *
  * Stacking order within [RenderLayer.SYSTEM]:
- * - `LoadingModal` → `zIndex(9001f + 0f)` = 9001f
- * - Normal SYSTEM `Modal` → `zIndex(9001f + 1000f)` = 10001f
+ * - `LoadingModal` -> `zIndex(9001f + 0f)` = 9001f
+ * - Normal SYSTEM `Modal` -> `zIndex(9001f + 1000f)` = 10001f
  *
  * Usage:
  * ```kotlin

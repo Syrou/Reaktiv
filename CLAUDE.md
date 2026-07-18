@@ -223,20 +223,20 @@ object UserModule : Module<UserState, UserAction>, CustomTypeRegistrar {
 4. **Keep reducers simple** - only handle pure state transformations
 
 ```kotlin
-// ✅ Correct: Add public method to NavigationLogic
+// Correct: Add public method to NavigationLogic
 suspend fun newNavigationFeature(param: String) {
     // Complex logic, validation, state computation
     val action = NavigationAction.UpdateState(...)
     storeAccessor.dispatch(action)
 }
 
-// ✅ Correct: Add StoreAccessor extension
+// Correct: Add StoreAccessor extension
 suspend fun StoreAccessor.newNavigationFeature(param: String) {
     val navLogic = selectLogic<NavigationLogic>()
     navLogic.newNavigationFeature(param)
 }
 
-// ❌ Wrong: Don't add invoke() handling
+// Wrong: Don't add invoke() handling
 override suspend fun invoke(action: NavigationAction) {
     // DON'T DO THIS - NavigationLogic doesn't use invoke()
 }
@@ -253,11 +253,11 @@ override suspend fun invoke(action: NavigationAction) {
 
 1. **Always use imports instead of fully qualified class names**
    ```kotlin
-   // ✅ Good - use import and short name
+   // Good - use import and short name
    import io.github.syrou.reaktiv.core.serialization.StringAnyMap
    val params: StringAnyMap = mapOf()
    
-   // ❌ Bad - don't use fully qualified names
+   // Bad - don't use fully qualified names
    val params: io.github.syrou.reaktiv.core.serialization.StringAnyMap = mapOf()
    ```
 
@@ -313,10 +313,10 @@ Test files are located in `src/commonTest/kotlin/` for multiplatform tests and `
 
 1. **No inline comments** - Comments should never appear after code on the same line
    ```kotlin
-   // ✅ Good - comment above code
+   // Good - comment above code
    val isValid = user.isActive && user.hasPermission
    
-   // ❌ Bad - inline comment
+   // Bad - inline comment
    val isValid = user.isActive && user.hasPermission // Check user status
    ```
 
@@ -489,7 +489,7 @@ available ID (inspect the last BC entry in the file).
 ---
 ```
 
-### Rule: removed deprecated API → always two entries
+### Rule: removed deprecated API -> always two entries
 
 When a previously deprecated API is removed, write:
 1. A `BC-NN` entry for the removal (Grep = old pattern, Before/After = migration path)
@@ -499,6 +499,6 @@ Cross-reference them with "see BC-NN" / "see AD-NN" in the Notes field.
 
 ### On version release
 
-1. Rename `migrations/pending.md` → `migrations/v{old}-to-v{new}.md`
+1. Rename `migrations/pending.md` -> `migrations/v{old}-to-v{new}.md`
 2. Reset `migrations/pending.md` to its template header (both section headings,
    no actual entries)

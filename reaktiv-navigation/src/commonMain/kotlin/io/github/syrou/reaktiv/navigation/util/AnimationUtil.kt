@@ -60,7 +60,7 @@ public fun determineAnimationDecision(
     val shouldAnimateExit = exitTransition != NavTransition.None
 
     if (ReaktivDebug.isEnabled) {
-        ReaktivDebug.nav("🎯 Animation Decision:")
+        ReaktivDebug.nav("Animation Decision:")
         ReaktivDebug.nav("  Enter animate: $shouldAnimateEnter ($enterTransition, reversed=$enterReversed)")
         ReaktivDebug.nav("  Exit animate: $shouldAnimateExit ($exitTransition, reversed=$exitReversed)")
         ReaktivDebug.nav("  Direction: ${if (isForward) "forward" else "backward"}")

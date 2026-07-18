@@ -89,5 +89,9 @@ public actual class DevToolsConnection actual constructor(private val serverUrl:
                 println("DevTools: Connection error - ${e.message}")
             }
         }
+        if (_connectionState.value == ConnectionState.CONNECTED) {
+            _connectionState.value = ConnectionState.DISCONNECTED
+            println("DevTools: Connection closed by server")
+        }
     }
 }

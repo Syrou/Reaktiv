@@ -34,6 +34,8 @@ import io.github.syrou.reaktiv.navigation.transition.popExitSpec
 import io.github.syrou.reaktiv.navigation.util.NavigationStackMath
 import io.github.syrou.reaktiv.navigation.util.StackSnapshot
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
+import io.github.syrou.reaktiv.navigation.util.traceEntrySelection
+import io.github.syrou.reaktiv.navigation.util.traceGuard
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -273,10 +275,10 @@ public class NavigationLogic(
     ): GuardEvaluation? {
         val targetGraphId = targetResolution?.navigationGraphId
         val targetActualGraphId = targetResolution?.targetGraphId
-        val interceptDef = precomputedData.interceptedRoutes[targetRoute]
-            ?: targetGraphId?.let { precomputedData.interceptedRoutes[it] }
-            ?: targetActualGraphId?.let { precomputedData.interceptedRoutes[it] }
+        val zoneKey = listOfNotNull(targetRoute, targetGraphId, targetActualGraphId)
+            .firstOrNull { precomputedData.interceptedRoutes.containsKey(it) }
             ?: return null
+        val interceptDef = precomputedData.interceptedRoutes.getValue(zoneKey)
 
         fun GuardResult.toGuardEvaluation(): GuardEvaluation = when (this) {
             is GuardResult.Allow -> GuardEvaluation.Allow
@@ -308,14 +310,17 @@ public class NavigationLogic(
         }
         if (isAlreadyInZone) return GuardEvaluation.Allow
 
-        for ((outerGuard, outerThreshold) in interceptDef.outerGuards) {
-            val result = evaluateWithThreshold(outerThreshold) { outerGuard(storeAccessor) }
+        for ((index, outerEntry) in interceptDef.outerGuards.withIndex()) {
+            val (outerGuard, outerThreshold) = outerEntry
+            val result = evaluateWithThreshold(outerThreshold) {
+                traceGuard("outerGuard[$index]($zoneKey)", targetRoute) { outerGuard(storeAccessor) }
+            }
             val evaluation = result.toGuardEvaluation()
             if (evaluation != GuardEvaluation.Allow) return evaluation
         }
 
         return evaluateWithThreshold(interceptDef.loadingThreshold) {
-            interceptDef.guard(storeAccessor)
+            traceGuard("guard($zoneKey)", targetRoute) { interceptDef.guard(storeAccessor) }
         }.toGuardEvaluation()
     }
 
@@ -334,10 +339,12 @@ public class NavigationLogic(
     private suspend fun resolveEntryNavigatable(targetRoute: String): NavigationNode? {
         precomputedData.graphDefinitions[targetRoute] ?: return null
         val entryDef = precomputedData.graphEntries[targetRoute] ?: return null
-        if (entryDef.route == null) return null
+        val selector = entryDef.route ?: return null
         return evaluateWithThreshold(
             loadingThreshold = entryDef.loadingThreshold
-        ) { entryDef.route.invoke(storeAccessor) }
+        ) {
+            traceEntrySelection("entry($targetRoute)", targetRoute) { selector.invoke(storeAccessor) }
+        }
     }
 
     private suspend fun resolveGraphEntryForSynthesis(

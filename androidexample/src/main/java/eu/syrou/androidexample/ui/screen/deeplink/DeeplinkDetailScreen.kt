@@ -64,7 +64,7 @@ object DeeplinkDetailScreen : Screen {
             )
             Spacer(Modifier.height(8.dp))
             navState.backStack.forEachIndexed { index, entry ->
-                val label = if (index == 0) "★ resolved start" else "  ↳ synthesized"
+                val label = if (index == 0) "* resolved start" else "  -> synthesized"
                 Text(
                     text = "$label  ${entry.route}",
                     style = MaterialTheme.typography.bodyMedium,

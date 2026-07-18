@@ -280,7 +280,7 @@ direct reference is not available. From Kotlin, always prefer `getModule<M>()` o
 
 **Example:**
 ```kotlin
-// Three-level chain: startup → auth → premium.
+// Three-level chain: startup -> auth -> premium.
 // Guards run outermost-first. Navigation proceeds only when every guard returns Allow.
 // The first non-Allow result stops evaluation; inner guards are never called.
 createNavigationModule {
@@ -401,7 +401,7 @@ createNavigationModule {
 }
 
 // Deep linking to a nested screen now synthesizes the full backstack:
-// [splashScreen → workspaceHome → workspaceDetail]
+// [splashScreen -> workspaceHome -> workspaceDetail]
 store.navigation { navigateDeepLink("workspace/detail") }
 ```
 
@@ -2225,5 +2225,187 @@ origin. The wasm UI CrashEventInfo now wraps the full CrashInfo, the crash card
 and detail panel show location and origin, and state-at-crash reconstruction uses
 afterActionIndex exactly instead of guessing by timestamp. Export format stays
 3.2; older files decode with MANUAL origin and no location.
+
+---
+### [AD-38] Guard observability through logic tracing
+
+**Type:** Addition
+
+**Grep:** `NavigationGuards`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+LogicTracer.addObserver(object : LogicObserver {
+    override fun onMethodStart(event: LogicMethodStart) {
+        if (event.logicClass == "NavigationGuards") {
+            println("evaluating ${event.methodName} for ${event.params["target"]}")
+        }
+    }
+    override fun onMethodCompleted(event: LogicMethodCompleted) {}
+    override fun onMethodFailed(event: LogicMethodFailed) {}
+})
+```
+
+**Notes:** Navigation guard evaluations (intercept outer chains, primary guards)
+and dynamic entry selections are now reported through LogicTracer as synthetic
+logic events with logicClass "NavigationGuards". Method names identify the
+evaluation site: guard(zone), outerGuard[i](zone), entry(graph); params carry the
+target route; the completion result carries the decision (Allow, Reject,
+RedirectTo(route), PendAndRedirectTo(route)) or the resolved entry route; a
+throwing guard reports a failure event. Because these ride the existing logic
+trace stream, session capture, DevTools streaming, the wasm UI timeline and
+crash correlation all show guard decisions with no protocol change. Zero cost
+when no observer is registered. Guards skipped because the backstack is already
+inside the intercept zone are not reported (nothing was evaluated).
+
+---
+### [AD-39] Performance lens over logic traces
+
+**Type:** Addition
+
+**Grep:** `aggregateLogicStats|MethodStats`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val stats = aggregateLogicStats(
+    started = history.logicStarted,
+    completed = history.logicCompleted,
+    failed = history.logicFailed
+)
+stats.forEach { println("${it.methodIdentifier}: ${it.calls} calls, avg ${it.avgMs}ms, max ${it.maxMs}ms") }
+```
+
+**Notes:** reaktiv-devtools commonMain gains aggregateLogicStats folding a
+session's logic trace events into per-method MethodStats (calls, finished,
+failures, total/avg/max duration, inFlight), attributed via callId and sorted by
+total time. The wasm UI right panel gains a State/Performance tab switch; the
+Performance tab renders the aggregation live with relative total-time bars,
+failure highlighting and a guard badge for NavigationGuards rows (AD-38), so
+guard cost shows up beside logic method cost with no extra wiring.
+
+---
+### [AD-40] reaktiv-test artifact
+
+**Type:** Addition
+
+**Grep:** `reaktivTest|ReaktivTestScope`
+**File glob:** `**/*Test*.kt`
+
+**Example:**
+```kotlin
+@Test
+fun `login updates auth state`() = reaktivTest(AuthModule) {
+    dispatch(AuthAction.Login)
+    assertTrue(currentState<AuthState>().isAuthenticated)
+    assertNotDispatched<AuthAction.Logout>()
+}
+```
+
+**Notes:** New io.github.syrou:reaktiv-test artifact (commonTest dependency).
+reaktivTest(vararg modules, timeout, configure) creates the store on a
+StandardTestDispatcher bound to the runTest scheduler, installs an
+action-recording middleware and runs the body in ReaktivTestScope: dispatch
+settles all follow-up effects before returning, settle drains the scheduler,
+advanceTimeBy tests time-gated behavior (thresholds, debounces), currentState
+and awaitState read module state, assertDispatched/assertNotDispatched assert
+on the recorded action stream (including actions dispatched by logic and
+middleware), and store gives direct access for extension APIs like
+store.navigation. The configure block accepts the full StoreDSL for
+middlewares and persistence.
+
+---
+### [AD-41] Composable state read tracking (recomposition blast radius)
+
+**Type:** Addition
+
+**Grep:** `StateReadTracker|StateRead`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+StateReadTracker.addObserver { read ->
+    println("${read.composable} observes ${read.stateClass}")
+}
+val registry: Set<StateRead> = StateReadTracker.snapshot()
+```
+
+**Notes:** The reaktiv-tracing compiler plugin now instruments calls to the
+compose selectState and composeState entry points inside @Composable functions,
+reporting (state class, composable function) pairs to the new core
+StateReadTracker. The tracker dedupes into a registry that accrues from app
+start regardless of observers, and addObserver replays the seen set so
+late-attaching tooling misses nothing. The tooling module captures reads into
+the session (export v3.3, SessionData.stateReads; 3.x files decode with an
+empty list), DevTools streams new pairs live (StateReadReport message, server
+relay), and the wasm UI joins them with field-level deltas (AD-35): selecting
+an action shows which composables recompose from that module's change.
+Requires the tracing gradle plugin (reaktivTracing buildTypes gating applies,
+so release builds carry zero instrumentation). Attribution is per composable
+function on JVM/Android compilations; the read registry is class-level today,
+field-level joins are a future refinement.
+
+---
+### [AD-42] DevTools connection loss recovery
+
+**Type:** Addition | Behavioural
+
+**Grep:** `autoReconnect`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+DevToolsConfig(
+    serverUrl = "ws://192.168.1.100:8080/ws",
+    autoReconnect = true
+)
+```
+
+**Notes:** Platform connections now transition to DISCONNECTED when the server
+closes the socket (previously the state stayed CONNECTED on a dead link).
+DevToolsService monitors the active connection: on loss, a LISTENER drops its
+role and the store resets to a clean local state (same semantics as unfollow),
+then the service retries the last server URL with exponential backoff (1s
+doubling to 30s cap) until connected or explicitly disconnected. A PUBLISHER
+re-requests its role on reconnect; a former follower reconnects UNASSIGNED and
+must follow again deliberately. autoReconnect (default true) disables the retry
+loop when false; manual disconnect never triggers retries.
+
+---
+### [AD-43] Thread and dispatcher visibility with congestion warnings
+
+**Type:** Addition | Breaking (LogicTracer.notifyMethodStart is now suspend)
+
+**Grep:** `currentThreadName|aggregateThreadStats|notifyMethodStart`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val callId = LogicTracer.notifyMethodStart(logicClass, methodName, params)
+```
+
+**After:**
+```kotlin
+suspend fun traced() {
+    val callId = LogicTracer.notifyMethodStart(logicClass, methodName, params)
+}
+```
+
+**Notes:** LogicMethodStart gains thread (captured via the new expect/actual
+currentThreadName) and dispatcher (read from
+coroutineContext[ContinuationInterceptor], which required notifyMethodStart to
+become suspend; traced methods are always suspend so compiler-injected call
+sites are unaffected, but any direct caller must now be in suspend context).
+MethodStats gains threads, dispatchers and maxConcurrent (peak overlapping
+calls computed by interval sweep); new aggregateThreadStats returns per-thread
+calls, busy time and peak overlap; isMainThread and CONGESTION_PEAK_THRESHOLD
+(3) are shared helpers. The Performance tab shows a red warning banner when any
+logic method runs on the main thread, when a method peaks at 3 or more
+concurrent calls (congestion), or when a thread runs that many overlapping
+calls (contention); a thread summary lists calls, busy time and peak per
+thread, and method cards carry on/via chips for threads and dispatchers.
+Durations are attributed to the starting thread of each call; suspension-point
+thread hops within a call are not tracked.
 
 ---

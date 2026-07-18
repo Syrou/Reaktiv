@@ -38,6 +38,7 @@ public data class DevToolsConfig(
     val serverUrl: String? = null,
     val enabled: Boolean = true,
     val autoConnect: Boolean = true,
+    val autoReconnect: Boolean = true,
     val allowActionCapture: Boolean = true,
     val allowStateCapture: Boolean = true,
     val defaultRole: ClientRole? = null

@@ -55,7 +55,7 @@ jobs:
 
       - name: Deploy to Maven Central
         run: |
-          echo "🚀 Deploying to Maven Central..."
+          echo "Deploying to Maven Central..."
           ./gradlew uploadToCentral --no-parallel --max-workers=2
           ./gradlew -p reaktiv-tracing-compiler uploadToCentral
           ./gradlew -p reaktiv-tracing-gradle uploadToCentral
@@ -63,26 +63,26 @@ jobs:
       - name: Deployment Summary
         if: success()
         run: |
-          echo "## ✅ Deployment Successful! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Successful!" >> $GITHUB_STEP_SUMMARY
           echo "- **Tag**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Your library has been deployed to Maven Central:" >> $GITHUB_STEP_SUMMARY
           echo "- **Release**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔍 Check deployment status:" >> $GITHUB_STEP_SUMMARY
+          echo "### Check deployment status:" >> $GITHUB_STEP_SUMMARY
           echo "- [Sonatype Publishing Portal](https://central.sonatype.com/publishing/deployments)" >> $GITHUB_STEP_SUMMARY
           echo "- [Maven Central Search](https://central.sonatype.com/search?q=reaktiv-compose)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "ℹ️ **Note**: It may take 10-30 minutes for the artifacts to be available for download." >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: It may take 10-30 minutes for the artifacts to be available for download." >> $GITHUB_STEP_SUMMARY
 
       - name: Failure Summary
         if: failure()
         run: |
-          echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔍 Check the JReleaser logs in the uploaded artifacts for details." >> $GITHUB_STEP_SUMMARY
+          echo "### Check the JReleaser logs in the uploaded artifacts for details." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🛠️ Common fixes:" >> $GITHUB_STEP_SUMMARY
+          echo "### Common fixes:" >> $GITHUB_STEP_SUMMARY
           echo "- Verify all secrets are properly configured" >> $GITHUB_STEP_SUMMARY
           echo "- Check your Sonatype namespace is verified" >> $GITHUB_STEP_SUMMARY
           echo "- Ensure GPG keys are ASCII armored format" >> $GITHUB_STEP_SUMMARY

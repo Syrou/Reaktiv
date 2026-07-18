@@ -23,7 +23,9 @@ public data class LogicMethodStart(
     val timestampMs: Long,
     val sourceFile: String? = null,
     val lineNumber: Int? = null,
-    val githubSourceUrl: String? = null
+    val githubSourceUrl: String? = null,
+    val thread: String? = null,
+    val dispatcher: String? = null
 )
 
 /**

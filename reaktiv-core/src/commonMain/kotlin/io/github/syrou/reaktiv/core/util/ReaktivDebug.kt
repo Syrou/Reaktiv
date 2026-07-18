@@ -14,7 +14,7 @@ public object ReaktivDebug {
 
     private fun log(category: String, message: String) {
         if (isEnabled) {
-            println("🔍 [$category] $message")
+            println("[$category] $message")
         }
     }
 
@@ -25,13 +25,13 @@ public object ReaktivDebug {
 
     public fun warn(message: String) {
         if (isEnabled) {
-            println("⚠️ [WARN] $message")
+            println("[WARN] $message")
         }
     }
 
     public fun error(message: String, throwable: Throwable? = null) {
         if (isEnabled) {
-            println("❌ [ERROR] $message")
+            println("[ERROR] $message")
             throwable?.printStackTrace()
         }
     }

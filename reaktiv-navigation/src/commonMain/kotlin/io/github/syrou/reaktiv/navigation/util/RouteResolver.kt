@@ -64,7 +64,7 @@ public class RouteResolver private constructor(
                         val key = ParameterizedRouteKey.fromTemplate(fullPath)
                         parameterizedRouteIndex.getOrPut(key) { mutableListOf() }.add(entry)
 
-                        ReaktivDebug.nav("📝 Added parameterized route: $fullPath -> ${navigatable.route} (key: $key)")
+                        ReaktivDebug.nav("Added parameterized route: $fullPath -> ${navigatable.route} (key: $key)")
                     } else {
                         fullPathToResolution[fullPath] = RouteResolution(
                             targetNavigatable = navigatable,
@@ -93,7 +93,7 @@ public class RouteResolver private constructor(
             }
 
             val totalParameterizedRoutes = parameterizedRouteIndex.values.sumOf { it.size }
-            ReaktivDebug.nav("🎯 Created $totalParameterizedRoutes parameterized route patterns in ${parameterizedRouteIndex.size} index buckets")
+            ReaktivDebug.nav("Created $totalParameterizedRoutes parameterized route patterns in ${parameterizedRouteIndex.size} index buckets")
             parameterizedRouteIndex.forEach { (key, routes) ->
                 routes.forEach { route ->
                     ReaktivDebug.nav("   - ${route.fullTemplate} (params: ${route.paramNames}, key: $key)")
@@ -145,13 +145,13 @@ public class RouteResolver private constructor(
         val cleanRoute = route.trimStart('/').trimEnd('/')
         if (cleanRoute.isEmpty()) return null
 
-        ReaktivDebug.nav("🔍 Resolving route: '$cleanRoute'")
+        ReaktivDebug.nav("Resolving route: '$cleanRoute'")
         fullPathToResolution[cleanRoute]?.let {
-            ReaktivDebug.nav("✅ Direct full path lookup found: $cleanRoute")
+            ReaktivDebug.nav("Direct full path lookup found: $cleanRoute")
             return it
         }
         routeToNavigatable[cleanRoute]?.let { navigatable ->
-            ReaktivDebug.nav("✅ Direct route-to-navigatable lookup found: $cleanRoute")
+            ReaktivDebug.nav("Direct route-to-navigatable lookup found: $cleanRoute")
             val graphId = findGraphForNavigatable(navigatable) ?: "root"
             return RouteResolution(
                 targetNavigatable = navigatable,
@@ -161,7 +161,7 @@ public class RouteResolver private constructor(
             )
         }
         graphToStartNavigatable[cleanRoute]?.let { startResolution ->
-            ReaktivDebug.nav("✅ Graph start destination found: $cleanRoute")
+            ReaktivDebug.nav("Graph start destination found: $cleanRoute")
             return RouteResolution(
                 targetNavigatable = startResolution.navigatable,
                 targetGraphId = startResolution.actualGraphId,
@@ -176,9 +176,9 @@ public class RouteResolver private constructor(
             if (graphDefinitions[cleanRoute]?.entryDefinition != null) {
                 return null
             }
-            ReaktivDebug.nav("⚠️ Graph '$cleanRoute' has no startDestination defined")
+            ReaktivDebug.nav("Graph '$cleanRoute' has no startDestination defined")
             notFoundScreen?.let { screen ->
-                ReaktivDebug.nav("🔄 Redirecting to notFoundScreen for graph: $cleanRoute")
+                ReaktivDebug.nav("Redirecting to notFoundScreen for graph: $cleanRoute")
                 return RouteResolution(
                     targetNavigatable = screen,
                     targetGraphId = "root",
@@ -190,7 +190,7 @@ public class RouteResolver private constructor(
         }
 
         availableNavigatables[cleanRoute]?.let { navigatable ->
-            ReaktivDebug.nav("✅ Root navigatable found in provided map: $cleanRoute")
+            ReaktivDebug.nav("Root navigatable found in provided map: $cleanRoute")
             return RouteResolution(
                 targetNavigatable = navigatable,
                 targetGraphId = "root",
@@ -205,7 +205,7 @@ public class RouteResolver private constructor(
         if (candidates != null) {
             val parameterizedResult = matchParameterizedCandidates(cleanRoute, candidates)
             if (parameterizedResult != null) {
-                ReaktivDebug.nav("✅ Parameterized route found: $cleanRoute -> ${parameterizedResult.targetNavigatable.route}")
+                ReaktivDebug.nav("Parameterized route found: $cleanRoute -> ${parameterizedResult.targetNavigatable.route}")
                 return parameterizedResult
             }
         }
@@ -216,11 +216,11 @@ public class RouteResolver private constructor(
             return simpleRouteResult
         }
 
-        ReaktivDebug.nav("❌ Route not found: $cleanRoute")
+        ReaktivDebug.nav("Route not found: $cleanRoute")
 
         // Return notFoundScreen resolution if configured
         return notFoundScreen?.let { screen ->
-            ReaktivDebug.nav("🔄 Redirecting to notFoundScreen for: $cleanRoute")
+            ReaktivDebug.nav("Redirecting to notFoundScreen for: $cleanRoute")
             RouteResolution(
                 targetNavigatable = screen,
                 targetGraphId = "root",
@@ -286,7 +286,7 @@ public class RouteResolver private constructor(
         route: String,
         candidates: List<ParameterizedRouteEntry>
     ): RouteResolution? {
-        ReaktivDebug.nav("🔍 Matching parameterized route: $route (${candidates.size} candidates)")
+        ReaktivDebug.nav("Matching parameterized route: $route (${candidates.size} candidates)")
 
         for (paramRoute in candidates) {
             ReaktivDebug.nav("   Testing against template: ${paramRoute.fullTemplate}")
@@ -302,7 +302,7 @@ public class RouteResolver private constructor(
                 }
                 val params = Params.fromMap(paramsMap)
 
-                ReaktivDebug.nav("✅ Parameterized match found: ${paramRoute.fullTemplate}")
+                ReaktivDebug.nav("Parameterized match found: ${paramRoute.fullTemplate}")
 
                 return RouteResolution(
                     targetNavigatable = paramRoute.navigatable,
@@ -313,7 +313,7 @@ public class RouteResolver private constructor(
             }
         }
 
-        ReaktivDebug.nav("❌ No parameterized route match in candidates")
+        ReaktivDebug.nav("No parameterized route match in candidates")
         return null
     }
 

@@ -14,7 +14,7 @@ without ambiguity.
 | `v{old}-to-v{new}.md` | Released migration guide between two tagged versions |
 | `pending.md` | Accumulates changes during active development |
 
-**On release:** rename `pending.md` → `v{old}-to-v{new}.md`, then reset `pending.md`
+**On release:** rename `pending.md` -> `v{old}-to-v{new}.md`, then reset `pending.md`
 to the template header only.
 
 ---
@@ -53,7 +53,7 @@ signatures, or silent behavioural differences that will cause bugs.
 
 **Grep semantics for BC entries:** matches the *old* pattern in the user's codebase.
 If the grep returns any results, those locations must be updated using the
-Before → After transformation.
+Before -> After transformation.
 
 ### Additions — `AD-NN`
 
@@ -130,9 +130,9 @@ AD entries have no ordering requirement but should be grouped thematically.
 
 When you introduce an API change during a session:
 
-- **Breaking change** → immediately append a `BC-NN` entry to `migrations/pending.md`
-- **New significant API** → immediately append an `AD-NN` entry
-- **Removed deprecated API with a new replacement** → append both a `BC-NN`
+- **Breaking change** -> immediately append a `BC-NN` entry to `migrations/pending.md`
+- **New significant API** -> immediately append an `AD-NN` entry
+- **Removed deprecated API with a new replacement** -> append both a `BC-NN`
   (the removal) and an `AD-NN` (the replacement), cross-referencing each other
 
 Do not batch at the end of the session — append as each change is made.
@@ -148,7 +148,7 @@ Use the next available ID in each sequence (inspect the last BC-NN and AD-NN in
 
 For each BC entry, in order:
 1. Run the **Grep** against the target project.
-2. If matches exist, apply the **Before → After** transformation to each match.
+2. If matches exist, apply the **Before -> After** transformation to each match.
 3. Verify no remaining matches of the old pattern remain.
 
 ### Step 2 — Learn new additions

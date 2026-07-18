@@ -162,7 +162,7 @@ public class NavigationGraphBuilder(
      * }
      * ```
      *
-     * Example — chained guards (startup check → auth check):
+     * Example — chained guards (startup check -> auth check):
      * ```kotlin
      * rootGraph {
      *     start(startScreen)

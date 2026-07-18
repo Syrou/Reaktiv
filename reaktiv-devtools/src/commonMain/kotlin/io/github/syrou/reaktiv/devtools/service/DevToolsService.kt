@@ -28,6 +28,7 @@ import io.github.syrou.reaktiv.introspection.tooling.ToolingServiceContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.builtins.MapSerializer
@@ -49,6 +50,10 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private var logicObserver: DevToolsLogicObserver? = null
     private var clientId: String = ""
     private var getAllStatesRef: (suspend () -> Map<String, ModuleState>)? = null
+    private var manuallyDisconnected: Boolean = false
+    private var pendingReconnect: Boolean = false
+    private var pendingReconnectRole: ClientRole? = null
+    private var reconnectJob: Job? = null
 
     override fun createMiddleware(): Middleware = { action, getAllStates, _, updatedState ->
         if (getAllStatesRef == null) {
@@ -113,8 +118,23 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 }
             }
         }
+        context.storeAccessor.launch {
+            context.capture.stateReads.collect { read ->
+                if (currentRole == ClientRole.PUBLISHER && isConnected()) {
+                    try {
+                        send(DevToolsMessage.StateReadReport(clientId = clientId, read = read))
+                    } catch (e: Exception) {
+                        ReaktivDebug.warn("DevTools: Failed to send state read - ${e.message}")
+                    }
+                }
+            }
+        }
 
-        if (config.enabled && config.autoConnect && config.serverUrl != null) {
+        if (pendingReconnect) {
+            pendingReconnect = false
+            manuallyDisconnected = false
+            launchReconnectLoop(pendingReconnectRole)
+        } else if (config.enabled && config.autoConnect && config.serverUrl != null) {
             connect(config.serverUrl, config.defaultRole)
         } else {
             context.setStatus(ServiceStatus(ServiceState.STOPPED, "awaiting connect"))
@@ -129,6 +149,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
 
     public suspend fun connect(serverUrl: String, role: ClientRole? = config.defaultRole) {
         val context = context ?: return
+        manuallyDisconnected = false
         connection?.disconnect()
         currentServerUrl = serverUrl
         context.setStatus(ServiceStatus(ServiceState.STARTING, "connecting to $serverUrl"))
@@ -136,8 +157,12 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         connection = newConnection
         try {
             newConnection.connect(clientId, context.config.clientName, context.config.platform)
+            if (!newConnection.isConnectedNow()) {
+                throw IllegalStateException("connection to $serverUrl failed")
+            }
             newConnection.observeMessages { message -> handleServerMessage(message) }
             context.setStatus(ServiceStatus(ServiceState.RUNNING, "connected to $serverUrl"))
+            launchConnectionMonitor(newConnection)
             if (role != null) {
                 requestRole(role, null)
             }
@@ -148,10 +173,61 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     }
 
     public suspend fun disconnect() {
+        manuallyDisconnected = true
+        reconnectJob?.cancel()
+        reconnectJob = null
         connection?.disconnect()
         connection = null
         currentRole = ClientRole.UNASSIGNED
         context?.setStatus(ServiceStatus(ServiceState.STOPPED, "disconnected"))
+    }
+
+    private fun DevToolsConnection.isConnectedNow(): Boolean =
+        connectionState.value == ConnectionState.CONNECTED
+
+    private fun launchConnectionMonitor(monitored: DevToolsConnection) {
+        val context = context ?: return
+        context.storeAccessor.launch {
+            monitored.connectionState.first {
+                it == ConnectionState.ERROR || it == ConnectionState.DISCONNECTED
+            }
+            if (connection !== monitored || manuallyDisconnected) return@launch
+            handleConnectionLoss()
+        }
+    }
+
+    private suspend fun handleConnectionLoss() {
+        val context = context ?: return
+        val previousRole = currentRole
+        currentRole = ClientRole.UNASSIGNED
+        context.setStatus(ServiceStatus(ServiceState.DEGRADED, "connection lost"))
+        ReaktivDebug.warn("DevTools: Connection lost (was $previousRole)")
+        val roleToRequest = if (previousRole == ClientRole.PUBLISHER) ClientRole.PUBLISHER else null
+        if (previousRole == ClientRole.LISTENER) {
+            if (config.autoReconnect) {
+                pendingReconnect = true
+                pendingReconnectRole = null
+            }
+            (context.storeAccessor as? Store)?.resetAsync()
+        } else if (config.autoReconnect) {
+            launchReconnectLoop(roleToRequest)
+        }
+    }
+
+    private fun launchReconnectLoop(roleToRequest: ClientRole?) {
+        val context = context ?: return
+        reconnectJob?.cancel()
+        reconnectJob = context.storeAccessor.launch {
+            var delayMs = RECONNECT_INITIAL_DELAY_MS
+            while (!manuallyDisconnected && !isConnected()) {
+                context.setStatus(ServiceStatus(ServiceState.STARTING, "reconnecting in ${delayMs / 1000}s"))
+                delay(delayMs)
+                if (manuallyDisconnected) break
+                val url = currentServerUrl ?: break
+                connect(url, roleToRequest)
+                delayMs = (delayMs * 2).coerceAtMost(RECONNECT_MAX_DELAY_MS)
+            }
+        }
     }
 
     public suspend fun reconnect() {
@@ -306,6 +382,8 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
 
     private companion object {
         const val DELTA_CONFLATION_WINDOW_MS: Long = 75L
+        const val RECONNECT_INITIAL_DELAY_MS: Long = 1000L
+        const val RECONNECT_MAX_DELAY_MS: Long = 30_000L
     }
 
     private val followerShadow = mutableMapOf<String, JsonObject>()

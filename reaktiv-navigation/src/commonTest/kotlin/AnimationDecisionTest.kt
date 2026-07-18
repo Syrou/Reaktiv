@@ -41,7 +41,7 @@ import kotlin.time.toDuration
  * transition. When true the exiting screen appears in front (e.g., a pop
  * animation where the outgoing screen slides away over the destination).
  *
- * Layer ordering (lowest → highest z-index):
+ * Layer ordering (lowest -> highest z-index):
  *   CONTENT (2–3)  <  GLOBAL_OVERLAY / modals (2000+)  <  SYSTEM (9001+)
  * Modals within GLOBAL_OVERLAY are sorted ascending by [Navigatable.elevation].
  */

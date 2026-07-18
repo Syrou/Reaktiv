@@ -36,5 +36,19 @@ class ReaktivTracingIrGenerationExtension(
         )
 
         moduleFragment.transform(transformer, null)
+
+        val readTransformer = ComposableStateReadTransformer(
+            pluginContext = pluginContext,
+            messageCollector = messageCollector
+        )
+
+        moduleFragment.transform(readTransformer, null)
+
+        if (readTransformer.instrumentedCount > 0) {
+            messageCollector.report(
+                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
+                "ReaktivTracing: Instrumented ${readTransformer.instrumentedCount} composable state reads in ${moduleFragment.name}"
+            )
+        }
     }
 }

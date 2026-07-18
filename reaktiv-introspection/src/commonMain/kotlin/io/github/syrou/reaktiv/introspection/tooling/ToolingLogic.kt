@@ -4,6 +4,8 @@ import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
+import io.github.syrou.reaktiv.core.tracing.StateRead
+import io.github.syrou.reaktiv.core.tracing.StateReadTracker
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.introspection.CrashHandler
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
@@ -22,12 +24,15 @@ public class ToolingLogic internal constructor(
 ) : ModuleLogic() {
 
     private var logicObserver: IntrospectionLogicObserver? = null
+    private var stateReadObserver: ((StateRead) -> Unit)? = null
     private val fileExport = SessionFileExport(platformContext)
 
     init {
         if (config.enabled) {
             (storeAccessor as? Store)?.serializersModule?.let { capture.attachStateSerializers(it) }
             logicObserver = IntrospectionLogicObserver(capture).also { LogicTracer.addObserver(it) }
+            stateReadObserver = { read: StateRead -> capture.captureStateRead(read) }
+                .also { StateReadTracker.addObserver(it) }
             if (config.installCrashHandler) {
                 CrashHandler(platformContext, capture).install()
             }
@@ -99,5 +104,7 @@ public class ToolingLogic internal constructor(
         capture.clear()
         logicObserver?.let { LogicTracer.removeObserver(it) }
         logicObserver = null
+        stateReadObserver?.let { StateReadTracker.removeObserver(it) }
+        stateReadObserver = null
     }
 }

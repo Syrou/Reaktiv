@@ -7,9 +7,9 @@ replaying action streams, and importing crash sessions.
 ## Architecture
 
 ```
-Your App  ──WebSocket──►  DevTools Server (native binary)
-                                   │
-                          WebSocket▼
+Your App  --WebSocket-->  DevTools Server (native binary)
+                                   |
+                         WebSocket v
                           DevTools UI  (WASM, runs in browser)
 ```
 
@@ -81,7 +81,7 @@ Build the WASM browser UI, then serve it with any static file server:
 ## WebSocket URL by Target
 
 ```kotlin
-serverUrl = "ws://10.0.2.2:8080/ws"       // Android Emulator → host machine
+serverUrl = "ws://10.0.2.2:8080/ws"       // Android Emulator -> host machine
 serverUrl = "ws://192.168.1.100:8080/ws"   // Real device on same WiFi
 serverUrl = "ws://localhost:8080/ws"        // iOS Simulator
 ```

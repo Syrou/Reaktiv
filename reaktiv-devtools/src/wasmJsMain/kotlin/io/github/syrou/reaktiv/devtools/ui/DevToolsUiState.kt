@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.devtools.client.ConnectionState
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
+import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import kotlinx.serialization.Serializable
@@ -38,6 +39,8 @@ data class DevToolsUiState(
     val showImportGhostDialog: Boolean = false,
     val crashEvent: CrashEventInfo? = null,
     val crashSelected: Boolean = false,
+    val showPerformancePanel: Boolean = false,
+    val stateReads: List<StateRead> = emptyList(),
     val publisherSessionStart: Long? = null,
     val canExportSession: Boolean = false,
     val activeGhostId: String? = null,
@@ -87,6 +90,9 @@ sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data object HideImportGhostDialog : DevToolsUiAction()
     data class SetCrashEvent(val crashEvent: CrashEventInfo?) : DevToolsUiAction()
     data class SelectCrash(val selected: Boolean) : DevToolsUiAction()
+    data class SetPerformancePanel(val visible: Boolean) : DevToolsUiAction()
+    data class AddStateRead(val read: StateRead) : DevToolsUiAction()
+    data class SetStateReads(val reads: List<StateRead>) : DevToolsUiAction()
     data class SetPublisherSessionStart(val startTime: Long?) : DevToolsUiAction()
     data class SetCanExportSession(val canExport: Boolean) : DevToolsUiAction()
     data class BulkAddActionStateEvents(val events: List<CapturedAction>) : DevToolsUiAction()

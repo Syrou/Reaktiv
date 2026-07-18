@@ -1,10 +1,13 @@
 package io.github.syrou.reaktiv.core.tracing
 
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.currentThreadName
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.coroutines.ContinuationInterceptor
+import kotlin.coroutines.coroutineContext
 
 /**
  * Central registry for logic method tracing.
@@ -106,7 +109,7 @@ public object LogicTracer {
      * @param githubSourceUrl Full GitHub URL to the source line (built at compile time)
      * @return A unique call ID for correlating with completion/failure notifications
      */
-    public fun notifyMethodStart(
+    public suspend fun notifyMethodStart(
         logicClass: String,
         methodName: String,
         params: Map<String, String>,
@@ -124,7 +127,9 @@ public object LogicTracer {
             timestampMs = timestampMs,
             sourceFile = sourceFile,
             lineNumber = lineNumber,
-            githubSourceUrl = githubSourceUrl
+            githubSourceUrl = githubSourceUrl,
+            thread = currentThreadName(),
+            dispatcher = coroutineContext[ContinuationInterceptor]?.toString()
         )
         notifyObservers { it.onMethodStart(event) }
         return event.callId

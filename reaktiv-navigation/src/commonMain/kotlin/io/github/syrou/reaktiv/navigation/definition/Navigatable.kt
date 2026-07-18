@@ -47,13 +47,13 @@ public enum class RemovalReason {
  * ## Lifecycle Flow
  *
  * **Normal Navigation:**
- * 1. Screen added to backstack → [Navigatable.onLifecycleCreated] called once
- * 2. Screen remains in backstack → No lifecycle events (observe [visibility] for changes)
- * 3. Screen removed from backstack → [invokeOnRemoval] handlers called once, then scope cancelled
+ * 1. Screen added to backstack -> [Navigatable.onLifecycleCreated] called once
+ * 2. Screen remains in backstack -> No lifecycle events (observe [visibility] for changes)
+ * 3. Screen removed from backstack -> [invokeOnRemoval] handlers called once, then scope cancelled
  *
  * **With Store.reset():**
- * 1. `Store.reset()` called → [invokeOnRemoval] handlers for all existing entries
- * 2. Observation restarts → [Navigatable.onLifecycleCreated] called once for each backstack entry
+ * 1. `Store.reset()` called -> [invokeOnRemoval] handlers for all existing entries
+ * 2. Observation restarts -> [Navigatable.onLifecycleCreated] called once for each backstack entry
  * 3. Fresh lifecycle instances created with clean state
  *
  * Each reset is idempotent - multiple resets follow the same pattern.

@@ -60,10 +60,10 @@ abstract class ValidateBundleTask : DefaultTask() {
     fun validate() {
         val stagingDir = bundleDirectory.get().asFile
         if (!stagingDir.exists()) {
-            throw GradleException("❌ Staging directory not found. Run 'createCentralBundle' first.")
+            throw GradleException("Staging directory not found. Run 'createCentralBundle' first.")
         }
 
-        logger.lifecycle("🔍 Validating bundle structure...")
+        logger.lifecycle("Validating bundle structure...")
 
         val issues = mutableListOf<String>()
         var artifactCount = 0
@@ -152,33 +152,33 @@ abstract class ValidateBundleTask : DefaultTask() {
         publications.forEach { pub ->
             if (!javadocPublications.contains(pub) && !pub.contains("metadata") && !pub.contains("sources")) {
                 issues.add("Missing javadoc for publication: $pub")
-                logger.warn("⚠️  Publication '$pub' missing javadoc - Central Portal requires javadoc for all publications")
+                logger.warn("Publication '$pub' missing javadoc - Central Portal requires javadoc for all publications")
             }
         }
 
         // Report results
-        logger.lifecycle("📊 Validation Results:")
-        logger.lifecycle("   📦 Artifacts: $artifactCount")
-        logger.lifecycle("   📝 POM files: $pomCount")
-        logger.lifecycle("   📚 Publications: ${publications.size}")
-        logger.lifecycle("   ✍️ Signatures: $signedCount")
-        logger.lifecycle("   🔢 Checksums: $checksumCount")
-        logger.lifecycle("   📚 Sources: $sourcesCount")
-        logger.lifecycle("   📖 Javadoc: $javadocCount")
-        logger.lifecycle("   👻 Orphaned signatures: ${orphanedSignatures.size}")
+        logger.lifecycle("Validation Results:")
+        logger.lifecycle("   Artifacts: $artifactCount")
+        logger.lifecycle("   POM files: $pomCount")
+        logger.lifecycle("   Publications: ${publications.size}")
+        logger.lifecycle("   Signatures: $signedCount")
+        logger.lifecycle("   Checksums: $checksumCount")
+        logger.lifecycle("   Sources: $sourcesCount")
+        logger.lifecycle("   Javadoc: $javadocCount")
+        logger.lifecycle("   Orphaned signatures: ${orphanedSignatures.size}")
 
         // List discovered publications
         if (publications.isNotEmpty()) {
-            logger.lifecycle("   🎯 Discovered publications:")
+            logger.lifecycle("   Discovered publications:")
             publications.sorted().forEach { pub ->
                 val hasJavadoc = javadocPublications.contains(pub)
-                val status = if (hasJavadoc) "✅" else "❌"
+                val status = if (hasJavadoc) "+" else "-"
                 logger.lifecycle("      $status $pub")
             }
         }
 
         if (issues.isNotEmpty()) {
-            logger.lifecycle("❌ Validation Issues Found:")
+            logger.lifecycle("Validation Issues Found:")
             issues.forEach { issue ->
                 logger.lifecycle("   • $issue")
             }
@@ -186,16 +186,16 @@ abstract class ValidateBundleTask : DefaultTask() {
             // Provide specific guidance
             if (orphanedSignatures.isNotEmpty()) {
                 logger.lifecycle("")
-                logger.lifecycle("🔧 To fix orphaned signatures:")
+                logger.lifecycle("To fix orphaned signatures:")
                 logger.lifecycle("   1. Check if kotlin_resources files are missing")
                 logger.lifecycle("   2. Verify all signed files exist in Maven local repository")
                 logger.lifecycle("   3. Re-run 'publishToMavenLocal' if needed")
             }
 
-            throw GradleException("❌ Bundle validation failed. Fix the issues above and try again.")
+            throw GradleException("Bundle validation failed. Fix the issues above and try again.")
         } else {
-            logger.lifecycle("✅ Bundle validation passed!")
-            logger.lifecycle("📂 Bundle follows correct Maven repository structure")
+            logger.lifecycle("Bundle validation passed!")
+            logger.lifecycle("Bundle follows correct Maven repository structure")
         }
     }
 
@@ -263,8 +263,8 @@ abstract class CreateBundleTask : DefaultTask() {
         // Create ZIP bundle
         createZipBundle(outputDir, bundleFile.get().asFile)
 
-        logger.lifecycle("✅ Created bundle: ${bundleFile.get().asFile.absolutePath}")
-        logger.lifecycle("📏 Bundle size: ${bundleFile.get().asFile.length() / 1024}KB")
+        logger.lifecycle("Created bundle: ${bundleFile.get().asFile.absolutePath}")
+        logger.lifecycle("Bundle size: ${bundleFile.get().asFile.length() / 1024}KB")
     }
 
     private fun copyArtifactsToStaging(mavenLocalDir: File, stagingDir: File, group: String, version: String) {
@@ -285,26 +285,26 @@ abstract class CreateBundleTask : DefaultTask() {
                     pluginMarkerPaths.add(pluginId.replace('.', '/'))
                 }
             } catch (e: Exception) {
-                logger.warn("⚠️  Could not extract plugin IDs: ${e.message}")
+                logger.warn("Could not extract plugin IDs: ${e.message}")
             }
         }
 
-        logger.lifecycle("🔍 Debugging artifact discovery:")
-        logger.lifecycle("   📁 Maven local: ${mavenLocalDir.absolutePath}")
-        logger.lifecycle("   🏷️ Group path: $groupPath")
-        logger.lifecycle("   📦 Project name: $projectName")
-        logger.lifecycle("   🔢 Version: $version")
+        logger.lifecycle("Debugging artifact discovery:")
+        logger.lifecycle("   Maven local: ${mavenLocalDir.absolutePath}")
+        logger.lifecycle("   Group path: $groupPath")
+        logger.lifecycle("   Project name: $projectName")
+        logger.lifecycle("   Version: $version")
         if (pluginMarkerPaths.isNotEmpty()) {
-            logger.lifecycle("   🔌 Plugin markers: ${pluginMarkerPaths.size}")
+            logger.lifecycle("   Plugin markers: ${pluginMarkerPaths.size}")
         }
 
         val groupDir = File(mavenLocalDir, groupPath)
         if (!groupDir.exists()) {
-            logger.warn("⚠️  Group directory doesn't exist: ${groupDir.absolutePath}")
+            logger.warn("Group directory doesn't exist: ${groupDir.absolutePath}")
             return
         }
 
-        logger.lifecycle("   ✅ Group directory found: ${groupDir.absolutePath}")
+        logger.lifecycle("   Group directory found: ${groupDir.absolutePath}")
 
         var totalFilesInGroup = 0
         var matchingProjectFiles = 0
@@ -358,38 +358,38 @@ abstract class CreateBundleTask : DefaultTask() {
                     }
 
                     artifactCount++
-                    logger.lifecycle("   ✅ Copied: $relativePath")
+                    logger.lifecycle("   Copied: $relativePath")
                 }
             }
         }
 
-        logger.lifecycle("📊 Discovery Summary:")
-        logger.lifecycle("   📁 Total files in group: $totalFilesInGroup")
-        logger.lifecycle("   📦 Files for THIS project: $matchingProjectFiles")
-        logger.lifecycle("   ✅ Files copied: $artifactCount")
+        logger.lifecycle("Discovery Summary:")
+        logger.lifecycle("   Total files in group: $totalFilesInGroup")
+        logger.lifecycle("   Files for THIS project: $matchingProjectFiles")
+        logger.lifecycle("   Files copied: $artifactCount")
 
         if (artifactCount == 0) {
-            logger.lifecycle("❌ No artifacts found! Possible issues:")
+            logger.lifecycle("No artifacts found! Possible issues:")
             logger.lifecycle("   1. Run 'publishToMavenLocal' first")
             logger.lifecycle("   2. Check if group/version/project name are correct")
             logger.lifecycle("   3. Verify artifacts exist in: ${groupDir.absolutePath}")
 
             File(groupDir, projectName).walkTopDown().take(5).forEach { file ->
                 if (file.isFile) {
-                    logger.lifecycle("   📄 Example file found: ${file.name}")
+                    logger.lifecycle("   Example file found: ${file.name}")
                 }
             }
         }
 
         validateBundleStructure(stagingDir)
 
-        logger.lifecycle("📦 Auto-discovered ${targets.size} Kotlin Multiplatform targets:")
+        logger.lifecycle("Auto-discovered ${targets.size} Kotlin Multiplatform targets:")
         targets.sorted().forEach { target ->
-            logger.lifecycle("   ✓ $target")
+            logger.lifecycle("   - $target")
         }
-        logger.lifecycle("📁 Total artifacts copied: $artifactCount")
-        logger.lifecycle("📂 Bundle structure: Preserving full Maven repository layout ($groupPath/...)")
-        logger.lifecycle("🎯 Project-specific bundle created for: $projectName")
+        logger.lifecycle("Total artifacts copied: $artifactCount")
+        logger.lifecycle("Bundle structure: Preserving full Maven repository layout ($groupPath/...)")
+        logger.lifecycle("Project-specific bundle created for: $projectName")
     }
 
     private fun validateBundleStructure(bundleDir: File) {
@@ -406,7 +406,7 @@ abstract class CreateBundleTask : DefaultTask() {
                 requiredChecksums.forEach { ext ->
                     val checksumFile = File(file.parent, "${file.name}.$ext")
                     if (!checksumFile.exists()) {
-                        logger.warn("⚠️  Missing checksum: ${checksumFile.name}")
+                        logger.warn("Missing checksum: ${checksumFile.name}")
                         // Generate missing checksum
                         generateChecksum(file, ext)
                     }
@@ -421,12 +421,12 @@ abstract class CreateBundleTask : DefaultTask() {
         }
 
         if (issues.isNotEmpty()) {
-            logger.warn("❌ Bundle validation issues:")
+            logger.warn("Bundle validation issues:")
             issues.forEach { issue ->
                 logger.warn("   • $issue")
             }
         } else {
-            logger.lifecycle("✅ Bundle structure validation passed!")
+            logger.lifecycle("Bundle structure validation passed!")
         }
     }
 
@@ -504,7 +504,7 @@ abstract class UploadToCentralTask : DefaultTask() {
         if (username.get().isBlank() || password.get().isBlank()) {
             throw GradleException(
                 """
-                ❌ Missing Central Portal credentials!
+                Missing Central Portal credentials!
                 
                 Configure in your build.gradle.kts:
                 centralPublisher {
@@ -512,7 +512,7 @@ abstract class UploadToCentralTask : DefaultTask() {
                     password.set(CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_PASSWORD"))
                 }
                 
-                🔗 Get credentials at: https://central.sonatype.com/account
+                Get credentials at: https://central.sonatype.com/account
             """.trimIndent()
             )
         }
@@ -522,9 +522,9 @@ abstract class UploadToCentralTask : DefaultTask() {
             throw GradleException("Bundle file not found: ${bundleZipFile.absolutePath}")
         }
 
-        logger.lifecycle("🚀 Uploading bundle to Sonatype Central Portal...")
-        logger.lifecycle("📦 Bundle: ${bundleZipFile.absolutePath}")
-        logger.lifecycle("📏 Size: ${bundleZipFile.length() / 1024}KB")
+        logger.lifecycle("Uploading bundle to Sonatype Central Portal...")
+        logger.lifecycle("Bundle: ${bundleZipFile.absolutePath}")
+        logger.lifecycle("Size: ${bundleZipFile.length() / 1024}KB")
 
         runBlocking {
             uploadBundle(bundleZipFile)
@@ -535,7 +535,7 @@ abstract class UploadToCentralTask : DefaultTask() {
         // Validate bundle size first
         val fileSizeGB = bundleFile.length() / (1024.0 * 1024.0 * 1024.0)
         if (fileSizeGB > 1.0) {
-            throw GradleException("❌ Bundle size (${String.format("%.2f", fileSizeGB)}GB) exceeds 1GB limit")
+            throw GradleException("Bundle size (${String.format("%.2f", fileSizeGB)}GB) exceeds 1GB limit")
         }
 
         // Create Bearer token from username:password
@@ -558,7 +558,7 @@ abstract class UploadToCentralTask : DefaultTask() {
         }
 
         try {
-            logger.lifecycle("📤 Uploading to Central Portal...")
+            logger.lifecycle("Uploading to Central Portal...")
 
             val response = client.submitFormWithBinaryData(
                 url = "https://central.sonatype.com/api/v1/publisher/upload",
@@ -583,42 +583,42 @@ abstract class UploadToCentralTask : DefaultTask() {
             when (response.status) {
                 HttpStatusCode.Created -> {
                     val deploymentId = response.bodyAsText().trim()
-                    logger.lifecycle("✅ Successfully uploaded to Central Portal!")
-                    logger.lifecycle("📦 Deployment ID: $deploymentId")
-                    logger.lifecycle("🌐 View at: https://central.sonatype.com/publishing/deployments")
+                    logger.lifecycle("Successfully uploaded to Central Portal!")
+                    logger.lifecycle("Deployment ID: $deploymentId")
+                    logger.lifecycle("View at: https://central.sonatype.com/publishing/deployments")
 
                     // Check deployment status
                     checkDeploymentStatus(client, deploymentId, bearerToken)
 
                     if (publishingType.get() == "USER_MANAGED") {
-                        logger.lifecycle("⚠️  Manual action required: Go to the portal to publish your deployment")
+                        logger.lifecycle("Manual action required: Go to the portal to publish your deployment")
                     } else {
-                        logger.lifecycle("🚀 Automatic publishing enabled - deployment will be published after validation")
+                        logger.lifecycle("Automatic publishing enabled - deployment will be published after validation")
                     }
                 }
 
                 HttpStatusCode.Unauthorized -> {
-                    throw GradleException("❌ Authentication failed. Check your username and password.")
+                    throw GradleException("Authentication failed. Check your username and password.")
                 }
 
                 HttpStatusCode.BadRequest -> {
                     val errorBody = response.bodyAsText()
-                    throw GradleException("❌ Bad request: $errorBody")
+                    throw GradleException("Bad request: $errorBody")
                 }
 
                 HttpStatusCode.PayloadTooLarge -> {
-                    throw GradleException("❌ Bundle too large. Maximum size is 1GB.")
+                    throw GradleException("Bundle too large. Maximum size is 1GB.")
                 }
 
                 else -> {
                     val errorBody = response.bodyAsText()
-                    throw GradleException("❌ Upload failed (${response.status}): $errorBody")
+                    throw GradleException("Upload failed (${response.status}): $errorBody")
                 }
             }
 
         } catch (e: Exception) {
             if (e is GradleException) throw e
-            throw GradleException("❌ Upload failed: ${e.message}", e)
+            throw GradleException("Upload failed: ${e.message}", e)
         } finally {
             client.close()
         }
@@ -626,7 +626,7 @@ abstract class UploadToCentralTask : DefaultTask() {
 
     private suspend fun checkDeploymentStatus(client: HttpClient, deploymentId: String, bearerToken: String) {
         try {
-            logger.lifecycle("⏳ Checking deployment status...")
+            logger.lifecycle("Checking deployment status...")
 
             val statusResponse = client.get("https://central.sonatype.com/api/v1/publisher/status") {
                 parameter("id", deploymentId)
@@ -645,30 +645,30 @@ abstract class UploadToCentralTask : DefaultTask() {
                     val statusInfo = json.decodeFromString<DeploymentStatus>(statusBody)
 
                     when (statusInfo.deploymentState) {
-                        "PENDING" -> logger.lifecycle("📋 Status: Pending validation")
-                        "VALIDATING" -> logger.lifecycle("🔍 Status: Validating artifacts")
-                        "VALIDATED" -> logger.lifecycle("✅ Status: Validation passed!")
-                        "PUBLISHING" -> logger.lifecycle("🚀 Status: Publishing to Maven Central")
-                        "PUBLISHED" -> logger.lifecycle("🎉 Status: Published to Maven Central!")
+                        "PENDING" -> logger.lifecycle("Status: Pending validation")
+                        "VALIDATING" -> logger.lifecycle("Status: Validating artifacts")
+                        "VALIDATED" -> logger.lifecycle("Status: Validation passed!")
+                        "PUBLISHING" -> logger.lifecycle("Status: Publishing to Maven Central")
+                        "PUBLISHED" -> logger.lifecycle("Status: Published to Maven Central!")
                         "FAILED" -> {
-                            logger.lifecycle("❌ Status: Validation failed")
+                            logger.lifecycle("Status: Validation failed")
                             logger.lifecycle("Check the portal for validation errors: https://central.sonatype.com/publishing/deployments")
                         }
 
-                        else -> logger.lifecycle("📋 Status: ${statusInfo.deploymentState}")
+                        else -> logger.lifecycle("Status: ${statusInfo.deploymentState}")
                     }
                 } catch (e: Exception) {
-                    logger.warn("⚠️  Could not parse deployment status response: ${e.message}")
-                    logger.lifecycle("📋 Status check completed - check the portal for details")
+                    logger.warn("Could not parse deployment status response: ${e.message}")
+                    logger.lifecycle("Status check completed - check the portal for details")
                 }
             } else {
-                logger.warn("⚠️  Status check failed with HTTP ${statusResponse.status}")
-                logger.warn("⚠️  Status body: ${statusResponse.bodyAsText()}")
-                logger.lifecycle("📋 Check status manually at: https://central.sonatype.com/publishing/deployments")
+                logger.warn("Status check failed with HTTP ${statusResponse.status}")
+                logger.warn("Status body: ${statusResponse.bodyAsText()}")
+                logger.lifecycle("Check status manually at: https://central.sonatype.com/publishing/deployments")
             }
         } catch (e: Exception) {
-            logger.warn("⚠️  Could not check deployment status: ${e.message}")
-            logger.lifecycle("📋 Check status manually at: https://central.sonatype.com/publishing/deployments")
+            logger.warn("Could not check deployment status: ${e.message}")
+            logger.lifecycle("Check status manually at: https://central.sonatype.com/publishing/deployments")
         }
     }
 }
@@ -718,10 +718,10 @@ class CentralPublisherPlugin : Plugin<Project> {
             description = "Debug signing configuration and tasks"
 
             doLast {
-                println("🔍 Signing Debug Information:")
+                println("Signing Debug Information:")
 
                 val signingTasks = project.tasks.withType<Sign>()
-                println("   📝 Found ${signingTasks.size} signing tasks:")
+                println("   Found ${signingTasks.size} signing tasks:")
                 signingTasks.forEach { task ->
                     println("      - ${task.name}")
                 }
@@ -729,16 +729,16 @@ class CentralPublisherPlugin : Plugin<Project> {
                 val publishingTasks = project.tasks.matching {
                     it.name.startsWith("publish") && it.name.contains("ToMavenLocal")
                 }
-                println("   📦 Found ${publishingTasks.size} publishing tasks:")
+                println("   Found ${publishingTasks.size} publishing tasks:")
                 publishingTasks.forEach { task ->
                     println("      - ${task.name}")
                 }
 
                 val signingExtension = project.extensions.findByType<SigningExtension>()
-                println("   🔐 Signing extension configured: ${signingExtension != null}")
+                println("   Signing extension configured: ${signingExtension != null}")
 
                 if (signingExtension != null) {
-                    println("   📋 Signing configuration:")
+                    println("   Signing configuration:")
                     println("      - Required: ${signingExtension.isRequired}")
 
                     val publishingExtension = project.extensions.findByType<PublishingExtension>()
@@ -846,7 +846,7 @@ class CentralPublisherPlugin : Plugin<Project> {
                     name == "kotlinMultiplatform" -> {
                         // Main KMP publication gets javadoc
                         artifact(sharedJavadocJar.get())
-                        project.logger.lifecycle("   📚 Added javadoc to main kotlinMultiplatform publication")
+                        project.logger.lifecycle("   Added javadoc to main kotlinMultiplatform publication")
                     }
 
                     name.contains("jvm", ignoreCase = true) ||
@@ -855,12 +855,12 @@ class CentralPublisherPlugin : Plugin<Project> {
                             artifactId.endsWith("-java") -> {
                         // JVM target publications also get javadoc (Central Portal requires this)
                         artifact(sharedJavadocJar.get())
-                        project.logger.lifecycle("   📚 Added javadoc to JVM publication: $name")
+                        project.logger.lifecycle("   Added javadoc to JVM publication: $name")
                     }
 
                     else -> {
                         // Other target publications: skip javadoc to avoid conflicts
-                        project.logger.info("   🎯 Skipping javadoc for non-JVM target publication: $name")
+                        project.logger.info("   Skipping javadoc for non-JVM target publication: $name")
                     }
                 }
 
@@ -872,7 +872,7 @@ class CentralPublisherPlugin : Plugin<Project> {
         // Fix signing and checksum generation
         configureSigningDependencies(project)
 
-        project.logger.lifecycle("🚀 Configured Kotlin Multiplatform publishing (javadoc for KMP + JVM publications)")
+        project.logger.lifecycle("Configured Kotlin Multiplatform publishing (javadoc for KMP + JVM publications)")
     }
 
     private fun configureRegularKotlinPublishing(
@@ -915,14 +915,14 @@ class CentralPublisherPlugin : Plugin<Project> {
                         artifact(javadocJar.get())
                         artifact(sourcesJar.get())
                         configurePom(this, extension)
-                        project.logger.lifecycle("   📚 Added javadoc/sources to gradle plugin publication: $name")
+                        project.logger.lifecycle("   Added javadoc/sources to gradle plugin publication: $name")
                     } else {
                         // Plugin markers still need POM metadata
                         configurePom(this, extension)
                     }
                 }
             }
-            project.logger.lifecycle("🚀 Configured Gradle plugin publishing with javadoc")
+            project.logger.lifecycle("Configured Gradle plugin publishing with javadoc")
         } else {
             // Create standard maven publication for regular JVM projects
             publishing.publications.create<MavenPublication>("maven") {
@@ -933,7 +933,7 @@ class CentralPublisherPlugin : Plugin<Project> {
 
                 configurePom(this, extension)
             }
-            project.logger.lifecycle("🚀 Configured regular Kotlin publishing")
+            project.logger.lifecycle("Configured regular Kotlin publishing")
         }
 
         // Configure signing dependencies for regular projects too
@@ -984,13 +984,13 @@ class CentralPublisherPlugin : Plugin<Project> {
 
                     // Check for and fix literal \n characters
                     if (signingSecretKey.contains("\\n")) {
-                        project.logger.lifecycle("🔧 Detected literal \\n in key, converting to actual newlines")
+                        project.logger.lifecycle("Detected literal \\n in key, converting to actual newlines")
                         processedKey = processedKey.replace("\\n", "\n")
                     }
 
                     // Check for and fix Windows line endings
                     if (processedKey.contains("\r\n")) {
-                        project.logger.lifecycle("🔧 Detected Windows line endings, converting to Unix format")
+                        project.logger.lifecycle("Detected Windows line endings, converting to Unix format")
                         processedKey = processedKey.replace("\r\n", "\n")
                     }
 
@@ -1007,14 +1007,14 @@ class CentralPublisherPlugin : Plugin<Project> {
                     val publishingExtension = project.extensions.findByType<PublishingExtension>()
                     publishingExtension?.let { publishing ->
                         sign(publishing.publications)
-                        project.logger.lifecycle("🔐 Configured automatic GPG signing for all publications")
+                        project.logger.lifecycle("Configured automatic GPG signing for all publications")
                     }
                 }
 
                 // Configure task dependencies after signing is set up
                 configureSigningDependencies(project)
             } else {
-                project.logger.warn("⚠️  GPG signing not configured - missing signing credentials")
+                project.logger.warn("GPG signing not configured - missing signing credentials")
                 project.logger.warn("   Add SIGNING_PASSWORD and SIGNING_SECRET_KEY")
                 if (signingKeyId == null) project.logger.warn("   SIGNING_KEY_ID is optional but recommended")
             }
@@ -1032,7 +1032,7 @@ class CentralPublisherPlugin : Plugin<Project> {
                 val signingTasks = project.tasks.withType<Sign>()
                 this.dependsOn(signingTasks)
 
-                project.logger.info("🔗 Task ${this.name} now depends on ${signingTasks.size} signing tasks")
+                project.logger.info("Task ${this.name} now depends on ${signingTasks.size} signing tasks")
             }
         }
 
@@ -1040,7 +1040,7 @@ class CentralPublisherPlugin : Plugin<Project> {
         project.tasks.matching { it.name == "publishToMavenLocal" }.configureEach {
             val signingTasks = project.tasks.withType<Sign>()
             this.dependsOn(signingTasks)
-            project.logger.info("🔗 Main publishToMavenLocal task now depends on ${signingTasks.size} signing tasks")
+            project.logger.info("Main publishToMavenLocal task now depends on ${signingTasks.size} signing tasks")
         }
     }
 }
@@ -1070,7 +1070,7 @@ object CentralPublisherCredentials {
      * Tries multiple naming conventions automatically
      */
     fun getCredential(project: Project, key: String): String? {
-        project.logger.lifecycle("🔍 Looking for credential: $key")
+        project.logger.lifecycle("Looking for credential: $key")
 
         // Try local.properties first
         val localProps = getLocalProperties(project)
@@ -1078,20 +1078,20 @@ object CentralPublisherCredentials {
         // Check local.properties
         val localPropertyValue = localProps.getProperty(key)
         if (!localPropertyValue.isNullOrBlank()) {
-            project.logger.lifecycle("✅ Found $key in local.properties")
+            project.logger.lifecycle("Found $key in local.properties")
             return localPropertyValue
         }
 
         // Check environment variables
         val systemEnvironmentValue = System.getenv(key)
         if (!systemEnvironmentValue.isNullOrBlank()) {
-            project.logger.lifecycle("✅ Found $key in environment")
+            project.logger.lifecycle("Found $key in environment")
             return systemEnvironmentValue
         } else {
-            project.logger.lifecycle("❌ Environment variable $key is null or blank")
+            project.logger.lifecycle("Environment variable $key is null or blank")
         }
 
-        project.logger.lifecycle("❌ Credential $key not found anywhere")
+        project.logger.lifecycle("Credential $key not found anywhere")
 
         return null
     }

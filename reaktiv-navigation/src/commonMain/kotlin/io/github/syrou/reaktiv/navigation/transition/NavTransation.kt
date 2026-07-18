@@ -56,11 +56,11 @@ public sealed class NavTransition(@Transient public open val durationMillis: Int
     @Serializable
     public data object SlideOutBottom : NavTransition()
 
-    /** Screen scales up (80 % → 100 %) while fading in. */
+    /** Screen scales up (80 % -> 100 %) while fading in. */
     @Serializable
     public class Scale(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
 
-    /** Screen scales down (100 % → 80 %) while fading out. */
+    /** Screen scales down (100 % -> 80 %) while fading out. */
     @Serializable
     public class ScaleOut(override val durationMillis: Int = DEFAULT_ANIMATION_DURATION) : NavTransition(durationMillis)
 
@@ -96,12 +96,12 @@ public sealed class NavTransition(@Transient public open val durationMillis: Int
      * identity defaults (no-op).
      *
      * @param durationMillis Total duration of the animation in milliseconds.
-     * @param alpha Maps progress → opacity.
-     * @param scaleX Maps progress → horizontal scale factor.
-     * @param scaleY Maps progress → vertical scale factor.
-     * @param translationX Maps progress → horizontal translation in pixels.
-     * @param translationY Maps progress → vertical translation in pixels.
-     * @param rotationZ Maps progress → rotation around the Z-axis in degrees.
+     * @param alpha Maps progress -> opacity.
+     * @param scaleX Maps progress -> horizontal scale factor.
+     * @param scaleY Maps progress -> vertical scale factor.
+     * @param translationX Maps progress -> horizontal translation in pixels.
+     * @param translationY Maps progress -> vertical translation in pixels.
+     * @param rotationZ Maps progress -> rotation around the Z-axis in degrees.
      */
     @Serializable
     public class Custom(
@@ -125,12 +125,12 @@ public sealed class NavTransition(@Transient public open val durationMillis: Int
  * All transform lambdas accept a normalised progress value in `[0, 1]`.
  *
  * @property durationMillis Total animation duration in milliseconds.
- * @property alpha Progress → opacity mapping.
- * @property scaleX Progress → horizontal scale factor mapping.
- * @property scaleY Progress → vertical scale factor mapping.
- * @property translationX Progress → horizontal pixel offset mapping.
- * @property translationY Progress → vertical pixel offset mapping.
- * @property rotationZ Progress → Z-axis rotation in degrees mapping.
+ * @property alpha Progress -> opacity mapping.
+ * @property scaleX Progress -> horizontal scale factor mapping.
+ * @property scaleY Progress -> vertical scale factor mapping.
+ * @property translationX Progress -> horizontal pixel offset mapping.
+ * @property translationY Progress -> vertical pixel offset mapping.
+ * @property rotationZ Progress -> Z-axis rotation in degrees mapping.
  */
 public data class ResolvedNavTransition(
     val durationMillis: Int,

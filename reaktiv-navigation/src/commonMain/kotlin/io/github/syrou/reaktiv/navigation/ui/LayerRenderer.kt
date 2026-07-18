@@ -99,7 +99,7 @@ public fun UnifiedLayerRenderer(
  * exiting screen (wrapped in its unique layouts like ProjectTabLayout) coexist at different
  * zIndex values. Only the unique layouts animate; shared chrome stays fixed.
  *
- * OUTSIDE: When no shared chrome exists (e.g. login → projects). The exiting screen is lifted
+ * OUTSIDE: When no shared chrome exists (e.g. login -> projects). The exiting screen is lifted
  * outside the incoming layout hierarchy entirely, placed at the top level at zIndex=100.
  */
 @Composable
