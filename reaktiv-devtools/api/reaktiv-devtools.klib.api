@@ -141,23 +141,66 @@ final class io.github.syrou.reaktiv.devtools.protocol/ClientInfo { // io.github.
     }
 }
 
+final class io.github.syrou.reaktiv.devtools.protocol/DispatchStats { // io.github.syrou.reaktiv.devtools.protocol/DispatchStats|null[0]
+    constructor <init>(kotlin/Int, kotlin/Long, kotlin/Long, kotlin/Int, kotlin/Long) // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.<init>|<init>(kotlin.Int;kotlin.Long;kotlin.Long;kotlin.Int;kotlin.Long){}[0]
+
+    final val avgQueueWaitMs // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.avgQueueWaitMs|{}avgQueueWaitMs[0]
+        final fun <get-avgQueueWaitMs>(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.avgQueueWaitMs.<get-avgQueueWaitMs>|<get-avgQueueWaitMs>(){}[0]
+    final val isCongested // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.isCongested|{}isCongested[0]
+        final fun <get-isCongested>(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.isCongested.<get-isCongested>|<get-isCongested>(){}[0]
+    final val maxQueueDepth // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.maxQueueDepth|{}maxQueueDepth[0]
+        final fun <get-maxQueueDepth>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.maxQueueDepth.<get-maxQueueDepth>|<get-maxQueueDepth>(){}[0]
+    final val maxQueueWaitMs // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.maxQueueWaitMs|{}maxQueueWaitMs[0]
+        final fun <get-maxQueueWaitMs>(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.maxQueueWaitMs.<get-maxQueueWaitMs>|<get-maxQueueWaitMs>(){}[0]
+    final val processedActions // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.processedActions|{}processedActions[0]
+        final fun <get-processedActions>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.processedActions.<get-processedActions>|<get-processedActions>(){}[0]
+    final val totalProcessMs // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.totalProcessMs|{}totalProcessMs[0]
+        final fun <get-totalProcessMs>(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.totalProcessMs.<get-totalProcessMs>|<get-totalProcessMs>(){}[0]
+
+    final fun component1(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.component1|component1(){}[0]
+    final fun component2(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.component2|component2(){}[0]
+    final fun component3(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.component3|component3(){}[0]
+    final fun component4(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.component4|component4(){}[0]
+    final fun component5(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.component5|component5(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin/Int = ..., kotlin/Long = ...): io.github.syrou.reaktiv.devtools.protocol/DispatchStats // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.copy|copy(kotlin.Int;kotlin.Long;kotlin.Long;kotlin.Int;kotlin.Long){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.toString|toString(){}[0]
+}
+
 final class io.github.syrou.reaktiv.devtools.protocol/MethodStats { // io.github.syrou.reaktiv.devtools.protocol/MethodStats|null[0]
-    constructor <init>(kotlin/String, kotlin/String, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Long, kotlin/Long, kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Int = ...) // io.github.syrou.reaktiv.devtools.protocol/MethodStats.<init>|<init>(kotlin.String;kotlin.String;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Long;kotlin.Long;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>;kotlin.Int){}[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Long, kotlin/Long, kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Int = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/String? = ..., kotlin/Int? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ...) // io.github.syrou.reaktiv.devtools.protocol/MethodStats.<init>|<init>(kotlin.String;kotlin.String;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Long;kotlin.Long;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>;kotlin.Int;kotlin.collections.Set<kotlin.String>;kotlin.String?;kotlin.Int?;kotlin.String?;kotlin.String?;kotlin.String?){}[0]
 
     final val avgMs // io.github.syrou.reaktiv.devtools.protocol/MethodStats.avgMs|{}avgMs[0]
         final fun <get-avgMs>(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/MethodStats.avgMs.<get-avgMs>|<get-avgMs>(){}[0]
     final val calls // io.github.syrou.reaktiv.devtools.protocol/MethodStats.calls|{}calls[0]
         final fun <get-calls>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/MethodStats.calls.<get-calls>|<get-calls>(){}[0]
+    final val congestionReason // io.github.syrou.reaktiv.devtools.protocol/MethodStats.congestionReason|{}congestionReason[0]
+        final fun <get-congestionReason>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.congestionReason.<get-congestionReason>|<get-congestionReason>(){}[0]
     final val dispatchers // io.github.syrou.reaktiv.devtools.protocol/MethodStats.dispatchers|{}dispatchers[0]
         final fun <get-dispatchers>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/MethodStats.dispatchers.<get-dispatchers>|<get-dispatchers>(){}[0]
+    final val failureMessage // io.github.syrou.reaktiv.devtools.protocol/MethodStats.failureMessage|{}failureMessage[0]
+        final fun <get-failureMessage>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.failureMessage.<get-failureMessage>|<get-failureMessage>(){}[0]
+    final val failureSummary // io.github.syrou.reaktiv.devtools.protocol/MethodStats.failureSummary|{}failureSummary[0]
+        final fun <get-failureSummary>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.failureSummary.<get-failureSummary>|<get-failureSummary>(){}[0]
+    final val failureType // io.github.syrou.reaktiv.devtools.protocol/MethodStats.failureType|{}failureType[0]
+        final fun <get-failureType>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.failureType.<get-failureType>|<get-failureType>(){}[0]
     final val failures // io.github.syrou.reaktiv.devtools.protocol/MethodStats.failures|{}failures[0]
         final fun <get-failures>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/MethodStats.failures.<get-failures>|<get-failures>(){}[0]
     final val finished // io.github.syrou.reaktiv.devtools.protocol/MethodStats.finished|{}finished[0]
         final fun <get-finished>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/MethodStats.finished.<get-finished>|<get-finished>(){}[0]
+    final val githubSourceUrl // io.github.syrou.reaktiv.devtools.protocol/MethodStats.githubSourceUrl|{}githubSourceUrl[0]
+        final fun <get-githubSourceUrl>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.githubSourceUrl.<get-githubSourceUrl>|<get-githubSourceUrl>(){}[0]
     final val inFlight // io.github.syrou.reaktiv.devtools.protocol/MethodStats.inFlight|{}inFlight[0]
         final fun <get-inFlight>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/MethodStats.inFlight.<get-inFlight>|<get-inFlight>(){}[0]
     final val isCongested // io.github.syrou.reaktiv.devtools.protocol/MethodStats.isCongested|{}isCongested[0]
         final fun <get-isCongested>(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/MethodStats.isCongested.<get-isCongested>|<get-isCongested>(){}[0]
+    final val labelWithLocation // io.github.syrou.reaktiv.devtools.protocol/MethodStats.labelWithLocation|{}labelWithLocation[0]
+        final fun <get-labelWithLocation>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/MethodStats.labelWithLocation.<get-labelWithLocation>|<get-labelWithLocation>(){}[0]
+    final val lineNumber // io.github.syrou.reaktiv.devtools.protocol/MethodStats.lineNumber|{}lineNumber[0]
+        final fun <get-lineNumber>(): kotlin/Int? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.lineNumber.<get-lineNumber>|<get-lineNumber>(){}[0]
+    final val location // io.github.syrou.reaktiv.devtools.protocol/MethodStats.location|{}location[0]
+        final fun <get-location>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.location.<get-location>|<get-location>(){}[0]
     final val logicClass // io.github.syrou.reaktiv.devtools.protocol/MethodStats.logicClass|{}logicClass[0]
         final fun <get-logicClass>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/MethodStats.logicClass.<get-logicClass>|<get-logicClass>(){}[0]
     final val maxConcurrent // io.github.syrou.reaktiv.devtools.protocol/MethodStats.maxConcurrent|{}maxConcurrent[0]
@@ -168,8 +211,12 @@ final class io.github.syrou.reaktiv.devtools.protocol/MethodStats { // io.github
         final fun <get-methodIdentifier>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/MethodStats.methodIdentifier.<get-methodIdentifier>|<get-methodIdentifier>(){}[0]
     final val methodName // io.github.syrou.reaktiv.devtools.protocol/MethodStats.methodName|{}methodName[0]
         final fun <get-methodName>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/MethodStats.methodName.<get-methodName>|<get-methodName>(){}[0]
+    final val peakThreads // io.github.syrou.reaktiv.devtools.protocol/MethodStats.peakThreads|{}peakThreads[0]
+        final fun <get-peakThreads>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/MethodStats.peakThreads.<get-peakThreads>|<get-peakThreads>(){}[0]
     final val runsOnMainThread // io.github.syrou.reaktiv.devtools.protocol/MethodStats.runsOnMainThread|{}runsOnMainThread[0]
         final fun <get-runsOnMainThread>(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/MethodStats.runsOnMainThread.<get-runsOnMainThread>|<get-runsOnMainThread>(){}[0]
+    final val sourceFile // io.github.syrou.reaktiv.devtools.protocol/MethodStats.sourceFile|{}sourceFile[0]
+        final fun <get-sourceFile>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.sourceFile.<get-sourceFile>|<get-sourceFile>(){}[0]
     final val threads // io.github.syrou.reaktiv.devtools.protocol/MethodStats.threads|{}threads[0]
         final fun <get-threads>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/MethodStats.threads.<get-threads>|<get-threads>(){}[0]
     final val totalMs // io.github.syrou.reaktiv.devtools.protocol/MethodStats.totalMs|{}totalMs[0]
@@ -177,6 +224,12 @@ final class io.github.syrou.reaktiv.devtools.protocol/MethodStats { // io.github
 
     final fun component1(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component1|component1(){}[0]
     final fun component10(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component10|component10(){}[0]
+    final fun component11(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component11|component11(){}[0]
+    final fun component12(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component12|component12(){}[0]
+    final fun component13(): kotlin/Int? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component13|component13(){}[0]
+    final fun component14(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component14|component14(){}[0]
+    final fun component15(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component15|component15(){}[0]
+    final fun component16(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component16|component16(){}[0]
     final fun component2(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component2|component2(){}[0]
     final fun component3(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component3|component3(){}[0]
     final fun component4(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component4|component4(){}[0]
@@ -185,19 +238,87 @@ final class io.github.syrou.reaktiv.devtools.protocol/MethodStats { // io.github
     final fun component7(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component7|component7(){}[0]
     final fun component8(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component8|component8(){}[0]
     final fun component9(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/MethodStats.component9|component9(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Int = ...): io.github.syrou.reaktiv.devtools.protocol/MethodStats // io.github.syrou.reaktiv.devtools.protocol/MethodStats.copy|copy(kotlin.String;kotlin.String;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Long;kotlin.Long;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>;kotlin.Int){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Int = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/String? = ..., kotlin/Int? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ...): io.github.syrou.reaktiv.devtools.protocol/MethodStats // io.github.syrou.reaktiv.devtools.protocol/MethodStats.copy|copy(kotlin.String;kotlin.String;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Long;kotlin.Long;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>;kotlin.Int;kotlin.collections.Set<kotlin.String>;kotlin.String?;kotlin.Int?;kotlin.String?;kotlin.String?;kotlin.String?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/MethodStats.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/MethodStats.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/MethodStats.toString|toString(){}[0]
 }
 
+final class io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats { // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats|null[0]
+    constructor <init>(kotlin/String, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int) // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.<init>|<init>(kotlin.String;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+
+    final val currentBytes // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.currentBytes|{}currentBytes[0]
+        final fun <get-currentBytes>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.currentBytes.<get-currentBytes>|<get-currentBytes>(){}[0]
+    final val firstBytes // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.firstBytes|{}firstBytes[0]
+        final fun <get-firstBytes>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.firstBytes.<get-firstBytes>|<get-firstBytes>(){}[0]
+    final val growthPercent // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.growthPercent|{}growthPercent[0]
+        final fun <get-growthPercent>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.growthPercent.<get-growthPercent>|<get-growthPercent>(){}[0]
+    final val growthStreak // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.growthStreak|{}growthStreak[0]
+        final fun <get-growthStreak>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.growthStreak.<get-growthStreak>|<get-growthStreak>(){}[0]
+    final val isSuspicious // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.isSuspicious|{}isSuspicious[0]
+        final fun <get-isSuspicious>(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.isSuspicious.<get-isSuspicious>|<get-isSuspicious>(){}[0]
+    final val maxBytes // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.maxBytes|{}maxBytes[0]
+        final fun <get-maxBytes>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.maxBytes.<get-maxBytes>|<get-maxBytes>(){}[0]
+    final val moduleName // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.moduleName|{}moduleName[0]
+        final fun <get-moduleName>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.moduleName.<get-moduleName>|<get-moduleName>(){}[0]
+    final val samples // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.samples|{}samples[0]
+        final fun <get-samples>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.samples.<get-samples>|<get-samples>(){}[0]
+    final val shortName // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.shortName|{}shortName[0]
+        final fun <get-shortName>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.shortName.<get-shortName>|<get-shortName>(){}[0]
+
+    final fun component1(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.component3|component3(){}[0]
+    final fun component4(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.component4|component4(){}[0]
+    final fun component5(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.component5|component5(){}[0]
+    final fun component6(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.component6|component6(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.copy|copy(kotlin.String;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats.toString|toString(){}[0]
+}
+
+final class io.github.syrou.reaktiv.devtools.protocol/StallGroup { // io.github.syrou.reaktiv.devtools.protocol/StallGroup|null[0]
+    constructor <init>(kotlin/String?, kotlin/Int, kotlin/Long) // io.github.syrou.reaktiv.devtools.protocol/StallGroup.<init>|<init>(kotlin.String?;kotlin.Int;kotlin.Long){}[0]
+
+    final val count // io.github.syrou.reaktiv.devtools.protocol/StallGroup.count|{}count[0]
+        final fun <get-count>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/StallGroup.count.<get-count>|<get-count>(){}[0]
+    final val stack // io.github.syrou.reaktiv.devtools.protocol/StallGroup.stack|{}stack[0]
+        final fun <get-stack>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/StallGroup.stack.<get-stack>|<get-stack>(){}[0]
+    final val worstMs // io.github.syrou.reaktiv.devtools.protocol/StallGroup.worstMs|{}worstMs[0]
+        final fun <get-worstMs>(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/StallGroup.worstMs.<get-worstMs>|<get-worstMs>(){}[0]
+
+    final fun component1(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/StallGroup.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/StallGroup.component2|component2(){}[0]
+    final fun component3(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/StallGroup.component3|component3(){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/Int = ..., kotlin/Long = ...): io.github.syrou.reaktiv.devtools.protocol/StallGroup // io.github.syrou.reaktiv.devtools.protocol/StallGroup.copy|copy(kotlin.String?;kotlin.Int;kotlin.Long){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/StallGroup.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/StallGroup.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/StallGroup.toString|toString(){}[0]
+}
+
+final class io.github.syrou.reaktiv.devtools.protocol/StateSizeTracker { // io.github.syrou.reaktiv.devtools.protocol/StateSizeTracker|null[0]
+    constructor <init>() // io.github.syrou.reaktiv.devtools.protocol/StateSizeTracker.<init>|<init>(){}[0]
+
+    final var processed // io.github.syrou.reaktiv.devtools.protocol/StateSizeTracker.processed|{}processed[0]
+        final fun <get-processed>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/StateSizeTracker.processed.<get-processed>|<get-processed>(){}[0]
+
+    final fun feed(io.github.syrou.reaktiv.introspection.protocol/CapturedAction) // io.github.syrou.reaktiv.devtools.protocol/StateSizeTracker.feed|feed(io.github.syrou.reaktiv.introspection.protocol.CapturedAction){}[0]
+    final fun feedInitial(kotlin/String) // io.github.syrou.reaktiv.devtools.protocol/StateSizeTracker.feedInitial|feedInitial(kotlin.String){}[0]
+    final fun snapshot(): kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/ModuleSizeStats> // io.github.syrou.reaktiv.devtools.protocol/StateSizeTracker.snapshot|snapshot(){}[0]
+}
+
 final class io.github.syrou.reaktiv.devtools.protocol/ThreadStats { // io.github.syrou.reaktiv.devtools.protocol/ThreadStats|null[0]
-    constructor <init>(kotlin/String, kotlin/Int, kotlin/Long, kotlin/Int) // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.<init>|<init>(kotlin.String;kotlin.Int;kotlin.Long;kotlin.Int){}[0]
+    constructor <init>(kotlin/String, kotlin/Int, kotlin/Long, kotlin/Int, kotlin.collections/Set<kotlin/String> = ...) // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.<init>|<init>(kotlin.String;kotlin.Int;kotlin.Long;kotlin.Int;kotlin.collections.Set<kotlin.String>){}[0]
 
     final val busyMs // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.busyMs|{}busyMs[0]
         final fun <get-busyMs>(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.busyMs.<get-busyMs>|<get-busyMs>(){}[0]
     final val calls // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.calls|{}calls[0]
         final fun <get-calls>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.calls.<get-calls>|<get-calls>(){}[0]
+    final val contenders // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.contenders|{}contenders[0]
+        final fun <get-contenders>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.contenders.<get-contenders>|<get-contenders>(){}[0]
+    final val contentionReason // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.contentionReason|{}contentionReason[0]
+        final fun <get-contentionReason>(): kotlin/String? // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.contentionReason.<get-contentionReason>|<get-contentionReason>(){}[0]
     final val isCongested // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.isCongested|{}isCongested[0]
         final fun <get-isCongested>(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.isCongested.<get-isCongested>|<get-isCongested>(){}[0]
     final val isMain // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.isMain|{}isMain[0]
@@ -211,7 +332,8 @@ final class io.github.syrou.reaktiv.devtools.protocol/ThreadStats { // io.github
     final fun component2(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.component2|component2(){}[0]
     final fun component3(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.component3|component3(){}[0]
     final fun component4(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.component4|component4(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/Int = ..., kotlin/Long = ..., kotlin/Int = ...): io.github.syrou.reaktiv.devtools.protocol/ThreadStats // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.copy|copy(kotlin.String;kotlin.Int;kotlin.Long;kotlin.Int){}[0]
+    final fun component5(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.component5|component5(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Int = ..., kotlin/Long = ..., kotlin/Int = ..., kotlin.collections/Set<kotlin/String> = ...): io.github.syrou.reaktiv.devtools.protocol/ThreadStats // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.copy|copy(kotlin.String;kotlin.Int;kotlin.Long;kotlin.Int;kotlin.collections.Set<kotlin.String>){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/ThreadStats.toString|toString(){}[0]
@@ -833,6 +955,16 @@ final object io.github.syrou.reaktiv.devtools.service/DevToolsCommands { // io.g
 
 final const val io.github.syrou.reaktiv.devtools.protocol/CONGESTION_PEAK_THRESHOLD // io.github.syrou.reaktiv.devtools.protocol/CONGESTION_PEAK_THRESHOLD|{}CONGESTION_PEAK_THRESHOLD[0]
     final fun <get-CONGESTION_PEAK_THRESHOLD>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/CONGESTION_PEAK_THRESHOLD.<get-CONGESTION_PEAK_THRESHOLD>|<get-CONGESTION_PEAK_THRESHOLD>(){}[0]
+final const val io.github.syrou.reaktiv.devtools.protocol/DISPATCH_QUEUE_WAIT_WARN_MS // io.github.syrou.reaktiv.devtools.protocol/DISPATCH_QUEUE_WAIT_WARN_MS|{}DISPATCH_QUEUE_WAIT_WARN_MS[0]
+    final fun <get-DISPATCH_QUEUE_WAIT_WARN_MS>(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DISPATCH_QUEUE_WAIT_WARN_MS.<get-DISPATCH_QUEUE_WAIT_WARN_MS>|<get-DISPATCH_QUEUE_WAIT_WARN_MS>(){}[0]
+final const val io.github.syrou.reaktiv.devtools.protocol/DISPATCH_TRACE_CLASS // io.github.syrou.reaktiv.devtools.protocol/DISPATCH_TRACE_CLASS|{}DISPATCH_TRACE_CLASS[0]
+    final fun <get-DISPATCH_TRACE_CLASS>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DISPATCH_TRACE_CLASS.<get-DISPATCH_TRACE_CLASS>|<get-DISPATCH_TRACE_CLASS>(){}[0]
+final const val io.github.syrou.reaktiv.devtools.protocol/SIZE_GROWTH_PERCENT_THRESHOLD // io.github.syrou.reaktiv.devtools.protocol/SIZE_GROWTH_PERCENT_THRESHOLD|{}SIZE_GROWTH_PERCENT_THRESHOLD[0]
+    final fun <get-SIZE_GROWTH_PERCENT_THRESHOLD>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/SIZE_GROWTH_PERCENT_THRESHOLD.<get-SIZE_GROWTH_PERCENT_THRESHOLD>|<get-SIZE_GROWTH_PERCENT_THRESHOLD>(){}[0]
+final const val io.github.syrou.reaktiv.devtools.protocol/SIZE_GROWTH_STREAK_THRESHOLD // io.github.syrou.reaktiv.devtools.protocol/SIZE_GROWTH_STREAK_THRESHOLD|{}SIZE_GROWTH_STREAK_THRESHOLD[0]
+    final fun <get-SIZE_GROWTH_STREAK_THRESHOLD>(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/SIZE_GROWTH_STREAK_THRESHOLD.<get-SIZE_GROWTH_STREAK_THRESHOLD>|<get-SIZE_GROWTH_STREAK_THRESHOLD>(){}[0]
+final const val io.github.syrou.reaktiv.devtools.protocol/STALL_TRACE_CLASS // io.github.syrou.reaktiv.devtools.protocol/STALL_TRACE_CLASS|{}STALL_TRACE_CLASS[0]
+    final fun <get-STALL_TRACE_CLASS>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/STALL_TRACE_CLASS.<get-STALL_TRACE_CLASS>|<get-STALL_TRACE_CLASS>(){}[0]
 
 final val io.github.syrou.reaktiv.devtools.client/io_github_syrou_reaktiv_devtools_client_DevToolsConnection$stableprop // io.github.syrou.reaktiv.devtools.client/io_github_syrou_reaktiv_devtools_client_DevToolsConnection$stableprop|#static{}io_github_syrou_reaktiv_devtools_client_DevToolsConnection$stableprop[0]
 final val io.github.syrou.reaktiv.devtools.middleware/io_github_syrou_reaktiv_devtools_middleware_DevToolsConfig$stableprop // io.github.syrou.reaktiv.devtools.middleware/io_github_syrou_reaktiv_devtools_middleware_DevToolsConfig$stableprop|#static{}io_github_syrou_reaktiv_devtools_middleware_DevToolsConfig$stableprop[0]
@@ -875,7 +1007,11 @@ final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devt
 final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateReadReport_$serializer$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateReadReport_$serializer$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateReadReport_$serializer$stableprop[0]
 final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync$stableprop[0]
 final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync_$serializer$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync_$serializer$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync_$serializer$stableprop[0]
+final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DispatchStats$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DispatchStats$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_DispatchStats$stableprop[0]
 final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_MethodStats$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_MethodStats$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_MethodStats$stableprop[0]
+final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ModuleSizeStats$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ModuleSizeStats$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_ModuleSizeStats$stableprop[0]
+final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_StallGroup$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_StallGroup$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_StallGroup$stableprop[0]
+final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_StateSizeTracker$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_StateSizeTracker$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_StateSizeTracker$stableprop[0]
 final val io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ThreadStats$stableprop // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ThreadStats$stableprop|#static{}io_github_syrou_reaktiv_devtools_protocol_ThreadStats$stableprop[0]
 final val io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsCommands$stableprop // io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsCommands$stableprop|#static{}io_github_syrou_reaktiv_devtools_service_DevToolsCommands$stableprop[0]
 final val io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop // io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop|#static{}io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop[0]
@@ -883,7 +1019,9 @@ final val io.github.syrou.reaktiv.devtools.tracing/io_github_syrou_reaktiv_devto
 
 final fun io.github.syrou.reaktiv.devtools.client/io_github_syrou_reaktiv_devtools_client_DevToolsConnection$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.client/io_github_syrou_reaktiv_devtools_client_DevToolsConnection$stableprop_getter|io_github_syrou_reaktiv_devtools_client_DevToolsConnection$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.middleware/io_github_syrou_reaktiv_devtools_middleware_DevToolsConfig$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.middleware/io_github_syrou_reaktiv_devtools_middleware_DevToolsConfig$stableprop_getter|io_github_syrou_reaktiv_devtools_middleware_DevToolsConfig$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.devtools.protocol/aggregateDispatchStats(kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed>): io.github.syrou.reaktiv.devtools.protocol/DispatchStats? // io.github.syrou.reaktiv.devtools.protocol/aggregateDispatchStats|aggregateDispatchStats(kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodFailed>){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/aggregateLogicStats(kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed>): kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/MethodStats> // io.github.syrou.reaktiv.devtools.protocol/aggregateLogicStats|aggregateLogicStats(kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodFailed>){}[0]
+final fun io.github.syrou.reaktiv.devtools.protocol/aggregateStalls(kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted>): kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/StallGroup> // io.github.syrou.reaktiv.devtools.protocol/aggregateStalls|aggregateStalls(kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/aggregateThreadStats(kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed>): kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/ThreadStats> // io.github.syrou.reaktiv.devtools.protocol/aggregateThreadStats|aggregateThreadStats(kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodFailed>){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ClientInfo$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ClientInfo$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_ClientInfo$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ClientInfo_$serializer$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ClientInfo_$serializer$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_ClientInfo_$serializer$stableprop_getter(){}[0]
@@ -924,9 +1062,14 @@ final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devt
 final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateReadReport_$serializer$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateReadReport_$serializer$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateReadReport_$serializer$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync_$serializer$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync_$serializer$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_DevToolsMessage_StateSync_$serializer$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DispatchStats$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_DispatchStats$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_DispatchStats$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_MethodStats$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_MethodStats$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_MethodStats$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ModuleSizeStats$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ModuleSizeStats$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_ModuleSizeStats$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_StallGroup$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_StallGroup$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_StallGroup$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_StateSizeTracker$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_StateSizeTracker$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_StateSizeTracker$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ThreadStats$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/io_github_syrou_reaktiv_devtools_protocol_ThreadStats$stableprop_getter|io_github_syrou_reaktiv_devtools_protocol_ThreadStats$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.protocol/isMainThread(kotlin/String): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/isMainThread|isMainThread(kotlin.String){}[0]
+final fun io.github.syrou.reaktiv.devtools.protocol/stallCulprits(kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed>): kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/MethodStats> // io.github.syrou.reaktiv.devtools.protocol/stallCulprits|stallCulprits(kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodFailed>){}[0]
 final fun io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsCommands$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsCommands$stableprop_getter|io_github_syrou_reaktiv_devtools_service_DevToolsCommands$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop_getter|io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.tracing/io_github_syrou_reaktiv_devtools_tracing_DevToolsLogicObserver$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.tracing/io_github_syrou_reaktiv_devtools_tracing_DevToolsLogicObserver$stableprop_getter|io_github_syrou_reaktiv_devtools_tracing_DevToolsLogicObserver$stableprop_getter(){}[0]
@@ -1078,6 +1221,24 @@ final enum class io.github.syrou.reaktiv.devtools.ui.components/SegmentColor : k
 }
 
 // Targets: [wasmJs]
+final enum class io.github.syrou.reaktiv.devtools.ui/WarningFilter : kotlin/Enum<io.github.syrou.reaktiv.devtools.ui/WarningFilter> { // io.github.syrou.reaktiv.devtools.ui/WarningFilter|null[0]
+    enum entry ALL // io.github.syrou.reaktiv.devtools.ui/WarningFilter.ALL|null[0]
+    enum entry HIDDEN // io.github.syrou.reaktiv.devtools.ui/WarningFilter.HIDDEN|null[0]
+    enum entry WARNINGS_ONLY // io.github.syrou.reaktiv.devtools.ui/WarningFilter.WARNINGS_ONLY|null[0]
+
+    final val entries // io.github.syrou.reaktiv.devtools.ui/WarningFilter.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.syrou.reaktiv.devtools.ui/WarningFilter> // io.github.syrou.reaktiv.devtools.ui/WarningFilter.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.syrou.reaktiv.devtools.ui/WarningFilter // io.github.syrou.reaktiv.devtools.ui/WarningFilter.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.syrou.reaktiv.devtools.ui/WarningFilter> // io.github.syrou.reaktiv.devtools.ui/WarningFilter.values|values#static(){}[0]
+
+    final object Companion : kotlinx.serialization.internal/SerializerFactory { // io.github.syrou.reaktiv.devtools.ui/WarningFilter.Companion|null[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.devtools.ui/WarningFilter> // io.github.syrou.reaktiv.devtools.ui/WarningFilter.Companion.serializer|serializer(){}[0]
+        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // io.github.syrou.reaktiv.devtools.ui/WarningFilter.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
+    }
+}
+
+// Targets: [wasmJs]
 final class io.github.syrou.reaktiv.devtools.ui.components/TextSegment { // io.github.syrou.reaktiv.devtools.ui.components/TextSegment|null[0]
     constructor <init>(kotlin/String, io.github.syrou.reaktiv.devtools.ui.components/SegmentColor) // io.github.syrou.reaktiv.devtools.ui.components/TextSegment.<init>|<init>(kotlin.String;io.github.syrou.reaktiv.devtools.ui.components.SegmentColor){}[0]
 
@@ -1159,7 +1320,7 @@ final class io.github.syrou.reaktiv.devtools.ui/DevToolsUiLogic : io.github.syro
 
 // Targets: [wasmJs]
 final class io.github.syrou.reaktiv.devtools.ui/DevToolsUiState : io.github.syrou.reaktiv.core/ModuleState { // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState|null[0]
-    constructor <init>(io.github.syrou.reaktiv.devtools.client/ConnectionState = ..., kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/ClientInfo> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> = ..., kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Boolean = ..., kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/Boolean = ..., io.github.syrou.reaktiv.devtools.ui/CrashEventInfo? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> = ..., kotlin/Long? = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin/String = ...) // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.<init>|<init>(io.github.syrou.reaktiv.devtools.client.ConnectionState;kotlin.collections.List<io.github.syrou.reaktiv.devtools.protocol.ClientInfo>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.collections.List<io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent>;kotlin.String?;kotlin.String?;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.Set<kotlin.String>;kotlin.Boolean;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.String?;kotlin.collections.Set<kotlin.String>;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.Boolean;io.github.syrou.reaktiv.devtools.ui.CrashEventInfo?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>;kotlin.Long?;kotlin.Boolean;kotlin.String?;kotlin.String){}[0]
+    constructor <init>(io.github.syrou.reaktiv.devtools.client/ConnectionState = ..., kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/ClientInfo> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> = ..., kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Boolean = ..., kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/Boolean = ..., io.github.syrou.reaktiv.devtools.ui/CrashEventInfo? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., io.github.syrou.reaktiv.devtools.ui/WarningFilter = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Long? = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin/String = ...) // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.<init>|<init>(io.github.syrou.reaktiv.devtools.client.ConnectionState;kotlin.collections.List<io.github.syrou.reaktiv.devtools.protocol.ClientInfo>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.collections.List<io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent>;kotlin.String?;kotlin.String?;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.Set<kotlin.String>;kotlin.Boolean;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.String?;kotlin.collections.Set<kotlin.String>;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.Boolean;io.github.syrou.reaktiv.devtools.ui.CrashEventInfo?;kotlin.Boolean;kotlin.Boolean;io.github.syrou.reaktiv.devtools.ui.WarningFilter;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>;kotlin.collections.Set<kotlin.String>;kotlin.Long?;kotlin.Boolean;kotlin.String?;kotlin.String){}[0]
 
     final val actionStateHistory // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.actionStateHistory|{}actionStateHistory[0]
         final fun <get-actionStateHistory>(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.actionStateHistory.<get-actionStateHistory>|<get-actionStateHistory>(){}[0]
@@ -1187,8 +1348,12 @@ final class io.github.syrou.reaktiv.devtools.ui/DevToolsUiState : io.github.syro
         final fun <get-excludedLogicMethods>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.excludedLogicMethods.<get-excludedLogicMethods>|<get-excludedLogicMethods>(){}[0]
     final val initialStateJson // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.initialStateJson|{}initialStateJson[0]
         final fun <get-initialStateJson>(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.initialStateJson.<get-initialStateJson>|<get-initialStateJson>(){}[0]
+    final val logicEventKeys // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.logicEventKeys|{}logicEventKeys[0]
+        final fun <get-logicEventKeys>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.logicEventKeys.<get-logicEventKeys>|<get-logicEventKeys>(){}[0]
     final val logicMethodEvents // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.logicMethodEvents|{}logicMethodEvents[0]
         final fun <get-logicMethodEvents>(): kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.logicMethodEvents.<get-logicMethodEvents>|<get-logicMethodEvents>(){}[0]
+    final val performanceWarningFilter // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.performanceWarningFilter|{}performanceWarningFilter[0]
+        final fun <get-performanceWarningFilter>(): io.github.syrou.reaktiv.devtools.ui/WarningFilter // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.performanceWarningFilter.<get-performanceWarningFilter>|<get-performanceWarningFilter>(){}[0]
     final val publisherSessionStart // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.publisherSessionStart|{}publisherSessionStart[0]
         final fun <get-publisherSessionStart>(): kotlin/Long? // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.publisherSessionStart.<get-publisherSessionStart>|<get-publisherSessionStart>(){}[0]
     final val selectedActionIndex // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.selectedActionIndex|{}selectedActionIndex[0]
@@ -1231,11 +1396,13 @@ final class io.github.syrou.reaktiv.devtools.ui/DevToolsUiState : io.github.syro
     final fun component20(): io.github.syrou.reaktiv.devtools.ui/CrashEventInfo? // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component20|component20(){}[0]
     final fun component21(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component21|component21(){}[0]
     final fun component22(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component22|component22(){}[0]
-    final fun component23(): kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component23|component23(){}[0]
-    final fun component24(): kotlin/Long? // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component24|component24(){}[0]
-    final fun component25(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component25|component25(){}[0]
-    final fun component26(): kotlin/String? // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component26|component26(){}[0]
-    final fun component27(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component27|component27(){}[0]
+    final fun component23(): io.github.syrou.reaktiv.devtools.ui/WarningFilter // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component23|component23(){}[0]
+    final fun component24(): kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component24|component24(){}[0]
+    final fun component25(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component25|component25(){}[0]
+    final fun component26(): kotlin/Long? // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component26|component26(){}[0]
+    final fun component27(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component27|component27(){}[0]
+    final fun component28(): kotlin/String? // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component28|component28(){}[0]
+    final fun component29(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component29|component29(){}[0]
     final fun component3(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component3|component3(){}[0]
     final fun component4(): kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent> // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component4|component4(){}[0]
     final fun component5(): kotlin/String? // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component5|component5(){}[0]
@@ -1243,7 +1410,7 @@ final class io.github.syrou.reaktiv.devtools.ui/DevToolsUiState : io.github.syro
     final fun component7(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component7|component7(){}[0]
     final fun component8(): kotlin/Int? // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component8|component8(){}[0]
     final fun component9(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.component9|component9(){}[0]
-    final fun copy(io.github.syrou.reaktiv.devtools.client/ConnectionState = ..., kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/ClientInfo> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> = ..., kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Boolean = ..., kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/Boolean = ..., io.github.syrou.reaktiv.devtools.ui/CrashEventInfo? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> = ..., kotlin/Long? = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin/String = ...): io.github.syrou.reaktiv.devtools.ui/DevToolsUiState // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.copy|copy(io.github.syrou.reaktiv.devtools.client.ConnectionState;kotlin.collections.List<io.github.syrou.reaktiv.devtools.protocol.ClientInfo>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.collections.List<io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent>;kotlin.String?;kotlin.String?;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.Set<kotlin.String>;kotlin.Boolean;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.String?;kotlin.collections.Set<kotlin.String>;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.Boolean;io.github.syrou.reaktiv.devtools.ui.CrashEventInfo?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>;kotlin.Long?;kotlin.Boolean;kotlin.String?;kotlin.String){}[0]
+    final fun copy(io.github.syrou.reaktiv.devtools.client/ConnectionState = ..., kotlin.collections/List<io.github.syrou.reaktiv.devtools.protocol/ClientInfo> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> = ..., kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Boolean = ..., kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/Boolean = ..., io.github.syrou.reaktiv.devtools.ui/CrashEventInfo? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., io.github.syrou.reaktiv.devtools.ui/WarningFilter = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Long? = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin/String = ...): io.github.syrou.reaktiv.devtools.ui/DevToolsUiState // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.copy|copy(io.github.syrou.reaktiv.devtools.client.ConnectionState;kotlin.collections.List<io.github.syrou.reaktiv.devtools.protocol.ClientInfo>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.collections.List<io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent>;kotlin.String?;kotlin.String?;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.Set<kotlin.String>;kotlin.Boolean;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.String?;kotlin.collections.Set<kotlin.String>;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.Boolean;io.github.syrou.reaktiv.devtools.ui.CrashEventInfo?;kotlin.Boolean;kotlin.Boolean;io.github.syrou.reaktiv.devtools.ui.WarningFilter;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>;kotlin.collections.Set<kotlin.String>;kotlin.Long?;kotlin.Boolean;kotlin.String?;kotlin.String){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/DevToolsUiState.toString|toString(){}[0]
@@ -1528,6 +1695,19 @@ sealed class io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction : io.github.sy
         final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.RemoveLogicMethodExclusion.toString|toString(){}[0]
     }
 
+    final class ResetHistoryForSync : io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction { // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync|null[0]
+        constructor <init>(kotlin/Boolean) // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync.<init>|<init>(kotlin.Boolean){}[0]
+
+        final val clearLogicEvents // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync.clearLogicEvents|{}clearLogicEvents[0]
+            final fun <get-clearLogicEvents>(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync.clearLogicEvents.<get-clearLogicEvents>|<get-clearLogicEvents>(){}[0]
+
+        final fun component1(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync.component1|component1(){}[0]
+        final fun copy(kotlin/Boolean = ...): io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync.copy|copy(kotlin.Boolean){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.ResetHistoryForSync.toString|toString(){}[0]
+    }
+
     final class SelectAction : io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction { // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SelectAction|null[0]
         constructor <init>(kotlin/Int?) // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SelectAction.<init>|<init>(kotlin.Int?){}[0]
 
@@ -1682,6 +1862,19 @@ sealed class io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction : io.github.sy
         final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformancePanel.equals|equals(kotlin.Any?){}[0]
         final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformancePanel.hashCode|hashCode(){}[0]
         final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformancePanel.toString|toString(){}[0]
+    }
+
+    final class SetPerformanceWarningFilter : io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction { // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter|null[0]
+        constructor <init>(io.github.syrou.reaktiv.devtools.ui/WarningFilter) // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter.<init>|<init>(io.github.syrou.reaktiv.devtools.ui.WarningFilter){}[0]
+
+        final val filter // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter.filter|{}filter[0]
+            final fun <get-filter>(): io.github.syrou.reaktiv.devtools.ui/WarningFilter // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter.filter.<get-filter>|<get-filter>(){}[0]
+
+        final fun component1(): io.github.syrou.reaktiv.devtools.ui/WarningFilter // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter.component1|component1(){}[0]
+        final fun copy(io.github.syrou.reaktiv.devtools.ui/WarningFilter = ...): io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter.copy|copy(io.github.syrou.reaktiv.devtools.ui.WarningFilter){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPerformanceWarningFilter.toString|toString(){}[0]
     }
 
     final class SetPublisherSessionStart : io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction { // io.github.syrou.reaktiv.devtools.ui/DevToolsUiAction.SetPublisherSessionStart|null[0]
@@ -2093,6 +2286,9 @@ final val io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_u
 final val io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_RemoveLogicMethodExclusion$stableprop // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_RemoveLogicMethodExclusion$stableprop|#static{}io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_RemoveLogicMethodExclusion$stableprop[0]
 
 // Targets: [wasmJs]
+final val io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_ResetHistoryForSync$stableprop // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_ResetHistoryForSync$stableprop|#static{}io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_ResetHistoryForSync$stableprop[0]
+
+// Targets: [wasmJs]
 final val io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SelectAction$stableprop // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SelectAction$stableprop|#static{}io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SelectAction$stableprop[0]
 
 // Targets: [wasmJs]
@@ -2127,6 +2323,9 @@ final val io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_u
 
 // Targets: [wasmJs]
 final val io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformancePanel$stableprop // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformancePanel$stableprop|#static{}io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformancePanel$stableprop[0]
+
+// Targets: [wasmJs]
+final val io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformanceWarningFilter$stableprop // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformanceWarningFilter$stableprop|#static{}io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformanceWarningFilter$stableprop[0]
 
 // Targets: [wasmJs]
 final val io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPublisherSessionStart$stableprop // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPublisherSessionStart$stableprop|#static{}io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPublisherSessionStart$stableprop[0]
@@ -2225,7 +2424,7 @@ final fun io.github.syrou.reaktiv.devtools.ui.components/JsonTreeViewer(kotlin/S
 final fun io.github.syrou.reaktiv.devtools.ui.components/KotlinObjectTreeViewer(kotlin/String, androidx.compose.ui/Modifier?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.github.syrou.reaktiv.devtools.ui.components/KotlinObjectTreeViewer|KotlinObjectTreeViewer(kotlin.String;androidx.compose.ui.Modifier?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 
 // Targets: [wasmJs]
-final fun io.github.syrou.reaktiv.devtools.ui.components/PerformancePanel(kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent>, androidx.compose.runtime/Composer?, kotlin/Int) // io.github.syrou.reaktiv.devtools.ui.components/PerformancePanel|PerformancePanel(kotlin.collections.List<io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent>;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
+final fun io.github.syrou.reaktiv.devtools.ui.components/PerformancePanel(kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent>, kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction>?, kotlin/String?, io.github.syrou.reaktiv.devtools.ui/WarningFilter?, kotlin/Function1<io.github.syrou.reaktiv.devtools.ui/WarningFilter, kotlin/Unit>?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.github.syrou.reaktiv.devtools.ui.components/PerformancePanel|PerformancePanel(kotlin.collections.List<io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>?;kotlin.String?;io.github.syrou.reaktiv.devtools.ui.WarningFilter?;kotlin.Function1<io.github.syrou.reaktiv.devtools.ui.WarningFilter,kotlin.Unit>?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 
 // Targets: [wasmJs]
 final fun io.github.syrou.reaktiv.devtools.ui.components/StateViewer(kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction>, kotlin/Int?, kotlin.collections/List<io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent>?, kotlin/String?, io.github.syrou.reaktiv.devtools.ui/CrashEventInfo?, kotlin/Boolean, kotlin/Boolean, kotlin.collections/Set<kotlin/String>, kotlin/String?, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead>?, kotlin/Function0<kotlin/Unit>, kotlin/Function0<kotlin/Unit>, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int, kotlin/Int) // io.github.syrou.reaktiv.devtools.ui.components/StateViewer|StateViewer(kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.Int?;kotlin.collections.List<io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent>?;kotlin.String?;io.github.syrou.reaktiv.devtools.ui.CrashEventInfo?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.Set<kotlin.String>;kotlin.String?;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>?;kotlin.Function0<kotlin.Unit>;kotlin.Function0<kotlin.Unit>;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
@@ -2306,6 +2505,9 @@ final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_u
 final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_RemoveLogicMethodExclusion$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_RemoveLogicMethodExclusion$stableprop_getter|io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_RemoveLogicMethodExclusion$stableprop_getter(){}[0]
 
 // Targets: [wasmJs]
+final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_ResetHistoryForSync$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_ResetHistoryForSync$stableprop_getter|io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_ResetHistoryForSync$stableprop_getter(){}[0]
+
+// Targets: [wasmJs]
 final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SelectAction$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SelectAction$stableprop_getter|io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SelectAction$stableprop_getter(){}[0]
 
 // Targets: [wasmJs]
@@ -2340,6 +2542,9 @@ final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_u
 
 // Targets: [wasmJs]
 final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformancePanel$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformancePanel$stableprop_getter|io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformancePanel$stableprop_getter(){}[0]
+
+// Targets: [wasmJs]
+final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformanceWarningFilter$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformanceWarningFilter$stableprop_getter|io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPerformanceWarningFilter$stableprop_getter(){}[0]
 
 // Targets: [wasmJs]
 final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPublisherSessionStart$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPublisherSessionStart$stableprop_getter|io_github_syrou_reaktiv_devtools_ui_DevToolsUiAction_SetPublisherSessionStart$stableprop_getter(){}[0]
@@ -2415,6 +2620,9 @@ final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_u
 
 // Targets: [wasmJs]
 final fun io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_SyntaxColors$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/io_github_syrou_reaktiv_devtools_ui_SyntaxColors$stableprop_getter|io_github_syrou_reaktiv_devtools_ui_SyntaxColors$stableprop_getter(){}[0]
+
+// Targets: [wasmJs]
+final fun io.github.syrou.reaktiv.devtools.ui/logicEventKey(io.github.syrou.reaktiv.devtools.ui/LogicMethodEvent): kotlin/String // io.github.syrou.reaktiv.devtools.ui/logicEventKey|logicEventKey(io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent){}[0]
 
 // Targets: [wasmJs]
 final fun io.github.syrou.reaktiv.devtools/main() // io.github.syrou.reaktiv.devtools/main|main(){}[0]

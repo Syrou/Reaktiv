@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.core.tracing.StateReadTracker
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.introspection.CrashHandler
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
+import io.github.syrou.reaktiv.introspection.StallWatchdog
 import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.SessionFileExport
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
@@ -25,6 +26,7 @@ public class ToolingLogic internal constructor(
 
     private var logicObserver: IntrospectionLogicObserver? = null
     private var stateReadObserver: ((StateRead) -> Unit)? = null
+    private var stallWatchdog: StallWatchdog? = null
     private val fileExport = SessionFileExport(platformContext)
 
     init {
@@ -35,6 +37,16 @@ public class ToolingLogic internal constructor(
                 .also { StateReadTracker.addObserver(it) }
             if (config.installCrashHandler) {
                 CrashHandler(platformContext, capture).install()
+            }
+            if (config.installStallWatchdog && storeAccessor is Store) {
+                stallWatchdog = StallWatchdog(
+                    scope = storeAccessor,
+                    thresholdMs = config.stallThresholdMs
+                ).also {
+                    if (!it.start()) {
+                        stallWatchdog = null
+                    }
+                }
             }
             storeAccessor.launch {
                 if (config.autoStart) {
@@ -106,5 +118,7 @@ public class ToolingLogic internal constructor(
         logicObserver = null
         stateReadObserver?.let { StateReadTracker.removeObserver(it) }
         stateReadObserver = null
+        stallWatchdog?.stop()
+        stallWatchdog = null
     }
 }

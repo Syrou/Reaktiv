@@ -40,7 +40,9 @@ data class DevToolsUiState(
     val crashEvent: CrashEventInfo? = null,
     val crashSelected: Boolean = false,
     val showPerformancePanel: Boolean = false,
+    val performanceWarningFilter: WarningFilter = WarningFilter.ALL,
     val stateReads: List<StateRead> = emptyList(),
+    val logicEventKeys: Set<String> = emptySet(),
     val publisherSessionStart: Long? = null,
     val canExportSession: Boolean = false,
     val activeGhostId: String? = null,
@@ -93,6 +95,8 @@ sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data class SetPerformancePanel(val visible: Boolean) : DevToolsUiAction()
     data class AddStateRead(val read: StateRead) : DevToolsUiAction()
     data class SetStateReads(val reads: List<StateRead>) : DevToolsUiAction()
+    data class ResetHistoryForSync(val clearLogicEvents: Boolean) : DevToolsUiAction()
+    data class SetPerformanceWarningFilter(val filter: WarningFilter) : DevToolsUiAction()
     data class SetPublisherSessionStart(val startTime: Long?) : DevToolsUiAction()
     data class SetCanExportSession(val canExport: Boolean) : DevToolsUiAction()
     data class BulkAddActionStateEvents(val events: List<CapturedAction>) : DevToolsUiAction()
@@ -100,6 +104,19 @@ sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data class SetActiveGhostId(val ghostId: String?) : DevToolsUiAction()
     data class EnableTimeTravelWithGhost(val ghostId: String) : DevToolsUiAction()
     data class SetInitialState(val json: String) : DevToolsUiAction()
+}
+
+@Serializable
+enum class WarningFilter {
+    ALL,
+    WARNINGS_ONLY,
+    HIDDEN
+}
+
+fun logicEventKey(event: LogicMethodEvent): String = when (event) {
+    is LogicMethodEvent.Started -> "S:${event.callId}"
+    is LogicMethodEvent.Completed -> "C:${event.callId}"
+    is LogicMethodEvent.Failed -> "F:${event.callId}"
 }
 
 /**

@@ -29,9 +29,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.PolymorphicSerializer
@@ -109,7 +111,7 @@ public class SessionCapture(
     private var workerScope: CoroutineScope? = null
     private var channel: Channel<Record>? = null
     private val enqueuedCount = AtomicLong(0L)
-    private val processedCount = AtomicLong(0L)
+    private val processedCount = MutableStateFlow(0L)
 
     private val _actions = MutableSharedFlow<CapturedAction>(
         extraBufferCapacity = 256,
@@ -303,9 +305,7 @@ public class SessionCapture(
      */
     public suspend fun flush() {
         val target = enqueuedCount.load()
-        while (processedCount.load() < target) {
-            delay(1)
-        }
+        processedCount.first { it >= target }
     }
 
     /**
@@ -410,13 +410,13 @@ public class SessionCapture(
         channel = null
         workerScope = null
         enqueuedCount.store(0L)
-        processedCount.store(0L)
+        processedCount.value = 0L
     }
 
     private fun enqueue(record: Record) {
         if (!started) return
         val target = channel ?: return
-        if (enqueuedCount.load() - processedCount.load() >= HIGH_WATER_MARK) {
+        if (enqueuedCount.load() - processedCount.value >= HIGH_WATER_MARK) {
             droppedCount.addAndFetch(1L)
             return
         }
@@ -438,7 +438,7 @@ public class SessionCapture(
             } catch (e: Throwable) {
                 ReaktivDebug.warn("SessionCapture worker failed to process batch: ${e.message}")
             } finally {
-                processedCount.addAndFetch(batch.size.toLong())
+                processedCount.update { it + batch.size.toLong() }
             }
         }
     }

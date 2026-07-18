@@ -80,8 +80,26 @@ object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, Dev
                     selectedLogicMethodCallId = null,
                     crashEvent = null,
                     crashSelected = false,
-                    stateReads = emptyList()
+                    stateReads = emptyList(),
+                    logicEventKeys = emptySet()
                 )
+            }
+
+            is DevToolsUiAction.ResetHistoryForSync -> {
+                if (action.clearLogicEvents) {
+                    state.copy(
+                        actionStateHistory = emptyList(),
+                        logicMethodEvents = emptyList(),
+                        selectedActionIndex = null,
+                        selectedLogicMethodCallId = null,
+                        logicEventKeys = emptySet()
+                    )
+                } else {
+                    state.copy(
+                        actionStateHistory = emptyList(),
+                        selectedActionIndex = null
+                    )
+                }
             }
 
             is DevToolsUiAction.AddActionExclusion -> {
@@ -113,16 +131,22 @@ object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, Dev
             }
 
             is DevToolsUiAction.AddLogicMethodEvent -> {
-                val newCallIdMap = if (action.event is LogicMethodEvent.Started) {
-                    val started = action.event as LogicMethodEvent.Started
-                    state.callIdToMethodIdentifier + (started.callId to "${started.logicClass}.${started.methodName}")
+                val key = logicEventKey(action.event)
+                if (key in state.logicEventKeys) {
+                    state
                 } else {
-                    state.callIdToMethodIdentifier
+                    val newCallIdMap = if (action.event is LogicMethodEvent.Started) {
+                        val started = action.event as LogicMethodEvent.Started
+                        state.callIdToMethodIdentifier + (started.callId to "${started.logicClass}.${started.methodName}")
+                    } else {
+                        state.callIdToMethodIdentifier
+                    }
+                    state.copy(
+                        logicMethodEvents = state.logicMethodEvents + action.event,
+                        callIdToMethodIdentifier = newCallIdMap,
+                        logicEventKeys = state.logicEventKeys + key
+                    )
                 }
-                state.copy(
-                    logicMethodEvents = state.logicMethodEvents + action.event,
-                    callIdToMethodIdentifier = newCallIdMap
-                )
             }
 
             is DevToolsUiAction.ToggleShowActions -> {
@@ -169,6 +193,10 @@ object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, Dev
                 state.copy(showPerformancePanel = action.visible)
             }
 
+            is DevToolsUiAction.SetPerformanceWarningFilter -> {
+                state.copy(performanceWarningFilter = action.filter)
+            }
+
             is DevToolsUiAction.AddStateRead -> {
                 if (action.read in state.stateReads) state
                 else state.copy(stateReads = state.stateReads + action.read)
@@ -212,12 +240,15 @@ object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, Dev
             }
 
             is DevToolsUiAction.BulkAddLogicMethodEvents -> {
-                val newCallIdEntries = action.events
+                val seen = state.logicEventKeys.toMutableSet()
+                val fresh = action.events.filter { seen.add(logicEventKey(it)) }
+                val newCallIdEntries = fresh
                     .filterIsInstance<LogicMethodEvent.Started>()
                     .associate { it.callId to "${it.logicClass}.${it.methodName}" }
                 state.copy(
-                    logicMethodEvents = state.logicMethodEvents + action.events,
-                    callIdToMethodIdentifier = state.callIdToMethodIdentifier + newCallIdEntries
+                    logicMethodEvents = state.logicMethodEvents + fresh,
+                    callIdToMethodIdentifier = state.callIdToMethodIdentifier + newCallIdEntries,
+                    logicEventKeys = seen
                 )
             }
 
@@ -283,12 +314,17 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
         return fresh
     }
 
+    private var lastSyncedClientId: String? = null
+
     private suspend fun appendHistorySlice(
         clientId: String,
         history: SessionHistory,
         isFirstSlice: Boolean
     ) {
         if (isFirstSlice) {
+            val switchedPublisher = lastSyncedClientId != null && clientId != lastSyncedClientId
+            lastSyncedClientId = clientId
+            storeAccessor.dispatch(DevToolsUiAction.ResetHistoryForSync(clearLogicEvents = switchedPublisher))
             storeAccessor.dispatch(DevToolsUiAction.SetPublisherSessionStart(history.startTime))
             storeAccessor.dispatch(DevToolsUiAction.SetCanExportSession(true))
             storeAccessor.dispatch(DevToolsUiAction.SetInitialState(history.initialStateJson))

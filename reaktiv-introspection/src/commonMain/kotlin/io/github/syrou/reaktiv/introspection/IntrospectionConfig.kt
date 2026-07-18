@@ -40,6 +40,8 @@ public data class IntrospectionConfig @OptIn(ExperimentalUuidApi::class) constru
     val enabled: Boolean = true,
     val autoStart: Boolean = true,
     val installCrashHandler: Boolean = true,
+    val installStallWatchdog: Boolean = true,
+    val stallThresholdMs: Long = 300L,
     val clientMetadata: ClientMetadata? = null,
     val redactor: StateRedactor? = null,
     val maxActions: Int? = null,

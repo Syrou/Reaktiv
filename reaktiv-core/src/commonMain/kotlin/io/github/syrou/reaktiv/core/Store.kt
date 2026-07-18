@@ -1,11 +1,15 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:OptIn(ExperimentalCoroutinesApi::class, ExperimentalAtomicApi::class)
 
 package io.github.syrou.reaktiv.core
 
 import io.github.syrou.reaktiv.core.persistance.PersistenceManager
 import io.github.syrou.reaktiv.core.persistance.PersistenceStrategy
+import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -164,7 +168,8 @@ public sealed class DispatchResult {
  */
 internal data class DispatchEnvelope(
     val action: ModuleAction,
-    val completion: CompletableDeferred<DispatchResult>?
+    val completion: CompletableDeferred<DispatchResult>?,
+    val enqueuedAtMs: Long = 0L
 )
 
 
@@ -667,6 +672,9 @@ public class Store private constructor(
 
     private val storeJob: Job = SupervisorJob(coroutineScope.coroutineContext[Job])
 
+    private val dispatchEnqueuedCount = AtomicLong(0L)
+    private val dispatchProcessedCount = AtomicLong(0L)
+
     override val coroutineContext: CoroutineContext
         get() = baseContext + storeJob
 
@@ -686,7 +694,12 @@ public class Store private constructor(
             throw IllegalStateException("Store is closed")
         }
 
-        val envelope = DispatchEnvelope(action, completion = null)
+        val envelope = DispatchEnvelope(
+            action,
+            completion = null,
+            enqueuedAtMs = if (LogicTracer.active) currentTimeMillis() else 0L
+        )
+        dispatchEnqueuedCount.addAndFetch(1L)
         launch {
             when (action) {
                 is HighPriorityAction -> highPriorityChannel.send(envelope)
@@ -702,7 +715,12 @@ public class Store private constructor(
         }
 
         val completion = CompletableDeferred<DispatchResult>()
-        val envelope = DispatchEnvelope(action, completion)
+        val envelope = DispatchEnvelope(
+            action,
+            completion,
+            enqueuedAtMs = if (LogicTracer.active) currentTimeMillis() else 0L
+        )
+        dispatchEnqueuedCount.addAndFetch(1L)
 
         when (action) {
             is HighPriorityAction -> highPriorityChannel.send(envelope)
@@ -805,13 +823,44 @@ public class Store private constructor(
     }
 
     private suspend fun processEnvelope(envelope: DispatchEnvelope) {
+        var callId = ""
+        var processStartMs = 0L
+        if (LogicTracer.active) {
+            processStartMs = currentTimeMillis()
+            val queueWaitMs = if (envelope.enqueuedAtMs > 0L) {
+                (processStartMs - envelope.enqueuedAtMs).coerceAtLeast(0L)
+            } else 0L
+            val queueDepth = (dispatchEnqueuedCount.load() - dispatchProcessedCount.load())
+                .coerceAtLeast(1L)
+            callId = LogicTracer.notifyMethodStart(
+                logicClass = "StoreDispatch",
+                methodName = envelope.action::class.simpleName ?: "Action",
+                params = mapOf(
+                    "queueWaitMs" to queueWaitMs.toString(),
+                    "queueDepth" to queueDepth.toString()
+                )
+            )
+        }
         try {
             val wasApplied = processAction(envelope.action)
+            if (callId.isNotEmpty()) {
+                LogicTracer.notifyMethodCompleted(
+                    callId = callId,
+                    result = if (wasApplied) "Processed" else "Blocked",
+                    resultType = "DispatchResult",
+                    durationMs = currentTimeMillis() - processStartMs
+                )
+            }
             envelope.completion?.complete(
                 if (wasApplied) DispatchResult.Processed else DispatchResult.Blocked
             )
         } catch (e: Throwable) {
+            if (callId.isNotEmpty()) {
+                LogicTracer.notifyMethodFailed(callId, e, currentTimeMillis() - processStartMs)
+            }
             envelope.completion?.complete(DispatchResult.Error(e))
+        } finally {
+            dispatchProcessedCount.addAndFetch(1L)
         }
     }
 

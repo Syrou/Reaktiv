@@ -39,6 +39,7 @@ include("reaktiv-introspection")
 include("reaktiv-devtools")
 include("reaktiv-tracing-annotations")
 include("reaktiv-test")
+include("reaktiv-test-navigation")
 includeBuild("reaktiv-tracing-compiler")
 
 gradle.allprojects {

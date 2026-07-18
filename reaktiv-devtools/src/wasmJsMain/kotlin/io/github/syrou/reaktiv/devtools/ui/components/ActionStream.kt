@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
+import io.github.syrou.reaktiv.devtools.protocol.DISPATCH_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import kotlinx.datetime.TimeZone
@@ -126,7 +127,8 @@ fun ActionStream(
                         is LogicMethodEvent.Started -> "${event.logicClass}.${event.methodName}"
                         else -> callIdToMethodIdentifier[event.callId]
                     }
-                    if (methodId == null || !excludedLogicMethods.contains(methodId)) {
+                    val isDispatchTrace = methodId?.startsWith("$DISPATCH_TRACE_CLASS.") == true
+                    if (!isDispatchTrace && (methodId == null || !excludedLogicMethods.contains(methodId))) {
                         add(StreamEvent.LogicMethod(event))
                     }
                 }

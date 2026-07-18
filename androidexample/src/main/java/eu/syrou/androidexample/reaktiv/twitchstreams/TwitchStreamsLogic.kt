@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TwitchStreamsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -21,22 +22,24 @@ class TwitchStreamsLogic(private val storeAccessor: StoreAccessor) : ModuleLogic
         }
     }
 
-    suspend fun loadStreams(accessToken: String) {
+    suspend fun loadStreams(accessToken: String) = withContext(Dispatchers.IO) {
+        val twitchStreamers = fetchPathOfExileStreams(accessToken)
         storeAccessor.dispatch(TwitchStreamsModule.TwitchStreamsAction.NewsLoading(true))
         storeAccessor.dispatch(
             TwitchStreamsModule.TwitchStreamsAction.SetTwitchStreamers(
-                fetchPathOfExileStreams(accessToken)
+                twitchStreamers
             )
         )
         storeAccessor.dispatch(TwitchStreamsModule.TwitchStreamsAction.NewsLoading(false))
     }
 
-    private suspend fun fetchPathOfExileStreams(accessToken: String): List<TwitchApiClient.Stream> {
-        val twitchApiClient = TwitchApiClient(accessToken)
-        try {
-            return twitchApiClient.getActivePathOfExileStreams()
-        } finally {
-            twitchApiClient.close()
+    private suspend fun fetchPathOfExileStreams(accessToken: String): List<TwitchApiClient.Stream> =
+        withContext(Dispatchers.IO) {
+            val twitchApiClient = TwitchApiClient(accessToken)
+            try {
+                return@withContext twitchApiClient.getActivePathOfExileStreams()
+            } finally {
+                twitchApiClient.close()
+            }
         }
-    }
 }

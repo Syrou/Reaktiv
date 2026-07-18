@@ -1,0 +1,8 @@
+public final class io/github/syrou/reaktiv/test/navigation/NavigationAssertionsKt {
+	public static final fun assertBackStack (Lio/github/syrou/reaktiv/test/ReaktivTestScope;[Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun assertCurrentPath (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun assertCurrentRoute (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun awaitRoute (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun evaluateGuard (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+

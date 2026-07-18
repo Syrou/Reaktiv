@@ -1,0 +1,13 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, macosArm64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <io.github.syrou:reaktiv-test-navigation>
+final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/assertBackStack(kotlin/Array<out kotlin/String>...) // io.github.syrou.reaktiv.test.navigation/assertBackStack|assertBackStack@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.Array<out|kotlin.String>...){}[0]
+final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/assertCurrentPath(kotlin/String) // io.github.syrou.reaktiv.test.navigation/assertCurrentPath|assertCurrentPath@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.String){}[0]
+final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/assertCurrentRoute(kotlin/String) // io.github.syrou.reaktiv.test.navigation/assertCurrentRoute|assertCurrentRoute@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.String){}[0]
+final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/awaitRoute(kotlin/String): io.github.syrou.reaktiv.navigation/NavigationState // io.github.syrou.reaktiv.test.navigation/awaitRoute|awaitRoute@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.String){}[0]
+final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/evaluateGuard(kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/StoreAccessor, io.github.syrou.reaktiv.navigation.model/GuardResult>): io.github.syrou.reaktiv.navigation.model/GuardResult // io.github.syrou.reaktiv.test.navigation/evaluateGuard|evaluateGuard@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.coroutines.SuspendFunction1<io.github.syrou.reaktiv.core.StoreAccessor,io.github.syrou.reaktiv.navigation.model.GuardResult>){}[0]

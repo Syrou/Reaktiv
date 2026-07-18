@@ -2409,3 +2409,118 @@ Durations are attributed to the starting thread of each call; suspension-point
 thread hops within a call are not tracked.
 
 ---
+### [AD-44] Dispatch pipeline latency in the performance lens
+
+**Type:** Addition
+
+**Grep:** `StoreDispatch|aggregateDispatchStats`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val dispatch = aggregateDispatchStats(history.logicStarted, history.logicCompleted, history.logicFailed)
+println("avg queue wait ${dispatch?.avgQueueWaitMs}ms, max depth ${dispatch?.maxQueueDepth}")
+```
+
+**Notes:** The store worker emits synthetic StoreDispatch trace events per
+processed action when LogicTracer has observers: method name is the action
+type, params carry queueWaitMs (enqueue to dequeue) and queueDepth, duration is
+middleware plus reducer time, and the result records Processed or Blocked; a
+throwing reducer or middleware reports a failure event with the exception. Zero
+cost with no observer. aggregateDispatchStats folds these into processed count,
+avg/max queue wait, max depth and total reducer time; the Performance tab shows
+a Dispatch queue summary and raises the warning banner when queue wait peaks
+past 100ms. StoreDispatch pairs are excluded from the event timeline (they
+mirror action cards) and from the main-thread banner check. The Performance tab
+also gains a tri-state warning filter: All shows everything, Warnings shows
+only flagged methods, threads and dispatch congestion, Hide suppresses warning
+styling and the banner entirely.
+
+---
+### [AD-45] State size watchdog
+
+**Type:** Addition
+
+**Grep:** `StateSizeTracker|ModuleSizeStats`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val tracker = StateSizeTracker()
+tracker.feedInitial(session.initialStateJson)
+session.actions.forEach { tracker.feed(it) }
+tracker.snapshot().filter { it.isSuspicious }.forEach {
+    println("${it.shortName} grew ${it.growthPercent}% to ${it.currentBytes} bytes")
+}
+```
+
+**Notes:** StateSizeTracker (devtools commonMain) folds the existing delta
+stream into per-module encoded-state sizes: field deltas merge into a JSON
+shadow, full deltas replace it, and each update tracks current, max, session
+growth percent and a consecutive-growth streak. A module is flagged suspicious
+when it has grown for 10 straight updates and is up at least 50 percent this
+session, the classic append-only leak signature. The Performance tab shows a
+State size summary (current, max, growth per module) and the warning banner
+calls out suspicious modules. Computed entirely UI-side from data the timeline
+already has, so live sessions, ghosts and crash files all get it with no
+capture or protocol change; the warning filter applies.
+
+---
+### [AD-46] Main-thread stall watchdog
+
+**Type:** Addition
+
+**Grep:** `StallWatchdog|installStallWatchdog|MainThreadWatchdog`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+IntrospectionConfig(
+    platform = "Android",
+    installStallWatchdog = true,
+    stallThresholdMs = 300
+)
+```
+
+**Notes:** The tooling module now runs a debug-only heartbeat on
+Dispatchers.Main (100ms tick) with a monitor on Dispatchers.Default. When the
+main thread stops beating past stallThresholdMs (default 300ms) and then
+recovers, the watchdog reports a synthetic MainThreadWatchdog.stall trace event
+whose duration is the freeze length, so UI freezes land on the same timeline as
+actions, logic and crashes, in session files and live streams. The Performance
+banner shows "UI frozen N time(s), worst Xms". Platforms without a usable Main
+dispatcher (server natives, plain JVM tests) are detected with a synchronous
+probe and the watchdog disables itself instead of failing into the store's
+crash handling. Events are emitted at recovery time; a freeze the app never
+recovers from is captured by the crash path instead.
+
+---
+### [AD-47] Navigation assertions for the test kit
+
+**Type:** Addition
+
+**Grep:** `assertCurrentRoute|assertBackStack|evaluateGuard`
+**File glob:** `**/*Test*.kt`
+
+**Example:**
+```kotlin
+@Test
+fun `login flow lands on home`() = reaktivTest(AuthModule, navigationModule) {
+    store.navigation { navigateTo("workspace/home") }
+    assertCurrentRoute("home")
+    assertBackStack("start", "home")
+    assertEquals(GuardResult.Allow, evaluateGuard(requireAuth))
+}
+```
+
+**Notes:** New io.github.syrou:reaktiv-test-navigation artifact (commonTest
+dependency) with ReaktivTestScope extensions: assertCurrentRoute and
+assertCurrentPath check the active entry, assertBackStack compares the full
+stack in order, awaitRoute suspends until navigation lands, and evaluateGuard
+runs a NavigationGuard directly against the test store for unit testing guard
+logic without navigating. Packaged as a companion artifact rather than inside
+reaktiv-test because reaktiv-navigation only targets the Compose platforms
+(jvm, android, apple) while reaktiv-test covers every core target including
+linux, mingw and wasm.
+
+---

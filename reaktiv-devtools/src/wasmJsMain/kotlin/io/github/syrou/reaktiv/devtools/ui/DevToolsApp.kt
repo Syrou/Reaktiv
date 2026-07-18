@@ -240,7 +240,13 @@ private fun DevToolsContent(store: Store) {
                         }
                         if (state.showPerformancePanel) {
                             PerformancePanel(
-                                logicMethodEvents = state.logicMethodEvents
+                                logicMethodEvents = state.logicMethodEvents,
+                                actionStateHistory = state.actionStateHistory,
+                                initialStateJson = state.initialStateJson,
+                                warningFilter = state.performanceWarningFilter,
+                                onWarningFilterChange = {
+                                    dispatch(DevToolsUiAction.SetPerformanceWarningFilter(it))
+                                }
                             )
                         } else {
                             StateViewer(
