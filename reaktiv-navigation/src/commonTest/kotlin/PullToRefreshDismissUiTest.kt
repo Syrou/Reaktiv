@@ -445,14 +445,8 @@ class PullToRefreshDismissUiTest {
         waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
-        onRoot().performTouchInput {
-            down(Offset(centerX, height * 0.6f))
-            repeat(6) {
-                moveBy(Offset(0f, -height * 0.06f), delayMillis = 30)
-            }
-            up()
-        }
-        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = UI_TEST_WAIT_MS)
+        scrollListUntilTextVisible("Lazy Row 20", revealLater = true)
+        scrollListUntilTextVisible("Lazy Row 0", revealLater = false)
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.6f))
@@ -524,14 +518,8 @@ class PullToRefreshDismissUiTest {
         waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
-        onRoot().performTouchInput {
-            down(Offset(centerX, height * 0.6f))
-            repeat(6) {
-                moveBy(Offset(0f, -height * 0.06f), delayMillis = 30)
-            }
-            up()
-        }
-        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = UI_TEST_WAIT_MS)
+        scrollListUntilTextVisible("Lazy Row 20", revealLater = true)
+        scrollListUntilTextVisible("Lazy Row 0", revealLater = false)
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.6f))
@@ -603,14 +591,8 @@ class PullToRefreshDismissUiTest {
         waitUntilExactlyOneExists(hasText("Lazy Row 0"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
-        onRoot().performTouchInput {
-            down(Offset(centerX, height * 0.6f))
-            repeat(6) {
-                moveBy(Offset(0f, -height * 0.06f), delayMillis = 30)
-            }
-            up()
-        }
-        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = UI_TEST_WAIT_MS)
+        scrollListUntilTextVisible("Lazy Row 20", revealLater = true)
+        scrollListUntilTextVisible("Lazy Row 0", revealLater = false)
 
         onRoot().performTouchInput {
             down(Offset(centerX, height * 0.6f))
@@ -683,14 +665,7 @@ class PullToRefreshDismissUiTest {
         assertEquals(0, recorder.backActions.size, "A mid-screen pull must not dismiss the premounted sheet")
         assertTrue(RefreshRecorder.count >= 1, "Pull-to-refresh should trigger on a premounted cross-hierarchy sheet")
 
-        onRoot().performTouchInput {
-            down(Offset(centerX, height * 0.6f))
-            repeat(6) {
-                moveBy(Offset(0f, -height * 0.06f), delayMillis = 30)
-            }
-            up()
-        }
-        waitUntilExactlyOneExists(hasText("Lazy Row 20"), timeoutMillis = UI_TEST_WAIT_MS)
+        scrollListUntilTextVisible("Lazy Row 20", revealLater = true)
     }
 
     @Test
