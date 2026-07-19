@@ -77,35 +77,9 @@ jobs:
             mkdir -p "${pkg_dir}/resources"
             cp -r reaktiv-devtools/build/dist/wasmJs/productionExecutable/* "${pkg_dir}/resources/"
 
-            # Create README
-            cat > "${pkg_dir}/README.md" << EOF
-          # Reaktiv DevTools ${VERSION}
-
-          ## Quick Start
-
-          ### Linux/macOS
-          \`\`\`bash
-          ./reaktiv-devtools resources
-          \`\`\`
-
-          ### Windows
-          \`\`\`cmd
-          reaktiv-devtools.exe resources
-          \`\`\`
-
-          Then open your browser to the URL shown in the console (default: http://localhost:8080).
-
-          ## Configuration
-
-          You can specify a custom port:
-          \`\`\`bash
-          ./reaktiv-devtools resources --port 3000
-          \`\`\`
-
-          ## Documentation
-
-          For full documentation, visit: https://github.com/${{ github.repository }}
-          EOF
+            # Create README from the versioned template
+            sed -e "s|{{VERSION}}|${VERSION}|g" -e "s|{{REPO}}|${{ github.repository }}|g" \
+              reaktiv-devtools/release-readme-template.md > "${pkg_dir}/README.md"
 
             # Create zip package
             zip -r "release-packages/reaktiv-devtools-${package_name}-${VERSION}.zip" "${pkg_dir}"
@@ -160,29 +134,58 @@ jobs:
 
             ### Integration
 
-            Add the DevTools middleware to your app:
+            Attach tooling behind a debug-only seam so no tooling code ships in release.
+
+            Add the artifacts to a debug/staging build only:
 
             ```kotlin
-            val introspectionConfig = IntrospectionConfig(
-                clientName = "My App",
-                platform = "Android"
-            )
-            val sessionCapture = SessionCapture()
+            debugImplementation("io.github.syrou:reaktiv-introspection:${{ github.ref_name }}")
+            debugImplementation("io.github.syrou:reaktiv-devtools:${{ github.ref_name }}")
+            ```
 
-            val store = createStore {
-                module(UserModule)
-                module(navigationModule)
-                module(IntrospectionModule(introspectionConfig, sessionCapture))
-                module(DevToolsModule(
-                    config = DevToolsConfig(
-                        introspectionConfig = introspectionConfig,
-                        serverUrl = "ws://localhost:8080/ws"
-                    ),
-                    scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-                    sessionCapture = sessionCapture
-                ))
+            Define `toolingModule(...)` in your debug source set. Crash capture only
+            (no server, writes a crash session file to import here):
+
+            ```kotlin
+            // src/debug/.../ToolingAttachment.kt
+            fun toolingModule(context: Context): Module<*, *>? = createToolingModule(
+                config = IntrospectionConfig(clientName = "My App", platform = "Android 14"),
+                platformContext = PlatformContext(context)
+            )
+            ```
+
+            For the full setup (also streams live to this server) add an install block:
+
+            ```kotlin
+            fun toolingModule(context: Context): Module<*, *>? = createToolingModule(
+                config = IntrospectionConfig(clientName = "My App", platform = "Android 14"),
+                platformContext = PlatformContext(context)
+            ) {
+                install(
+                    DevToolsService(
+                        DevToolsConfig(
+                            serverUrl = "ws://10.0.2.2:8080/ws",
+                            defaultRole = ClientRole.PUBLISHER
+                        )
+                    )
+                )
             }
             ```
+
+            Add a release stub returning `null`, then wire the seam into the store:
+
+            ```kotlin
+            // src/release/.../ToolingAttachment.kt
+            fun toolingModule(context: Context): Module<*, *>? = null
+
+            // main source set
+            val store = createStore {
+                module(navigationModule)
+                toolingModule(context)?.let { module(it) }
+            }
+            ```
+
+            See the README inside each package for imports and the crash-file export API.
           files: |
             release-packages/*.zip
           draft: false

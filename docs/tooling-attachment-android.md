@@ -60,6 +60,30 @@ val store = createStore {
 }
 ```
 
+## Crash capture only (no server)
+
+To intercept crashes without any server or networking, install no service. The
+crash handler and full-session capture are on by default, so the debug seam is
+just `createToolingModule` with no `install` block:
+
+```kotlin
+// src/debug/java/.../tooling/ToolingAttachment.kt
+fun toolingModule(context: Context): Module<*, *>? = createToolingModule(
+    config = IntrospectionConfig(
+        clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
+        platform = "Android ${Build.VERSION.RELEASE}",
+        installCrashHandler = true
+    ),
+    platformContext = PlatformContext(context)
+)
+```
+
+On an uncaught exception this writes a crash session file to the device. Export
+it on demand with `exportCapturedSession(store)`, which calls
+`ToolingLogic.exportSessionToDownloads()`. Sensitive state keys (password,
+token, secret and similar) are redacted by default, so the crash file is safe
+to share. Set `installCrashHandler = false` to opt out.
+
 Debug-only screens (debug menus) live in the debug source set and enter the
 navigation graph via `screens(*toolingScreens().toTypedArray())`.
 

@@ -17,6 +17,7 @@ import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
+import io.github.syrou.reaktiv.introspection.protocol.buildCrashDiagnosis
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.introspection.protocol.CrashOrigin
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
@@ -336,6 +337,14 @@ public class SessionCapture(
         val allCrashes = readCrashes()
         val resolvedCrash = crash ?: capturedCrash ?: allCrashes.lastOrNull()
         val now = currentTimeMillis()
+        val actionsList = readActions()
+        val logicStartedList = readLogicStarted()
+        val logicCompletedList = readLogicCompleted()
+        val logicFailedList = readLogicFailed()
+        val stateReadsList = readStateReads()
+        val diagnosis = resolvedCrash?.let {
+            buildCrashDiagnosis(it, actionsList, logicStartedList, logicFailedList)
+        }
         val export = SessionExport(
             version = SessionExportFormat.VERSION,
             sessionId = Uuid.random().toString(),
@@ -352,13 +361,14 @@ public class SessionCapture(
                 startTime = sessionStartTime,
                 endTime = now,
                 initialStateJson = initialStateJson,
-                actions = readActions(),
-                logicStartedEvents = readLogicStarted(),
-                logicCompletedEvents = readLogicCompleted(),
-                logicFailedEvents = readLogicFailed(),
-                stateReads = readStateReads()
+                actions = actionsList,
+                logicStartedEvents = logicStartedList,
+                logicCompletedEvents = logicCompletedList,
+                logicFailedEvents = logicFailedList,
+                stateReads = stateReadsList
             ),
-            droppedRecords = droppedCount.load()
+            droppedRecords = droppedCount.load(),
+            diagnosis = diagnosis
         )
         return json.encodeToString(export)
     }

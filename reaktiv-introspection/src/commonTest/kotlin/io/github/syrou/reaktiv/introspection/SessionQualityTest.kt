@@ -43,7 +43,7 @@ class SessionQualityTest {
 
         val export = json.decodeFromString<SessionExport>(capture.exportSession())
 
-        assertEquals("3.3", export.version)
+        assertEquals("3.4", export.version)
         assertEquals("1.2.3", export.clientInfo.metadata?.appVersion)
         assertEquals("sv_SE", export.clientInfo.metadata?.locale)
         assertEquals(0, export.droppedRecords)

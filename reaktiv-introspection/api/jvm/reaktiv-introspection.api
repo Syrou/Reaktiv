@@ -39,12 +39,13 @@ public final class io/github/syrou/reaktiv/introspection/CrashHandler {
 }
 
 public final class io/github/syrou/reaktiv/introspection/IntrospectionConfig {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZZJLio/github/syrou/reaktiv/introspection/ClientMetadata;Lio/github/syrou/reaktiv/introspection/StateRedactor;Ljava/lang/Integer;Ljava/lang/Integer;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZZJLio/github/syrou/reaktiv/introspection/ClientMetadata;Lio/github/syrou/reaktiv/introspection/StateRedactor;Ljava/lang/Integer;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZZJLio/github/syrou/reaktiv/introspection/ClientMetadata;Lio/github/syrou/reaktiv/introspection/StateRedactor;Ljava/lang/Integer;Ljava/lang/Integer;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZZJLio/github/syrou/reaktiv/introspection/ClientMetadata;Lio/github/syrou/reaktiv/introspection/StateRedactor;Ljava/lang/Integer;Ljava/lang/Integer;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component10 ()Lio/github/syrou/reaktiv/introspection/StateRedactor;
 	public final fun component11 ()Ljava/lang/Integer;
 	public final fun component12 ()Ljava/lang/Integer;
+	public final fun component13 ()Z
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Z
@@ -53,8 +54,8 @@ public final class io/github/syrou/reaktiv/introspection/IntrospectionConfig {
 	public final fun component7 ()Z
 	public final fun component8 ()J
 	public final fun component9 ()Lio/github/syrou/reaktiv/introspection/ClientMetadata;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZZJLio/github/syrou/reaktiv/introspection/ClientMetadata;Lio/github/syrou/reaktiv/introspection/StateRedactor;Ljava/lang/Integer;Ljava/lang/Integer;)Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;
-	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZZJLio/github/syrou/reaktiv/introspection/ClientMetadata;Lio/github/syrou/reaktiv/introspection/StateRedactor;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZZJLio/github/syrou/reaktiv/introspection/ClientMetadata;Lio/github/syrou/reaktiv/introspection/StateRedactor;Ljava/lang/Integer;Ljava/lang/Integer;Z)Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZZJLio/github/syrou/reaktiv/introspection/ClientMetadata;Lio/github/syrou/reaktiv/introspection/StateRedactor;Ljava/lang/Integer;Ljava/lang/Integer;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/IntrospectionConfig;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAutoStart ()Z
 	public final fun getClientId ()Ljava/lang/String;
@@ -66,6 +67,7 @@ public final class io/github/syrou/reaktiv/introspection/IntrospectionConfig {
 	public final fun getMaxActions ()Ljava/lang/Integer;
 	public final fun getMaxLogicEvents ()Ljava/lang/Integer;
 	public final fun getPlatform ()Ljava/lang/String;
+	public final fun getRedactSensitiveKeys ()Z
 	public final fun getRedactor ()Lio/github/syrou/reaktiv/introspection/StateRedactor;
 	public final fun getStallThresholdMs ()J
 	public fun hashCode ()I
@@ -74,6 +76,13 @@ public final class io/github/syrou/reaktiv/introspection/IntrospectionConfig {
 
 public final class io/github/syrou/reaktiv/introspection/PlatformContext {
 	public fun <init> ()V
+}
+
+public final class io/github/syrou/reaktiv/introspection/SensitiveDataRedactionKt {
+	public static final field REDACTED_PLACEHOLDER Ljava/lang/String;
+	public static final fun getDEFAULT_SENSITIVE_KEYS ()Ljava/util/Set;
+	public static final fun sensitiveKeyRedactor (Ljava/util/Set;Ljava/lang/String;)Lio/github/syrou/reaktiv/introspection/StateRedactor;
+	public static synthetic fun sensitiveKeyRedactor$default (Ljava/util/Set;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/StateRedactor;
 }
 
 public final class io/github/syrou/reaktiv/introspection/SessionFileExport {
@@ -221,6 +230,62 @@ public final class io/github/syrou/reaktiv/introspection/protocol/CapturedAction
 public final class io/github/syrou/reaktiv/introspection/protocol/CapturedEventsKt {
 	public static final fun mergeCapturedDeltas (Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;)Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;
 	public static final fun mergeFieldJson (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis {
+	public static final field Companion Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/util/List;
+	public final fun component11 ()Ljava/util/List;
+	public final fun component12 ()Ljava/lang/String;
+	public final fun component13 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()I
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAfterActionIndex ()I
+	public final fun getExceptionMessage ()Ljava/lang/String;
+	public final fun getExceptionType ()Ljava/lang/String;
+	public final fun getLocation ()Ljava/lang/String;
+	public final fun getRecentActions ()Ljava/util/List;
+	public final fun getRecentStateChanges ()Ljava/util/List;
+	public final fun getReproduction ()Ljava/lang/String;
+	public final fun getRoute ()Ljava/lang/String;
+	public final fun getSourceUrl ()Ljava/lang/String;
+	public final fun getSummary ()Ljava/lang/String;
+	public final fun getSuspects ()Ljava/util/List;
+	public final fun getText ()Ljava/lang/String;
+	public final fun getTriggeringAction ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/introspection/protocol/CrashDiagnosisKt {
+	public static final fun buildCrashDiagnosis (Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;
 }
 
 public final class io/github/syrou/reaktiv/introspection/protocol/CrashException {
@@ -416,8 +481,8 @@ public final class io/github/syrou/reaktiv/introspection/protocol/SessionData$Co
 
 public final class io/github/syrou/reaktiv/introspection/protocol/SessionExport {
 	public static final field Companion Lio/github/syrou/reaktiv/introspection/protocol/SessionExport$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JLjava/util/List;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JLjava/util/List;Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JLjava/util/List;Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()J
@@ -426,12 +491,14 @@ public final class io/github/syrou/reaktiv/introspection/protocol/SessionExport 
 	public final fun component6 ()Lio/github/syrou/reaktiv/introspection/protocol/SessionData;
 	public final fun component7 ()J
 	public final fun component8 ()Ljava/util/List;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JLjava/util/List;)Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;
-	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JLjava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;
+	public final fun component9 ()Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JLjava/util/List;Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;)Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;Ljava/lang/String;Ljava/lang/String;JLio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Lio/github/syrou/reaktiv/introspection/protocol/SessionData;JLjava/util/List;Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/protocol/SessionExport;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getClientInfo ()Lio/github/syrou/reaktiv/introspection/protocol/ExportedClientInfo;
 	public final fun getCrash ()Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
 	public final fun getCrashes ()Ljava/util/List;
+	public final fun getDiagnosis ()Lio/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis;
 	public final fun getDroppedRecords ()J
 	public final fun getExportedAt ()J
 	public final fun getSession ()Lio/github/syrou/reaktiv/introspection/protocol/SessionData;

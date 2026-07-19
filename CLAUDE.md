@@ -309,7 +309,7 @@ Test files are located in `src/commonTest/kotlin/` for multiplatform tests and `
 
 **Code Comments and Documentation Guidelines:**
 
-0. **Comments are a separate pass** - Never add comments or KDoc when writing or modifying code. Comments and documentation are only generated when explicitly requested as their own complete pass. The guidelines below define the style for that dedicated pass. Also: never use the em-dash character anywhere (code, docs, commit messages); use commas, colons, or parentheses instead.
+0. **Comments are a separate pass** - Never add comments or KDoc when writing or modifying code. Comments and documentation are only generated when explicitly requested as their own complete pass. The guidelines below define the style for that dedicated pass. Also: never use the em-dash character anywhere (code, docs, commit messages), and never use a semicolon in prose such as docs, comments, migration entries, commit messages, and chat replies. Use commas, colons, parentheses, or separate sentences instead.
 
 1. **No inline comments** - Comments should never appear after code on the same line
    ```kotlin

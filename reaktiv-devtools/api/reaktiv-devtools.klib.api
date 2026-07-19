@@ -1274,10 +1274,12 @@ final class io.github.syrou.reaktiv.devtools.ui.components/TreeRow { // io.githu
 
 // Targets: [wasmJs]
 final class io.github.syrou.reaktiv.devtools.ui/CrashEventInfo { // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo|null[0]
-    constructor <init>(kotlin/String, io.github.syrou.reaktiv.introspection.protocol/CrashInfo) // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.<init>|<init>(kotlin.String;io.github.syrou.reaktiv.introspection.protocol.CrashInfo){}[0]
+    constructor <init>(kotlin/String, io.github.syrou.reaktiv.introspection.protocol/CrashInfo, io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? = ...) // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.<init>|<init>(kotlin.String;io.github.syrou.reaktiv.introspection.protocol.CrashInfo;io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis?){}[0]
 
     final val clientId // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.clientId|{}clientId[0]
         final fun <get-clientId>(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.clientId.<get-clientId>|<get-clientId>(){}[0]
+    final val diagnosis // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.diagnosis|{}diagnosis[0]
+        final fun <get-diagnosis>(): io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.diagnosis.<get-diagnosis>|<get-diagnosis>(){}[0]
     final val exception // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.exception|{}exception[0]
         final fun <get-exception>(): io.github.syrou.reaktiv.introspection.protocol/CrashException // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.exception.<get-exception>|<get-exception>(){}[0]
     final val info // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.info|{}info[0]
@@ -1287,7 +1289,8 @@ final class io.github.syrou.reaktiv.devtools.ui/CrashEventInfo { // io.github.sy
 
     final fun component1(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.component1|component1(){}[0]
     final fun component2(): io.github.syrou.reaktiv.introspection.protocol/CrashInfo // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.component2|component2(){}[0]
-    final fun copy(kotlin/String = ..., io.github.syrou.reaktiv.introspection.protocol/CrashInfo = ...): io.github.syrou.reaktiv.devtools.ui/CrashEventInfo // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.copy|copy(kotlin.String;io.github.syrou.reaktiv.introspection.protocol.CrashInfo){}[0]
+    final fun component3(): io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.component3|component3(){}[0]
+    final fun copy(kotlin/String = ..., io.github.syrou.reaktiv.introspection.protocol/CrashInfo = ..., io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? = ...): io.github.syrou.reaktiv.devtools.ui/CrashEventInfo // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.copy|copy(kotlin.String;io.github.syrou.reaktiv.introspection.protocol.CrashInfo;io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.ui/CrashEventInfo.toString|toString(){}[0]

@@ -438,7 +438,8 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
         if (crashInfo != null) {
             val crashEvent = CrashEventInfo(
                 clientId = export.clientInfo.clientId,
-                info = crashInfo
+                info = crashInfo,
+                diagnosis = export.diagnosis
             )
             storeAccessor.dispatch(DevToolsUiAction.SetCrashEvent(crashEvent))
         }
@@ -568,9 +569,15 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
             }
 
             is DevToolsMessage.CrashReport -> {
+                val diagnosis = message.sessionJson?.let { sessionJson ->
+                    runCatching {
+                        json.decodeFromString<GhostSessionExport>(sessionJson).diagnosis
+                    }.getOrNull()
+                }
                 val crashEvent = CrashEventInfo(
                     clientId = message.clientId,
-                    info = message.crash
+                    info = message.crash,
+                    diagnosis = diagnosis
                 )
                 storeAccessor.dispatch(DevToolsUiAction.SetCrashEvent(crashEvent))
             }

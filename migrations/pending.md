@@ -2524,3 +2524,61 @@ reaktiv-test because reaktiv-navigation only targets the Compose platforms
 linux, mingw and wasm.
 
 ---
+### [AD-48] Sensitive-key redaction on by default
+
+**Type:** Addition | Behavioural
+
+**Grep:** `sensitiveKeyRedactor|redactSensitiveKeys|DEFAULT_SENSITIVE_KEYS`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+IntrospectionConfig(
+    platform = "Android",
+    redactSensitiveKeys = true,
+    redactor = sensitiveKeyRedactor(keys = DEFAULT_SENSITIVE_KEYS + "otp")
+)
+```
+
+**Notes:** Captured state (the initial snapshot and every delta, so also crash
+session files and the live stream) now masks values whose key looks sensitive
+(password, token, secret, apiKey, authorization, credential, cvv, cardNumber,
+ssn and similar) with "[REDACTED]" by default. Keys match case-insensitively and
+ignore _ and - separators, so userPassword, api_key and access-token all match,
+and a matched key masks its whole value including nested objects and arrays. It is on
+by default via IntrospectionConfig.redactSensitiveKeys = true. A custom redactor
+still runs, composed on top of the built-in (built-in first, then custom), so
+setting redactor no longer silently disables password masking. Set
+redactSensitiveKeys = false to turn the built-in off. sensitiveKeyRedactor()
+builds a StateRedactor from a custom key set or mask for reuse. Behavioural: apps
+that previously captured these fields verbatim will now see them masked, which is
+what makes adding crash capture safe to ship in a debug build.
+
+---
+### [AD-49] Auto-generated crash diagnosis in the export
+
+**Type:** Addition
+
+**Grep:** `CrashDiagnosis|buildCrashDiagnosis|\.diagnosis`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val export = json.decodeFromString<SessionExport>(crashFileJson)
+println(export.diagnosis?.text)
+```
+
+**Notes:** Exported sessions that contain a crash now carry a diagnosis field
+(CrashDiagnosis) synthesized from data already captured: the failing logic method
+with source file and line (correlated by callId), the route, the action index and
+triggering action, the recent action sequence, the state field changes just before
+the crash, and heuristic suspects (for example a field that became null right
+before a null-related failure). CrashDiagnosis.text is a ready to read and copy
+rendering. It is produced by buildCrashDiagnosis in SessionCapture at export time,
+so it appears in crash files, manual exports and the live stream with no new
+capture and no new privacy surface. SessionExportFormat.VERSION is bumped to 3.4
+(additive, older files still parse). The DevTools crash detail view renders it as
+a copyable Crash Diagnosis panel, populated on both ghost import and live crash
+reports.
+
+---

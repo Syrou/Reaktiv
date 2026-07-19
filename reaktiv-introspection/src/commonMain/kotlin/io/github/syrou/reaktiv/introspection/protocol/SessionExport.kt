@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
  * JSON export format version for captured sessions.
  */
 public object SessionExportFormat {
-    public const val VERSION: String = "3.3"
+    public const val VERSION: String = "3.4"
 }
 
 /**
@@ -41,7 +41,8 @@ public data class SessionExport(
     val crash: CrashInfo? = null,
     val session: SessionData,
     val droppedRecords: Long = 0,
-    val crashes: List<CrashInfo> = emptyList()
+    val crashes: List<CrashInfo> = emptyList(),
+    val diagnosis: CrashDiagnosis? = null
 )
 
 /**
