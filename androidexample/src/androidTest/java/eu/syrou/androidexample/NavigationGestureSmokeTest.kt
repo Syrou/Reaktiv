@@ -120,21 +120,33 @@ class NavigationGestureSmokeTest {
         composeRule.waitForIdle()
     }
 
+    private fun scrollUntilTextVisible(text: String, maxSwipes: Int = 40) {
+        repeat(maxSwipes) {
+            if (composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()) {
+                composeRule.waitForIdle()
+                return
+            }
+            composeRule.onRoot().performTouchInput {
+                down(Offset(centerX, height * 0.65f))
+                repeat(4) {
+                    moveBy(Offset(0f, -height * 0.05f), delayMillis = 30)
+                }
+                moveBy(Offset(0f, -2f), delayMillis = 100)
+                up()
+            }
+            composeRule.waitForIdle()
+        }
+        composeRule.waitUntil(30_000) {
+            composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
     @Test
     fun sheetContentScrollsOnDevice() {
         RefreshCounter.count.intValue = 0
         openSheet(buildStore())
 
-        composeRule.onRoot().performTouchInput {
-            down(Offset(centerX, height * 0.7f))
-            repeat(8) {
-                moveBy(Offset(0f, -height * 0.07f), delayMillis = 20)
-            }
-            up()
-        }
-        composeRule.waitUntil(30_000) {
-            composeRule.onAllNodesWithText("Smoke Row 20").fetchSemanticsNodes().isNotEmpty()
-        }
+        scrollUntilTextVisible("Smoke Row 20")
     }
 
     @Test
