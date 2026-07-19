@@ -6,8 +6,7 @@ import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
-import io.github.syrou.reaktiv.navigation.transition.popExitSpec
-import io.github.syrou.reaktiv.navigation.transition.presentationAxis
+import io.github.syrou.reaktiv.navigation.transition.gestureAxis
 
 internal fun canHandleBack(state: NavigationState, navModule: NavigationModule): Boolean {
     if (state.isBootstrapping) return false
@@ -27,8 +26,7 @@ internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: Nav
     val top = state.currentEntry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.backGestureEnabled) return false
-    val popAxis = popExitSpec(top)?.transition?.presentationAxis() ?: GestureAxis.Neutral
-    if (popAxis == GestureAxis.Vertical) return false
+    if (top.gestureAxis() == GestureAxis.Vertical) return false
     return revealedContentEntryAvailable(state, navModule)
 }
 

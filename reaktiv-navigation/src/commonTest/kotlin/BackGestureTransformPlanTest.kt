@@ -51,24 +51,23 @@ class BackGestureTransformPlanTest {
     }
 
     @Test
-    fun `explicit pop transitions win over reversing the push`() {
+    fun `explicit pop enter on the popped screen drives the revealed screen`() {
         val top = screen(
             "detail",
             enter = NavTransition.IOSSlideIn,
             exit = NavTransition.IOSSlideOut,
-            popExit = NavTransition.SlideOutRight
+            popEnter = NavTransition.Fade
         )
         val revealed = screen(
             "home",
             enter = NavTransition.IOSSlideIn,
-            exit = NavTransition.IOSSlideOut,
-            popEnter = NavTransition.Fade
+            exit = NavTransition.IOSSlideOut
         )
 
         val plan = computeBackGesturePlan(top, revealed, width, height)
 
-        assertFalse(plan.top.reversedProgress)
-        assertEquals(-500f, plan.top.resolved.translationX(0.5f), absoluteTolerance = 0.001f)
+        assertTrue(plan.top.reversedProgress)
+        assertEquals(500f, plan.top.resolved.translationX(0.5f), absoluteTolerance = 0.001f)
         assertFalse(plan.revealed.reversedProgress)
         assertEquals(0.5f, plan.revealed.resolved.alpha(0.5f), absoluteTolerance = 0.001f)
     }
@@ -126,9 +125,9 @@ class BackGestureTransformPlanTest {
     }
 
     @Test
-    fun `dismiss plan honours explicit pop enter for the revealed screen`() {
-        val top = screen("sheet", enter = NavTransition.SlideUpBottom)
-        val revealed = screen("underlying", popEnter = NavTransition.Fade)
+    fun `dismiss plan honours explicit pop enter from the dismissed sheet`() {
+        val top = screen("sheet", enter = NavTransition.SlideUpBottom, popEnter = NavTransition.Fade)
+        val revealed = screen("underlying")
 
         val plan = computeDismissGesturePlan(top, revealed, width, height)
 

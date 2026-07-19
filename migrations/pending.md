@@ -1819,45 +1819,47 @@ state rather than assume the tap-outside origin. Replacement API documented in A
 
 **Before:**
 ```kotlin
-// Three sites resolved pop transitions with three different conventions:
-// the timed path read popEnterTransition from the POPPED screen and never
-// consulted popExitTransition on back navigation (it was consulted on
-// forward pushes instead); the gesture path read both overrides from the
-// popped screen; the overlay-modal path consulted pop transitions on plain
-// forward entry, and Modal defaulted them to None (non-null), silently
-// disabling declared enter/exit animations for overlay modals.
+// Three sites resolved pop transitions with three different conventions, so a
+// button back, a predictive back and an edge swipe over the same pair of
+// screens could animate differently. Modal also defaulted the pop transitions
+// to None (non-null), silently disabling declared enter/exit animations for
+// overlay modals.
 ```
 
 **After:**
 ```kotlin
-// One shared resolver defines the semantics everywhere:
-// - popExitTransition belongs to the screen being popped
-// - popEnterTransition belongs to the screen being revealed
-// - fallback: the pop plays the opposite transition in reverse
-//   (popped screen reverses its enterTransition; revealed screen
-//   reverses its exitTransition), then the same-side transition mirrored
-// - explicit NavTransition.None disables the pop animation on timed paths;
-//   gestures fall back to their kind default (a finger always needs
-//   something to drag)
+// One shared resolver defines the semantics everywhere. A screen declares how
+// the screen underneath it behaves:
+// - popExitTransition belongs to the ARRIVING screen and drives how the screen
+//   it covers exits on a forward push
+// - popEnterTransition belongs to the POPPED screen and drives how the screen
+//   it reveals enters on a pop
+// - fallback: the pop plays the opposite transition in reverse, so the popped
+//   screen reverses its enterTransition and the revealed screen reverses its
+//   exitTransition, then the same-side transition mirrored
+// - explicit NavTransition.None disables that animation on timed paths, while
+//   gestures fall back to their kind default because a finger always needs
+//   something to drag
 object DetailScreen : Screen {
     override val route = "detail"
     override val enterTransition = NavTransition.SlideInRight
-    override val popExitTransition = NavTransition.SlideOutRight
-}
-object HomeScreen : Screen {
-    override val route = "home"
+    // how the screen under detail exits when detail is pushed on top
+    override val popExitTransition = NavTransition.SlideOutLeft
+    // how the screen under detail enters when detail is popped off
     override val popEnterTransition = NavTransition.Fade
 }
 ```
 
-**Notes:** Ownership now matches androidx navigation. Button back, system back,
-predictive back and edge-swipe gestures resolve transitions through the same
-functions, so they can no longer diverge. AnimationDecision gained enterReversed
-and exitReversed fields. Modal.popEnterTransition/popExitTransition defaults
-changed from None to null, so overlay modals now animate with their declared
-enter/exit transitions. Forward navigation never consults pop transitions. Apps
-that placed popEnterTransition on the popped screen (the old accidental
-convention) must move it to the screen being returned to.
+**Notes:** A screen declares how the screen underneath it behaves, in both
+directions. Button back, system back, predictive back and edge-swipe gestures
+resolve transitions through the same functions, so they can no longer diverge.
+AnimationDecision gained enterReversed and exitReversed fields. Modal
+popEnterTransition/popExitTransition defaults changed from None to null, so
+overlay modals now animate with their declared enter/exit transitions. Forward
+navigation consults the arriving screen's popExitTransition for the covered
+screen's exit. Apps that placed popEnterTransition on the screen being returned
+to must move it to the screen being popped, and popExitTransition moves from the
+popped screen to the screen being pushed.
 
 ---
 ### [BC-31] invokeOnRemoval fires after the screen is visually gone

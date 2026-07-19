@@ -7,6 +7,7 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.popEnterSpec
 import io.github.syrou.reaktiv.navigation.transition.popExitSpec
+import io.github.syrou.reaktiv.navigation.transition.pushExitSpec
 
 /**
  * Represents the decision of what animations should run for a navigation transition
@@ -48,11 +49,15 @@ public fun determineAnimationDecision(
     val prevNavigatable = previousEntry.navigatable
     val currNavigatable = currentEntry.navigatable
 
-    val enterSpec = if (!isForward) popEnterSpec(currNavigatable) else null
-    val exitSpec = if (!isForward) popExitSpec(prevNavigatable) else null
+    val enterSpec = if (!isForward) popEnterSpec(prevNavigatable, currNavigatable) else null
+    val exitSpec = if (isForward) {
+        pushExitSpec(currNavigatable, prevNavigatable)
+    } else {
+        popExitSpec(prevNavigatable)
+    }
 
     val enterTransition = if (isForward) currNavigatable.enterTransition else enterSpec?.transition ?: NavTransition.None
-    val exitTransition = if (isForward) prevNavigatable.exitTransition else exitSpec?.transition ?: NavTransition.None
+    val exitTransition = exitSpec?.transition ?: NavTransition.None
     val enterReversed = enterSpec?.reversedProgress ?: false
     val exitReversed = exitSpec?.reversedProgress ?: false
 

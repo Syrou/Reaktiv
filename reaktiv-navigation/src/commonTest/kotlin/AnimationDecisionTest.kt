@@ -453,13 +453,13 @@ class AnimationDecisionTest {
         }
 
     @Test
-    fun `back navigation honours explicit pop overrides on their owning screens`() =
+    fun `back navigation takes the revealed screen enter from the popped screen pop enter`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val homeScreen = object : Screen {
                 override val route = "home"
                 override val enterTransition = NavTransition.SlideInRight
                 override val exitTransition = NavTransition.SlideOutLeft
-                override val popEnterTransition = NavTransition.Fade
+                override val popEnterTransition = NavTransition.SlideInLeft
 
                 @Composable
                 override fun Content(params: Params) { Text(route) }
@@ -468,7 +468,7 @@ class AnimationDecisionTest {
                 override val route = "detail"
                 override val enterTransition = NavTransition.SlideInRight
                 override val exitTransition = NavTransition.None
-                override val popExitTransition = NavTransition.SlideOutRight
+                override val popEnterTransition = NavTransition.Fade
 
                 @Composable
                 override fun Content(params: Params) { Text(route) }
@@ -491,14 +491,14 @@ class AnimationDecisionTest {
             val decision = determineAnimationDecision(detailEntry, homeEntry, nm)
 
             assertFalse(decision.isForward)
-            assertEquals(NavTransition.SlideOutRight, decision.exitTransition)
-            assertFalse(decision.exitReversed)
             assertEquals(NavTransition.Fade, decision.enterTransition)
             assertFalse(decision.enterReversed)
+            assertEquals(NavTransition.SlideInRight, decision.exitTransition)
+            assertTrue(decision.exitReversed)
         }
 
     @Test
-    fun `forward navigation never consults pop transitions`() =
+    fun `forward navigation takes the covered screen exit from the arriving screen pop exit`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val homeScreen = object : Screen {
                 override val route = "home"
@@ -538,18 +538,18 @@ class AnimationDecisionTest {
 
             assertTrue(decision.isForward)
             assertEquals(NavTransition.SlideInRight, decision.enterTransition)
-            assertEquals(NavTransition.SlideOutLeft, decision.exitTransition)
+            assertEquals(NavTransition.SlideOutBottom, decision.exitTransition)
             assertFalse(decision.enterReversed)
             assertFalse(decision.exitReversed)
         }
 
     @Test
-    fun `explicit None pop override disables the pop animation`() =
+    fun `explicit None pop exit override suppresses the covered screen exit on push`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val homeScreen = object : Screen {
                 override val route = "home"
                 override val enterTransition = NavTransition.SlideInRight
-                override val exitTransition = NavTransition.None
+                override val exitTransition = NavTransition.SlideOutLeft
 
                 @Composable
                 override fun Content(params: Params) { Text(route) }
@@ -578,9 +578,9 @@ class AnimationDecisionTest {
             val homeEntry = NavigationEntry(homeScreen, "home", Params.empty(), stackPosition = 1)
             val detailEntry = NavigationEntry(detailScreen, "detail", Params.empty(), stackPosition = 2)
 
-            val decision = determineAnimationDecision(detailEntry, homeEntry, nm)
+            val decision = determineAnimationDecision(homeEntry, detailEntry, nm)
 
-            assertFalse(decision.isForward)
+            assertTrue(decision.isForward)
             assertEquals(NavTransition.None, decision.exitTransition)
             assertFalse(decision.shouldAnimateExit)
         }

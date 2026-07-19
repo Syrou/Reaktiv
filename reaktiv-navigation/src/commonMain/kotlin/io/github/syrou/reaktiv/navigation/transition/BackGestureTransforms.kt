@@ -26,6 +26,12 @@ public fun NavTransition.presentationAxis(): GestureAxis = when (this) {
     else -> GestureAxis.Neutral
 }
 
+internal fun Navigatable.gestureAxis(): GestureAxis {
+    val enterAxis = enterTransition.presentationAxis()
+    if (enterAxis != GestureAxis.Neutral) return enterAxis
+    return exitTransition.presentationAxis()
+}
+
 internal data class ScrubTransform(
     val resolved: ResolvedNavTransition,
     val reversedProgress: Boolean
@@ -51,7 +57,7 @@ internal fun computeBackGesturePlan(
             reversedProgress = true
         )
 
-    val revealedTransform = popEnterSpec(revealed)?.toScrub(screenWidth, screenHeight)
+    val revealedTransform = popEnterSpec(top, revealed)?.toScrub(screenWidth, screenHeight)
         ?: ScrubTransform(
             NavTransition.IOSSlideOut.resolve(screenWidth, screenHeight, isForward = true),
             reversedProgress = true
@@ -75,7 +81,7 @@ internal fun computeDismissGesturePlan(
         )
 
     val revealedTransform = revealed
-        ?.let { popEnterSpec(it, includeEnterFallback = false)?.toScrub(screenWidth, screenHeight) }
+        ?.let { popEnterSpec(top, it, includeEnterFallback = false)?.toScrub(screenWidth, screenHeight) }
         ?: ScrubTransform(
             ResolvedNavTransition(
                 durationMillis = 0,
