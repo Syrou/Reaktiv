@@ -222,7 +222,6 @@ private fun ContentLayerRenderer(
 
     val restingBackRevealed = if (
         revealedEntry == null &&
-        animationState.previousEntry == null &&
         navigationState.currentEntry.stableKey == currentEntry.stableKey &&
         canArmInteractiveBackGesture(navigationState, navModule)
     ) {
@@ -233,20 +232,15 @@ private fun ContentLayerRenderer(
         findLayoutGraphsInHierarchy(backGraphId, graphDefinitions)
     }
 
-    val layoutChanged = prevLayouts != null &&
-        prevLayouts.map { it.route } != currentLayouts.map { it.route }
-    val liftExiting = layoutChanged && (animationState.animationDecision?.shouldAnimateExit ?: false)
-
-    var sharedRoutes = currentLayouts.map { it.route }.toSet()
-    if (liftExiting) {
-        sharedRoutes = sharedRoutes.intersect(prevLayouts.orEmpty().map { it.route }.toSet())
-    }
-    if (revealedLayouts != null) {
-        sharedRoutes = sharedRoutes.intersect(revealedLayouts.map { it.route }.toSet())
-    }
-    if (restingBackLayouts != null) {
-        sharedRoutes = sharedRoutes.intersect(restingBackLayouts.map { it.route }.toSet())
-    }
+    val sharing = decideLayoutSharing(
+        currentLayoutRoutes = currentLayouts.map { it.route },
+        previousLayoutRoutes = prevLayouts?.map { it.route },
+        revealedLayoutRoutes = revealedLayouts?.map { it.route },
+        restingBackLayoutRoutes = restingBackLayouts?.map { it.route },
+        shouldAnimateExit = animationState.animationDecision?.shouldAnimateExit ?: false
+    )
+    val sharedRoutes = sharing.sharedRoutes
+    val liftExiting = sharing.liftExiting
     val sharedLayouts = currentLayouts.filter { it.route in sharedRoutes }
     val currentUnique = currentLayouts.filter { it.route !in sharedRoutes }
     val prevUnique = if (liftExiting) {
