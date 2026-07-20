@@ -222,6 +222,7 @@ private fun ContentLayerRenderer(
 
     val restingBackRevealed = if (
         revealedEntry == null &&
+        animationState.previousEntry == null &&
         navigationState.currentEntry.stableKey == currentEntry.stableKey &&
         canArmInteractiveBackGesture(navigationState, navModule)
     ) {
