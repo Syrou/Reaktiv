@@ -22,6 +22,9 @@ kotlin {
         compileSdk = 36
         minSdk = 23
     }
+    iosArm64()
+    iosSimulatorArm64()
+
     linuxX64 {
         binaries {
             executable {
@@ -65,16 +68,20 @@ kotlin {
     applyDefaultHierarchyTemplate()
 
     sourceSets {
-        getByName("commonMain") {
+        val commonMain = getByName("commonMain") {
             dependencies {
                 implementation(project(":reaktiv-core"))
                 api(project(":reaktiv-introspection"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
+
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.websockets)
             }
         }
 
-        getByName("nativeMain") {
+        val desktopMain = create("desktopMain") {
+            dependsOn(commonMain)
             dependencies {
                 implementation(libs.ktor.server.core)
                 implementation(libs.ktor.server.cio)
@@ -82,9 +89,7 @@ kotlin {
                 implementation(libs.ktor.server.content.negotiation)
                 implementation(libs.ktor.serialization.kotlinx.json)
 
-                implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.cio)
-                implementation(libs.ktor.client.websockets)
 
                 implementation(libs.kotlinx.io.core)
 
@@ -93,11 +98,21 @@ kotlin {
             }
         }
 
+        listOf("linuxX64Main", "linuxArm64Main", "macosArm64Main", "mingwX64Main").forEach {
+            getByName(it).dependsOn(desktopMain)
+        }
+
+        getByName("iosMain") {
+            dependencies {
+                implementation(libs.ktor.client.darwin)
+
+                implementation(compose.runtime)
+            }
+        }
+
         getByName("androidMain") {
             dependencies {
-                implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.okhttp)
-                implementation(libs.ktor.client.websockets)
 
                 implementation(compose.runtime)
             }
@@ -114,9 +129,7 @@ kotlin {
                 implementation(compose.materialIconsExtended)
                 implementation(compose.components.resources)
 
-                implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.js)
-                implementation(libs.ktor.client.websockets)
 
                 implementation(libs.kotlinx.datetime)
             }

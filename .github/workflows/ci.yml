@@ -68,7 +68,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run test suites on the iOS simulator
-        run: ./gradlew :reaktiv-core:iosSimulatorArm64Test :reaktiv-navigation:iosSimulatorArm64Test :reaktiv-introspection:iosSimulatorArm64Test
+        run: ./gradlew :reaktiv-core:iosSimulatorArm64Test :reaktiv-navigation:iosSimulatorArm64Test :reaktiv-introspection:iosSimulatorArm64Test :reaktiv-devtools:iosSimulatorArm64Test
 
   android-emulator:
     name: Android instrumented tests

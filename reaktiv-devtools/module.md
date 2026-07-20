@@ -86,6 +86,33 @@ serverUrl = "ws://192.168.1.100:8080/ws"   // Real device on same WiFi
 serverUrl = "ws://localhost:8080/ws"        // iOS Simulator
 ```
 
+### iOS Info.plist requirements
+
+The DevTools transport is cleartext `ws://`, which App Transport Security blocks by
+default. A debug-only Info.plist must opt in, otherwise the connection fails with no
+obvious cause:
+
+```xml
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+</dict>
+```
+
+`NSAllowsLocalNetworking` covers `localhost` and private-range addresses, so it is
+enough for both the simulator and a device on the same WiFi. Connecting to a LAN
+address from a physical device additionally triggers the iOS local network permission
+prompt, which needs a purpose string:
+
+```xml
+<key>NSLocalNetworkUsageDescription</key>
+<string>Connects to the Reaktiv DevTools server during development.</string>
+```
+
+Keep both keys out of release builds. The per-configuration wiring in
+`docs/tooling-attachment-ios.md` keeps the dependency itself debug-only.
+
 ---
 
 ## Runtime Connection Control

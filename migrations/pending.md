@@ -2584,3 +2584,33 @@ a copyable Crash Diagnosis panel, populated on both ghost import and live crash
 reports.
 
 ---
+### [AD-50] reaktiv-devtools supports iOS
+
+**Type:** Addition
+
+**Grep:** `reaktiv-devtools`
+**File glob:** `**/*.gradle.kts`
+
+**Example:**
+```kotlin
+kotlin.sourceSets.getByName("iosMain") {
+    dependencies {
+        implementation("io.github.syrou:reaktiv-introspection:$reaktivVersion")
+        implementation("io.github.syrou:reaktiv-devtools:$reaktivVersion")
+    }
+}
+```
+
+**Notes:** reaktiv-devtools now publishes iosArm64 and iosSimulatorArm64 artifacts, so
+the debug-only tooling wiring in docs/tooling-attachment-ios.md resolves. The client
+uses the Darwin engine on Apple targets. DevToolsConnection is no longer an
+expect/actual class: the transport now lives in commonMain and only the ktor engine is
+platform specific, so its public API is unchanged and no call sites need updating. The
+DevTools server (DevToolsServer, ClientManager, LocalFileContent, and the server main
+entry point) stays restricted to linuxX64, linuxArm64, macosArm64 and mingwX64 because
+ktor-server-cio has no iOS artifacts. Connecting from iOS requires cleartext opt-in in
+a debug Info.plist (NSAppTransportSecurity/NSAllowsLocalNetworking, plus
+NSLocalNetworkUsageDescription for LAN addresses on a physical device), see the iOS
+Info.plist requirements section in reaktiv-devtools/module.md.
+
+---

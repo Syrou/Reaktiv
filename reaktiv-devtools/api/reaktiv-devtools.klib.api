@@ -1,6 +1,6 @@
 // Klib ABI Dump
-// Targets: [linuxArm64, linuxX64, macosArm64, mingwX64, wasmJs]
-// Alias: native => [linuxArm64, linuxX64, macosArm64, mingwX64]
+// Targets: [iosArm64, iosSimulatorArm64, linuxArm64, linuxX64, macosArm64, mingwX64, wasmJs]
+// Alias: linux => [linuxArm64, linuxX64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -1074,7 +1074,7 @@ final fun io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devto
 final fun io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.service/io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop_getter|io_github_syrou_reaktiv_devtools_service_DevToolsService$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.devtools.tracing/io_github_syrou_reaktiv_devtools_tracing_DevToolsLogicObserver$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.tracing/io_github_syrou_reaktiv_devtools_tracing_DevToolsLogicObserver$stableprop_getter|io_github_syrou_reaktiv_devtools_tracing_DevToolsLogicObserver$stableprop_getter(){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final class io.github.syrou.reaktiv.devtools.server/ClientManager { // io.github.syrou.reaktiv.devtools.server/ClientManager|null[0]
     constructor <init>() // io.github.syrou.reaktiv.devtools.server/ClientManager.<init>|<init>(){}[0]
 
@@ -1094,7 +1094,7 @@ final class io.github.syrou.reaktiv.devtools.server/ClientManager { // io.github
     final suspend fun unregisterClient(kotlin/String) // io.github.syrou.reaktiv.devtools.server/ClientManager.unregisterClient|unregisterClient(kotlin.String){}[0]
 }
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final class io.github.syrou.reaktiv.devtools.server/ConnectedClient { // io.github.syrou.reaktiv.devtools.server/ConnectedClient|null[0]
     constructor <init>(io.ktor.websocket/WebSocketSession, io.github.syrou.reaktiv.devtools.protocol/ClientInfo) // io.github.syrou.reaktiv.devtools.server/ConnectedClient.<init>|<init>(io.ktor.websocket.WebSocketSession;io.github.syrou.reaktiv.devtools.protocol.ClientInfo){}[0]
 
@@ -1113,7 +1113,7 @@ final class io.github.syrou.reaktiv.devtools.server/ConnectedClient { // io.gith
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.server/ConnectedClient.toString|toString(){}[0]
 }
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final class io.github.syrou.reaktiv.devtools.server/GhostDevice { // io.github.syrou.reaktiv.devtools.server/GhostDevice|null[0]
     constructor <init>(kotlin/String, io.github.syrou.reaktiv.devtools.protocol/ClientInfo, kotlin/Long, kotlin/Long, kotlin/Int = ..., kotlin/Int = ..., kotlin/String? = ...) // io.github.syrou.reaktiv.devtools.server/GhostDevice.<init>|<init>(kotlin.String;io.github.syrou.reaktiv.devtools.protocol.ClientInfo;kotlin.Long;kotlin.Long;kotlin.Int;kotlin.Int;kotlin.String?){}[0]
 
@@ -1145,7 +1145,7 @@ final class io.github.syrou.reaktiv.devtools.server/GhostDevice { // io.github.s
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.server/GhostDevice.toString|toString(){}[0]
 }
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final class io.github.syrou.reaktiv.devtools.server/LocalFileContent : io.ktor.http.content/OutgoingContent.WriteChannelContent { // io.github.syrou.reaktiv.devtools.server/LocalFileContent|null[0]
     constructor <init>(kotlinx.io.files/Path, io.ktor.http/ContentType = ...) // io.github.syrou.reaktiv.devtools.server/LocalFileContent.<init>|<init>(kotlinx.io.files.Path;io.ktor.http.ContentType){}[0]
 
@@ -1157,52 +1157,52 @@ final class io.github.syrou.reaktiv.devtools.server/LocalFileContent : io.ktor.h
     final suspend fun writeTo(io.ktor.utils.io/ByteWriteChannel) // io.github.syrou.reaktiv.devtools.server/LocalFileContent.writeTo|writeTo(io.ktor.utils.io.ByteWriteChannel){}[0]
 }
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final object io.github.syrou.reaktiv.devtools.server/DevToolsServer { // io.github.syrou.reaktiv.devtools.server/DevToolsServer|null[0]
     final fun getClientManager(): io.github.syrou.reaktiv.devtools.server/ClientManager // io.github.syrou.reaktiv.devtools.server/DevToolsServer.getClientManager|getClientManager(){}[0]
     final fun start(kotlin/Int = ..., kotlin/String = ..., kotlin/String? = ...) // io.github.syrou.reaktiv.devtools.server/DevToolsServer.start|start(kotlin.Int;kotlin.String;kotlin.String?){}[0]
 }
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final val io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_ClientManager$stableprop // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_ClientManager$stableprop|#static{}io_github_syrou_reaktiv_devtools_server_ClientManager$stableprop[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final val io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_ConnectedClient$stableprop // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_ConnectedClient$stableprop|#static{}io_github_syrou_reaktiv_devtools_server_ConnectedClient$stableprop[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final val io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_DevToolsServer$stableprop // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_DevToolsServer$stableprop|#static{}io_github_syrou_reaktiv_devtools_server_DevToolsServer$stableprop[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final val io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_GhostDevice$stableprop // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_GhostDevice$stableprop|#static{}io_github_syrou_reaktiv_devtools_server_GhostDevice$stableprop[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final val io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop|#static{}io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final fun (io.ktor.http/ContentType.Companion).io.github.syrou.reaktiv.devtools.server/defaultForFile(kotlinx.io.files/Path): io.ktor.http/ContentType // io.github.syrou.reaktiv.devtools.server/defaultForFile|defaultForFile@io.ktor.http.ContentType.Companion(kotlinx.io.files.Path){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final fun (io.ktor.server.routing/Route).io.github.syrou.reaktiv.devtools.server/staticFiles(kotlin/String) // io.github.syrou.reaktiv.devtools.server/staticFiles|staticFiles@io.ktor.server.routing.Route(kotlin.String){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final fun io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_ClientManager$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_ClientManager$stableprop_getter|io_github_syrou_reaktiv_devtools_server_ClientManager$stableprop_getter(){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final fun io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_ConnectedClient$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_ConnectedClient$stableprop_getter|io_github_syrou_reaktiv_devtools_server_ConnectedClient$stableprop_getter(){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final fun io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_DevToolsServer$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_DevToolsServer$stableprop_getter|io_github_syrou_reaktiv_devtools_server_DevToolsServer$stableprop_getter(){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final fun io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_GhostDevice$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_GhostDevice$stableprop_getter|io_github_syrou_reaktiv_devtools_server_GhostDevice$stableprop_getter(){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final fun io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop_getter|io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop_getter(){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final fun io.github.syrou.reaktiv.devtools.server/main(kotlin/Array<kotlin/String>) // io.github.syrou.reaktiv.devtools.server/main|main(kotlin.Array<kotlin.String>){}[0]
 
-// Targets: [native]
+// Targets: [linux, macosArm64, mingwX64]
 final suspend fun (io.ktor.server.application/ApplicationCall).io.github.syrou.reaktiv.devtools.server/respondStatic(kotlinx.io.files/Path) // io.github.syrou.reaktiv.devtools.server/respondStatic|respondStatic@io.ktor.server.application.ApplicationCall(kotlinx.io.files.Path){}[0]
 
 // Targets: [wasmJs]
