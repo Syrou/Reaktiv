@@ -440,11 +440,11 @@ class LogicMethodTransformer(
         val startTime = irGet(startTimeVar)
 
         // Find the minus operator on Long: Long.minus(other: Long)
-        // dispatchReceiverParameter is separate from parameters, so we look for 1 regular parameter
         val minusFun = irBuiltIns.longClass.owner.functions.firstOrNull { fn ->
             fn.name.asString() == "minus" &&
-            fn.parameters.count { it.kind == org.jetbrains.kotlin.ir.declarations.IrParameterKind.Regular } == 1 &&
-            fn.parameters.any { it.type.isLong() }
+            fn.parameters.singleOrNull {
+                it.kind == org.jetbrains.kotlin.ir.declarations.IrParameterKind.Regular
+            }?.type?.isLong() == true
         }
 
         return if (minusFun != null) {
