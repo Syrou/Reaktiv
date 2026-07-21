@@ -344,6 +344,8 @@ final class io.github.syrou.reaktiv.devtools.service/DevToolsService : io.github
 
     final val name // io.github.syrou.reaktiv.devtools.service/DevToolsService.name|{}name[0]
         final fun <get-name>(): kotlin/String // io.github.syrou.reaktiv.devtools.service/DevToolsService.name.<get-name>|<get-name>(){}[0]
+    final val startsExternallyDriven // io.github.syrou.reaktiv.devtools.service/DevToolsService.startsExternallyDriven|{}startsExternallyDriven[0]
+        final fun <get-startsExternallyDriven>(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.service/DevToolsService.startsExternallyDriven.<get-startsExternallyDriven>|<get-startsExternallyDriven>(){}[0]
 
     final fun createMiddleware(): kotlin.coroutines/SuspendFunction4<io.github.syrou.reaktiv.core/ModuleAction, kotlin.coroutines/SuspendFunction0<kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>>, io.github.syrou.reaktiv.core/StoreAccessor, kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/ModuleAction, io.github.syrou.reaktiv.core/ModuleState>, kotlin/Unit> // io.github.syrou.reaktiv.devtools.service/DevToolsService.createMiddleware|createMiddleware(){}[0]
     final fun isConnected(): kotlin/Boolean // io.github.syrou.reaktiv.devtools.service/DevToolsService.isConnected|isConnected(){}[0]

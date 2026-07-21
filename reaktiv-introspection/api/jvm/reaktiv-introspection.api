@@ -585,7 +585,7 @@ public final class io/github/syrou/reaktiv/introspection/tooling/ServiceStatus$C
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public abstract class io/github/syrou/reaktiv/introspection/tooling/ToolingAction : io/github/syrou/reaktiv/core/ModuleAction {
+public abstract class io/github/syrou/reaktiv/introspection/tooling/ToolingAction : io/github/syrou/reaktiv/core/ModuleAction, io/github/syrou/reaktiv/core/ExternalControlExempt {
 	public static final field Companion Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction$Companion;
 	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
 	public static final synthetic fun write$Self (Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
@@ -708,6 +708,7 @@ public final class io/github/syrou/reaktiv/introspection/tooling/ToolingModuleKt
 public abstract interface class io/github/syrou/reaktiv/introspection/tooling/ToolingService {
 	public fun createMiddleware ()Lkotlin/jvm/functions/Function5;
 	public abstract fun getName ()Ljava/lang/String;
+	public fun getStartsExternallyDriven ()Z
 	public fun onCommand (Lio/github/syrou/reaktiv/introspection/tooling/ToolingCommand;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun start (Lio/github/syrou/reaktiv/introspection/tooling/ToolingServiceContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun stop (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -715,6 +716,7 @@ public abstract interface class io/github/syrou/reaktiv/introspection/tooling/To
 
 public final class io/github/syrou/reaktiv/introspection/tooling/ToolingService$DefaultImpls {
 	public static fun createMiddleware (Lio/github/syrou/reaktiv/introspection/tooling/ToolingService;)Lkotlin/jvm/functions/Function5;
+	public static fun getStartsExternallyDriven (Lio/github/syrou/reaktiv/introspection/tooling/ToolingService;)Z
 	public static fun onCommand (Lio/github/syrou/reaktiv/introspection/tooling/ToolingService;Lio/github/syrou/reaktiv/introspection/tooling/ToolingCommand;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 

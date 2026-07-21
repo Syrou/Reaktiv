@@ -300,6 +300,7 @@ public final class io/github/syrou/reaktiv/navigation/NavigationLogic : io/githu
 	public final fun navigateBack (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun navigateDeepLink (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun navigateDeepLink$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun onExternalControlChanged (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun popUpTo (Ljava/lang/String;ZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun popUpTo$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;ZLjava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }

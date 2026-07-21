@@ -66,6 +66,8 @@ abstract interface io.github.syrou.reaktiv.introspection.tooling/ToolingCommand 
 abstract interface io.github.syrou.reaktiv.introspection.tooling/ToolingService { // io.github.syrou.reaktiv.introspection.tooling/ToolingService|null[0]
     abstract val name // io.github.syrou.reaktiv.introspection.tooling/ToolingService.name|{}name[0]
         abstract fun <get-name>(): kotlin/String // io.github.syrou.reaktiv.introspection.tooling/ToolingService.name.<get-name>|<get-name>(){}[0]
+    open val startsExternallyDriven // io.github.syrou.reaktiv.introspection.tooling/ToolingService.startsExternallyDriven|{}startsExternallyDriven[0]
+        open fun <get-startsExternallyDriven>(): kotlin/Boolean // io.github.syrou.reaktiv.introspection.tooling/ToolingService.startsExternallyDriven.<get-startsExternallyDriven>|<get-startsExternallyDriven>(){}[0]
 
     abstract suspend fun start(io.github.syrou.reaktiv.introspection.tooling/ToolingServiceContext) // io.github.syrou.reaktiv.introspection.tooling/ToolingService.start|start(io.github.syrou.reaktiv.introspection.tooling.ToolingServiceContext){}[0]
     abstract suspend fun stop() // io.github.syrou.reaktiv.introspection.tooling/ToolingService.stop|stop(){}[0]
@@ -714,7 +716,7 @@ final class io.github.syrou.reaktiv.introspection/StallWatchdog { // io.github.s
     }
 }
 
-sealed class io.github.syrou.reaktiv.introspection.tooling/ToolingAction : io.github.syrou.reaktiv.core/ModuleAction { // io.github.syrou.reaktiv.introspection.tooling/ToolingAction|null[0]
+sealed class io.github.syrou.reaktiv.introspection.tooling/ToolingAction : io.github.syrou.reaktiv.core/ExternalControlExempt, io.github.syrou.reaktiv.core/ModuleAction { // io.github.syrou.reaktiv.introspection.tooling/ToolingAction|null[0]
     final class CaptureStateChanged : io.github.syrou.reaktiv.introspection.tooling/ToolingAction { // io.github.syrou.reaktiv.introspection.tooling/ToolingAction.CaptureStateChanged|null[0]
         constructor <init>(kotlin/Boolean) // io.github.syrou.reaktiv.introspection.tooling/ToolingAction.CaptureStateChanged.<init>|<init>(kotlin.Boolean){}[0]
 

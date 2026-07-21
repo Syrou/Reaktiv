@@ -921,6 +921,7 @@ final class io.github.syrou.reaktiv.navigation/NavigationLogic : io.github.syrou
     final suspend fun navigate(kotlin/String, io.github.syrou.reaktiv.navigation.param/Params = ..., kotlin/Boolean = ..., kotlin/Function1<io.github.syrou.reaktiv.navigation.dsl/NavigationBuilder, kotlin/Unit>? = ...): io.github.syrou.reaktiv.navigation/NavigationOutcome // io.github.syrou.reaktiv.navigation/NavigationLogic.navigate|navigate(kotlin.String;io.github.syrou.reaktiv.navigation.param.Params;kotlin.Boolean;kotlin.Function1<io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder,kotlin.Unit>?){}[0]
     final suspend fun navigateBack() // io.github.syrou.reaktiv.navigation/NavigationLogic.navigateBack|navigateBack(){}[0]
     final suspend fun navigateDeepLink(kotlin/String, io.github.syrou.reaktiv.navigation.param/Params = ...) // io.github.syrou.reaktiv.navigation/NavigationLogic.navigateDeepLink|navigateDeepLink(kotlin.String;io.github.syrou.reaktiv.navigation.param.Params){}[0]
+    final suspend fun onExternalControlChanged(kotlin/Boolean) // io.github.syrou.reaktiv.navigation/NavigationLogic.onExternalControlChanged|onExternalControlChanged(kotlin.Boolean){}[0]
     final suspend fun popUpTo(kotlin/String, kotlin/Boolean = ..., kotlin/String? = ...) // io.github.syrou.reaktiv.navigation/NavigationLogic.popUpTo|popUpTo(kotlin.String;kotlin.Boolean;kotlin.String?){}[0]
 }
 

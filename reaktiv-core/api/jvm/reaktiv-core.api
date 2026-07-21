@@ -41,11 +41,17 @@ public final class io/github/syrou/reaktiv/core/DispatchResult$Processed : io/gi
 public abstract interface annotation class io/github/syrou/reaktiv/core/ExperimentalReaktivApi : java/lang/annotation/Annotation {
 }
 
+public abstract interface class io/github/syrou/reaktiv/core/ExternalControlExempt {
+}
+
 public abstract interface class io/github/syrou/reaktiv/core/HighPriorityAction {
 }
 
 public abstract interface class io/github/syrou/reaktiv/core/InternalStoreOperations {
 	public abstract fun applyExternalStates (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun beginExternalControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun endExternalControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun markExternallyDriven ()V
 }
 
 public abstract interface class io/github/syrou/reaktiv/core/Logic {
@@ -82,6 +88,7 @@ public final class io/github/syrou/reaktiv/core/ModuleAction$Companion {
 public class io/github/syrou/reaktiv/core/ModuleLogic : io/github/syrou/reaktiv/core/Logic {
 	public fun <init> ()V
 	public fun beforeReset (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onExternalControlChanged (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class io/github/syrou/reaktiv/core/ModuleState {
@@ -116,8 +123,10 @@ public final class io/github/syrou/reaktiv/core/Store : io/github/syrou/reaktiv/
 	public synthetic fun <init> (Lkotlinx/coroutines/CoroutineScope;Ljava/util/List;Ljava/util/List;Lio/github/syrou/reaktiv/core/persistance/PersistenceManager;Lkotlinx/serialization/modules/SerializersModule;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun addCrashListener (Lio/github/syrou/reaktiv/core/CrashListener;)V
 	public fun applyExternalStates (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun beginExternalControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun cleanup ()V
 	public fun dispatchAndAwait (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun endExternalControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
 	public fun getDispatch ()Lkotlin/jvm/functions/Function1;
 	public final fun getInitialized ()Lkotlinx/coroutines/flow/StateFlow;
@@ -128,7 +137,9 @@ public final class io/github/syrou/reaktiv/core/Store : io/github/syrou/reaktiv/
 	public final fun getSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
 	public fun getStateFlowForModule (Lio/github/syrou/reaktiv/core/Module;)Lkotlinx/coroutines/flow/StateFlow;
 	public final fun hasPersistedState (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun isExternallyDriven ()Z
 	public final fun loadState (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun markExternallyDriven ()V
 	public fun removeCrashListener (Lio/github/syrou/reaktiv/core/CrashListener;)V
 	public fun reset (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun resetAsync ()Lkotlinx/coroutines/Job;

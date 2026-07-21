@@ -62,10 +62,15 @@ abstract interface io.github.syrou.reaktiv.core/CrashListener { // io.github.syr
     abstract suspend fun onLogicCrash(kotlin/Throwable, io.github.syrou.reaktiv.core/ModuleAction?): io.github.syrou.reaktiv.core/CrashRecovery // io.github.syrou.reaktiv.core/CrashListener.onLogicCrash|onLogicCrash(kotlin.Throwable;io.github.syrou.reaktiv.core.ModuleAction?){}[0]
 }
 
+abstract interface io.github.syrou.reaktiv.core/ExternalControlExempt // io.github.syrou.reaktiv.core/ExternalControlExempt|null[0]
+
 abstract interface io.github.syrou.reaktiv.core/HighPriorityAction // io.github.syrou.reaktiv.core/HighPriorityAction|null[0]
 
 abstract interface io.github.syrou.reaktiv.core/InternalStoreOperations { // io.github.syrou.reaktiv.core/InternalStoreOperations|null[0]
+    abstract fun markExternallyDriven() // io.github.syrou.reaktiv.core/InternalStoreOperations.markExternallyDriven|markExternallyDriven(){}[0]
     abstract suspend fun applyExternalStates(kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>) // io.github.syrou.reaktiv.core/InternalStoreOperations.applyExternalStates|applyExternalStates(kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>){}[0]
+    abstract suspend fun beginExternalControl() // io.github.syrou.reaktiv.core/InternalStoreOperations.beginExternalControl|beginExternalControl(){}[0]
+    abstract suspend fun endExternalControl() // io.github.syrou.reaktiv.core/InternalStoreOperations.endExternalControl|endExternalControl(){}[0]
 }
 
 abstract interface io.github.syrou.reaktiv.core/Logic // io.github.syrou.reaktiv.core/Logic|null[0]
@@ -275,6 +280,8 @@ final class io.github.syrou.reaktiv.core/Store : io.github.syrou.reaktiv.core/In
         final fun <get-dispatch>(): kotlin/Function1<io.github.syrou.reaktiv.core/ModuleAction, kotlin/Unit> // io.github.syrou.reaktiv.core/Store.dispatch.<get-dispatch>|<get-dispatch>(){}[0]
     final val initialized // io.github.syrou.reaktiv.core/Store.initialized|{}initialized[0]
         final fun <get-initialized>(): kotlinx.coroutines.flow/StateFlow<kotlin/Boolean> // io.github.syrou.reaktiv.core/Store.initialized.<get-initialized>|<get-initialized>(){}[0]
+    final val isExternallyDriven // io.github.syrou.reaktiv.core/Store.isExternallyDriven|{}isExternallyDriven[0]
+        final fun <get-isExternallyDriven>(): kotlin/Boolean // io.github.syrou.reaktiv.core/Store.isExternallyDriven.<get-isExternallyDriven>|<get-isExternallyDriven>(){}[0]
     final val modules // io.github.syrou.reaktiv.core/Store.modules|{}modules[0]
         final fun <get-modules>(): kotlin.collections/List<io.github.syrou.reaktiv.core/Module<io.github.syrou.reaktiv.core/ModuleState, io.github.syrou.reaktiv.core/ModuleAction>> // io.github.syrou.reaktiv.core/Store.modules.<get-modules>|<get-modules>(){}[0]
     final val serializersModule // io.github.syrou.reaktiv.core/Store.serializersModule|{}serializersModule[0]
@@ -286,13 +293,16 @@ final class io.github.syrou.reaktiv.core/Store : io.github.syrou.reaktiv.core/In
     final fun cleanup() // io.github.syrou.reaktiv.core/Store.cleanup|cleanup(){}[0]
     final fun getRegisteredModules(): kotlin.collections/List<io.github.syrou.reaktiv.core/Module<*, *>> // io.github.syrou.reaktiv.core/Store.getRegisteredModules|getRegisteredModules(){}[0]
     final fun getStateFlowForModule(io.github.syrou.reaktiv.core/Module<*, *>): kotlinx.coroutines.flow/StateFlow<io.github.syrou.reaktiv.core/ModuleState>? // io.github.syrou.reaktiv.core/Store.getStateFlowForModule|getStateFlowForModule(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
+    final fun markExternallyDriven() // io.github.syrou.reaktiv.core/Store.markExternallyDriven|markExternallyDriven(){}[0]
     final fun removeCrashListener(io.github.syrou.reaktiv.core/CrashListener) // io.github.syrou.reaktiv.core/Store.removeCrashListener|removeCrashListener(io.github.syrou.reaktiv.core.CrashListener){}[0]
     final fun resetAsync(): kotlinx.coroutines/Job // io.github.syrou.reaktiv.core/Store.resetAsync|resetAsync(){}[0]
     final inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleState> selectStateNonSuspend(): kotlinx.coroutines.flow/StateFlow<#A1> // io.github.syrou.reaktiv.core/Store.selectStateNonSuspend|selectStateNonSuspend(){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
     final suspend fun <#A1: io.github.syrou.reaktiv.core/ModuleLogic> selectLogic(kotlin.reflect/KClass<#A1>): #A1 // io.github.syrou.reaktiv.core/Store.selectLogic|selectLogic(kotlin.reflect.KClass<0:0>){0§<io.github.syrou.reaktiv.core.ModuleLogic>}[0]
     final suspend fun <#A1: io.github.syrou.reaktiv.core/ModuleState> selectState(kotlin.reflect/KClass<#A1>): kotlinx.coroutines.flow/StateFlow<#A1> // io.github.syrou.reaktiv.core/Store.selectState|selectState(kotlin.reflect.KClass<0:0>){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
     final suspend fun applyExternalStates(kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>) // io.github.syrou.reaktiv.core/Store.applyExternalStates|applyExternalStates(kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>){}[0]
+    final suspend fun beginExternalControl() // io.github.syrou.reaktiv.core/Store.beginExternalControl|beginExternalControl(){}[0]
     final suspend fun dispatchAndAwait(io.github.syrou.reaktiv.core/ModuleAction): io.github.syrou.reaktiv.core/DispatchResult // io.github.syrou.reaktiv.core/Store.dispatchAndAwait|dispatchAndAwait(io.github.syrou.reaktiv.core.ModuleAction){}[0]
+    final suspend fun endExternalControl() // io.github.syrou.reaktiv.core/Store.endExternalControl|endExternalControl(){}[0]
     final suspend fun getLogicForModule(io.github.syrou.reaktiv.core/Module<*, *>): io.github.syrou.reaktiv.core/ModuleLogic? // io.github.syrou.reaktiv.core/Store.getLogicForModule|getLogicForModule(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
     final suspend fun hasPersistedState(): kotlin/Boolean // io.github.syrou.reaktiv.core/Store.hasPersistedState|hasPersistedState(){}[0]
     final suspend fun loadState() // io.github.syrou.reaktiv.core/Store.loadState|loadState(){}[0]
@@ -334,6 +344,7 @@ open class io.github.syrou.reaktiv.core/ModuleLogic : io.github.syrou.reaktiv.co
     constructor <init>() // io.github.syrou.reaktiv.core/ModuleLogic.<init>|<init>(){}[0]
 
     open suspend fun beforeReset() // io.github.syrou.reaktiv.core/ModuleLogic.beforeReset|beforeReset(){}[0]
+    open suspend fun onExternalControlChanged(kotlin/Boolean) // io.github.syrou.reaktiv.core/ModuleLogic.onExternalControlChanged|onExternalControlChanged(kotlin.Boolean){}[0]
 }
 
 sealed class io.github.syrou.reaktiv.core/DispatchResult { // io.github.syrou.reaktiv.core/DispatchResult|null[0]
