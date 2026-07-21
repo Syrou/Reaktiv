@@ -18,17 +18,24 @@ import io.github.syrou.reaktiv.introspection.tooling.ServiceState
 import io.github.syrou.reaktiv.introspection.tooling.ServiceStatus
 import io.github.syrou.reaktiv.introspection.tooling.ToolingCommand
 import io.github.syrou.reaktiv.introspection.tooling.ToolingService
+import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.capture.chunked
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import io.github.syrou.reaktiv.introspection.protocol.mergeCapturedDeltas
 import io.github.syrou.reaktiv.introspection.protocol.mergeFieldJson
 import io.github.syrou.reaktiv.introspection.tooling.ToolingServiceContext
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -54,6 +61,16 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private var pendingReconnectRole: ClientRole? = null
     private var reconnectJob: Job? = null
     private var listenerHandshake: Job? = null
+    private var firstProjection: CompletableDeferred<Unit>? = null
+
+    /**
+     * Set once a follower has given up waiting for state and been handed back to local control.
+     *
+     * A store reset restarts this service, which would otherwise re-request LISTENER from
+     * [DevToolsConfig.defaultRole] and be gated again, resetting again ten seconds later. The
+     * client stays connected and can still be told to follow explicitly through [follow].
+     */
+    private var listenerRoleAbandoned: Boolean = false
 
     private var listenerStartPending: Boolean =
         config.enabled && config.autoConnect && config.defaultRole == ClientRole.LISTENER
@@ -95,14 +112,16 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         this.clientId = context.config.clientId
         this.json = (context.storeAccessor as? Store)?.serializersModule?.let { reaktivJson(it) }
 
-        val observer = DevToolsLogicObserver(
-            clientId = clientId,
-            scope = context.storeAccessor,
-            isConnected = { isConnected() },
-            sendMessage = { send(it) }
-        )
-        logicObserver = observer
-        LogicTracer.addObserver(observer)
+        if (context.config.installLogicTracing) {
+            val observer = DevToolsLogicObserver(
+                clientId = clientId,
+                scope = context.storeAccessor,
+                isConnected = { isConnected() },
+                sendMessage = { send(it) }
+            )
+            logicObserver = observer
+            LogicTracer.addObserver(observer)
+        }
 
         context.storeAccessor.launch {
             context.capture.actions.collect { event ->
@@ -144,7 +163,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
 
         if (listenerStartPending) {
             listenerStartPending = false
-            armListenerHandshakeTimeout()
+            armStartupGateBackstop()
         }
 
         if (pendingReconnect) {
@@ -182,12 +201,14 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
             newConnection.observeMessages { message -> handleServerMessage(message) }
             context.setStatus(ServiceStatus(ServiceState.RUNNING, "connected to $serverUrl"))
             launchConnectionMonitor(newConnection)
-            if (role != null) {
-                requestRole(role, null)
+            val effectiveRole = if (role == ClientRole.LISTENER && listenerRoleAbandoned) null else role
+            if (effectiveRole != null) {
+                requestRole(effectiveRole, null)
             }
         } catch (e: Exception) {
             context.setStatus(ServiceStatus(ServiceState.DEGRADED, e.message))
             ReaktivDebug.warn("DevTools: Failed to connect - ${e.message}")
+            releaseExternalControl("connection failed: ${e.message}")
         }
     }
 
@@ -255,6 +276,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     }
 
     public suspend fun follow(publisherClientId: String? = null) {
+        listenerRoleAbandoned = false
         requestRole(ClientRole.LISTENER, publisherClientId)
     }
 
@@ -272,35 +294,83 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     public fun isConnected(): Boolean =
         connection?.connectionState?.value == ConnectionState.CONNECTED
 
+    /**
+     * Enters external control and waits on the first projection rather than on the clock.
+     *
+     * Holding the LISTENER role is not evidence that state will arrive, so entering the gate
+     * arms a wait that completes the moment a projection lands. The timeout is only a backstop
+     * for a publisher that accepts the attachment and then sends nothing, which is the one case
+     * with no event to await. Every case where the answer is already knowable, no publisher
+     * assigned, a different role, or a failed connection, releases immediately through
+     * [releaseExternalControl] without waiting at all.
+     */
     private suspend fun beginExternalControl() {
-        context?.storeAccessor?.asInternalOperations()?.beginExternalControl()
+        val context = context ?: return
+        val gate = CompletableDeferred<Unit>()
+        firstProjection = gate
+        context.storeAccessor.asInternalOperations()?.beginExternalControl()
+        listenerHandshake?.cancel()
+        listenerHandshake = context.storeAccessor.launch {
+            val arrived = withTimeoutOrNull(FIRST_PROJECTION_TIMEOUT_MS) { gate.await() }
+            if (arrived == null) {
+                releaseExternalControl("publisher sent no state")
+            }
+        }
     }
 
-    private suspend fun endExternalControl() {
+    /**
+     * The body is [NonCancellable] because it is reached from inside [listenerHandshake] on the
+     * backstop path and cancels that very job. Without it the release would abort at the first
+     * suspension point and leave the store gated, which is the failure it exists to prevent.
+     */
+    private suspend fun endExternalControl(): Unit = withContext(NonCancellable) {
+        listenerHandshake?.cancel()
+        listenerHandshake = null
+        firstProjection = null
         context?.storeAccessor?.asInternalOperations()?.endExternalControl()
     }
 
     /**
-     * Releases a store that was gated at construction by [startsExternallyDriven] but never
-     * reached a publisher.
+     * Releases a store that was gated at construction but has no publisher state to wait for.
      *
-     * Without this a client configured to start as a follower stays frozen when the server or
-     * the publisher is absent: local dispatch is gated and no projection ever arrives. On
-     * expiry the store is handed back to local control and reset, so it boots as an ordinary
-     * client.
+     * Armed only for the window between the construction-time gate and the server answering
+     * with a role. Once a role arrives, [handleRoleAssignment] resolves the question
+     * immediately and this backstop is superseded.
      */
-    private fun armListenerHandshakeTimeout() {
+    private fun armStartupGateBackstop() {
         val context = context ?: return
         listenerHandshake?.cancel()
         listenerHandshake = context.storeAccessor.launch {
-            delay(LISTENER_HANDSHAKE_TIMEOUT_MS)
-            if (currentRole == ClientRole.LISTENER) return@launch
-            ReaktivDebug.warn("DevTools: No publisher within ${LISTENER_HANDSHAKE_TIMEOUT_MS}ms, resuming local control")
+            delay(FIRST_PROJECTION_TIMEOUT_MS)
+            if (firstProjection == null) {
+                releaseExternalControl("no role assignment from server")
+            }
+        }
+    }
+
+    /**
+     * Hands a gated store back to local control and reboots it as an ordinary client.
+     *
+     * A store gated at construction has deliberately skipped its own start-up, so it has no
+     * state of its own to fall back on and would otherwise render the bootstrap loading
+     * placeholder forever. The reset lets it run its own start lambda and intercepts normally.
+     *
+     * The role is marked abandoned so that the restart, which starts this service again, does
+     * not re-request LISTENER from [DevToolsConfig.defaultRole] and gate straight back into the
+     * same wait. An explicit [follow] clears that.
+     */
+    private suspend fun releaseExternalControl(reason: String) {
+        val context = context ?: return
+        val store = context.storeAccessor as? Store ?: return
+        if (!store.isExternallyDriven) return
+        withContext(NonCancellable) {
+            ReaktivDebug.warn("DevTools: Resuming local control ($reason)")
+            listenerRoleAbandoned = true
             context.setStatus(
-                ServiceStatus(ServiceState.DEGRADED, "no publisher, resumed local control")
+                ServiceStatus(ServiceState.DEGRADED, "resumed local control: $reason")
             )
             endExternalControl()
-            (context.storeAccessor as? Store)?.resetAsync()
+            store.resetAsync()
         }
     }
 
@@ -309,16 +379,31 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     }
 
     private val pendingDeltas = mutableMapOf<String, CapturedAction>()
+    private val pendingDeltasMutex = Mutex()
     private var deltaFlushJob: Job? = null
 
-    private fun conflatedSend(scope: CoroutineScope, event: CapturedAction) {
-        val pending = pendingDeltas[event.moduleName]
-        pendingDeltas[event.moduleName] = if (pending != null) mergeCapturedDeltas(pending, event) else event
+    /**
+     * Buffers per-module deltas for a short window so a burst collapses into one send.
+     *
+     * The buffer is shared between the capture collector and the flush coroutine, which run on
+     * different threads, so both sides must hold [pendingDeltasMutex]. Draining without it can
+     * lose any delta produced between reading the batch and clearing the map, which silently
+     * desyncs the follower until the next full state sync.
+     */
+    private suspend fun conflatedSend(scope: CoroutineScope, event: CapturedAction) {
+        pendingDeltasMutex.withLock {
+            val pending = pendingDeltas[event.moduleName]
+            pendingDeltas[event.moduleName] =
+                if (pending != null) mergeCapturedDeltas(pending, event) else event
+        }
         if (deltaFlushJob?.isActive != true) {
             deltaFlushJob = scope.launch {
                 delay(DELTA_CONFLATION_WINDOW_MS)
-                val batch = pendingDeltas.values.toList()
-                pendingDeltas.clear()
+                val batch = pendingDeltasMutex.withLock {
+                    val drained = pendingDeltas.values.toList()
+                    pendingDeltas.clear()
+                    drained
+                }
                 batch.forEach { pending ->
                     try {
                         send(DevToolsMessage.ActionDispatched(pending))
@@ -362,7 +447,11 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
             }
             is DevToolsMessage.ListenerAttached -> {
                 if (currentRole == ClientRole.PUBLISHER) {
-                    sendFullStateSync()
+                    if (message.role == ClientRole.ORCHESTRATOR) {
+                        sendSessionHistorySync()
+                    } else {
+                        sendFullStateSync()
+                    }
                 }
             }
             is DevToolsMessage.ActionDispatched -> {
@@ -378,11 +467,13 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         val previousRole = currentRole
         currentRole = assignment.role
         if (assignment.role == ClientRole.LISTENER) {
-            listenerHandshake?.cancel()
-            listenerHandshake = null
-            beginExternalControl()
-        } else if (previousRole == ClientRole.LISTENER) {
-            endExternalControl()
+            if (assignment.publisherClientId == null) {
+                releaseExternalControl("no publisher to follow")
+            } else {
+                beginExternalControl()
+            }
+        } else {
+            releaseExternalControl("assigned role ${assignment.role}")
         }
         send(
             DevToolsMessage.RoleAcknowledgment(
@@ -407,7 +498,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         val capture = context?.capture ?: return
         if (!isConnected()) return
         try {
-            val history = capture.getSessionHistory()
+            val history = capture.getSessionHistory().withBaseline()
             val chunks = history.chunked()
             if (chunks.size == 1) {
                 send(DevToolsMessage.SessionHistorySync(clientId, history))
@@ -419,6 +510,23 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         } catch (e: Exception) {
             ReaktivDebug.warn("DevTools: Failed to send session history sync - ${e.message}")
         }
+    }
+
+    /**
+     * Guarantees the history carries a full state baseline for the observer to build on.
+     *
+     * The capture only records an initial state on the first non-tooling action, so a publisher
+     * that has not dispatched anything yet reports `{}`. An observer given that has nothing to
+     * reconstruct from and can only ever display the modules that later appear in deltas. When
+     * the baseline is missing no actions have been captured either, so substituting the current
+     * state stays consistent with the delta stream that follows.
+     */
+    private suspend fun SessionHistory.withBaseline(): SessionHistory {
+        if (initialStateJson.isNotBlank() && initialStateJson != "{}") return this
+        val json = json ?: return this
+        val states = getAllStatesRef?.invoke() ?: return this
+        val mapSerializer = MapSerializer(String.serializer(), PolymorphicSerializer(ModuleState::class))
+        return copy(initialStateJson = json.encodeToString(mapSerializer, states))
     }
 
     private suspend fun sendFullStateSync() {
@@ -444,7 +552,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         const val DELTA_CONFLATION_WINDOW_MS: Long = 75L
         const val RECONNECT_INITIAL_DELAY_MS: Long = 1000L
         const val RECONNECT_MAX_DELAY_MS: Long = 30_000L
-        const val LISTENER_HANDSHAKE_TIMEOUT_MS: Long = 10_000L
+        const val FIRST_PROJECTION_TIMEOUT_MS: Long = 10_000L
     }
 
     private val followerShadow = mutableMapOf<String, JsonObject>()
@@ -454,7 +562,19 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         try {
             val incoming = json.parseToJsonElement(event.stateDeltaJson).jsonObject
             val merged = if (event.deltaKind == DeltaKind.FIELDS) {
-                val base = followerShadow[event.moduleName] ?: return
+                val base = followerShadow[event.moduleName]
+                if (base == null) {
+                    ReaktivDebug.warn(
+                        "DevTools: Dropped field delta for ${event.moduleName} with no base snapshot"
+                    )
+                    context?.setStatus(
+                        ServiceStatus(
+                            ServiceState.DEGRADED,
+                            "desynced: field delta for ${event.moduleName} before first sync"
+                        )
+                    )
+                    return
+                }
                 json.parseToJsonElement(
                     mergeFieldJson(base.toString(), event.stateDeltaJson)
                 ).jsonObject
@@ -468,6 +588,12 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
             context?.storeAccessor?.asInternalOperations()?.applyExternalStates(mapOf(event.moduleName to state))
         } catch (e: Exception) {
             ReaktivDebug.warn("DevTools: Failed to apply action delta - ${e.message}")
+            context?.setStatus(
+                ServiceStatus(
+                    ServiceState.DEGRADED,
+                    "delta rejected for ${event.moduleName}: ${e.message}"
+                )
+            )
         }
     }
 
@@ -498,8 +624,31 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 )
             }
             storeAccessor.asInternalOperations()?.applyExternalStates(states)
+            if (sync.moduleName.isBlank()) {
+                onFirstProjectionApplied(states.keys)
+            }
         } catch (e: Exception) {
             ReaktivDebug.warn("DevTools: Failed to apply state sync - ${e.message}")
+            context?.setStatus(
+                ServiceStatus(ServiceState.DEGRADED, "state sync rejected: ${e.message}")
+            )
         }
+    }
+
+    /**
+     * Records that replication actually started, which is what releases the recovery timer.
+     *
+     * A follower gated at construction has no state of its own to fall back on, so silence
+     * here is indistinguishable from a hang. Reporting the applied module set makes a partial
+     * projection (a follower built against a different set of modules or navigatables than
+     * the publisher) visible in the debug menu instead of showing as a stuck loading screen.
+     */
+    private suspend fun onFirstProjectionApplied(appliedModules: Set<String>) {
+        val gate = firstProjection ?: return
+        if (gate.isCompleted) return
+        gate.complete(Unit)
+        context?.setStatus(
+            ServiceStatus(ServiceState.RUNNING, "replicating ${appliedModules.size} modules")
+        )
     }
 }

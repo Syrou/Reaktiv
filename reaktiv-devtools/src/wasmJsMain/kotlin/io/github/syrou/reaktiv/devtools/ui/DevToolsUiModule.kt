@@ -636,7 +636,16 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
             }
 
             is DevToolsMessage.StateSync -> {
-                // For listener middleware, not the WASM UI
+                // Normally the orchestrator gets its baseline from SessionHistorySync. A
+                // publisher predating the role field answers an attach with a full StateSync
+                // instead, so adopt that as the baseline when none has been established yet.
+                // Adopting it later would misalign the reconstruction, because already
+                // recorded actions predate this snapshot.
+                val state = storeAccessor.selectState<DevToolsUiState>().value
+                if (message.moduleName.isBlank() && state.initialStateJson == "{}") {
+                    storeAccessor.dispatch(DevToolsUiAction.ResetHistoryForSync(clearLogicEvents = false))
+                    storeAccessor.dispatch(DevToolsUiAction.SetInitialState(message.stateJson))
+                }
             }
 
             is DevToolsMessage.RoleAssignment -> {

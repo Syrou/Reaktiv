@@ -37,7 +37,9 @@ public class ToolingLogic internal constructor(
         }
         if (config.enabled) {
             (storeAccessor as? Store)?.serializersModule?.let { capture.attachStateSerializers(it) }
-            logicObserver = IntrospectionLogicObserver(capture).also { LogicTracer.addObserver(it) }
+            if (config.installLogicTracing) {
+                logicObserver = IntrospectionLogicObserver(capture).also { LogicTracer.addObserver(it) }
+            }
             stateReadObserver = { read: StateRead -> capture.captureStateRead(read) }
                 .also { StateReadTracker.addObserver(it) }
             if (config.installCrashHandler) {

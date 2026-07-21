@@ -46,5 +46,6 @@ public data class IntrospectionConfig @OptIn(ExperimentalUuidApi::class) constru
     val redactor: StateRedactor? = null,
     val maxActions: Int? = null,
     val maxLogicEvents: Int? = null,
-    val redactSensitiveKeys: Boolean = true
+    val redactSensitiveKeys: Boolean = true,
+    val installLogicTracing: Boolean = true
 )

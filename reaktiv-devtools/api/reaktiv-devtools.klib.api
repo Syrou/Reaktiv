@@ -595,13 +595,16 @@ sealed class io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage { // io.g
     }
 
     final class ListenerAttached : io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage { // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached|null[0]
-        constructor <init>(kotlin/String) // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.<init>|<init>(kotlin.String){}[0]
+        constructor <init>(kotlin/String, io.github.syrou.reaktiv.devtools.protocol/ClientRole = ...) // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.<init>|<init>(kotlin.String;io.github.syrou.reaktiv.devtools.protocol.ClientRole){}[0]
 
         final val listenerId // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.listenerId|{}listenerId[0]
             final fun <get-listenerId>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.listenerId.<get-listenerId>|<get-listenerId>(){}[0]
+        final val role // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.role|{}role[0]
+            final fun <get-role>(): io.github.syrou.reaktiv.devtools.protocol/ClientRole // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.role.<get-role>|<get-role>(){}[0]
 
         final fun component1(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.component1|component1(){}[0]
-        final fun copy(kotlin/String = ...): io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.copy|copy(kotlin.String){}[0]
+        final fun component2(): io.github.syrou.reaktiv.devtools.protocol/ClientRole // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.component2|component2(){}[0]
+        final fun copy(kotlin/String = ..., io.github.syrou.reaktiv.devtools.protocol/ClientRole = ...): io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.copy|copy(kotlin.String;io.github.syrou.reaktiv.devtools.protocol.ClientRole){}[0]
         final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.equals|equals(kotlin.Any?){}[0]
         final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.hashCode|hashCode(){}[0]
         final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.toString|toString(){}[0]
@@ -616,6 +619,8 @@ sealed class io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage { // io.g
         }
 
         final object Companion { // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.Companion|null[0]
+            final val $childSerializers // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.Companion.$childSerializers|{}$childSerializers[0]
+
             final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached> // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.ListenerAttached.Companion.serializer|serializer(){}[0]
         }
     }
@@ -1080,6 +1085,7 @@ final fun io.github.syrou.reaktiv.devtools.tracing/io_github_syrou_reaktiv_devto
 final class io.github.syrou.reaktiv.devtools.server/ClientManager { // io.github.syrou.reaktiv.devtools.server/ClientManager|null[0]
     constructor <init>() // io.github.syrou.reaktiv.devtools.server/ClientManager.<init>|<init>(){}[0]
 
+    final fun reset() // io.github.syrou.reaktiv.devtools.server/ClientManager.reset|reset(){}[0]
     final suspend fun assignRole(kotlin/String, io.github.syrou.reaktiv.devtools.protocol/ClientRole, kotlin/String?) // io.github.syrou.reaktiv.devtools.server/ClientManager.assignRole|assignRole(kotlin.String;io.github.syrou.reaktiv.devtools.protocol.ClientRole;kotlin.String?){}[0]
     final suspend fun broadcastClientList() // io.github.syrou.reaktiv.devtools.server/ClientManager.broadcastClientList|broadcastClientList(){}[0]
     final suspend fun broadcastToListeners(kotlin/String, io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage) // io.github.syrou.reaktiv.devtools.server/ClientManager.broadcastToListeners|broadcastToListeners(kotlin.String;io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage){}[0]
@@ -1160,9 +1166,19 @@ final class io.github.syrou.reaktiv.devtools.server/LocalFileContent : io.ktor.h
 }
 
 // Targets: [linux, macosArm64, mingwX64]
+final class io.github.syrou.reaktiv.devtools.server/RunningDevToolsServer { // io.github.syrou.reaktiv.devtools.server/RunningDevToolsServer|null[0]
+    final val port // io.github.syrou.reaktiv.devtools.server/RunningDevToolsServer.port|{}port[0]
+        final fun <get-port>(): kotlin/Int // io.github.syrou.reaktiv.devtools.server/RunningDevToolsServer.port.<get-port>|<get-port>(){}[0]
+
+    final fun stop(kotlin/Long = ..., kotlin/Long = ...) // io.github.syrou.reaktiv.devtools.server/RunningDevToolsServer.stop|stop(kotlin.Long;kotlin.Long){}[0]
+}
+
+// Targets: [linux, macosArm64, mingwX64]
 final object io.github.syrou.reaktiv.devtools.server/DevToolsServer { // io.github.syrou.reaktiv.devtools.server/DevToolsServer|null[0]
     final fun getClientManager(): io.github.syrou.reaktiv.devtools.server/ClientManager // io.github.syrou.reaktiv.devtools.server/DevToolsServer.getClientManager|getClientManager(){}[0]
+    final fun resetState() // io.github.syrou.reaktiv.devtools.server/DevToolsServer.resetState|resetState(){}[0]
     final fun start(kotlin/Int = ..., kotlin/String = ..., kotlin/String? = ...) // io.github.syrou.reaktiv.devtools.server/DevToolsServer.start|start(kotlin.Int;kotlin.String;kotlin.String?){}[0]
+    final fun startEmbedded(kotlin/Int = ..., kotlin/String = ..., kotlin/String? = ...): io.github.syrou.reaktiv.devtools.server/RunningDevToolsServer // io.github.syrou.reaktiv.devtools.server/DevToolsServer.startEmbedded|startEmbedded(kotlin.Int;kotlin.String;kotlin.String?){}[0]
 }
 
 // Targets: [linux, macosArm64, mingwX64]
@@ -1179,6 +1195,9 @@ final val io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtoo
 
 // Targets: [linux, macosArm64, mingwX64]
 final val io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop|#static{}io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop[0]
+
+// Targets: [linux, macosArm64, mingwX64]
+final val io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_RunningDevToolsServer$stableprop // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_RunningDevToolsServer$stableprop|#static{}io_github_syrou_reaktiv_devtools_server_RunningDevToolsServer$stableprop[0]
 
 // Targets: [linux, macosArm64, mingwX64]
 final fun (io.ktor.http/ContentType.Companion).io.github.syrou.reaktiv.devtools.server/defaultForFile(kotlinx.io.files/Path): io.ktor.http/ContentType // io.github.syrou.reaktiv.devtools.server/defaultForFile|defaultForFile@io.ktor.http.ContentType.Companion(kotlinx.io.files.Path){}[0]
@@ -1200,6 +1219,9 @@ final fun io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtoo
 
 // Targets: [linux, macosArm64, mingwX64]
 final fun io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop_getter|io_github_syrou_reaktiv_devtools_server_LocalFileContent$stableprop_getter(){}[0]
+
+// Targets: [linux, macosArm64, mingwX64]
+final fun io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_RunningDevToolsServer$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.devtools.server/io_github_syrou_reaktiv_devtools_server_RunningDevToolsServer$stableprop_getter|io_github_syrou_reaktiv_devtools_server_RunningDevToolsServer$stableprop_getter(){}[0]
 
 // Targets: [linux, macosArm64, mingwX64]
 final fun io.github.syrou.reaktiv.devtools.server/main(kotlin/Array<kotlin/String>) // io.github.syrou.reaktiv.devtools.server/main|main(kotlin.Array<kotlin.String>){}[0]

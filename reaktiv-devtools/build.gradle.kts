@@ -22,6 +22,8 @@ kotlin {
         compileSdk = 36
         minSdk = 23
     }
+    jvm()
+
     iosArm64()
     iosSimulatorArm64()
 
@@ -98,7 +100,7 @@ kotlin {
             }
         }
 
-        listOf("linuxX64Main", "linuxArm64Main", "macosArm64Main", "mingwX64Main").forEach {
+        listOf("linuxX64Main", "linuxArm64Main", "macosArm64Main", "mingwX64Main", "jvmMain").forEach {
             getByName(it).dependsOn(desktopMain)
         }
 
@@ -139,6 +141,15 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+
+        getByName("jvmTest") {
+            dependencies {
+                implementation(project(":reaktiv-navigation"))
+                implementation(compose.runtime)
+                implementation(compose.ui)
+                implementation(compose.material3)
             }
         }
     }

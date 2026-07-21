@@ -12,6 +12,7 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import io.github.syrou.reaktiv.core.util.reaktivJson
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
@@ -25,6 +26,31 @@ import kotlin.time.Duration.Companion.seconds
  * }
  * ```
  */
+/**
+ * Handle to a server started with [DevToolsServer.startEmbedded].
+ *
+ * Usage:
+ * ```kotlin
+ * val server = DevToolsServer.startEmbedded(port = 0)
+ * val url = "ws://127.0.0.1:${server.port}/ws"
+ * server.stop()
+ * ```
+ */
+public class RunningDevToolsServer internal constructor(
+    private val engine: EmbeddedServer<*, *>
+) {
+    /**
+     * The port the engine actually bound to, resolved even when 0 was requested.
+     */
+    public val port: Int by lazy {
+        runBlocking { engine.engine.resolvedConnectors().first().port }
+    }
+
+    public fun stop(gracePeriodMillis: Long = 0, timeoutMillis: Long = 2_000) {
+        engine.stop(gracePeriodMillis, timeoutMillis)
+    }
+}
+
 public object DevToolsServer {
     private val clientManager = ClientManager()
 
@@ -51,6 +77,50 @@ public object DevToolsServer {
         embeddedServer(CIO, port = port, host = host) {
             configureServer(uiPath)
         }.start(wait = true)
+    }
+
+    /**
+     * Starts the DevTools server without blocking the calling thread.
+     *
+     * Intended for embedding the server in a host process and for tests that need to drive
+     * real clients against it. Unlike [start], this returns as soon as the engine is up.
+     *
+     * Usage:
+     * ```kotlin
+     * val server = DevToolsServer.startEmbedded(port = 0)
+     * try {
+     *     // drive clients against server.port
+     * } finally {
+     *     server.stop()
+     * }
+     * ```
+     *
+     * @param port Port to listen on, or 0 to let the OS choose a free one
+     * @param host Host address (default: 127.0.0.1)
+     * @param uiPath Path to the WASM UI distribution directory (optional)
+     * @return A handle exposing the resolved [RunningDevToolsServer.port] and [RunningDevToolsServer.stop]
+     */
+    public fun startEmbedded(
+        port: Int = 8080,
+        host: String = "127.0.0.1",
+        uiPath: String? = null
+    ): RunningDevToolsServer {
+        val engine = embeddedServer(CIO, port = port, host = host) {
+            configureServer(uiPath)
+        }
+        engine.start(wait = false)
+        return RunningDevToolsServer(engine)
+    }
+
+    /**
+     * Resets all client bookkeeping.
+     *
+     * The server is an object, so a host process that starts more than one embedded server
+     * over its lifetime (notably a test suite) would otherwise inherit stale clients and
+     * publisher assignments from the previous one.
+     */
+    public fun resetState() {
+        clientManager.reset()
     }
 
     private fun Application.configureServer(uiPath: String?) {
@@ -197,10 +267,15 @@ public object DevToolsServer {
                     publisherClientId = effectivePublisherId
                 )
 
-                // Notify about new listener so full state can be sent
-                if (effectiveRole == ClientRole.LISTENER && effectivePublisherId != null) {
+                // Notify about a new observer so it can be given a baseline. Orchestrators need
+                // this as much as listeners: without it the UI has no initial state to
+                // reconstruct the full application state from, and can only show deltas.
+                val isObserver =
+                    effectiveRole == ClientRole.LISTENER || effectiveRole == ClientRole.ORCHESTRATOR
+                if (isObserver && effectivePublisherId != null) {
                     val notification = DevToolsMessage.ListenerAttached(
-                        listenerId = message.targetClientId
+                        listenerId = message.targetClientId,
+                        role = effectiveRole
                     )
                     if (clientManager.isGhostDevice(effectivePublisherId)) {
                         // Ghost can't respond — notify orchestrator/subscribers so they can send state

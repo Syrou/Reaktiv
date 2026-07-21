@@ -1,0 +1,1025 @@
+public final class io/github/syrou/reaktiv/devtools/client/ConnectionState : java/lang/Enum {
+	public static final field CONNECTED Lio/github/syrou/reaktiv/devtools/client/ConnectionState;
+	public static final field CONNECTING Lio/github/syrou/reaktiv/devtools/client/ConnectionState;
+	public static final field DISCONNECTED Lio/github/syrou/reaktiv/devtools/client/ConnectionState;
+	public static final field ERROR Lio/github/syrou/reaktiv/devtools/client/ConnectionState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/client/ConnectionState;
+	public static fun values ()[Lio/github/syrou/reaktiv/devtools/client/ConnectionState;
+}
+
+public final class io/github/syrou/reaktiv/devtools/client/DevToolsConnection {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public final fun connect (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun disconnect (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getConnectionState ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun observeMessages (Lkotlin/jvm/functions/Function2;)V
+	public final fun send (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/devtools/middleware/DevToolsConfig {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;ZZZZZLio/github/syrou/reaktiv/devtools/protocol/ClientRole;)V
+	public synthetic fun <init> (Ljava/lang/String;ZZZZZLio/github/syrou/reaktiv/devtools/protocol/ClientRole;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun component6 ()Z
+	public final fun component7 ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public final fun copy (Ljava/lang/String;ZZZZZLio/github/syrou/reaktiv/devtools/protocol/ClientRole;)Lio/github/syrou/reaktiv/devtools/middleware/DevToolsConfig;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/middleware/DevToolsConfig;Ljava/lang/String;ZZZZZLio/github/syrou/reaktiv/devtools/protocol/ClientRole;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/middleware/DevToolsConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAllowActionCapture ()Z
+	public final fun getAllowStateCapture ()Z
+	public final fun getAutoConnect ()Z
+	public final fun getAutoReconnect ()Z
+	public final fun getDefaultRole ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public final fun getEnabled ()Z
+	public final fun getServerUrl ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/ClientInfo {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;JZ)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;JZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()J
+	public final fun component7 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;JZ)Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;JZILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getClientName ()Ljava/lang/String;
+	public final fun getConnectedAt ()J
+	public final fun getPlatform ()Ljava/lang/String;
+	public final fun getPublisherClientId ()Ljava/lang/String;
+	public final fun getRole ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public fun hashCode ()I
+	public final fun isGhost ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/ClientInfo$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/ClientInfo$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/ClientRole : java/lang/Enum {
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/ClientRole$Companion;
+	public static final field LISTENER Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public static final field ORCHESTRATOR Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public static final field PUBLISHER Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public static final field UNASSIGNED Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public static fun values ()[Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/ClientRole$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public abstract class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$Companion;
+	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public static final synthetic fun write$Self (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;
+	public final fun copy (Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched;Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getEvent ()Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ActionDispatched$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate$Companion;
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate;Ljava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClients ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientListUpdate$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getClientName ()Ljava/lang/String;
+	public final fun getPlatform ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isGhost ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport;Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getCrash ()Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
+	public final fun getSessionJson ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$CrashReport$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;IIJJLjava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;IIJJLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public final fun component3 ()Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()J
+	public final fun component7 ()J
+	public final fun component8 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;IIJJLjava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;Lio/github/syrou/reaktiv/introspection/protocol/CrashException;IIJJLjava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCrashException ()Lio/github/syrou/reaktiv/introspection/protocol/CrashException;
+	public final fun getEventCount ()I
+	public final fun getLogicEventCount ()I
+	public final fun getOriginalClientInfo ()Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public final fun getSessionEndTime ()J
+	public final fun getSessionExportJson ()Ljava/lang/String;
+	public final fun getSessionId ()Ljava/lang/String;
+	public final fun getSessionStartTime ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval$Companion;
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGhostClientId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRemoval$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGhostClientId ()Ljava/lang/String;
+	public final fun getSessionExportJson ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getListenerId ()Ljava/lang/String;
+	public final fun getRole ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ListenerAttached$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodCompleted;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/core/tracing/LogicMethodCompleted;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodCompleted;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted;Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodCompleted;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getEvent ()Lio/github/syrou/reaktiv/core/tracing/LogicMethodCompleted;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodCompleted$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed;Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getEvent ()Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodFailed$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodStart;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/core/tracing/LogicMethodStart;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodStart;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted;Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/LogicMethodStart;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getEvent ()Lio/github/syrou/reaktiv/core/tracing/LogicMethodStart;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogicMethodStarted$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNewPublisherId ()Ljava/lang/String;
+	public final fun getPreviousPublisherId ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;ZLjava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public final fun component3 ()Z
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;ZLjava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;ZLjava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getRole ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public final fun getSuccess ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAcknowledgment$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPublisherClientId ()Ljava/lang/String;
+	public final fun getRole ()Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;
+	public final fun getTargetClientId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$RoleAssignment$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk$Companion;
+	public fun <init> (Ljava/lang/String;IILio/github/syrou/reaktiv/introspection/capture/SessionHistory;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
+	public final fun copy (Ljava/lang/String;IILio/github/syrou/reaktiv/introspection/capture/SessionHistory;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk;Ljava/lang/String;IILio/github/syrou/reaktiv/introspection/capture/SessionHistory;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChunkIndex ()I
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getHistory ()Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
+	public final fun getTotalChunks ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistoryChunk$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getHistory ()Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport$Companion;
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/StateRead;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/core/tracing/StateRead;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/StateRead;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport;Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/StateRead;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientId ()Ljava/lang/String;
+	public final fun getRead ()Lio/github/syrou/reaktiv/core/tracing/StateRead;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync$Companion;
+	public fun <init> (Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFromClientId ()Ljava/lang/String;
+	public final fun getModuleName ()Ljava/lang/String;
+	public final fun getStateJson ()Ljava/lang/String;
+	public final fun getTimestamp ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateSync$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DispatchStats {
+	public static final field $stable I
+	public fun <init> (IJJIJ)V
+	public final fun component1 ()I
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun component4 ()I
+	public final fun component5 ()J
+	public final fun copy (IJJIJ)Lio/github/syrou/reaktiv/devtools/protocol/DispatchStats;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DispatchStats;IJJIJILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DispatchStats;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAvgQueueWaitMs ()J
+	public final fun getMaxQueueDepth ()I
+	public final fun getMaxQueueWaitMs ()J
+	public final fun getProcessedActions ()I
+	public final fun getTotalProcessMs ()J
+	public fun hashCode ()I
+	public final fun isCongested ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/LogicTraceStatsKt {
+	public static final field CONGESTION_PEAK_THRESHOLD I
+	public static final field DISPATCH_QUEUE_WAIT_WARN_MS J
+	public static final field DISPATCH_TRACE_CLASS Ljava/lang/String;
+	public static final field STALL_TRACE_CLASS Ljava/lang/String;
+	public static final fun aggregateDispatchStats (Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lio/github/syrou/reaktiv/devtools/protocol/DispatchStats;
+	public static final fun aggregateLogicStats (Ljava/util/List;Ljava/util/List;Ljava/util/List;)Ljava/util/List;
+	public static final fun aggregateStalls (Ljava/util/List;Ljava/util/List;)Ljava/util/List;
+	public static final fun aggregateThreadStats (Ljava/util/List;Ljava/util/List;Ljava/util/List;)Ljava/util/List;
+	public static final fun isMainThread (Ljava/lang/String;)Z
+	public static final fun stallCulprits (Ljava/util/List;Ljava/util/List;Ljava/util/List;)Ljava/util/List;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/MethodStats {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;IIIJJLjava/util/Set;Ljava/util/Set;ILjava/util/Set;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;IIIJJLjava/util/Set;Ljava/util/Set;ILjava/util/Set;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()I
+	public final fun component11 ()Ljava/util/Set;
+	public final fun component12 ()Ljava/lang/String;
+	public final fun component13 ()Ljava/lang/Integer;
+	public final fun component14 ()Ljava/lang/String;
+	public final fun component15 ()Ljava/lang/String;
+	public final fun component16 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()J
+	public final fun component7 ()J
+	public final fun component8 ()Ljava/util/Set;
+	public final fun component9 ()Ljava/util/Set;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;IIIJJLjava/util/Set;Ljava/util/Set;ILjava/util/Set;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/MethodStats;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/MethodStats;Ljava/lang/String;Ljava/lang/String;IIIJJLjava/util/Set;Ljava/util/Set;ILjava/util/Set;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/MethodStats;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAvgMs ()J
+	public final fun getCalls ()I
+	public final fun getCongestionReason ()Ljava/lang/String;
+	public final fun getDispatchers ()Ljava/util/Set;
+	public final fun getFailureMessage ()Ljava/lang/String;
+	public final fun getFailureSummary ()Ljava/lang/String;
+	public final fun getFailureType ()Ljava/lang/String;
+	public final fun getFailures ()I
+	public final fun getFinished ()I
+	public final fun getGithubSourceUrl ()Ljava/lang/String;
+	public final fun getInFlight ()I
+	public final fun getLabelWithLocation ()Ljava/lang/String;
+	public final fun getLineNumber ()Ljava/lang/Integer;
+	public final fun getLocation ()Ljava/lang/String;
+	public final fun getLogicClass ()Ljava/lang/String;
+	public final fun getMaxConcurrent ()I
+	public final fun getMaxMs ()J
+	public final fun getMethodIdentifier ()Ljava/lang/String;
+	public final fun getMethodName ()Ljava/lang/String;
+	public final fun getPeakThreads ()Ljava/util/Set;
+	public final fun getRunsOnMainThread ()Z
+	public final fun getSourceFile ()Ljava/lang/String;
+	public final fun getThreads ()Ljava/util/Set;
+	public final fun getTotalMs ()J
+	public fun hashCode ()I
+	public final fun isCongested ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/ModuleSizeStats {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;IIIII)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()I
+	public final fun copy (Ljava/lang/String;IIIII)Lio/github/syrou/reaktiv/devtools/protocol/ModuleSizeStats;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/ModuleSizeStats;Ljava/lang/String;IIIIIILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/ModuleSizeStats;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCurrentBytes ()I
+	public final fun getFirstBytes ()I
+	public final fun getGrowthPercent ()I
+	public final fun getGrowthStreak ()I
+	public final fun getMaxBytes ()I
+	public final fun getModuleName ()Ljava/lang/String;
+	public final fun getSamples ()I
+	public final fun getShortName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isSuspicious ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/StallGroup {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;IJ)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()J
+	public final fun copy (Ljava/lang/String;IJ)Lio/github/syrou/reaktiv/devtools/protocol/StallGroup;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/StallGroup;Ljava/lang/String;IJILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/StallGroup;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCount ()I
+	public final fun getStack ()Ljava/lang/String;
+	public final fun getWorstMs ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/StateSizeTracker {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun feed (Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;)V
+	public final fun feedInitial (Ljava/lang/String;)V
+	public final fun getProcessed ()I
+	public final fun snapshot ()Ljava/util/List;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/StateSizeTrackerKt {
+	public static final field SIZE_GROWTH_PERCENT_THRESHOLD I
+	public static final field SIZE_GROWTH_STREAK_THRESHOLD I
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/ThreadStats {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;IJILjava/util/Set;)V
+	public synthetic fun <init> (Ljava/lang/String;IJILjava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()J
+	public final fun component4 ()I
+	public final fun component5 ()Ljava/util/Set;
+	public final fun copy (Ljava/lang/String;IJILjava/util/Set;)Lio/github/syrou/reaktiv/devtools/protocol/ThreadStats;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/ThreadStats;Ljava/lang/String;IJILjava/util/Set;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/ThreadStats;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBusyMs ()J
+	public final fun getCalls ()I
+	public final fun getContenders ()Ljava/util/Set;
+	public final fun getContentionReason ()Ljava/lang/String;
+	public final fun getMaxConcurrent ()I
+	public final fun getThread ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isCongested ()Z
+	public final fun isMain ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/server/ClientManager {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun assignRole (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun broadcastClientList (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun broadcastToListeners (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getAllClients (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getClient (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getCurrentPublisher (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getGhostDevice (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun isGhostDevice (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun registerClient (Lio/ktor/websocket/WebSocketSession;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ClientRegistration;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun registerGhostDevice (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun removeGhostDevice (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun reset ()V
+	public final fun sendToPublisher (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setPublisher (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun unregisterClient (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/devtools/server/ConnectedClient {
+	public static final field $stable I
+	public fun <init> (Lio/ktor/websocket/WebSocketSession;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;)V
+	public final fun component1 ()Lio/ktor/websocket/WebSocketSession;
+	public final fun component2 ()Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public final fun copy (Lio/ktor/websocket/WebSocketSession;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;)Lio/github/syrou/reaktiv/devtools/server/ConnectedClient;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/server/ConnectedClient;Lio/ktor/websocket/WebSocketSession;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/server/ConnectedClient;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInfo ()Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public final fun getSession ()Lio/ktor/websocket/WebSocketSession;
+	public fun hashCode ()I
+	public final fun setInfo (Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/server/DevToolsServer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/server/DevToolsServer;
+	public final fun getClientManager ()Lio/github/syrou/reaktiv/devtools/server/ClientManager;
+	public final fun resetState ()V
+	public final fun start (ILjava/lang/String;Ljava/lang/String;)V
+	public static synthetic fun start$default (Lio/github/syrou/reaktiv/devtools/server/DevToolsServer;ILjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)V
+	public final fun startEmbedded (ILjava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/server/RunningDevToolsServer;
+	public static synthetic fun startEmbedded$default (Lio/github/syrou/reaktiv/devtools/server/DevToolsServer;ILjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/server/RunningDevToolsServer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/server/GhostDevice {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;JJIILjava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;JJIILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()I
+	public final fun component6 ()I
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;JJIILjava/lang/String;)Lio/github/syrou/reaktiv/devtools/server/GhostDevice;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/server/GhostDevice;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;JJIILjava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/server/GhostDevice;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEventCount ()I
+	public final fun getGhostClientId ()Ljava/lang/String;
+	public final fun getLogicEventCount ()I
+	public final fun getOriginalClientInfo ()Lio/github/syrou/reaktiv/devtools/protocol/ClientInfo;
+	public final fun getSessionEndTime ()J
+	public final fun getSessionExportJson ()Ljava/lang/String;
+	public final fun getSessionStartTime ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/server/LocalFileContent : io/ktor/http/content/OutgoingContent$WriteChannelContent {
+	public static final field $stable I
+	public fun <init> (Lkotlinx/io/files/Path;Lio/ktor/http/ContentType;)V
+	public synthetic fun <init> (Lkotlinx/io/files/Path;Lio/ktor/http/ContentType;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getContentLength ()Ljava/lang/Long;
+	public fun getContentType ()Lio/ktor/http/ContentType;
+	public fun writeTo (Lio/ktor/utils/io/ByteWriteChannel;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/devtools/server/MainKt {
+	public static final fun main ([Ljava/lang/String;)V
+}
+
+public final class io/github/syrou/reaktiv/devtools/server/RunningDevToolsServer {
+	public static final field $stable I
+	public final fun getPort ()I
+	public final fun stop (JJ)V
+	public static synthetic fun stop$default (Lio/github/syrou/reaktiv/devtools/server/RunningDevToolsServer;JJILjava/lang/Object;)V
+}
+
+public final class io/github/syrou/reaktiv/devtools/server/StaticFileServingKt {
+	public static final fun defaultForFile (Lio/ktor/http/ContentType$Companion;Lkotlinx/io/files/Path;)Lio/ktor/http/ContentType;
+	public static final fun respondStatic (Lio/ktor/server/application/ApplicationCall;Lkotlinx/io/files/Path;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun staticFiles (Lio/ktor/server/routing/Route;Ljava/lang/String;)V
+}
+
+public final class io/github/syrou/reaktiv/devtools/service/DevToolsCommand : java/lang/Enum, io/github/syrou/reaktiv/introspection/tooling/ToolingCommand {
+	public static final field CONNECT Lio/github/syrou/reaktiv/devtools/service/DevToolsCommand;
+	public static final field DISCONNECT Lio/github/syrou/reaktiv/devtools/service/DevToolsCommand;
+	public static final field FOLLOW Lio/github/syrou/reaktiv/devtools/service/DevToolsCommand;
+	public static final field RECONNECT Lio/github/syrou/reaktiv/devtools/service/DevToolsCommand;
+	public static final field UNFOLLOW Lio/github/syrou/reaktiv/devtools/service/DevToolsCommand;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/service/DevToolsCommand;
+	public static fun values ()[Lio/github/syrou/reaktiv/devtools/service/DevToolsCommand;
+}
+
+public final class io/github/syrou/reaktiv/devtools/service/DevToolsCommands {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/service/DevToolsCommands;
+	public static final field SERVICE_NAME Ljava/lang/String;
+	public final fun connect (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;)Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction$ServiceCommand;
+	public static synthetic fun connect$default (Lio/github/syrou/reaktiv/devtools/service/DevToolsCommands;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction$ServiceCommand;
+	public final fun disconnect ()Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction$ServiceCommand;
+	public final fun follow (Ljava/lang/String;)Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction$ServiceCommand;
+	public static synthetic fun follow$default (Lio/github/syrou/reaktiv/devtools/service/DevToolsCommands;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction$ServiceCommand;
+	public final fun reconnect ()Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction$ServiceCommand;
+	public final fun unfollow ()Lio/github/syrou/reaktiv/introspection/tooling/ToolingAction$ServiceCommand;
+}
+
+public final class io/github/syrou/reaktiv/devtools/service/DevToolsService : io/github/syrou/reaktiv/introspection/tooling/ToolingService {
+	public static final field $stable I
+	public static final field DELTA_CONFLATION_WINDOW_MS J
+	public static final field FIRST_PROJECTION_TIMEOUT_MS J
+	public static final field RECONNECT_INITIAL_DELAY_MS J
+	public static final field RECONNECT_MAX_DELAY_MS J
+	public fun <init> (Lio/github/syrou/reaktiv/devtools/middleware/DevToolsConfig;)V
+	public final fun connect (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun connect$default (Lio/github/syrou/reaktiv/devtools/service/DevToolsService;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun createMiddleware ()Lkotlin/jvm/functions/Function5;
+	public final fun disconnect (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun follow (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun follow$default (Lio/github/syrou/reaktiv/devtools/service/DevToolsService;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun getName ()Ljava/lang/String;
+	public fun getStartsExternallyDriven ()Z
+	public final fun isConnected ()Z
+	public fun onCommand (Lio/github/syrou/reaktiv/introspection/tooling/ToolingCommand;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun reconnect (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun send (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun start (Lio/github/syrou/reaktiv/introspection/tooling/ToolingServiceContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stop (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun unfollow (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/devtools/tracing/DevToolsLogicObserver : io/github/syrou/reaktiv/core/tracing/LogicObserver {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Lkotlinx/coroutines/CoroutineScope;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;)V
+	public fun onMethodCompleted (Lio/github/syrou/reaktiv/core/tracing/LogicMethodCompleted;)V
+	public fun onMethodFailed (Lio/github/syrou/reaktiv/core/tracing/LogicMethodFailed;)V
+	public fun onMethodStart (Lio/github/syrou/reaktiv/core/tracing/LogicMethodStart;)V
+}
+

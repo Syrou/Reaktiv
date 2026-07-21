@@ -37,6 +37,19 @@ public class ClientManager {
     private val json = reaktivJson()
 
     /**
+     * Drops all clients, subscriptions, ghosts and the current publisher assignment.
+     *
+     * Only useful for a host process that runs more than one server over its lifetime, since
+     * [DevToolsServer] is an object and would otherwise carry state between them.
+     */
+    public fun reset() {
+        clients.clear()
+        subscriptions.clear()
+        ghostDevices.clear()
+        currentPublisherId = null
+    }
+
+    /**
      * Registers a new client connection.
      */
     public suspend fun registerClient(

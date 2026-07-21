@@ -2687,14 +2687,110 @@ NavigationLogic.navigate returns NavigationOutcome.Dropped on a follower instead
 executing, so local navigation cannot fight the incoming projection.
 
 A client configured with autoConnect and defaultRole = LISTENER gates its store during
-construction, before start-up work begins. If no publisher is reached within
-DevToolsService.LISTENER_HANDSHAKE_TIMEOUT_MS (10s), the store is handed back to local
-control and reset, and it boots as an ordinary client with a DEGRADED tooling status.
-Until then the navigation loading overlay stays up, which is the intended "waiting for
-publisher" state.
+construction, before start-up work begins. Such a client has skipped its own start-up, so
+it renders the navigation loading placeholder until the first projection arrives, which is
+the intended "waiting for publisher" state. If no publisher state arrives within 10s the
+store is handed back to local control and reset, and it boots as an ordinary client with a
+DEGRADED tooling status. The recovery is keyed on arrival of the first projection, not on
+assignment of the LISTENER role: the server assigns the role even when no publisher is
+connected, so role alone never proves that replication started.
 
-Followers replicate only modules whose state classes match the publisher's. A mismatched
-build silently skips those modules, as applyExternalStates has always done. Related:
+Cross-platform replication requires both ends to register the same navigatables.
+NavigationState is polymorphic over Screen, Modal and NavigationGraph, so a follower whose
+graph does not declare every type the publisher sends cannot decode the state sync. That
+failure now surfaces as a DEGRADED tooling status reading "state sync rejected", rather
+than leaving the follower on a loading screen with only a debug-level warning. Related:
 AD-51.
+
+---
+### [AD-52] reaktiv-devtools JVM target and embeddable server
+
+**Type:** Addition
+
+**Grep:** `DevToolsServer.startEmbedded|RunningDevToolsServer`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val server = DevToolsServer.startEmbedded(port = 0)
+try {
+    val url = "ws://127.0.0.1:${server.port}/ws"
+} finally {
+    server.stop()
+}
+```
+
+**Notes:** reaktiv-devtools now publishes a JVM variant alongside the existing android, iOS,
+native and wasmJs ones. jvmMain shares desktopMain, so both the websocket client (ktor CIO)
+and the DevTools server are available on the JVM. This makes it possible to embed the server
+in a JVM or desktop host instead of only running the native binary, and it is what lets an
+end-to-end test drive a real server, a real publisher and a real listener in one process
+together with reaktiv-navigation, which has no native desktop target.
+
+startEmbedded returns without blocking, unlike start, and reports the bound port so a caller
+can pass port 0 and let the OS choose. RunningDevToolsServer.stop shuts the engine down.
+DevToolsServer is an object, so a host that starts several servers over its lifetime should
+call resetState between them to drop stale client and publisher bookkeeping.
+
+---
+### [AD-53] IntrospectionConfig.installLogicTracing
+
+**Type:** Addition
+
+**Grep:** `installLogicTracing`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val config = IntrospectionConfig(
+    platform = "JVM",
+    installLogicTracing = false
+)
+```
+
+**Notes:** Defaults to true, which is the previous behaviour. Setting it false stops
+ToolingLogic and DevToolsService registering their LogicTracer observers, so no logic
+method events are captured or sent. Use it to cut telemetry volume when only state
+replication or state capture is wanted.
+
+It is also required when two stores run in the same process. LogicTracer is a global
+object, so every store's observer sees every other store's dispatches and reports them
+under its own client id. That crosstalk produces a message storm that can crowd out state
+deltas on the wire. Running more than one instrumented store per process is not a supported
+configuration, and this flag is the way to keep the extra instances quiet.
+
+---
+### [AD-54] Observers receive a full state baseline on attach
+
+**Type:** Addition
+
+**Grep:** `ListenerAttached`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+DevToolsMessage.ListenerAttached(
+    listenerId = "devtools-ui",
+    role = ClientRole.ORCHESTRATOR
+)
+```
+
+**Notes:** ListenerAttached gains a role field defaulting to ClientRole.LISTENER, so existing
+publishers keep their previous behaviour. The server now emits it for an attaching
+ORCHESTRATOR as well as an attaching LISTENER, and the publisher answers according to the
+role: a full StateSync for a listener, which replicates state, and a SessionHistorySync for
+an orchestrator, which needs the captured initial state plus the action history.
+
+This is what lets the devtools UI show the full application state rather than only the
+modules appearing in deltas. The UI reconstructs through
+StateReconstructor.reconstructAtIndex(initialStateJson, history, index), which produced a
+partial picture whenever initialStateJson was still "{}". A UI attaching after the publisher
+had already announced itself never received a baseline at all, because the history was sent
+once at role assignment.
+
+Two supporting behaviours: the publisher substitutes its current state when the capture has
+not recorded an initial state yet, which happens when no non-tooling action has been
+dispatched, and the UI adopts a full-tree StateSync as its baseline when it has none, which
+covers publishers predating the role field.
 
 ---

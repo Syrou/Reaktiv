@@ -646,7 +646,7 @@ final class io.github.syrou.reaktiv.introspection/CrashHandler { // io.github.sy
 }
 
 final class io.github.syrou.reaktiv.introspection/IntrospectionConfig { // io.github.syrou.reaktiv.introspection/IntrospectionConfig|null[0]
-    constructor <init>(kotlin/String = ..., kotlin/String = ..., kotlin/String, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection/ClientMetadata? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ...) // io.github.syrou.reaktiv.introspection/IntrospectionConfig.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Long;io.github.syrou.reaktiv.introspection.ClientMetadata?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Int?;kotlin.Int?;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/String = ..., kotlin/String = ..., kotlin/String, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection/ClientMetadata? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // io.github.syrou.reaktiv.introspection/IntrospectionConfig.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Long;io.github.syrou.reaktiv.introspection.ClientMetadata?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Int?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean){}[0]
 
     final val autoStart // io.github.syrou.reaktiv.introspection/IntrospectionConfig.autoStart|{}autoStart[0]
         final fun <get-autoStart>(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.autoStart.<get-autoStart>|<get-autoStart>(){}[0]
@@ -660,6 +660,8 @@ final class io.github.syrou.reaktiv.introspection/IntrospectionConfig { // io.gi
         final fun <get-enabled>(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.enabled.<get-enabled>|<get-enabled>(){}[0]
     final val installCrashHandler // io.github.syrou.reaktiv.introspection/IntrospectionConfig.installCrashHandler|{}installCrashHandler[0]
         final fun <get-installCrashHandler>(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.installCrashHandler.<get-installCrashHandler>|<get-installCrashHandler>(){}[0]
+    final val installLogicTracing // io.github.syrou.reaktiv.introspection/IntrospectionConfig.installLogicTracing|{}installLogicTracing[0]
+        final fun <get-installLogicTracing>(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.installLogicTracing.<get-installLogicTracing>|<get-installLogicTracing>(){}[0]
     final val installStallWatchdog // io.github.syrou.reaktiv.introspection/IntrospectionConfig.installStallWatchdog|{}installStallWatchdog[0]
         final fun <get-installStallWatchdog>(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.installStallWatchdog.<get-installStallWatchdog>|<get-installStallWatchdog>(){}[0]
     final val maxActions // io.github.syrou.reaktiv.introspection/IntrospectionConfig.maxActions|{}maxActions[0]
@@ -680,6 +682,7 @@ final class io.github.syrou.reaktiv.introspection/IntrospectionConfig { // io.gi
     final fun component11(): kotlin/Int? // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component11|component11(){}[0]
     final fun component12(): kotlin/Int? // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component12|component12(){}[0]
     final fun component13(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component13|component13(){}[0]
+    final fun component14(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component14|component14(){}[0]
     final fun component2(): kotlin/String // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component2|component2(){}[0]
     final fun component3(): kotlin/String // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component3|component3(){}[0]
     final fun component4(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component4|component4(){}[0]
@@ -688,7 +691,7 @@ final class io.github.syrou.reaktiv.introspection/IntrospectionConfig { // io.gi
     final fun component7(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component7|component7(){}[0]
     final fun component8(): kotlin/Long // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component8|component8(){}[0]
     final fun component9(): io.github.syrou.reaktiv.introspection/ClientMetadata? // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component9|component9(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection/ClientMetadata? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ...): io.github.syrou.reaktiv.introspection/IntrospectionConfig // io.github.syrou.reaktiv.introspection/IntrospectionConfig.copy|copy(kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Long;io.github.syrou.reaktiv.introspection.ClientMetadata?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Int?;kotlin.Int?;kotlin.Boolean){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection/ClientMetadata? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): io.github.syrou.reaktiv.introspection/IntrospectionConfig // io.github.syrou.reaktiv.introspection/IntrospectionConfig.copy|copy(kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Long;io.github.syrou.reaktiv.introspection.ClientMetadata?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Int?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection/IntrospectionConfig.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection/IntrospectionConfig.toString|toString(){}[0]

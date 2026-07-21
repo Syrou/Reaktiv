@@ -135,12 +135,20 @@ public sealed class DevToolsMessage {
     ) : DevToolsMessage()
 
     /**
-     * Sent by the server to a publisher when a new listener attaches.
-     * The publisher should respond by sending a full StateSync.
+     * Sent by the server to a publisher when a new observer attaches.
+     *
+     * The publisher answers with the baseline that observer needs: a full StateSync for a
+     * [ClientRole.LISTENER], which replicates state, and a SessionHistorySync for a
+     * [ClientRole.ORCHESTRATOR], which needs the captured initial state plus the action
+     * history in order to reconstruct the full application state at any point.
+     *
+     * [role] defaults to [ClientRole.LISTENER] so older publishers, which only ever received
+     * this for listeners, keep their previous behaviour.
      */
     @Serializable
     public data class ListenerAttached(
-        val listenerId: String
+        val listenerId: String,
+        val role: ClientRole = ClientRole.LISTENER
     ) : DevToolsMessage()
 
     /**
