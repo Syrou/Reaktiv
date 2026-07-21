@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.introspection.tooling
 
+import io.github.syrou.reaktiv.core.ExternalControlExempt
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
@@ -27,7 +28,7 @@ public data class ServiceStatus(val state: ServiceState, val detail: String? = n
 public enum class ServiceState { STARTING, RUNNING, DEGRADED, STOPPED }
 
 @Serializable
-public sealed class ToolingAction : ModuleAction(ToolingModule::class) {
+public sealed class ToolingAction : ModuleAction(ToolingModule::class), ExternalControlExempt {
     @Serializable
     public data class ServiceStatusChanged(val service: String, val status: ServiceStatus) : ToolingAction()
 

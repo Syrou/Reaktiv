@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.introspection.tooling
 
+import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
@@ -16,6 +17,7 @@ import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.introspection.tracing.IntrospectionLogicObserver
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalReaktivApi::class)
 public class ToolingLogic internal constructor(
     private val storeAccessor: StoreAccessor,
     private val config: IntrospectionConfig,
@@ -30,6 +32,9 @@ public class ToolingLogic internal constructor(
     private val fileExport = SessionFileExport(platformContext)
 
     init {
+        if (services.any { it.startsExternallyDriven }) {
+            storeAccessor.asInternalOperations()?.markExternallyDriven()
+        }
         if (config.enabled) {
             (storeAccessor as? Store)?.serializersModule?.let { capture.attachStateSerializers(it) }
             logicObserver = IntrospectionLogicObserver(capture).also { LogicTracer.addObserver(it) }

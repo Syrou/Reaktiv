@@ -16,7 +16,6 @@ import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import io.github.syrou.reaktiv.devtools.tracing.DevToolsLogicObserver
 import io.github.syrou.reaktiv.introspection.tooling.ServiceState
 import io.github.syrou.reaktiv.introspection.tooling.ServiceStatus
-import io.github.syrou.reaktiv.introspection.tooling.ToolingAction
 import io.github.syrou.reaktiv.introspection.tooling.ToolingCommand
 import io.github.syrou.reaktiv.introspection.tooling.ToolingService
 import io.github.syrou.reaktiv.introspection.capture.chunked
@@ -54,14 +53,27 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private var pendingReconnect: Boolean = false
     private var pendingReconnectRole: ClientRole? = null
     private var reconnectJob: Job? = null
+    private var listenerHandshake: Job? = null
+
+    private var listenerStartPending: Boolean =
+        config.enabled && config.autoConnect && config.defaultRole == ClientRole.LISTENER
+
+    /**
+     * One-shot: only the very first store construction is gated ahead of logic.
+     *
+     * [io.github.syrou.reaktiv.introspection.tooling.ToolingLogic] is rebuilt on every store
+     * reset, so a standing `true` here would re-gate the store during the reset that recovers
+     * from a failed handshake and freeze it permanently. Later follower entries go through
+     * [beginExternalControl] on role assignment instead.
+     */
+    override val startsExternallyDriven: Boolean
+        get() = listenerStartPending
 
     override fun createMiddleware(): Middleware = { action, getAllStates, _, updatedState ->
         if (getAllStatesRef == null) {
             getAllStatesRef = getAllStates
         }
-        if (currentRole != ClientRole.LISTENER || action is ToolingAction) {
-            updatedState(action)
-        }
+        updatedState(action)
     }
 
     override suspend fun onCommand(command: ToolingCommand, args: Map<String, String>) {
@@ -130,6 +142,11 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
             }
         }
 
+        if (listenerStartPending) {
+            listenerStartPending = false
+            armListenerHandshakeTimeout()
+        }
+
         if (pendingReconnect) {
             pendingReconnect = false
             manuallyDisconnected = false
@@ -142,6 +159,8 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     }
 
     override suspend fun stop() {
+        listenerHandshake?.cancel()
+        listenerHandshake = null
         disconnect()
         logicObserver?.let { LogicTracer.removeObserver(it) }
         logicObserver = null
@@ -208,6 +227,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 pendingReconnect = true
                 pendingReconnectRole = null
             }
+            endExternalControl()
             (context.storeAccessor as? Store)?.resetAsync()
         } else if (config.autoReconnect) {
             launchReconnectLoop(roleToRequest)
@@ -244,12 +264,45 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         currentRole = ClientRole.UNASSIGNED
         context?.setStatus(ServiceStatus(ServiceState.RUNNING, "connected"))
         if (wasFollowing) {
+            endExternalControl()
             (context?.storeAccessor as? Store)?.resetAsync()
         }
     }
 
     public fun isConnected(): Boolean =
         connection?.connectionState?.value == ConnectionState.CONNECTED
+
+    private suspend fun beginExternalControl() {
+        context?.storeAccessor?.asInternalOperations()?.beginExternalControl()
+    }
+
+    private suspend fun endExternalControl() {
+        context?.storeAccessor?.asInternalOperations()?.endExternalControl()
+    }
+
+    /**
+     * Releases a store that was gated at construction by [startsExternallyDriven] but never
+     * reached a publisher.
+     *
+     * Without this a client configured to start as a follower stays frozen when the server or
+     * the publisher is absent: local dispatch is gated and no projection ever arrives. On
+     * expiry the store is handed back to local control and reset, so it boots as an ordinary
+     * client.
+     */
+    private fun armListenerHandshakeTimeout() {
+        val context = context ?: return
+        listenerHandshake?.cancel()
+        listenerHandshake = context.storeAccessor.launch {
+            delay(LISTENER_HANDSHAKE_TIMEOUT_MS)
+            if (currentRole == ClientRole.LISTENER) return@launch
+            ReaktivDebug.warn("DevTools: No publisher within ${LISTENER_HANDSHAKE_TIMEOUT_MS}ms, resuming local control")
+            context.setStatus(
+                ServiceStatus(ServiceState.DEGRADED, "no publisher, resumed local control")
+            )
+            endExternalControl()
+            (context.storeAccessor as? Store)?.resetAsync()
+        }
+    }
 
     public suspend fun send(message: DevToolsMessage) {
         connection?.send(message)
@@ -324,6 +377,13 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private suspend fun handleRoleAssignment(assignment: DevToolsMessage.RoleAssignment) {
         val previousRole = currentRole
         currentRole = assignment.role
+        if (assignment.role == ClientRole.LISTENER) {
+            listenerHandshake?.cancel()
+            listenerHandshake = null
+            beginExternalControl()
+        } else if (previousRole == ClientRole.LISTENER) {
+            endExternalControl()
+        }
         send(
             DevToolsMessage.RoleAcknowledgment(
                 clientId = clientId,
@@ -384,6 +444,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         const val DELTA_CONFLATION_WINDOW_MS: Long = 75L
         const val RECONNECT_INITIAL_DELAY_MS: Long = 1000L
         const val RECONNECT_MAX_DELAY_MS: Long = 30_000L
+        const val LISTENER_HANDSHAKE_TIMEOUT_MS: Long = 10_000L
     }
 
     private val followerShadow = mutableMapOf<String, JsonObject>()

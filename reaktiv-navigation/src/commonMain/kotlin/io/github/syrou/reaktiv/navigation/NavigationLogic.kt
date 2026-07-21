@@ -5,6 +5,7 @@ import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
+import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.selectState
@@ -39,6 +40,7 @@ import io.github.syrou.reaktiv.navigation.util.traceGuard
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -97,6 +99,7 @@ public class NavigationLogic(
     private val bootstrapCompleted = CompletableDeferred<Unit>()
     private val navigationMutex = Mutex()
     private val deepLinkStartedBeforeBootstrap = MutableStateFlow(false)
+    private var bootstrapJob: Job? = null
 
     private val entryLifecycleJobs = mutableMapOf<String, Job>()
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
@@ -106,7 +109,14 @@ public class NavigationLogic(
         bootstrapRootEntryIfNeeded()
     }
 
+    private fun isExternallyDriven(): Boolean = (storeAccessor as? Store)?.isExternallyDriven == true
+
     private fun bootstrapRootEntryIfNeeded() {
+        if (isExternallyDriven()) {
+            bootstrapCompleted.complete(Unit)
+            return
+        }
+
         val rootEntryDef = precomputedData.graphEntries["root"]
 
         val rootStartDest = precomputedData.graphDefinitions["root"]?.startDestination
@@ -128,7 +138,7 @@ public class NavigationLogic(
             return
         }
 
-        storeAccessor.launch {
+        bootstrapJob = storeAccessor.launch {
             try {
                 val selectedNode = bootstrapEntry.route.invoke(storeAccessor)
 
@@ -162,11 +172,29 @@ public class NavigationLogic(
                     executeNavigation(routeBuilder) { it + listOf(NavigationAction.BootstrapComplete) }
                 }
             } finally {
-                bootstrapCompleted.complete(Unit)
-                if (getCurrentNavigationState().isEvaluatingNavigation) {
-                    storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+                withContext(NonCancellable) {
+                    bootstrapCompleted.complete(Unit)
+                    if (getCurrentNavigationState().isEvaluatingNavigation) {
+                        storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+                    }
                 }
             }
+        }
+    }
+
+    override suspend fun onExternalControlChanged(externallyDriven: Boolean) {
+        if (!externallyDriven) return
+
+        bootstrapJob?.cancelAndJoin()
+        bootstrapJob = null
+        bootstrapCompleted.complete(Unit)
+
+        val state = getCurrentNavigationState()
+        if (state.isEvaluatingNavigation) {
+            storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+        }
+        if (state.isBootstrapping) {
+            storeAccessor.dispatchAndAwait(NavigationAction.BootstrapComplete)
         }
     }
 
@@ -237,6 +265,7 @@ public class NavigationLogic(
      *   rejected, or redirected. Callers can ignore the return value for fire-and-forget use.
      */
     public suspend fun navigate(block: suspend NavigationBuilder.() -> Unit): NavigationOutcome {
+        if (isExternallyDriven()) return NavigationOutcome.Dropped
         val builder = NavigationBuilder(storeAccessor, parameterEncoder)
         builder.apply { block() }
         builder.validate()
@@ -273,6 +302,7 @@ public class NavigationLogic(
         primaryStep: NavigationStep,
         currentState: NavigationState
     ): GuardEvaluation? {
+        if (isExternallyDriven()) return GuardEvaluation.Allow
         val targetGraphId = targetResolution?.navigationGraphId
         val targetActualGraphId = targetResolution?.targetGraphId
         val zoneKey = listOfNotNull(targetRoute, targetGraphId, targetActualGraphId)

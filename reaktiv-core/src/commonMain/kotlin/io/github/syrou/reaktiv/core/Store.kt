@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
+import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.coroutines.CancellationException
@@ -145,6 +146,8 @@ public interface HighPriorityAction
 @Serializable
 public abstract class ModuleAction(@Transient internal val moduleTag: KClass<*> = KClass::class)
 
+public interface ExternalControlExempt
+
 
 public typealias Dispatch = (ModuleAction) -> Unit
 
@@ -236,6 +239,22 @@ public open class ModuleLogic : Logic {
      * ```
      */
     public open suspend fun beforeReset() {}
+
+    /**
+     * Called when the store enters or leaves external control.
+     *
+     * While a store is externally driven its state is authored by a remote publisher through
+     * [InternalStoreOperations.applyExternalStates], and every locally dispatched action that
+     * is not [ExternalControlExempt] is dropped. Override this to quiesce work that would
+     * otherwise compete with the incoming projection, such as start-up resolution or
+     * long-running observation.
+     *
+     * Invoked before the dispatch gate engages and after it disengages, so suspend calls and
+     * dispatches made from this hook are still processed normally.
+     *
+     * @param externallyDriven `true` when entering external control, `false` when leaving it
+     */
+    public open suspend fun onExternalControlChanged(externallyDriven: Boolean) {}
 }
 
 /**
@@ -425,6 +444,46 @@ public interface InternalStoreOperations {
      * @param states Map of state class qualified names to new state instances
      */
     public suspend fun applyExternalStates(states: Map<String, ModuleState>)
+
+    /**
+     * Puts the store under external control, making a remote publisher the author of its state.
+     *
+     * Every subsequently dispatched action that is not [ExternalControlExempt] is dropped and
+     * reported as [DispatchResult.Blocked], so the only way state changes is
+     * [applyExternalStates]. Each [ModuleLogic] is notified through
+     * [ModuleLogic.onExternalControlChanged] before the gate engages, giving logic a chance to
+     * settle in-flight work while dispatch still works.
+     *
+     * Must not be called from within action processing. The notification hook dispatches, and
+     * the dispatch loop is a single consumer, so calling this from a middleware or a reducer
+     * deadlocks.
+     *
+     * Example usage:
+     * ```kotlin
+     * storeAccessor.asInternalOperations()?.beginExternalControl()
+     * ```
+     */
+    public suspend fun beginExternalControl()
+
+    /**
+     * Engages the dispatch gate synchronously, before any logic has had a chance to run.
+     *
+     * Tooling uses this when a client is configured to start as a follower, so that start-up
+     * work is never begun rather than begun and then cancelled. Safe to call from a
+     * [Module.createLogic] constructor: no hooks are notified, because no logic can have
+     * in-flight work at that point.
+     *
+     * Prefer [beginExternalControl] once the store is running.
+     */
+    public fun markExternallyDriven()
+
+    /**
+     * Returns the store to local control, re-enabling the normal dispatch pipeline.
+     *
+     * State projected while under external control is left in place, so callers that want a
+     * clean local start should follow this with [Store.reset].
+     */
+    public suspend fun endExternalControl()
 }
 
 
@@ -675,6 +734,22 @@ public class Store private constructor(
     private val dispatchEnqueuedCount = AtomicLong(0L)
     private val dispatchProcessedCount = AtomicLong(0L)
 
+    private val externalControlMutex = Mutex()
+    private val externallyDriven = AtomicBoolean(false)
+
+    /**
+     * `true` while a remote publisher authors this store's state.
+     *
+     * @see InternalStoreOperations.beginExternalControl
+     */
+    public val isExternallyDriven: Boolean
+        get() = externallyDriven.load()
+
+    @ExperimentalReaktivApi
+    override fun markExternallyDriven() {
+        externallyDriven.store(true)
+    }
+
     override val coroutineContext: CoroutineContext
         get() = baseContext + storeJob
 
@@ -754,6 +829,7 @@ public class Store private constructor(
 
     private suspend fun reinitializeModules() {
         _initialized.update { false }
+        externallyDriven.store(false)
         stateUpdateMutex.withLock {
             modules.forEach { module ->
                 info(module::class)!!.state.update { module.initialState }
@@ -823,6 +899,12 @@ public class Store private constructor(
     }
 
     private suspend fun processEnvelope(envelope: DispatchEnvelope) {
+        if (externallyDriven.load() && envelope.action !is ExternalControlExempt) {
+            traceExternalControlDrop(envelope.action)
+            envelope.completion?.complete(DispatchResult.Blocked)
+            dispatchProcessedCount.addAndFetch(1L)
+            return
+        }
         var callId = ""
         var processStartMs = 0L
         if (LogicTracer.active) {
@@ -950,6 +1032,52 @@ public class Store private constructor(
                 }
             }
         }
+    }
+
+    @ExperimentalReaktivApi
+    override suspend fun beginExternalControl(): Unit = externalControlMutex.withLock {
+        if (externallyDriven.load()) return@withLock
+        notifyExternalControl(true)
+        externallyDriven.store(true)
+        traceExternalControl(true)
+    }
+
+    @ExperimentalReaktivApi
+    override suspend fun endExternalControl(): Unit = externalControlMutex.withLock {
+        if (!externallyDriven.load()) return@withLock
+        externallyDriven.store(false)
+        traceExternalControl(false)
+        notifyExternalControl(false)
+    }
+
+    private suspend fun notifyExternalControl(enabled: Boolean) {
+        moduleInfo.values.distinctBy { it.module }.forEach { entry ->
+            try {
+                entry.logic?.onExternalControlChanged(enabled)
+            } catch (e: Exception) {
+                ReaktivDebug.warn("Store: onExternalControlChanged failed - ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun traceExternalControl(enabled: Boolean) {
+        if (!LogicTracer.active) return
+        val callId = LogicTracer.notifyMethodStart(
+            logicClass = "StoreDispatch",
+            methodName = if (enabled) "beginExternalControl" else "endExternalControl",
+            params = emptyMap()
+        )
+        LogicTracer.notifyMethodCompleted(callId, "Applied", "Unit", 0L)
+    }
+
+    private suspend fun traceExternalControlDrop(action: ModuleAction) {
+        if (!LogicTracer.active) return
+        val callId = LogicTracer.notifyMethodStart(
+            logicClass = "StoreDispatch",
+            methodName = action::class.simpleName ?: "Action",
+            params = mapOf("externalControl" to "dropped")
+        )
+        LogicTracer.notifyMethodCompleted(callId, "Blocked", "DispatchResult", 0L)
     }
 
 

@@ -42,7 +42,10 @@ object ToolingHostModule : ModuleWithLogic<ToolingHostState, ToolingHostAction, 
 
 enum class FakeCommand : ToolingCommand { PING }
 
-class FakeService(private val blockActions: Boolean = false) : ToolingService {
+class FakeService(
+    private val blockActions: Boolean = false,
+    override val startsExternallyDriven: Boolean = false
+) : ToolingService {
     override val name = "fake"
     var started = false
     var stopped = false
@@ -142,6 +145,30 @@ class ToolingModuleTest {
 
         assertEquals(1, store.selectState<ToolingHostState>().first().count)
         assertEquals(1, capture.getSessionHistory().actions.size)
+
+        store.dispatch(ToolingAction.ServiceCommand("fake", FakeCommand.PING))
+        advanceUntilIdle()
+        assertEquals(1, service.commands.size)
+    }
+
+    @Test
+    fun `a service that starts externally driven gates the store before any logic runs`() = runTest {
+        val service = FakeService(startsExternallyDriven = true)
+        val store = createStore {
+            module(createToolingModule(config(), PlatformContext()) { install(service) })
+            module(ToolingHostModule)
+            coroutineContext(StandardTestDispatcher(testScheduler))
+        }
+        advanceUntilIdle()
+
+        assertTrue(store.isExternallyDriven)
+
+        store.dispatch(ToolingHostAction.Bump)
+        advanceUntilIdle()
+        assertEquals(0, store.selectState<ToolingHostState>().first().count)
+
+        val state = store.selectState<ToolingState>().first()
+        assertEquals(ServiceStatus(ServiceState.RUNNING, "fake running"), state.services["fake"])
 
         store.dispatch(ToolingAction.ServiceCommand("fake", FakeCommand.PING))
         advanceUntilIdle()

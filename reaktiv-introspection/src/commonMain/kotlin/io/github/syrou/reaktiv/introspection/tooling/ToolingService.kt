@@ -8,6 +8,20 @@ import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 
 public interface ToolingService {
     public val name: String
+
+    /**
+     * Whether this service knows at construction time that the store will be driven by a
+     * remote publisher.
+     *
+     * When any installed service returns `true`, [ToolingLogic] engages the store's dispatch
+     * gate synchronously, before module logic can begin start-up work. A service that reports
+     * `true` is responsible for calling
+     * [io.github.syrou.reaktiv.core.InternalStoreOperations.endExternalControl] if the
+     * replication it expected never materializes, otherwise the store stays gated with no
+     * source of state.
+     */
+    public val startsExternallyDriven: Boolean get() = false
+
     public fun createMiddleware(): Middleware? = null
     public suspend fun start(context: ToolingServiceContext)
     public suspend fun stop()

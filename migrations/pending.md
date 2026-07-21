@@ -2614,3 +2614,87 @@ NSLocalNetworkUsageDescription for LAN addresses on a physical device), see the 
 Info.plist requirements section in reaktiv-devtools/module.md.
 
 ---
+### [AD-51] External control mode for replicated stores
+
+**Type:** Addition
+
+**Grep:** `beginExternalControl|markExternallyDriven|onExternalControlChanged|ExternalControlExempt`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val ops = storeAccessor.asInternalOperations()
+ops?.beginExternalControl()
+ops?.applyExternalStates(states)
+ops?.endExternalControl()
+
+class MyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
+    override suspend fun onExternalControlChanged(externallyDriven: Boolean) {
+        if (externallyDriven) cancelStartupWork()
+    }
+}
+
+sealed class MyToolingAction : ModuleAction(MyModule::class), ExternalControlExempt
+```
+
+**Notes:** A store under external control has its state authored by a remote publisher
+through applyExternalStates, and every dispatched action that is not
+ExternalControlExempt is dropped and reported as DispatchResult.Blocked. Use this when
+replicating one store into another so the two do not both author state.
+
+Store.isExternallyDriven reports the current mode. beginExternalControl and
+endExternalControl notify every ModuleLogic through onExternalControlChanged, entering
+before the gate engages and leaving after it disengages, so a hook can still dispatch.
+Neither may be called from inside action processing: the hook dispatches and the dispatch
+loop is a single consumer, so doing so deadlocks.
+
+markExternallyDriven is the synchronous variant for logic constructors, where no hooks
+need notifying because no logic can have in-flight work yet. ToolingService gains
+startsExternallyDriven for this: a service returning true makes ToolingLogic gate the
+store before any module can begin start-up work. Treat it as one-shot, since logic is
+rebuilt on every store reset and a standing true re-gates a store that just recovered.
+
+A store reset always returns the store to local control. Related: BC-35.
+
+---
+
+### [BC-35] Followers no longer evaluate local navigation guards
+
+**Type:** Behavioural
+
+**Grep:** `defaultRole = ClientRole.LISTENER|DevToolsCommands.follow`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A LISTENER client ran its own bootstrap: entry selectors and intercept guards were
+// evaluated locally before any publisher state arrived.
+```
+
+**After:**
+```kotlin
+// A LISTENER client evaluates no entry selectors and no guards. Its navigation state
+// comes entirely from the publisher through state projection.
+```
+
+**Notes:** No source change is required. The behaviour changes in three ways.
+
+Guards and entry selectors no longer run on a follower, so their side effects (session
+initialisation, network calls) no longer happen there. Guards that were relied upon to
+perform work rather than only to decide will not fire on a follower.
+
+NavigationLogic.navigate returns NavigationOutcome.Dropped on a follower instead of
+executing, so local navigation cannot fight the incoming projection.
+
+A client configured with autoConnect and defaultRole = LISTENER gates its store during
+construction, before start-up work begins. If no publisher is reached within
+DevToolsService.LISTENER_HANDSHAKE_TIMEOUT_MS (10s), the store is handed back to local
+control and reset, and it boots as an ordinary client with a DEGRADED tooling status.
+Until then the navigation loading overlay stays up, which is the intended "waiting for
+publisher" state.
+
+Followers replicate only modules whose state classes match the publisher's. A mismatched
+build silently skips those modules, as applyExternalStates has always done. Related:
+AD-51.
+
+---
