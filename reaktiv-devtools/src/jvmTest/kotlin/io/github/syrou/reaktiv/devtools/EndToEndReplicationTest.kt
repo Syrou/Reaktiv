@@ -22,6 +22,7 @@ import io.github.syrou.reaktiv.devtools.service.DevToolsService
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.PlatformContext
+import io.github.syrou.reaktiv.introspection.tooling.ServiceState
 import io.github.syrou.reaktiv.introspection.tooling.ToolingState
 import io.github.syrou.reaktiv.introspection.tooling.createToolingModule
 import io.github.syrou.reaktiv.navigation.NavigationState
@@ -34,6 +35,7 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
@@ -126,7 +128,8 @@ class EndToEndReplicationTest {
     private fun buildClient(
         clientId: String,
         role: ClientRole,
-        counters: Counters
+        counters: Counters,
+        includeDetailRoute: Boolean = true
     ): Store {
         val devToolsConfig = DevToolsConfig(
             serverUrl = "ws://127.0.0.1:${server.port}/ws",
@@ -172,7 +175,11 @@ class EndToEndReplicationTest {
                     }) {
                         graph("home") {
                             start(newsScreen)
-                            screens(newsScreen, detailScreen)
+                            if (includeDetailRoute) {
+                                screens(newsScreen, detailScreen)
+                            } else {
+                                screens(newsScreen)
+                            }
                         }
                     }
                 }
@@ -268,8 +275,13 @@ class EndToEndReplicationTest {
         assertEquals(0, listenerCounters.guardRuns, "Listener must never run the intercept guard")
         assertTrue(listener.isExternallyDriven, "Listener must be under external control")
 
-        val listenerAuth = listener.selectState<E2EAuthState>().first()
-        assertEquals(PUBLISHER_MARKER, listenerAuth.marker, "Listener must hold the publisher's state")
+        // Awaited rather than read once: when the listener attaches before the publisher sets
+        // the marker, it arrives as a later delta rather than in the baseline.
+        val listenerAuth = awaitState(
+            listener.selectState<E2EAuthState>(),
+            description = "listener to hold the publisher's marker",
+            diagnostics = { describe("listener", listener) }
+        ) { it.marker == PUBLISHER_MARKER }
         assertEquals(true, listenerAuth.isAuthenticated)
 
         val publisherNav = publisher.selectState<NavigationState>().first()
@@ -387,23 +399,105 @@ class EndToEndReplicationTest {
         }
     }
 
+    /**
+     * A follower whose graph does not declare a route the publisher is sitting on.
+     *
+     * This is the cross-app case: NavigationEntry serialises as a route path and rehydrates by
+     * resolving it against the follower's own graph, so a route the follower never declared
+     * cannot be reconstructed. Decoding the tree as a single unit made that one module blank
+     * out every other module too, which reads as "nothing replicates" rather than "navigation
+     * cannot replicate".
+     */
     @Test
-    fun `a listener with no publisher recovers to local control and boots normally`() = runBlocking {
+    fun `a route the listener does not declare degrades only navigation and is named`() = runBlocking {
+        val publisher = startPublisher("e2e-publisher-4", Counters())
+
+        val listenerCounters = Counters()
+        val listener = buildClient(
+            "e2e-listener-4",
+            ClientRole.LISTENER,
+            listenerCounters,
+            includeDetailRoute = false
+        )
+
+        val auth = awaitState(
+            listener.selectState<E2EAuthState>(),
+            description = "listener to replicate the modules it can decode",
+            diagnostics = { describe("listener", listener) }
+        ) { it.marker == PUBLISHER_MARKER }
+        assertEquals(PUBLISHER_MARKER, auth.marker)
+
+        val status = awaitState(
+            listener.selectState<ToolingState>(),
+            description = "listener to report the module it cannot replicate",
+            diagnostics = { describe("listener", listener) }
+        ) { it.services["devtools"]?.state == ServiceState.DEGRADED }
+
+        val detail = status.services["devtools"]?.detail.orEmpty()
+        assertTrue(
+            detail.contains(NavigationState::class.qualifiedName!!),
+            "Status must name the module that cannot replicate, was: $detail"
+        )
+        assertTrue(
+            detail.contains("home/detail"),
+            "Status must name the unresolvable route so it can be added to the graph, was: $detail"
+        )
+    }
+
+    /**
+     * A listener that starts before any publisher must still converge once one appears.
+     *
+     * Waiting is only useful if the wait ends by itself. The server auto-attaches waiting
+     * observers when a publisher registers, but attaching alone only subscribes them to future
+     * traffic, and a follower with no baseline cannot apply field deltas.
+     */
+    @Test
+    fun `a listener waiting before any publisher converges once one appears`() = runBlocking {
+        val listenerCounters = Counters()
+        val listener = buildClient("e2e-early-listener", ClientRole.LISTENER, listenerCounters)
+        listener.initialized.first { it }
+
+        awaitState(
+            listener.selectState<ToolingState>(),
+            description = "listener to report waiting"
+        ) { it.services["devtools"]?.detail?.contains("waiting for a publisher") == true }
+        assertEquals(0, listenerCounters.selectorRuns, "It must not boot itself while waiting")
+
+        val publisher = startPublisher("e2e-late-publisher", Counters())
+
+        awaitState(
+            listener.selectState<NavigationState>(),
+            description = "waiting listener to replicate once a publisher appears",
+            diagnostics = { describe("listener", listener) + "\n" + describe("publisher", publisher) }
+        ) { it.currentEntry.route == "detail" }
+
+        assertReplicatedNotLocallyDerived(publisher, listener, listenerCounters)
+    }
+
+    /**
+     * Configuring LISTENER at startup declares the intent to follow, so the client waits for a
+     * publisher instead of deciding on the developer's behalf to boot normally. A client that
+     * wants to choose later should start UNASSIGNED and call follow when it is ready.
+     */
+    @Test
+    fun `a listener with no publisher keeps waiting rather than booting locally`() = runBlocking {
         val counters = Counters()
         val listener = buildClient("e2e-lonely-listener", ClientRole.LISTENER, counters)
         listener.initialized.first { it }
 
         assertTrue(listener.isExternallyDriven, "Listener must be gated at construction")
 
-        val recovered = awaitState(
-            listener.selectState<NavigationState>(),
-            timeoutMs = 8_000,
-            description = "listener to recover and bootstrap locally without waiting out the backstop",
-            diagnostics = { describe("listener", listener) }
-        ) { !it.isBootstrapping && it.currentEntry.route == "news" }
+        awaitState(
+            listener.selectState<ToolingState>(),
+            description = "listener to report that it is waiting for a publisher"
+        ) { it.services["devtools"]?.detail?.contains("waiting for a publisher") == true }
 
-        assertFalse(listener.isExternallyDriven, "Store must be handed back to local control")
-        assertEquals("news", recovered.currentEntry.route)
-        assertTrue(counters.selectorRuns > 0, "Recovered client must run its own start lambda")
+        delay(3_000)
+
+        assertTrue(listener.isExternallyDriven, "A configured listener must stay gated while waiting")
+        assertEquals(0, counters.selectorRuns, "It must not run its own start lambda")
+        assertEquals(0, counters.guardRuns, "It must not evaluate its own intercept guard")
+        val nav = listener.selectState<NavigationState>().value
+        assertTrue(nav.isBootstrapping, "It must hold the loading placeholder while waiting")
     }
 }

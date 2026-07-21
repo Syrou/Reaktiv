@@ -12,6 +12,7 @@ import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
 import io.github.syrou.reaktiv.introspection.protocol.SessionExport
 import io.github.syrou.reaktiv.introspection.protocol.SessionExportFormat
+import io.github.syrou.reaktiv.introspection.tooling.ServiceStatus
 import kotlinx.serialization.Serializable
 
 /**
@@ -149,6 +150,20 @@ public sealed class DevToolsMessage {
     public data class ListenerAttached(
         val listenerId: String,
         val role: ClientRole = ClientRole.LISTENER
+    ) : DevToolsMessage()
+
+    /**
+     * A client reporting its own tooling status so observers can see it.
+     *
+     * Followers are otherwise opaque: their diagnostics go to [ServiceStatus], which is only
+     * visible in an app's own debug menu, and to ReaktivDebug, which is silent unless the host
+     * app enabled it. Reporting upstream means a failure to replicate is visible in the
+     * DevTools UI next to the client it concerns.
+     */
+    @Serializable
+    public data class ClientStatus(
+        val clientId: String,
+        val status: ServiceStatus
     ) : DevToolsMessage()
 
     /**

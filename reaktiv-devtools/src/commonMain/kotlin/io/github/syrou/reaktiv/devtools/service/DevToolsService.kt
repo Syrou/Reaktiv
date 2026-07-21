@@ -41,6 +41,9 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonObject
 
 @OptIn(ExperimentalReaktivApi::class)
@@ -163,7 +166,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
 
         if (listenerStartPending) {
             listenerStartPending = false
-            armStartupGateBackstop()
+            report(ServiceStatus(ServiceState.STARTING, "waiting for a publisher"))
         }
 
         if (pendingReconnect) {
@@ -173,7 +176,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         } else if (config.enabled && config.autoConnect && config.serverUrl != null) {
             connect(config.serverUrl, config.defaultRole)
         } else {
-            context.setStatus(ServiceStatus(ServiceState.STOPPED, "awaiting connect"))
+            report(ServiceStatus(ServiceState.STOPPED, "awaiting connect"))
         }
     }
 
@@ -190,7 +193,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         manuallyDisconnected = false
         connection?.disconnect()
         currentServerUrl = serverUrl
-        context.setStatus(ServiceStatus(ServiceState.STARTING, "connecting to $serverUrl"))
+        report(ServiceStatus(ServiceState.STARTING, "connecting to $serverUrl"))
         val newConnection = DevToolsConnection(serverUrl)
         connection = newConnection
         try {
@@ -199,14 +202,14 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 throw IllegalStateException("connection to $serverUrl failed")
             }
             newConnection.observeMessages { message -> handleServerMessage(message) }
-            context.setStatus(ServiceStatus(ServiceState.RUNNING, "connected to $serverUrl"))
+            report(ServiceStatus(ServiceState.RUNNING, "connected to $serverUrl"))
             launchConnectionMonitor(newConnection)
             val effectiveRole = if (role == ClientRole.LISTENER && listenerRoleAbandoned) null else role
             if (effectiveRole != null) {
                 requestRole(effectiveRole, null)
             }
         } catch (e: Exception) {
-            context.setStatus(ServiceStatus(ServiceState.DEGRADED, e.message))
+            report(ServiceStatus(ServiceState.DEGRADED, e.message))
             ReaktivDebug.warn("DevTools: Failed to connect - ${e.message}")
             releaseExternalControl("connection failed: ${e.message}")
         }
@@ -219,7 +222,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         connection?.disconnect()
         connection = null
         currentRole = ClientRole.UNASSIGNED
-        context?.setStatus(ServiceStatus(ServiceState.STOPPED, "disconnected"))
+        report(ServiceStatus(ServiceState.STOPPED, "disconnected"))
     }
 
     private fun DevToolsConnection.isConnectedNow(): Boolean =
@@ -240,7 +243,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         val context = context ?: return
         val previousRole = currentRole
         currentRole = ClientRole.UNASSIGNED
-        context.setStatus(ServiceStatus(ServiceState.DEGRADED, "connection lost"))
+        report(ServiceStatus(ServiceState.DEGRADED, "connection lost"))
         ReaktivDebug.warn("DevTools: Connection lost (was $previousRole)")
         val roleToRequest = if (previousRole == ClientRole.PUBLISHER) ClientRole.PUBLISHER else null
         if (previousRole == ClientRole.LISTENER) {
@@ -261,7 +264,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         reconnectJob = context.storeAccessor.launch {
             var delayMs = RECONNECT_INITIAL_DELAY_MS
             while (!manuallyDisconnected && !isConnected()) {
-                context.setStatus(ServiceStatus(ServiceState.STARTING, "reconnecting in ${delayMs / 1000}s"))
+                report(ServiceStatus(ServiceState.STARTING, "reconnecting in ${delayMs / 1000}s"))
                 delay(delayMs)
                 if (manuallyDisconnected) break
                 val url = currentServerUrl ?: break
@@ -284,10 +287,28 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         requestRole(ClientRole.UNASSIGNED, null)
         val wasFollowing = currentRole == ClientRole.LISTENER
         currentRole = ClientRole.UNASSIGNED
-        context?.setStatus(ServiceStatus(ServiceState.RUNNING, "connected"))
+        report(ServiceStatus(ServiceState.RUNNING, "connected"))
         if (wasFollowing) {
             endExternalControl()
             (context?.storeAccessor as? Store)?.resetAsync()
+        }
+    }
+
+    /**
+     * Records a status locally and mirrors it to the server.
+     *
+     * A follower is otherwise invisible when something goes wrong: [ServiceStatus] only reaches
+     * the app's own debug menu, and ReaktivDebug output is suppressed unless the host app called
+     * enable(). Mirroring upstream puts the reason in the DevTools UI beside the client.
+     */
+    private suspend fun report(status: ServiceStatus) {
+        context?.setStatus(status)
+        if (isConnected()) {
+            try {
+                send(DevToolsMessage.ClientStatus(clientId, status))
+            } catch (e: Exception) {
+                ReaktivDebug.warn("DevTools: Failed to report status - ${e.message}")
+            }
         }
     }
 
@@ -311,9 +332,12 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         context.storeAccessor.asInternalOperations()?.beginExternalControl()
         listenerHandshake?.cancel()
         listenerHandshake = context.storeAccessor.launch {
-            val arrived = withTimeoutOrNull(FIRST_PROJECTION_TIMEOUT_MS) { gate.await() }
+            val arrived = withTimeoutOrNull(FIRST_PROJECTION_SLOW_MS) { gate.await() }
             if (arrived == null) {
-                releaseExternalControl("publisher sent no state")
+                ReaktivDebug.warn("DevTools: No publisher state yet, still waiting")
+                report(ServiceStatus(ServiceState.DEGRADED, "no publisher state yet, still waiting"))
+                gate.await()
+                report(ServiceStatus(ServiceState.RUNNING, "replicating"))
             }
         }
     }
@@ -331,33 +355,18 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     }
 
     /**
-     * Releases a store that was gated at construction but has no publisher state to wait for.
-     *
-     * Armed only for the window between the construction-time gate and the server answering
-     * with a role. Once a role arrives, [handleRoleAssignment] resolves the question
-     * immediately and this backstop is superseded.
-     */
-    private fun armStartupGateBackstop() {
-        val context = context ?: return
-        listenerHandshake?.cancel()
-        listenerHandshake = context.storeAccessor.launch {
-            delay(FIRST_PROJECTION_TIMEOUT_MS)
-            if (firstProjection == null) {
-                releaseExternalControl("no role assignment from server")
-            }
-        }
-    }
-
-    /**
      * Hands a gated store back to local control and reboots it as an ordinary client.
      *
-     * A store gated at construction has deliberately skipped its own start-up, so it has no
-     * state of its own to fall back on and would otherwise render the bootstrap loading
-     * placeholder forever. The reset lets it run its own start lambda and intercepts normally.
+     * Only used when the client is no longer a follower at all, meaning the server assigned it
+     * some other role. A missing publisher or a publisher that has not sent state yet is not a
+     * reason to release: configuring [DevToolsConfig.defaultRole] as LISTENER declares the
+     * intent to follow, so the client waits for a publisher rather than deciding for the
+     * developer that it should stop. A client that wants to boot normally and choose later
+     * should start UNASSIGNED and call [follow] when it is ready.
      *
      * The role is marked abandoned so that the restart, which starts this service again, does
-     * not re-request LISTENER from [DevToolsConfig.defaultRole] and gate straight back into the
-     * same wait. An explicit [follow] clears that.
+     * not immediately re-request LISTENER and bounce between roles. An explicit [follow]
+     * clears that.
      */
     private suspend fun releaseExternalControl(reason: String) {
         val context = context ?: return
@@ -366,7 +375,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         withContext(NonCancellable) {
             ReaktivDebug.warn("DevTools: Resuming local control ($reason)")
             listenerRoleAbandoned = true
-            context.setStatus(
+            report(
                 ServiceStatus(ServiceState.DEGRADED, "resumed local control: $reason")
             )
             endExternalControl()
@@ -467,11 +476,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         val previousRole = currentRole
         currentRole = assignment.role
         if (assignment.role == ClientRole.LISTENER) {
-            if (assignment.publisherClientId == null) {
-                releaseExternalControl("no publisher to follow")
-            } else {
-                beginExternalControl()
-            }
+            beginExternalControl()
         } else {
             releaseExternalControl("assigned role ${assignment.role}")
         }
@@ -483,12 +488,18 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 message = "Role changed to ${assignment.role}"
             )
         )
-        val detail = when (assignment.role) {
-            ClientRole.PUBLISHER -> "publishing"
-            ClientRole.LISTENER -> "following ${assignment.publisherClientId ?: "current publisher"}"
-            else -> "connected"
+        // One status rather than two competing writes. A listener granted the role without a
+        // publisher is waiting, not running, and reporting it as running hid the fact that
+        // nothing was going to arrive yet.
+        val status = when {
+            assignment.role == ClientRole.PUBLISHER -> ServiceStatus(ServiceState.RUNNING, "publishing")
+            assignment.role == ClientRole.LISTENER && assignment.publisherClientId == null ->
+                ServiceStatus(ServiceState.STARTING, "waiting for a publisher")
+            assignment.role == ClientRole.LISTENER ->
+                ServiceStatus(ServiceState.RUNNING, "following ${assignment.publisherClientId}")
+            else -> ServiceStatus(ServiceState.RUNNING, "connected")
         }
-        context?.setStatus(ServiceStatus(ServiceState.RUNNING, detail))
+        report(status)
         if (assignment.role == ClientRole.PUBLISHER && previousRole != ClientRole.PUBLISHER) {
             sendSessionHistorySync()
         }
@@ -535,12 +546,11 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         if (!isConnected()) return
         try {
             val allStates = getAllStatesRef?.invoke() ?: return
-            val mapSerializer = MapSerializer(String.serializer(), PolymorphicSerializer(ModuleState::class))
             send(
                 DevToolsMessage.StateSync(
                     fromClientId = clientId,
                     timestamp = currentTimeMillis(),
-                    stateJson = json.encodeToString(mapSerializer, allStates)
+                    stateJson = encodeTreePerModule(json, allStates)
                 )
             )
         } catch (e: Exception) {
@@ -548,11 +558,50 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         }
     }
 
+    /**
+     * Encodes the state tree one module at a time so one unserializable module cannot suppress
+     * the whole baseline.
+     *
+     * Encoding the map in a single call means any module that cannot be serialized, typically a
+     * sealed hierarchy whose subclasses were never registered through CustomTypeRegistrar,
+     * throws and leaves the observer with no state at all rather than merely missing that one
+     * module. The follower then reports "publisher sent no state", which is accurate but points
+     * at the wrong end of the wire.
+     *
+     * Modules that fail are named in the service status so the missing registration is visible
+     * on the publisher, which is the only side that can fix it.
+     */
+    private suspend fun encodeTreePerModule(json: Json, states: Map<String, ModuleState>): String {
+        val serializer = PolymorphicSerializer(ModuleState::class)
+        val failed = mutableMapOf<String, String>()
+        val tree = buildJsonObject {
+            states.forEach { (moduleName, state) ->
+                try {
+                    put(moduleName, json.encodeToJsonElement(serializer, state))
+                } catch (e: Exception) {
+                    failed[moduleName] = e.message ?: "encode failed"
+                }
+            }
+        }
+        if (failed.isNotEmpty()) {
+            failed.forEach { (module, reason) ->
+                ReaktivDebug.warn("DevTools: Cannot publish $module - $reason")
+            }
+            report(
+                ServiceStatus(
+                    ServiceState.DEGRADED,
+                    "cannot publish ${failed.keys.joinToString()}: ${failed.values.first()}"
+                )
+            )
+        }
+        return tree.toString()
+    }
+
     private companion object {
         const val DELTA_CONFLATION_WINDOW_MS: Long = 75L
         const val RECONNECT_INITIAL_DELAY_MS: Long = 1000L
         const val RECONNECT_MAX_DELAY_MS: Long = 30_000L
-        const val FIRST_PROJECTION_TIMEOUT_MS: Long = 10_000L
+        const val FIRST_PROJECTION_SLOW_MS: Long = 10_000L
     }
 
     private val followerShadow = mutableMapOf<String, JsonObject>()
@@ -567,7 +616,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                     ReaktivDebug.warn(
                         "DevTools: Dropped field delta for ${event.moduleName} with no base snapshot"
                     )
-                    context?.setStatus(
+                    report(
                         ServiceStatus(
                             ServiceState.DEGRADED,
                             "desynced: field delta for ${event.moduleName} before first sync"
@@ -588,7 +637,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
             context?.storeAccessor?.asInternalOperations()?.applyExternalStates(mapOf(event.moduleName to state))
         } catch (e: Exception) {
             ReaktivDebug.warn("DevTools: Failed to apply action delta - ${e.message}")
-            context?.setStatus(
+            report(
                 ServiceStatus(
                     ServiceState.DEGRADED,
                     "delta rejected for ${event.moduleName}: ${e.message}"
@@ -597,39 +646,75 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         }
     }
 
+    private class DecodedTree(
+        val applied: Map<String, ModuleState>,
+        val failed: Map<String, String>
+    )
+
+    /**
+     * Decodes a full state tree one module at a time so one undecodable module cannot blank
+     * out the whole projection.
+     *
+     * Decoding the tree in a single call means any module the follower cannot reconstruct
+     * aborts every other module with it. That is not hypothetical: NavigationEntry serialises
+     * as a route path and rehydrates by resolving that path against the follower's own graph,
+     * so a single route the follower does not declare throws and, decoded as one map, would
+     * leave the follower with no replicated state at all rather than merely no navigation.
+     *
+     * Failures are returned per module so the reason, which names the offending path, can be
+     * surfaced instead of swallowed.
+     */
+    private fun decodeTreePerModule(json: Json, stateJson: String): DecodedTree {
+        val applied = mutableMapOf<String, ModuleState>()
+        val failed = mutableMapOf<String, String>()
+        val tree = json.parseToJsonElement(stateJson).jsonObject
+        tree.forEach { (moduleName, element) ->
+            (element as? JsonObject)?.let { followerShadow[moduleName] = it }
+            try {
+                applied[moduleName] = json.decodeFromString(
+                    PolymorphicSerializer(ModuleState::class), element.toString()
+                )
+            } catch (e: Exception) {
+                failed[moduleName] = e.message ?: "decode failed"
+            }
+        }
+        return DecodedTree(applied, failed)
+    }
+
     private suspend fun applyStateSync(sync: DevToolsMessage.StateSync) {
         val storeAccessor = context?.storeAccessor ?: return
         val json = json ?: return
         try {
-            if (sync.moduleName.isBlank()) {
-                try {
-                    val tree = json.parseToJsonElement(sync.stateJson).jsonObject
-                    tree.forEach { (key, value) ->
-                        (value as? JsonObject)?.let { followerShadow[key] = it }
-                    }
-                } catch (e: Exception) {
-                    ReaktivDebug.warn("DevTools: Failed to update follower shadow - ${e.message}")
-                }
-            }
-            val states: Map<String, ModuleState> = if (sync.moduleName.isNotBlank()) {
-                mapOf(
+            if (sync.moduleName.isNotBlank()) {
+                val single = mapOf(
                     sync.moduleName to json.decodeFromString(
                         PolymorphicSerializer(ModuleState::class), sync.stateJson
                     )
                 )
-            } else {
-                json.decodeFromString(
-                    MapSerializer(String.serializer(), PolymorphicSerializer(ModuleState::class)),
-                    sync.stateJson
-                )
+                storeAccessor.asInternalOperations()?.applyExternalStates(single)
+                return
             }
-            storeAccessor.asInternalOperations()?.applyExternalStates(states)
-            if (sync.moduleName.isBlank()) {
-                onFirstProjectionApplied(states.keys)
+
+            val decoded = decodeTreePerModule(json, sync.stateJson)
+            if (decoded.applied.isNotEmpty()) {
+                storeAccessor.asInternalOperations()?.applyExternalStates(decoded.applied)
+                onFirstProjectionApplied(decoded.applied.keys)
+            }
+            if (decoded.failed.isNotEmpty()) {
+                decoded.failed.forEach { (module, reason) ->
+                    ReaktivDebug.warn("DevTools: Cannot replicate $module - $reason")
+                }
+                report(
+                    ServiceStatus(
+                        ServiceState.DEGRADED,
+                        "cannot replicate ${decoded.failed.keys.joinToString()}: " +
+                            decoded.failed.values.first()
+                    )
+                )
             }
         } catch (e: Exception) {
             ReaktivDebug.warn("DevTools: Failed to apply state sync - ${e.message}")
-            context?.setStatus(
+            report(
                 ServiceStatus(ServiceState.DEGRADED, "state sync rejected: ${e.message}")
             )
         }
@@ -647,7 +732,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         val gate = firstProjection ?: return
         if (gate.isCompleted) return
         gate.complete(Unit)
-        context?.setStatus(
+        report(
             ServiceStatus(ServiceState.RUNNING, "replicating ${appliedModules.size} modules")
         )
     }

@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
@@ -37,8 +38,16 @@ class SensitiveDataRedactionTest {
         )
         val user = result["user"]!!.jsonObject
         assertEquals("joe", user["name"]!!.jsonPrimitive.content)
-        assertEquals(REDACTED_PLACEHOLDER, user["credentials"]!!.jsonPrimitive.content)
-        assertEquals(REDACTED_PLACEHOLDER, result["tokens"]!!.jsonPrimitive.content)
+
+        // Masking keeps the JSON shape: an object stays an object and an array stays an array,
+        // with every leaf beneath masked. Collapsing them to the mask string changed their type
+        // and made the captured state undecodable, breaking replication and reconstruction.
+        val credentials = user["credentials"]!!.jsonObject
+        assertEquals(REDACTED_PLACEHOLDER, credentials["secret"]!!.jsonPrimitive.content)
+
+        val tokens = result["tokens"]!!.jsonArray
+        assertEquals(2, tokens.size)
+        tokens.forEach { assertEquals(REDACTED_PLACEHOLDER, it.jsonPrimitive.content) }
     }
 
     @Test

@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
+import io.github.syrou.reaktiv.introspection.tooling.ServiceState
+import io.github.syrou.reaktiv.introspection.tooling.ServiceStatus
 
 /**
  * Displays the list of connected clients with their roles and platforms.
@@ -29,6 +31,7 @@ fun ClientList(
     clients: List<ClientInfo>,
     selectedPublisher: String?,
     selectedListener: String?,
+    clientStatuses: Map<String, ServiceStatus> = emptyMap(),
     canExportSession: Boolean = false,
     onPublisherSelected: (String?) -> Unit,
     onListenerSelected: (String?) -> Unit,
@@ -141,6 +144,7 @@ fun ClientList(
                 items(realClients, key = { it.clientId }) { client ->
                     ClientCard(
                         client = client,
+                        status = clientStatuses[client.clientId],
                         isSelectedAsPublisher = client.clientId == selectedPublisher,
                         isSelectedAsListener = client.clientId == selectedListener,
                         onPublisherClick = {
@@ -168,6 +172,7 @@ fun ClientList(
 @Composable
 private fun ClientCard(
     client: ClientInfo,
+    status: ServiceStatus?,
     isSelectedAsPublisher: Boolean,
     isSelectedAsListener: Boolean,
     onPublisherClick: () -> Unit,
@@ -206,6 +211,19 @@ private fun ClientCard(
                 }
 
                 RoleBadge(client.role, client.publisherClientId)
+            }
+
+            if (status != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = status.detail?.let { "${status.state}: $it" } ?: status.state.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when (status.state) {
+                        ServiceState.DEGRADED -> MaterialTheme.colorScheme.error
+                        ServiceState.RUNNING -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))

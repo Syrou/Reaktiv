@@ -12,6 +12,7 @@ import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
+import io.github.syrou.reaktiv.introspection.tooling.ServiceStatus
 import kotlinx.serialization.Serializable
 
 /**
@@ -47,7 +48,8 @@ data class DevToolsUiState(
     val publisherSessionStart: Long? = null,
     val canExportSession: Boolean = false,
     val activeGhostId: String? = null,
-    val initialStateJson: String = "{}"
+    val initialStateJson: String = "{}",
+    val clientStatuses: Map<String, ServiceStatus> = emptyMap()
 ) : ModuleState
 
 /**
@@ -106,6 +108,8 @@ sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data class SetActiveGhostId(val ghostId: String?) : DevToolsUiAction()
     data class EnableTimeTravelWithGhost(val ghostId: String) : DevToolsUiAction()
     data class SetInitialState(val json: String) : DevToolsUiAction()
+
+    data class SetClientStatus(val clientId: String, val status: ServiceStatus) : DevToolsUiAction()
 }
 
 @Serializable

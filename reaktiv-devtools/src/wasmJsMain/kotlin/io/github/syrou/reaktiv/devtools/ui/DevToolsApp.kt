@@ -282,6 +282,7 @@ private fun DevToolsContent(store: Store) {
                         clients = state.connectedClients,
                         selectedPublisher = state.selectedPublisher,
                         selectedListener = state.selectedListener,
+                        clientStatuses = state.clientStatuses,
                         canExportSession = state.canExportSession,
                         onPublisherSelected = { clientId ->
                             dispatch(DevToolsUiAction.SelectPublisher(clientId))

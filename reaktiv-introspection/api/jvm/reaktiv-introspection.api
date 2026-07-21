@@ -81,10 +81,11 @@ public final class io/github/syrou/reaktiv/introspection/PlatformContext {
 }
 
 public final class io/github/syrou/reaktiv/introspection/SensitiveDataRedactionKt {
+	public static final field CLASS_DISCRIMINATOR_KEY Ljava/lang/String;
 	public static final field REDACTED_PLACEHOLDER Ljava/lang/String;
 	public static final fun getDEFAULT_SENSITIVE_KEYS ()Ljava/util/Set;
-	public static final fun sensitiveKeyRedactor (Ljava/util/Set;Ljava/lang/String;)Lio/github/syrou/reaktiv/introspection/StateRedactor;
-	public static synthetic fun sensitiveKeyRedactor$default (Ljava/util/Set;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/StateRedactor;
+	public static final fun sensitiveKeyRedactor (Ljava/util/Set;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/introspection/StateRedactor;
+	public static synthetic fun sensitiveKeyRedactor$default (Ljava/util/Set;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/introspection/StateRedactor;
 }
 
 public final class io/github/syrou/reaktiv/introspection/SessionFileExport {

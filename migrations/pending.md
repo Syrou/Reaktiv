@@ -2687,13 +2687,16 @@ NavigationLogic.navigate returns NavigationOutcome.Dropped on a follower instead
 executing, so local navigation cannot fight the incoming projection.
 
 A client configured with autoConnect and defaultRole = LISTENER gates its store during
-construction, before start-up work begins. Such a client has skipped its own start-up, so
-it renders the navigation loading placeholder until the first projection arrives, which is
-the intended "waiting for publisher" state. If no publisher state arrives within 10s the
-store is handed back to local control and reset, and it boots as an ordinary client with a
-DEGRADED tooling status. The recovery is keyed on arrival of the first projection, not on
-assignment of the LISTENER role: the server assigns the role even when no publisher is
-connected, so role alone never proves that replication started.
+construction, before start-up work begins, and then waits for a publisher indefinitely. It
+renders the navigation loading placeholder until the first projection arrives and never
+falls back to booting itself, because configuring the role declares the intent to follow. A
+client that should boot normally and choose later must start UNASSIGNED and call follow when
+it is ready. A slow or absent publisher is reported as a DEGRADED status and the wait
+continues.
+
+The wait ends by itself. A listener that connects before any publisher is linked to one as
+soon as it registers, and the server then asks that publisher for a baseline, so no polling
+or rescanning is involved on either side.
 
 Cross-platform replication requires both ends to register the same navigatables.
 NavigationState is polymorphic over Screen, Modal and NavigationGraph, so a follower whose
@@ -2792,5 +2795,139 @@ Two supporting behaviours: the publisher substitutes its current state when the 
 not recorded an initial state yet, which happens when no non-tooling action has been
 dispatched, and the UI adopts a full-tree StateSync as its baseline when it has none, which
 covers publishers predating the role field.
+
+---
+### [AD-55] Per-module state projection with named failures
+
+**Type:** Addition | Behavioural
+
+**Grep:** `applyStateSync|cannot replicate`
+**File glob:** `**/*.kt`
+
+**Notes:** A follower now decodes an incoming full state tree one module at a time, applies
+every module it can reconstruct, and reports the ones it cannot as a DEGRADED tooling status
+naming the module and the underlying reason.
+
+Previously the tree was decoded in a single call, so one undecodable module aborted every
+other module with it and the follower ended up with no replicated state at all. The status
+message is the actionable part: it carries the original error, which for navigation names the
+exact route path that could not be resolved.
+
+This matters most across applications. NavigationEntry does not serialise the screen class,
+it serialises the route path and rehydrates by resolving that path against the follower's own
+graph. So replicating navigation requires the follower to declare the same routes as the
+publisher, including graph nesting such as "home/detail". Screens may be entirely different
+classes on each platform, but a route the follower never declared cannot be reconstructed and
+navigation will report as degraded while all other modules continue to replicate.
+
+---
+### [BC-36] Redaction preserves JSON shape
+
+**Type:** Behavioural
+
+**Grep:** `REDACTED_PLACEHOLDER|sensitiveKeyRedactor|redactSensitiveKeys`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Any value under a sensitive key became the mask string:
+// {"hasHyperwalletToken": "[REDACTED]"}   // was Boolean
+// {"confirmPassword": "[REDACTED]"}       // was an object
+```
+
+**After:**
+```kotlin
+// Strings are masked, numbers are zeroed only where the key itself is sensitive,
+// and booleans are left alone:
+// {"hasHyperwalletToken": true}
+// {"confirmPassword": {"value": "[REDACTED]", "valid": true, "attempts": 3}}
+// {"ssn": 0}
+```
+
+**Notes:** Strings are masked wherever they appear under a sensitive key. Numbers are zeroed
+only where the key naming them is itself sensitive, which covers a secret held numerically
+such as an SSN or card number stored as a Long while leaving an ordinary number that merely
+sits inside a secret's object intact. Booleans are never masked, since a Boolean is a flag
+about a secret rather than the secret, and reporting the opposite of the truth misleads anyone
+reading a capture and makes a replicated follower behave differently from its publisher.
+Objects and arrays are recursed into rather than replaced.
+
+Masking only strings also makes redaction type-safe by construction. Substituting a value of a
+different JSON type is invisible in a tree viewer but breaks anything decoding the capture back
+into typed state, which is how one sensitive key used to make a whole module impossible to
+replicate.
+
+The polymorphic class discriminator, "type" by default and configurable through
+sensitiveKeyRedactor, is preserved at any depth including inside a subtree being masked, since
+replacing it leaves a type name no serializer can resolve.
+
+Known gap: an enum serialises as a string and is indistinguishable from one in the JSON tree,
+so an enum under a sensitive key is masked and will not decode. Rename the field or supply a
+custom StateRedactor when that applies.
+
+The old behaviour changed the JSON type of whatever it masked. That is invisible in a tree
+viewer but fatal to anything decoding captured state back into typed state, so a single
+sensitive key anywhere in a module made that module impossible to replicate or reconstruct.
+Symptom was a follower that received deltas and applied none of them, reporting
+"Expected valid boolean literal prefix, but had '[REDACTED]'".
+
+Callers reading redacted output as text should note that a masked Boolean now reads "false"
+rather than "[REDACTED]", so absence of the placeholder no longer proves a field was not
+redacted.
+
+Note that replication carries redacted values, so a follower holds the masked value rather
+than the publisher's real one for sensitive keys. Set redactSensitiveKeys = false on both
+ends when a faithful mirror matters more than masking.
+
+---
+### [AD-56] Publisher encodes state per module
+
+**Type:** Addition | Behavioural
+
+**Grep:** `cannot publish`
+**File glob:** `**/*.kt`
+
+**Notes:** A publisher now encodes its state tree one module at a time when answering an
+attach, sends every module it can serialize, and names the ones it cannot in a DEGRADED
+tooling status.
+
+Previously the whole map was encoded in a single call, so one module that could not be
+serialized threw and suppressed the entire baseline. The observer then received nothing and
+reported "publisher sent no state", which pointed at the wrong end of the wire: the failure
+was on the publisher, and only the publisher can fix it.
+
+The usual cause is a sealed hierarchy whose subclasses are not serializable. Every direct
+subclass of a serializable sealed class must itself be annotated, data objects included:
+
+```kotlin
+@Serializable
+sealed class PaginationState {
+    @Serializable data object Empty : PaginationState()
+    @Serializable data object Idle : PaginationState()
+}
+```
+
+Mirrors the receiving side, see AD-55.
+
+---
+### [AD-57] Waiting observers are linked when a publisher appears
+
+**Type:** Addition
+
+**Grep:** `attachWaitingObservers`
+**File glob:** `**/*.kt`
+
+**Notes:** The server links every observer that has no publisher to the current one after each
+role assignment, and asks that publisher for a baseline for each observer it just linked. A
+ghost publisher cannot answer, so for ghosts the request goes to its subscribers instead.
+
+Running this after every assignment rather than only when a publisher registers makes the
+linkage self-healing. Role assignments are handled concurrently, so a listener and a publisher
+arriving together can interleave such that neither sees the other: the listener is assigned
+while no publisher exists, and the publisher runs its auto-attach before the listener's role
+has been recorded. Whichever assignment lands last now completes the linkage.
+
+The baseline request must come after the role is assigned, since a publisher ignores an attach
+notification until it knows it is the publisher. Related: AD-54.
 
 ---

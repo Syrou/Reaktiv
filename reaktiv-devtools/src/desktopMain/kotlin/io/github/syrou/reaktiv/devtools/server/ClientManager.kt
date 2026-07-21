@@ -152,6 +152,67 @@ public class ClientManager {
     }
 
     /**
+     * Links every observer that has no publisher to the current one and returns those newly
+     * linked, so each can be sent a baseline.
+     *
+     * Role assignments arrive concurrently, so a listener and a publisher registering at the
+     * same time can interleave such that neither sees the other: the listener is assigned while
+     * there is still no publisher, and the publisher runs its auto-attach before the listener's
+     * role has been recorded. Running this after every assignment makes the linkage
+     * self-healing, since whichever assignment lands last completes it.
+     *
+     * @return the observers linked by this call, empty when there was nothing to do
+     */
+    public suspend fun attachWaitingObservers(): List<Pair<String, ClientRole>> = mutex.withLock {
+        val publisherId = currentPublisherId ?: return@withLock emptyList()
+        val attached = mutableListOf<Pair<String, ClientRole>>()
+
+        clients.values.forEach { connectedClient ->
+            val info = connectedClient.info
+            val isObserver = info.role == ClientRole.LISTENER || info.role == ClientRole.ORCHESTRATOR
+            if (isObserver && info.publisherClientId == null && info.clientId != publisherId) {
+                connectedClient.info = info.copy(publisherClientId = publisherId)
+                subscriptions.getOrPut(publisherId) { mutableSetOf() }.add(info.clientId)
+                sendToClient(
+                    info.clientId,
+                    DevToolsMessage.RoleAssignment(
+                        targetClientId = info.clientId,
+                        role = info.role,
+                        publisherClientId = publisherId
+                    )
+                )
+                attached.add(info.clientId to info.role)
+                println("DevTools Server: Attached waiting ${info.role} ${info.clientId} to $publisherId")
+            }
+        }
+        attached
+    }
+
+    /**
+     * The current publisher, or null when none is assigned.
+     */
+    public suspend fun currentPublisher(): String? = mutex.withLock { currentPublisherId }
+
+    /**
+     * Whether [clientId] refers to a registered ghost device rather than a live client.
+     */
+    public suspend fun isGhost(clientId: String): Boolean = mutex.withLock {
+        ghostDevices.containsKey(clientId)
+    }
+
+    /**
+     * Broadcasts a message to every connected orchestrator.
+     *
+     * Client status is not tied to a publisher subscription: a follower reporting that it cannot
+     * replicate needs to reach the UI regardless of which publisher, if any, it is following.
+     */
+    public suspend fun broadcastToOrchestrators(message: DevToolsMessage): Unit = mutex.withLock {
+        clients.values
+            .filter { it.info.role == ClientRole.ORCHESTRATOR }
+            .forEach { sendToClient(it.info.clientId, message) }
+    }
+
+    /**
      * Broadcasts a message to all listeners of a publisher.
      */
     public suspend fun broadcastToListeners(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
@@ -317,22 +378,11 @@ public class ClientManager {
 
         currentPublisherId = clientId
 
-        // Auto-assign unattached listeners/orchestrators to the new publisher
-        clients.values.forEach { connectedClient ->
-            val info = connectedClient.info
-            if ((info.role == ClientRole.LISTENER || info.role == ClientRole.ORCHESTRATOR) && info.publisherClientId == null) {
-                connectedClient.info = info.copy(publisherClientId = clientId)
-                subscriptions.getOrPut(clientId) { mutableSetOf() }.add(info.clientId)
-
-                val roleMsg = DevToolsMessage.RoleAssignment(
-                    targetClientId = info.clientId,
-                    role = info.role,
-                    publisherClientId = clientId
-                )
-                sendToClient(info.clientId, roleMsg)
-                println("DevTools Server: Auto-attached ${info.clientName} (${info.role}) to new publisher $clientId")
-            }
-        }
+        // Linking waiting observers is deliberately not done here. It lives in
+        // attachWaitingObservers, which the server calls after every role assignment and whose
+        // return value drives the baseline request. Doing it in both places meant whichever ran
+        // first linked the observer silently, leaving the other with nothing to report and the
+        // observer subscribed but never seeded.
 
         broadcastPublisherChanged(clientId, previousPublisher, reason)
         broadcastClientList()

@@ -286,6 +286,33 @@ public object DevToolsServer {
                         println("DevTools Server: Notified publisher $effectivePublisherId of new listener ${message.targetClientId}")
                     }
                 }
+
+                // Link anyone who was waiting without a publisher and give each a baseline.
+                // Runs after every assignment because the two can interleave: a listener may be
+                // assigned while no publisher exists yet, and the publisher may run before the
+                // listener's role is recorded. It also has to run after assignRole, since a
+                // publisher ignores an attach notification until it knows it is the publisher.
+                val nowAttached = clientManager.attachWaitingObservers()
+                if (nowAttached.isNotEmpty()) {
+                    val publisherId = clientManager.currentPublisher()
+                    if (publisherId != null) {
+                        val ghost = clientManager.isGhostDevice(publisherId)
+                        nowAttached.forEach { (observerId, role) ->
+                            val notification = DevToolsMessage.ListenerAttached(observerId, role)
+                            if (ghost) {
+                                clientManager.broadcastToListeners(publisherId, notification)
+                            } else {
+                                clientManager.sendToPublisher(publisherId, notification)
+                            }
+                            println("DevTools Server: Requested baseline for waiting $observerId")
+                        }
+                    }
+                }
+            }
+
+            is DevToolsMessage.ClientStatus -> {
+                println("DevTools Server: Status from ${message.clientId} - ${message.status}")
+                clientManager.broadcastToOrchestrators(message)
             }
 
             is DevToolsMessage.RoleAcknowledgment -> {

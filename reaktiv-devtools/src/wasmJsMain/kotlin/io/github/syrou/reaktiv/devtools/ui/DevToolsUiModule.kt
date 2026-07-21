@@ -252,6 +252,10 @@ object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, Dev
                 )
             }
 
+            is DevToolsUiAction.SetClientStatus -> {
+                state.copy(clientStatuses = state.clientStatuses + (action.clientId to action.status))
+            }
+
             is DevToolsUiAction.SetInitialState -> {
                 state.copy(initialStateJson = action.json)
             }
@@ -633,6 +637,12 @@ class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() 
 
             is DevToolsMessage.GhostSessionRestore -> {
                 importGhostSessionFromRestore(message.sessionExportJson, message.ghostClientId)
+            }
+
+            is DevToolsMessage.ClientStatus -> {
+                storeAccessor.dispatch(
+                    DevToolsUiAction.SetClientStatus(message.clientId, message.status)
+                )
             }
 
             is DevToolsMessage.StateSync -> {
