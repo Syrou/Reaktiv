@@ -957,16 +957,16 @@ public final class io/github/syrou/reaktiv/navigation/dsl/NavigationGraphBuilder
 	public fun <init> (Ljava/lang/String;)V
 	public final fun graph (Lio/github/syrou/reaktiv/navigation/definition/Graph;Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
 	public final fun graph (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/definition/NavigationGraph;
-	public final fun intercept-8Mi8wO0 (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function1;)V
-	public static synthetic fun intercept-8Mi8wO0$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationGraphBuilder;Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun intercept-dWUq8MI (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun intercept-dWUq8MI$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationGraphBuilder;Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun layout (Lkotlin/jvm/functions/Function3;)V
 	public final fun modals ([Lio/github/syrou/reaktiv/navigation/definition/Modal;)V
 	public final fun screenGroup (Lio/github/syrou/reaktiv/navigation/definition/ScreenGroup;)V
 	public final fun screens ([Lio/github/syrou/reaktiv/navigation/definition/Screen;)V
 	public final fun start (Lio/github/syrou/reaktiv/navigation/definition/Screen;)V
 	public final fun start (Ljava/lang/String;)V
-	public final fun start-HG0u8IE (Lkotlin/jvm/functions/Function2;J)V
-	public static synthetic fun start-HG0u8IE$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationGraphBuilder;Lkotlin/jvm/functions/Function2;JILjava/lang/Object;)V
+	public final fun start-8Mi8wO0 (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun start-8Mi8wO0$default (Lio/github/syrou/reaktiv/navigation/dsl/NavigationGraphBuilder;Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
 public final class io/github/syrou/reaktiv/navigation/dsl/NavigationOperation : java/lang/Enum {
@@ -1093,15 +1093,34 @@ public final class io/github/syrou/reaktiv/navigation/layer/RenderLayer : java/l
 
 public final class io/github/syrou/reaktiv/navigation/model/EntryDefinition {
 	public static final field $stable I
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lkotlin/jvm/functions/Function2;
 	public final fun component2-UwyO8pc ()J
-	public final fun copy-HG0u8IE (Lkotlin/jvm/functions/Function2;J)Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
-	public static synthetic fun copy-HG0u8IE$default (Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;Lkotlin/jvm/functions/Function2;JILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
+	public final fun component3 ()Lkotlin/jvm/functions/Function2;
+	public final fun copy-8Mi8wO0 (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;)Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
+	public static synthetic fun copy-8Mi8wO0$default (Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/EntryDefinition;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCacheKey ()Lkotlin/jvm/functions/Function2;
 	public final fun getLoadingThreshold-UwyO8pc ()J
 	public final fun getRoute ()Lkotlin/jvm/functions/Function2;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/model/GuardChainEntry {
+	public static final field $stable I
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lkotlin/jvm/functions/Function2;
+	public final fun component2-UwyO8pc ()J
+	public final fun component3 ()Lkotlin/jvm/functions/Function2;
+	public final fun copy-8Mi8wO0 (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;)Lio/github/syrou/reaktiv/navigation/model/GuardChainEntry;
+	public static synthetic fun copy-8Mi8wO0$default (Lio/github/syrou/reaktiv/navigation/model/GuardChainEntry;Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/GuardChainEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCacheKey ()Lkotlin/jvm/functions/Function2;
+	public final fun getGuard ()Lkotlin/jvm/functions/Function2;
+	public final fun getLoadingThreshold-UwyO8pc ()J
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -1154,13 +1173,15 @@ public final class io/github/syrou/reaktiv/navigation/model/GuardResult$Reject :
 
 public final class io/github/syrou/reaktiv/navigation/model/InterceptDefinition {
 	public static final field $stable I
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLjava/util/List;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;Ljava/util/List;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lkotlin/jvm/functions/Function2;
 	public final fun component2-UwyO8pc ()J
-	public final fun copy-8Mi8wO0 (Lkotlin/jvm/functions/Function2;JLjava/util/List;)Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
-	public static synthetic fun copy-8Mi8wO0$default (Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;Lkotlin/jvm/functions/Function2;JLjava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
+	public final fun component3 ()Lkotlin/jvm/functions/Function2;
+	public final fun copy-dWUq8MI (Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;Ljava/util/List;)Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
+	public static synthetic fun copy-dWUq8MI$default (Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;Lkotlin/jvm/functions/Function2;JLkotlin/jvm/functions/Function2;Ljava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/InterceptDefinition;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCacheKey ()Lkotlin/jvm/functions/Function2;
 	public final fun getGuard ()Lkotlin/jvm/functions/Function2;
 	public final fun getLoadingThreshold-UwyO8pc ()J
 	public fun hashCode ()I
