@@ -11,6 +11,7 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationNode
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
+import io.github.syrou.reaktiv.navigation.model.CacheKeySelector
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
 import io.github.syrou.reaktiv.navigation.model.NavigatableInterceptMap
@@ -89,12 +90,14 @@ public class NavigationGraphBuilder(
      */
     public fun start(
         route: suspend (StoreAccessor) -> NavigationNode,
-        loadingThreshold: Duration = 200.milliseconds
+        loadingThreshold: Duration = 200.milliseconds,
+        cacheKey: CacheKeySelector? = null
     ) {
         checkNoStartDestination()
         pendingEntryDefinition = EntryDefinition(
             route = route,
-            loadingThreshold = loadingThreshold
+            loadingThreshold = loadingThreshold,
+            cacheKey = cacheKey
         )
     }
 
@@ -198,9 +201,10 @@ public class NavigationGraphBuilder(
     public fun intercept(
         guard: NavigationGuard,
         loadingThreshold: Duration = 200.milliseconds,
+        cacheKey: CacheKeySelector? = null,
         block: NavigationGraphBuilder.() -> Unit
     ) {
-        val interceptDef = InterceptDefinition(guard, loadingThreshold)
+        val interceptDef = InterceptDefinition(guard, loadingThreshold, cacheKey)
         val innerBuilder = NavigationGraphBuilder("_intercept_")
         innerBuilder.apply(block)
 

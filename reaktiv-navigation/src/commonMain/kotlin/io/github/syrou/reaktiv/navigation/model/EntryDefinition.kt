@@ -33,5 +33,6 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 public data class EntryDefinition(
     val route: RouteSelector? = null,
-    val loadingThreshold: Duration = 200.milliseconds
+    val loadingThreshold: Duration = 200.milliseconds,
+    val cacheKey: CacheKeySelector? = null
 )

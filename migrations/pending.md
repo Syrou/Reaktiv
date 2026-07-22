@@ -2931,3 +2931,83 @@ The baseline request must come after the role is assigned, since a publisher ign
 notification until it knows it is the publisher. Related: AD-54.
 
 ---
+### [BC-37] Queued navigations evaluate while the previous transition settles
+
+**Type:** Behavioural
+
+**Grep:** `navigation {`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A navigation issued during another navigation's enter/exit animation waited
+// for the full animation before its guards and entry selectors even started.
+store.navigation { navigateTo(Route.Home) }
+```
+
+**After:**
+```kotlin
+// Same call. Guard and entry evaluation for a queued navigation now runs
+// during the previous transition. The state commit is still paced: it lands
+// only after the previous transition has settled, so animations are never
+// interrupted mid-flight.
+store.navigation { navigateTo(Route.Home) }
+```
+
+**Notes:** The navigation mutex is released right after the state commit instead of being
+held through the transition-length delay. A suspended `navigate()` call still returns only
+after its own transition has settled, so awaiting callers observe the same timing as before.
+One observable difference: the tail wait is now cancellable, so cancelling the calling
+coroutine after the commit no longer blocks on the animation. Cache-related: see AD-58 for
+skipping guard bodies entirely.
+
+---
+### [AD-58] cacheKey on intercept() and start(route = ...) skips re-evaluation
+
+**Type:** Addition
+
+**Grep:** `cacheKey =`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+createNavigationModule {
+    rootGraph {
+        start(
+            route = { store ->
+                store.selectLogic<ConfigLogic>().initConfig()
+                if (userSession.hasValidSession()) NavigationPath(Route.HOME)
+                else NavigationPath(Route.START)
+            },
+            loadingThreshold = 200.milliseconds,
+            cacheKey = { _ -> userSession.sessionId }
+        )
+        intercept(
+            guard = { _ ->
+                if (userSession.blockingHasValidSession()) GuardResult.Allow
+                else GuardResult.PendAndRedirectTo(Route.START)
+            },
+            cacheKey = { _ -> userSession.sessionId to firebaseVariables.configVersion }
+        ) {
+            graph(Route.HOME) { ... }
+        }
+    }
+}
+```
+
+**Notes:** When `cacheKey` is provided, the guard or entry selector result is cached against
+the key value. On the next evaluation the key selector runs first: if it equals the cached
+key (structural equality), the cached result is returned and the guard or selector body,
+its loading threshold machinery and the loading modal are all skipped. A changed key
+re-runs the body and replaces the cached result. The key selector runs on every evaluation,
+so keep it cheap and synchronous-ish (a state read or a property access, never a network
+call). Omitting `cacheKey` keeps the previous always-evaluate behaviour.
+
+The cache is keyed by the guard or selector function instance, so an outer `intercept`
+guard shared across nested zones through guard chaining hits the same cache entry no matter
+which zone triggers it. All results (`Allow`, `Reject`, `RedirectTo`, `PendAndRedirectTo`)
+are cached, correctness of the key is the application's contract. The cache is cleared on
+`store.reset()`. Same-zone navigations never reach the cache: they are short-circuited
+before guard evaluation as documented in AD-09.
+
+---

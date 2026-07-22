@@ -23,6 +23,7 @@ import io.github.syrou.reaktiv.navigation.dsl.NavigationStep
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
+import io.github.syrou.reaktiv.navigation.model.CacheKeySelector
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.model.ModalContext
@@ -104,6 +105,11 @@ public class NavigationLogic(
     private val entryLifecycleJobs = mutableMapOf<String, Job>()
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
 
+    private data class CachedEvaluation(val key: Any?, val value: Any?)
+
+    private val evaluationCache = mutableMapOf<Any, CachedEvaluation>()
+    private var transitionSettleJob: Job? = null
+
     init {
         registerCrashListenerIfNeeded()
         bootstrapRootEntryIfNeeded()
@@ -138,9 +144,12 @@ public class NavigationLogic(
             return
         }
 
+        val bootstrapSelector = bootstrapEntry.route
         bootstrapJob = storeAccessor.launch {
             try {
-                val selectedNode = bootstrapEntry.route.invoke(storeAccessor)
+                val selectedNode = evaluateCached(bootstrapSelector, bootstrapEntry.cacheKey) {
+                    bootstrapSelector.invoke(storeAccessor)
+                }
 
                 if (!deepLinkStartedBeforeBootstrap.value) {
                     val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
@@ -202,6 +211,7 @@ public class NavigationLogic(
         entryLifecycles.values.forEach { it.runRemovalHandlers(RemovalReason.RESET) }
         entryLifecycleJobs.clear()
         entryLifecycles.clear()
+        evaluationCache.clear()
     }
 
     private fun registerCrashListenerIfNeeded() {
@@ -341,16 +351,19 @@ public class NavigationLogic(
         if (isAlreadyInZone) return GuardEvaluation.Allow
 
         for ((index, outerEntry) in interceptDef.outerGuards.withIndex()) {
-            val (outerGuard, outerThreshold) = outerEntry
-            val result = evaluateWithThreshold(outerThreshold) {
-                traceGuard("outerGuard[$index]($zoneKey)", targetRoute) { outerGuard(storeAccessor) }
+            val result = evaluateCached(outerEntry.guard, outerEntry.cacheKey) {
+                evaluateWithThreshold(outerEntry.loadingThreshold) {
+                    traceGuard("outerGuard[$index]($zoneKey)", targetRoute) { outerEntry.guard(storeAccessor) }
+                }
             }
             val evaluation = result.toGuardEvaluation()
             if (evaluation != GuardEvaluation.Allow) return evaluation
         }
 
-        return evaluateWithThreshold(interceptDef.loadingThreshold) {
-            traceGuard("guard($zoneKey)", targetRoute) { interceptDef.guard(storeAccessor) }
+        return evaluateCached(interceptDef.guard, interceptDef.cacheKey) {
+            evaluateWithThreshold(interceptDef.loadingThreshold) {
+                traceGuard("guard($zoneKey)", targetRoute) { interceptDef.guard(storeAccessor) }
+            }
         }.toGuardEvaluation()
     }
 
@@ -370,10 +383,12 @@ public class NavigationLogic(
         precomputedData.graphDefinitions[targetRoute] ?: return null
         val entryDef = precomputedData.graphEntries[targetRoute] ?: return null
         val selector = entryDef.route ?: return null
-        return evaluateWithThreshold(
-            loadingThreshold = entryDef.loadingThreshold
-        ) {
-            traceEntrySelection("entry($targetRoute)", targetRoute) { selector.invoke(storeAccessor) }
+        return evaluateCached(selector, entryDef.cacheKey) {
+            evaluateWithThreshold(
+                loadingThreshold = entryDef.loadingThreshold
+            ) {
+                traceEntrySelection("entry($targetRoute)", targetRoute) { selector.invoke(storeAccessor) }
+            }
         }
     }
 
@@ -408,7 +423,7 @@ public class NavigationLogic(
             entryDef = directEntryDef
         }
 
-        if (entryDef.route == null) return null
+        val selector = entryDef.route ?: return null
 
         val existingInSimulated = simulatedBackStack.firstOrNull { entry ->
             precomputedData.navigatableToGraph[entry.navigatable] == effectiveGraphPath
@@ -423,7 +438,9 @@ public class NavigationLogic(
             if (existingEntry != null) return existingEntry
         }
 
-        val node = evaluateWithThreshold(entryDef.loadingThreshold) { entryDef.route.invoke(storeAccessor) }
+        val node = evaluateCached(selector, entryDef.cacheKey) {
+            evaluateWithThreshold(entryDef.loadingThreshold) { selector.invoke(storeAccessor) }
+        }
         return when {
             node is Navigatable ->
                 node.toNavigationEntry(path = node.fullPathOrRoute(), params = Params.empty())
@@ -515,13 +532,17 @@ public class NavigationLogic(
             return performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
         }
         navigationMutex.lock()
-        try {
-            return withContext(NavigationLockMarker()) {
+        var settleJob: Job? = null
+        val outcome = try {
+            withContext(NavigationLockMarker()) {
                 performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
             }
         } finally {
+            settleJob = transitionSettleJob
             navigationMutex.unlock()
         }
+        settleJob?.join()
+        return outcome
     }
 
     private suspend fun performEvaluateAndExecute(
@@ -629,6 +650,23 @@ public class NavigationLogic(
      * backstack entry. Cleanup is handled by the [evaluateAndExecute] finally block via
      * [NavigationAction.SetEvaluating].
      */
+    private suspend fun <T> evaluateCached(
+        owner: Any,
+        cacheKey: CacheKeySelector?,
+        evaluate: suspend () -> T
+    ): T {
+        if (cacheKey == null) return evaluate()
+        val key = cacheKey(storeAccessor)
+        val cached = evaluationCache[owner]
+        if (cached != null && cached.key == key) {
+            @Suppress("UNCHECKED_CAST")
+            return cached.value as T
+        }
+        val value = evaluate()
+        evaluationCache[owner] = CachedEvaluation(key, value)
+        return value
+    }
+
     private suspend fun <T> evaluateWithThreshold(
         loadingThreshold: Duration,
         evaluate: suspend () -> T
@@ -772,6 +810,7 @@ public class NavigationLogic(
         primaryResolution: RouteResolution? = null,
         wrapActions: (List<NavigationAction>) -> List<NavigationAction> = { it }
     ) {
+        transitionSettleJob?.join()
         val initialState = getCurrentNavigationState()
         var sim = StackSnapshot(
             currentEntry = initialState.currentEntry,
@@ -959,7 +998,9 @@ public class NavigationLogic(
         val enterMs = lastNavigatedNavigatable?.enterTransition?.durationMillis?.toLong() ?: 0L
         val exitMs = navigationStartEntry.navigatable.exitTransition.durationMillis.toLong()
         val animMs = maxOf(enterMs, exitMs)
-        if (animMs > 0L) delay(animMs)
+        if (animMs > 0L) {
+            transitionSettleJob = storeAccessor.launch { delay(animMs) }
+        }
     }
 
     /**

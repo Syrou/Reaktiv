@@ -18,6 +18,8 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationNode
  */
 public typealias NavigationGuard = suspend (StoreAccessor) -> GuardResult
 
+public typealias CacheKeySelector = suspend (StoreAccessor) -> Any?
+
 /**
  * A suspend function that selects which destination to navigate to when entering a graph.
  *

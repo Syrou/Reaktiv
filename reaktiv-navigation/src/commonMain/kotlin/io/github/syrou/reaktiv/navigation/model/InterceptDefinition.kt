@@ -58,7 +58,8 @@ public typealias NavigatableInterceptMap = Map<Navigatable, InterceptDefinition>
 public data class InterceptDefinition(
     val guard: NavigationGuard,
     val loadingThreshold: Duration = 200.milliseconds,
-    internal val outerGuards: List<Pair<NavigationGuard, Duration>> = emptyList()
+    val cacheKey: CacheKeySelector? = null,
+    internal val outerGuards: List<GuardChainEntry> = emptyList()
 ) {
     /**
      * Returns a new [InterceptDefinition] that evaluates [outer]'s full guard chain before
@@ -69,7 +70,14 @@ public data class InterceptDefinition(
      * to apply at arbitrary nesting depth.
      */
     internal fun prependOuter(outer: InterceptDefinition): InterceptDefinition {
-        val outerFullChain = outer.outerGuards + listOf(outer.guard to outer.loadingThreshold)
+        val outerFullChain = outer.outerGuards +
+                GuardChainEntry(outer.guard, outer.loadingThreshold, outer.cacheKey)
         return copy(outerGuards = outerFullChain + outerGuards)
     }
 }
+
+public data class GuardChainEntry(
+    val guard: NavigationGuard,
+    val loadingThreshold: Duration,
+    val cacheKey: CacheKeySelector? = null
+)
