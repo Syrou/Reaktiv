@@ -18,7 +18,7 @@ public sealed class NavigationTarget {
     
     public fun resolve(precomputedData: PrecomputedNavigationData): String {
         return when (this) {
-            is Path -> path
+            is Path -> path.trim('/')
 
             is NavigatableObject -> {
                 precomputedData.navigatableToFullPath[navigatable]

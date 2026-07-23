@@ -3011,3 +3011,47 @@ are cached, correctness of the key is the application's contract. The cache is c
 before guard evaluation as documented in AD-09.
 
 ---
+### [BC-38] Nested dynamic-entry graphs are addressable by full path, leading slashes normalized
+
+**Type:** Behavioural
+
+**Grep:** `navigateDeepLink|navigateTo("`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A graph with a dynamic start lambda nested inside another graph could only be
+// reached by its bare graph id. The full path threw RouteNotFoundException, as
+// did any deep link path with a leading slash.
+store.navigateDeepLink("/home/insight")
+store.navigation { navigateTo("home/insight") }
+```
+
+**After:**
+```kotlin
+// Same calls now evaluate the insight graph's start lambda and land on its
+// resolved destination, with ancestor entries synthesized for deep links.
+store.navigateDeepLink("/home/insight")
+store.navigation { navigateTo("home/insight") }
+```
+
+**Notes:** Route strings passed to `navigateTo`, `navigateDeepLink`, alias targets, and
+`GuardResult` redirects are now normalized (leading and trailing slashes stripped) and
+canonicalized: a full nested path such as `home/insight` maps to its graph id before the
+dynamic-entry, guard, and synthesis lookups run. Consequences:
+
+- Deep links and deep link aliases can target a nested graph whose start is a dynamic
+  lambda, by full path or bare id, with or without a leading slash.
+- Intercept guards fire for full-path targets before the entry lambda is evaluated, so
+  entry side effects never run for a navigation the guard rejects or pends.
+- Backstack synthesis no longer silently skips nested dynamic-entry ancestor graphs.
+- A pending navigation (`PendAndRedirectTo`) whose route is a dynamic-entry graph path is
+  resolved through the entry lambda on `resumePendingNavigation()` instead of being
+  silently dropped.
+- Query parameters on non-alias deep links are now merged into the target params the same
+  way the alias branch does.
+
+New helpers `RouteResolver.canonicalGraphId(route)` and `RouteResolver.fullPathForGraph(graphId)`
+back the canonicalization. No application code changes are required.
+
+---

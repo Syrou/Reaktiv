@@ -315,7 +315,8 @@ public class NavigationLogic(
         if (isExternallyDriven()) return GuardEvaluation.Allow
         val targetGraphId = targetResolution?.navigationGraphId
         val targetActualGraphId = targetResolution?.targetGraphId
-        val zoneKey = listOfNotNull(targetRoute, targetGraphId, targetActualGraphId)
+        val targetCanonicalGraphId = precomputedData.routeResolver.canonicalGraphId(targetRoute)
+        val zoneKey = listOfNotNull(targetRoute, targetCanonicalGraphId, targetGraphId, targetActualGraphId)
             .firstOrNull { precomputedData.interceptedRoutes.containsKey(it) }
             ?: return null
         val interceptDef = precomputedData.interceptedRoutes.getValue(zoneKey)
@@ -367,27 +368,35 @@ public class NavigationLogic(
         }.toGuardEvaluation()
     }
 
-    private suspend fun resolveEntryChain(initialNode: NavigationNode, initialRoute: String): NavigationNode {
+    private suspend fun resolveEntryChain(
+        initialNode: NavigationNode,
+        initialRoute: String,
+        entryMemo: MutableMap<String, NavigationNode>? = null
+    ): NavigationNode {
         if (initialNode is Navigatable) return initialNode
         var resolvedNode: NavigationNode = initialNode
         val visitedRoutes = mutableSetOf(initialRoute)
         while (resolvedNode !is Navigatable) {
             val nextRoute = resolvedNode.route
             if (!visitedRoutes.add(nextRoute)) break
-            resolvedNode = resolveEntryNavigatable(nextRoute) ?: break
+            val next = resolveEntryNavigatable(nextRoute) ?: break
+            if (entryMemo != null) {
+                precomputedData.routeResolver.canonicalGraphId(nextRoute)?.let { entryMemo[it] = next }
+            }
+            resolvedNode = next
         }
         return resolvedNode
     }
 
     private suspend fun resolveEntryNavigatable(targetRoute: String): NavigationNode? {
-        precomputedData.graphDefinitions[targetRoute] ?: return null
-        val entryDef = precomputedData.graphEntries[targetRoute] ?: return null
+        val graphId = precomputedData.routeResolver.canonicalGraphId(targetRoute) ?: return null
+        val entryDef = precomputedData.graphEntries[graphId] ?: return null
         val selector = entryDef.route ?: return null
         return evaluateCached(selector, entryDef.cacheKey) {
             evaluateWithThreshold(
                 loadingThreshold = entryDef.loadingThreshold
             ) {
-                traceEntrySelection("entry($targetRoute)", targetRoute) { selector.invoke(storeAccessor) }
+                traceEntrySelection("entry($graphId)", targetRoute) { selector.invoke(storeAccessor) }
             }
         }
     }
@@ -395,7 +404,8 @@ public class NavigationLogic(
     private suspend fun resolveGraphEntryForSynthesis(
         graphPath: String,
         simulatedBackStack: List<NavigationEntry>,
-        visited: Set<String> = emptySet()
+        visited: Set<String> = emptySet(),
+        entryMemo: Map<String, NavigationNode> = emptyMap()
     ): NavigationEntry? {
         if (graphPath in visited) return null
 
@@ -407,45 +417,49 @@ public class NavigationLogic(
             )
         }
 
-        val directEntryDef = precomputedData.graphEntries[graphPath]
+        val graphId = precomputedData.routeResolver.canonicalGraphId(graphPath)
+        if (graphId != null && graphId in visited) return null
+        val directEntryDef = graphId?.let { precomputedData.graphEntries[it] }
         val entryDef: EntryDefinition
-        val effectiveGraphPath: String
+        val effectiveGraphId: String
         if (directEntryDef == null) {
-            val startDest = precomputedData.graphDefinitions[graphPath]?.startDestination
+            val startDest = graphId?.let { precomputedData.graphDefinitions[it]?.startDestination }
             if (startDest is StartDestination.GraphReference) {
-                effectiveGraphPath = startDest.graphId
+                effectiveGraphId = startDest.graphId
                 entryDef = precomputedData.graphEntries[startDest.graphId] ?: return null
             } else {
                 return null
             }
         } else {
-            effectiveGraphPath = graphPath
+            effectiveGraphId = graphId
             entryDef = directEntryDef
         }
 
         val selector = entryDef.route ?: return null
 
         val existingInSimulated = simulatedBackStack.firstOrNull { entry ->
-            precomputedData.navigatableToGraph[entry.navigatable] == effectiveGraphPath
+            precomputedData.navigatableToGraph[entry.navigatable] == effectiveGraphId
         }
         if (existingInSimulated != null) return existingInSimulated
 
         if (simulatedBackStack.isNotEmpty() || visited.isNotEmpty()) {
             val currentState = getCurrentNavigationState()
             val existingEntry = currentState.backStack.firstOrNull { entry ->
-                precomputedData.navigatableToGraph[entry.navigatable] == effectiveGraphPath
+                precomputedData.navigatableToGraph[entry.navigatable] == effectiveGraphId
             }
             if (existingEntry != null) return existingEntry
         }
 
-        val node = evaluateCached(selector, entryDef.cacheKey) {
+        val node = entryMemo[effectiveGraphId] ?: evaluateCached(selector, entryDef.cacheKey) {
             evaluateWithThreshold(entryDef.loadingThreshold) { selector.invoke(storeAccessor) }
         }
         return when {
             node is Navigatable ->
                 node.toNavigationEntry(path = node.fullPathOrRoute(), params = Params.empty())
-            precomputedData.graphDefinitions.containsKey(node.route) ->
-                resolveGraphEntryForSynthesis(node.route, simulatedBackStack, visited + graphPath)
+            precomputedData.routeResolver.canonicalGraphId(node.route) != null ->
+                resolveGraphEntryForSynthesis(
+                    node.route, simulatedBackStack, visited + setOfNotNull(graphPath, graphId), entryMemo
+                )
             else -> {
                 val resolution = precomputedData.routeResolver.resolve(node.route) ?: return null
                 resolution.targetNavigatable.toNavigationEntry(
@@ -464,10 +478,11 @@ public class NavigationLogic(
     }
 
     private fun NavigationNode.fullPathOrRoute(): String =
-        if (this is Navigatable) precomputedData.navigatableToFullPath[this] ?: route else route
+        if (this is Navigatable) precomputedData.navigatableToFullPath[this] ?: route
+        else precomputedData.routeResolver.fullPathForGraph(route) ?: route
 
     private fun NavigationBuilder.navigateToNode(node: NavigationNode) {
-        if (node is Navigatable) navigateTo(node) else navigateTo(node.route)
+        if (node is Navigatable) navigateTo(node) else navigateTo(node.fullPathOrRoute())
     }
 
     private suspend fun guardOutcome(guard: GuardEvaluation?): NavigationOutcome? = when (guard) {
@@ -494,19 +509,20 @@ public class NavigationLogic(
         route: String,
         simulatedBackStack: List<NavigationEntry>,
         seenPaths: MutableSet<String>,
-        includeRoot: Boolean
+        includeRoot: Boolean,
+        entryMemo: Map<String, NavigationNode> = emptyMap()
     ): List<NavigationEntry> {
         val synthesized = mutableListOf<NavigationEntry>()
         var stack = simulatedBackStack
         if (includeRoot) {
-            val rootEntry = resolveGraphEntryForSynthesis("root", stack)
+            val rootEntry = resolveGraphEntryForSynthesis("root", stack, entryMemo = entryMemo)
             if (rootEntry != null && seenPaths.add(rootEntry.path)) {
                 synthesized.add(rootEntry)
                 stack = stack + rootEntry
             }
         }
         for (intermediatePath in precomputedData.routeResolver.buildPathHierarchy(route).dropLast(1)) {
-            val entry = resolveGraphEntryForSynthesis(intermediatePath, stack) ?: continue
+            val entry = resolveGraphEntryForSynthesis(intermediatePath, stack, entryMemo = entryMemo) ?: continue
             if (!seenPaths.add(entry.path)) continue
             synthesized.add(entry)
             stack = stack + entry
@@ -580,10 +596,12 @@ public class NavigationLogic(
                     val initialGuard = evaluateGuard(targetRoute, targetResolution, primaryStep, currentState)
                     guardOutcome(initialGuard)?.let { return@withContext it }
 
-                    val isDynamicGraphTarget = precomputedData.graphEntries[targetRoute]?.route != null
+                    val targetGraphId = precomputedData.routeResolver.canonicalGraphId(targetRoute)
+                    val isDynamicGraphTarget = targetGraphId != null &&
+                            precomputedData.graphEntries[targetGraphId]?.route != null
                     val entryNode: NavigationNode? = if (isDynamicGraphTarget) {
                         val existingEntry = currentState.backStack.firstOrNull { entry ->
-                            precomputedData.navigatableToGraph[entry.navigatable] == targetRoute
+                            precomputedData.navigatableToGraph[entry.navigatable] == targetGraphId
                         }
                         if (existingEntry != null) {
                             existingEntry.navigatable
@@ -594,7 +612,9 @@ public class NavigationLogic(
                         resolveEntryNavigatable(targetRoute)
                     }
                     if (entryNode != null) {
-                        val resolvedNode = resolveEntryChain(entryNode, targetRoute)
+                        val entryMemo = mutableMapOf<String, NavigationNode>()
+                        targetGraphId?.let { entryMemo[it] = entryNode }
+                        val resolvedNode = resolveEntryChain(entryNode, targetRoute, entryMemo)
                         val resolvedResolution = if (resolvedNode is Navigatable) {
                             RouteResolution(
                                 targetNavigatable = resolvedNode,
@@ -628,7 +648,7 @@ public class NavigationLogic(
                         builder.operations.subList(primaryStepIndex + 1, builder.operations.size)
                             .forEach { routeBuilder.operations.add(it) }
                         routeBuilder.validate()
-                        executeNavigation(routeBuilder, primaryResolution = resolvedResolution)
+                        executeNavigation(routeBuilder, primaryResolution = resolvedResolution, entryMemo = entryMemo)
                         return@withContext NavigationOutcome.Success
                     }
 
@@ -763,8 +783,8 @@ public class NavigationLogic(
             targetRoute = alias.targetRoute
             targetParams = alias.paramsMapping(Params.fromMap(queryParams) + pathParams + params)
         } else {
-            targetRoute = route
-            targetParams = params
+            targetRoute = cleanRoute
+            targetParams = Params.fromMap(queryParams) + params
         }
 
         deepLinkStartedBeforeBootstrap.value = true
@@ -808,6 +828,7 @@ public class NavigationLogic(
     private suspend fun executeNavigation(
         builder: NavigationBuilder,
         primaryResolution: RouteResolution? = null,
+        entryMemo: Map<String, NavigationNode> = emptyMap(),
         wrapActions: (List<NavigationAction>) -> List<NavigationAction> = { it }
     ) {
         transitionSettleJob?.join()
@@ -841,7 +862,7 @@ public class NavigationLogic(
                         val destinationPath = resolution.targetNavigatable.fullPathOrRoute()
                         val seenPaths = (sim.backStack.map { it.path } + destinationPath).toMutableSet()
 
-                        for (entry in synthesizeAncestorEntries(resolvedRoute, sim.backStack, seenPaths, includeRoot = true)) {
+                        for (entry in synthesizeAncestorEntries(resolvedRoute, sim.backStack, seenPaths, includeRoot = true, entryMemo)) {
                             batchedActions.add(NavigationAction.Navigate(entry))
                             sim = NavigationStackMath.applyNavigate(sim, entry, null, false)
                             lastNavigatedEntry = entry
@@ -901,16 +922,39 @@ public class NavigationLogic(
                     val pending = initialState.pendingNavigation ?: continue
                     batchedActions.add(NavigationAction.ClearPendingNavigation)
 
-                    val pendingResolution = precomputedData.routeResolver.resolve(
-                        pending.route, precomputedData.availableNavigatables
-                    ) ?: continue
+                    var pendingRoute = pending.route
+                    val pendingEntryMemo = mutableMapOf<String, NavigationNode>()
+                    var pendingResolution = precomputedData.routeResolver.resolve(
+                        pendingRoute, precomputedData.availableNavigatables
+                    )
+                    if (pendingResolution == null) {
+                        val pendingEntryNode = resolveEntryNavigatable(pendingRoute) ?: continue
+                        precomputedData.routeResolver.canonicalGraphId(pendingRoute)?.let {
+                            pendingEntryMemo[it] = pendingEntryNode
+                        }
+                        val resolvedNode = resolveEntryChain(pendingEntryNode, pendingRoute, pendingEntryMemo)
+                        pendingRoute = resolvedNode.fullPathOrRoute()
+                        pendingResolution = if (resolvedNode is Navigatable) {
+                            RouteResolution(
+                                targetNavigatable = resolvedNode,
+                                targetGraphId = precomputedData.navigatableToGraph[resolvedNode] ?: "root",
+                                extractedParams = Params.empty()
+                            )
+                        } else {
+                            precomputedData.routeResolver.resolve(
+                                resolvedNode.route, precomputedData.availableNavigatables
+                            )
+                        }
+                    }
+                    if (pendingResolution == null) continue
 
                     val destinationPath = pendingResolution.targetNavigatable.fullPathOrRoute()
                     val seenPaths = (sim.backStack.map { it.path } + destinationPath).toMutableSet()
 
                     for (entry in synthesizeAncestorEntries(
-                        pending.route, sim.backStack, seenPaths,
-                        includeRoot = sim.backStack.isEmpty()
+                        pendingRoute, sim.backStack, seenPaths,
+                        includeRoot = sim.backStack.isEmpty(),
+                        entryMemo = pendingEntryMemo
                     )) {
                         batchedActions.add(NavigationAction.Navigate(entry))
                         sim = NavigationStackMath.applyNavigate(sim, entry, null, false)

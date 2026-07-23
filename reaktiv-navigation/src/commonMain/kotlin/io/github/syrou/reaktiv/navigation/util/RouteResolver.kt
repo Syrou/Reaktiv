@@ -19,6 +19,8 @@ public class RouteResolver private constructor(
     private val fullPathToResolution: Map<String, RouteResolution>,
     private val graphDefinitions: Map<String, NavigationGraph>,
     private val parameterizedRouteIndex: Map<ParameterizedRouteKey, List<ParameterizedRouteEntry>>,
+    private val graphPathToGraphId: Map<String, String>,
+    private val graphIdToFullPath: Map<String, String>,
     private val notFoundScreen: Screen? = null
 ) {
 
@@ -47,8 +49,16 @@ public class RouteResolver private constructor(
             val graphToStartNavigatable = mutableMapOf<String, ScreenResolution>()
             val fullPathToResolution = mutableMapOf<String, RouteResolution>()
             val parameterizedRouteIndex = mutableMapOf<ParameterizedRouteKey, MutableList<ParameterizedRouteEntry>>()
+            val graphPathToGraphId = mutableMapOf<String, String>()
+            val graphIdToFullPath = mutableMapOf<String, String>()
             for ((graphId, graph) in graphDefinitions) {
                 val graphPath = buildGraphPath(graphId, graphHierarchy)
+                if (graphPath.isNotEmpty()) {
+                    graphIdToFullPath[graphId] = graphPath
+                    if (graphPath != graphId) {
+                        graphPathToGraphId[graphPath] = graphId
+                    }
+                }
                 for (navigatable in graph.navigatables) {
                     val fullPath = navigatableToFullPath[navigatable] ?: continue
 
@@ -108,6 +118,8 @@ public class RouteResolver private constructor(
                 fullPathToResolution = fullPathToResolution,
                 graphDefinitions = graphDefinitions,
                 parameterizedRouteIndex = parameterizedRouteIndex,
+                graphPathToGraphId = graphPathToGraphId,
+                graphIdToFullPath = graphIdToFullPath,
                 notFoundScreen = notFoundScreen
             )
         }
@@ -138,6 +150,14 @@ public class RouteResolver private constructor(
     }
 
     
+    public fun canonicalGraphId(route: String): String? {
+        val clean = route.trimStart('/').trimEnd('/')
+        if (graphDefinitions.containsKey(clean)) return clean
+        return graphPathToGraphId[clean]
+    }
+
+    public fun fullPathForGraph(graphId: String): String? = graphIdToFullPath[graphId]
+
     public fun resolve(
         route: String,
         availableNavigatables: Map<String, Navigatable> = emptyMap()
@@ -172,8 +192,9 @@ public class RouteResolver private constructor(
         }
 
         // Check if this is a graph without a startDestination - redirect to notFoundScreen
-        if (graphDefinitions.containsKey(cleanRoute) && graphDefinitions[cleanRoute]?.startDestination == null) {
-            if (graphDefinitions[cleanRoute]?.entryDefinition != null) {
+        val canonicalId = canonicalGraphId(cleanRoute)
+        if (canonicalId != null && graphDefinitions[canonicalId]?.startDestination == null) {
+            if (graphDefinitions[canonicalId]?.entryDefinition != null) {
                 return null
             }
             ReaktivDebug.nav("Graph '$cleanRoute' has no startDestination defined")
@@ -183,7 +204,7 @@ public class RouteResolver private constructor(
                     targetNavigatable = screen,
                     targetGraphId = "root",
                     extractedParams = Params.empty(),
-                    navigationGraphId = cleanRoute,
+                    navigationGraphId = canonicalId,
                     isGraphReference = false
                 )
             }
@@ -383,11 +404,9 @@ public class RouteResolver private constructor(
         val cleanPath = path.trimStart('/').trimEnd('/')
         if (cleanPath.isEmpty()) return null
 
-        if (graphDefinitions.containsKey(cleanPath)) {
-            val graph = graphDefinitions[cleanPath]
-            if (graph?.startDestination == null) {
-                return null
-            }
+        val graphId = canonicalGraphId(cleanPath)
+        if (graphId != null && graphDefinitions[graphId]?.startDestination == null) {
+            return null
         }
 
         val resolution = resolve(cleanPath)
