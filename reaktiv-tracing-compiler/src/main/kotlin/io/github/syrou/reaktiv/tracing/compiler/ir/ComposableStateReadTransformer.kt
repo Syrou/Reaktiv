@@ -62,28 +62,20 @@ class ComposableStateReadTransformer(
             ?: return expression
 
         val tracker = trackerClass ?: run {
-            messageCollector.report(
-                CompilerMessageSeverity.WARNING,
-                "ReaktivTracing: StateReadTracker class not found, skipping state read instrumentation"
-            )
+            messageCollector.warn { "ReaktivTracing: StateReadTracker class not found, skipping state read instrumentation" }
             return expression
         }
         val notifyFun = notifyStateReadFun ?: return expression
         val scopeSymbol = currentScope?.scope?.scopeOwnerSymbol ?: return expression
 
         instrumentedCount += 1
-        messageCollector.report(
-            CompilerMessageSeverity.INFO,
-            "ReaktivTracing: Instrumenting state read of $stateFqName in $composableName"
-        )
+        messageCollector.info { "ReaktivTracing: Instrumenting state read of $stateFqName in $composableName" }
 
         val builder = DeclarationIrBuilder(pluginContext, scopeSymbol)
         return builder.irBlock(resultType = expression.type) {
             +irCall(notifyFun).apply {
                 dispatchReceiver = irGetObject(tracker)
-                val offset = if (notifyFun.owner.dispatchReceiverParameter != null) 1 else 0
-                arguments[offset + 0] = irString(stateFqName)
-                arguments[offset + 1] = irString(composableName)
+                setValueArgs(notifyFun, irString(stateFqName), irString(composableName))
             }
             +expression
         }

@@ -22,7 +22,11 @@ kotlin {
         compileSdk = 36
         minSdk = 23
     }
-    jvm()
+    jvm {
+        mainRun {
+            mainClass.set("io.github.syrou.reaktiv.devtools.server.MainKt")
+        }
+    }
 
     iosArm64()
     iosSimulatorArm64()
@@ -73,6 +77,7 @@ kotlin {
         val commonMain = getByName("commonMain") {
             dependencies {
                 implementation(project(":reaktiv-core"))
+                api(project(":reaktiv-tracing-runtime"))
                 api(project(":reaktiv-introspection"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
@@ -147,6 +152,8 @@ kotlin {
         getByName("jvmTest") {
             dependencies {
                 implementation(project(":reaktiv-navigation"))
+                implementation(project(":reaktiv-network-ktor"))
+                implementation(libs.ktor.client.mock)
                 implementation(compose.runtime)
                 implementation(compose.ui)
                 implementation(compose.material3)
@@ -158,7 +165,32 @@ kotlin {
         optIn.add("kotlin.time.ExperimentalTime")
         optIn.add("kotlinx.coroutines.DelicateCoroutinesApi")
         optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
+        optIn.add("androidx.compose.foundation.layout.ExperimentalLayoutApi")
     }
+}
+
+val wasmDistDir = layout.buildDirectory.dir("dist/wasmJs/productionExecutable")
+val devToolsPort = providers.gradleProperty("port").orElse("8080")
+
+tasks.register<JavaExec>("runDevToolsServer") {
+    group = "reaktiv"
+    description = "Builds the WASM UI and serves it with the DevTools websocket server, -Pport to override 8080"
+    dependsOn("wasmJsBrowserDistribution")
+
+    val jvmMain = kotlin.targets.getByName("jvm").compilations.getByName("main")
+    classpath = files(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
+    mainClass.set("io.github.syrou.reaktiv.devtools.server.MainKt")
+    argumentProviders.add { listOf(wasmDistDir.get().asFile.absolutePath, devToolsPort.get()) }
+}
+
+tasks.register<JavaExec>("runDevToolsServerHeadless") {
+    group = "reaktiv"
+    description = "Serves only the DevTools websocket endpoint, without building the WASM UI"
+
+    val jvmMain = kotlin.targets.getByName("jvm").compilations.getByName("main")
+    classpath = files(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
+    mainClass.set("io.github.syrou.reaktiv.devtools.server.MainKt")
+    argumentProviders.add { listOf("", devToolsPort.get()) }
 }
 
 tasks {

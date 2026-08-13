@@ -44,6 +44,20 @@ class ReaktivTracingIrGenerationExtension(
 
         moduleFragment.transform(readTransformer, null)
 
+        val originTransformer = DispatchOriginTransformer(
+            pluginContext = pluginContext,
+            messageCollector = messageCollector
+        )
+
+        moduleFragment.transform(originTransformer, null)
+
+        if (originTransformer.instrumentedCount > 0) {
+            messageCollector.report(
+                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
+                "ReaktivTracing: Recorded ${originTransformer.instrumentedCount} dispatch origins in ${moduleFragment.name}"
+            )
+        }
+
         if (readTransformer.instrumentedCount > 0) {
             messageCollector.report(
                 org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,

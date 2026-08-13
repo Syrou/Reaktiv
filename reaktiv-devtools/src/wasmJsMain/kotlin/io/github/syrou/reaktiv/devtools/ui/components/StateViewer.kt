@@ -36,7 +36,8 @@ import kotlinx.datetime.toLocalDateTime
 private enum class StateViewerTab { DELTA, STATE }
 
 @Composable
-fun StateViewer(
+internal fun StateViewer(
+    dataRevision: Long,
     actionStateHistory: List<CapturedAction>,
     selectedActionIndex: Int?,
     logicMethodEvents: List<LogicMethodEvent> = emptyList(),
@@ -72,7 +73,7 @@ fun StateViewer(
     val isActionSelected = selectedEvent != null && !isLogicMethodSelected && !isCrashSelected
 
     // Reconstruct state at crash time
-    val crashReconstructedState = remember(isCrashSelected, crashEvent?.info, initialStateJson, actionStateHistory.size) {
+    val crashReconstructedState = remember(dataRevision, isCrashSelected, crashEvent?.info, initialStateJson) {
         if (!isCrashSelected || crashEvent == null) return@remember null
         if (actionStateHistory.isEmpty()) return@remember initialStateJson
         val exactIndex = crashEvent.info.afterActionIndex
@@ -86,12 +87,12 @@ fun StateViewer(
     }
 
     // Cache reconstructed states for the State tab
-    val reconstructedState = remember(selectedActionIndex, initialStateJson, actionStateHistory.size) {
+    val reconstructedState = remember(dataRevision, selectedActionIndex, initialStateJson) {
         if (selectedActionIndex == null || !isActionSelected) return@remember null
         StateReconstructor.reconstructAtIndex(initialStateJson, actionStateHistory, selectedActionIndex)
     }
 
-    val previousReconstructedState = remember(selectedActionIndex, initialStateJson, actionStateHistory.size, showAsDiff) {
+    val previousReconstructedState = remember(dataRevision, selectedActionIndex, initialStateJson, showAsDiff) {
         if (!showAsDiff || selectedActionIndex == null || !isActionSelected) return@remember null
         if (selectedActionIndex <= 0) return@remember null
         val prevIndex = run {
@@ -269,7 +270,7 @@ private fun StateSnapshotView(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Timestamp: ${formatTimestamp(event.timestamp)}",
+                    text = "Timestamp: ${formatClockTime(event.timestamp)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -394,7 +395,7 @@ private fun LogicMethodDataView(
                     )
 
                     Text(
-                        text = "Started: ${formatTimestamp(startedEvent.timestamp)}",
+                        text = "Started: ${formatClockTime(startedEvent.timestamp)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -460,7 +461,7 @@ private fun LogicMethodDataView(
                         IconButton(
                             onClick = {
                                 val text = startedEvent.params.entries.joinToString("\n") { "${it.key} = ${it.value}" }
-                                copyToClipboard(text)
+                                copyTextToClipboard(text)
                             },
                             modifier = Modifier.size(24.dp)
                         ) {
@@ -560,7 +561,7 @@ private fun LogicMethodDataView(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             IconButton(
-                                onClick = { copyToClipboard(result) },
+                                onClick = { copyTextToClipboard(result) },
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Icon(
@@ -670,7 +671,7 @@ private fun LogicMethodDataView(
                                     color = MaterialTheme.colorScheme.error
                                 )
                                 IconButton(
-                                    onClick = { copyToClipboard(trace) },
+                                    onClick = { copyTextToClipboard(trace) },
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Icon(
@@ -723,21 +724,11 @@ private fun shortComposableName(fqName: String): String {
     return if (display.isEmpty()) fqName else display.joinToString(".")
 }
 
-private fun formatTimestamp(timestamp: Long): String {
-    val instant = Instant.fromEpochMilliseconds(timestamp)
-    val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-    val millis = (timestamp % 1000).toString().padStart(3, '0')
 
-    return "${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}:${dateTime.second.toString().padStart(2, '0')}:${millis}"
-}
 
-private fun openInBrowser(url: String) {
-    js("window.open(url, '_blank')")
-}
 
-private fun copyToClipboard(text: String) {
-    js("navigator.clipboard.writeText(text)")
-}
+
+
 
 @Composable
 private fun CrashDataView(
@@ -768,7 +759,7 @@ private fun CrashDataView(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Timestamp: ${formatTimestamp(crashEvent.timestamp)}",
+                    text = "Timestamp: ${formatClockTime(crashEvent.timestamp)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -844,7 +835,7 @@ private fun CrashDataView(
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        TextButton(onClick = { copyToClipboard(diagnosis.text) }) {
+                        TextButton(onClick = { copyTextToClipboard(diagnosis.text) }) {
                             Text("Copy")
                         }
                     }

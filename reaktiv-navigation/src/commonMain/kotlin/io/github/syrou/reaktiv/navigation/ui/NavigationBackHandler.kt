@@ -53,12 +53,11 @@ internal class PlatformBackCoordinator(
         scrubTop = null
         scrubRevealed = null
         if (top != null && revealed != null) {
-            completeContentGesture(
+            completeInteractiveDismiss(
                 commit = true,
                 progressVelocity = 0f,
                 controller = controller,
                 store = store,
-                navModule = navModule,
                 top = top,
                 revealed = revealed
             )
@@ -73,12 +72,11 @@ internal class PlatformBackCoordinator(
         scrubTop = null
         scrubRevealed = null
         if (top != null && revealed != null) {
-            completeContentGesture(
+            completeInteractiveDismiss(
                 commit = false,
                 progressVelocity = 0f,
                 controller = controller,
                 store = store,
-                navModule = navModule,
                 top = top,
                 revealed = revealed
             )

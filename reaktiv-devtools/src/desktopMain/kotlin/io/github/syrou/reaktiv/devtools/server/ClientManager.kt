@@ -5,6 +5,12 @@ import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
 import io.ktor.websocket.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
@@ -24,17 +30,18 @@ public data class GhostDevice(
     val sessionExportJson: String? = null
 )
 
-/**
- * Manages connected clients and their WebSocket sessions.
- */
 public class ClientManager {
     private val mutex = Mutex()
     private val clients = mutableMapOf<String, ConnectedClient>()
+    private val outbound = mutableMapOf<String, Outbound>()
     private val subscriptions = mutableMapOf<String, MutableSet<String>>()
     private val ghostDevices = mutableMapOf<String, GhostDevice>()
     private var currentPublisherId: String? = null
 
     private val json = reaktivJson()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private class Outbound(val queue: Channel<DevToolsMessage>, val writer: Job)
 
     /**
      * Drops all clients, subscriptions, ghosts and the current publisher assignment.
@@ -42,7 +49,8 @@ public class ClientManager {
      * Only useful for a host process that runs more than one server over its lifetime, since
      * [DevToolsServer] is an object and would otherwise carry state between them.
      */
-    public fun reset() {
+    public suspend fun reset(): Unit = mutex.withLock {
+        outbound.keys.toList().forEach(::closeOutbound)
         clients.clear()
         subscriptions.clear()
         ghostDevices.clear()
@@ -56,32 +64,33 @@ public class ClientManager {
         session: WebSocketSession,
         registration: DevToolsMessage.ClientRegistration
     ): Unit = mutex.withLock {
-        val clientInfo = ClientInfo(
-            clientId = registration.clientId,
-            clientName = registration.clientName,
-            platform = registration.platform,
-            role = ClientRole.UNASSIGNED,
-            publisherClientId = null,
-            connectedAt = currentTimeMillis()
-        )
-
+        closeOutbound(registration.clientId)
         clients[registration.clientId] = ConnectedClient(
             session = session,
-            info = clientInfo
+            info = ClientInfo(
+                clientId = registration.clientId,
+                clientName = registration.clientName,
+                platform = registration.platform,
+                role = ClientRole.UNASSIGNED,
+                publisherClientId = null,
+                connectedAt = currentTimeMillis()
+            )
         )
+        openOutbound(registration.clientId, session)
 
         println("DevTools Server: Client registered - ${registration.clientName} (${registration.platform})")
 
         broadcastClientList()
 
-        // Send stored ghost session data to the newly connected client
         ghostDevices.values.forEach { ghost ->
-            if (ghost.sessionExportJson != null) {
-                val restoreMessage = DevToolsMessage.GhostSessionRestore(
-                    ghostClientId = ghost.ghostClientId,
-                    sessionExportJson = ghost.sessionExportJson
+            ghost.sessionExportJson?.let {
+                enqueue(
+                    registration.clientId,
+                    DevToolsMessage.GhostSessionRestore(
+                        ghostClientId = ghost.ghostClientId,
+                        sessionExportJson = it
+                    )
                 )
-                sendToClient(registration.clientId, restoreMessage)
                 println("DevTools Server: Sent ghost session restore to ${registration.clientName} for ${ghost.ghostClientId}")
             }
         }
@@ -91,28 +100,22 @@ public class ClientManager {
      * Unregisters a client and removes all subscriptions.
      */
     public suspend fun unregisterClient(clientId: String): Unit = mutex.withLock {
-        val client = clients.remove(clientId)
+        val client = clients.remove(clientId) ?: return@withLock
+        closeOutbound(clientId)
 
-        if (client?.info?.role == ClientRole.LISTENER || client?.info?.role == ClientRole.ORCHESTRATOR) {
+        if (client.info.role == ClientRole.LISTENER || client.info.role == ClientRole.ORCHESTRATOR) {
             subscriptions[client.info.publisherClientId]?.remove(clientId)
         }
+        subscriptions.values.forEach { listeners -> listeners.remove(clientId) }
 
-        subscriptions.values.forEach { listeners ->
-            listeners.remove(clientId)
-        }
-
-        // Clear publisher tracking if the disconnecting client was the publisher
         if (currentPublisherId == clientId) {
-            val previousPublisher = currentPublisherId
             currentPublisherId = null
             println("DevTools Server: Publisher disconnected - $clientId")
-            broadcastPublisherChanged(null, previousPublisher, "Publisher disconnected")
+            broadcastPublisherChanged(null, clientId, "Publisher disconnected")
         }
 
-        if (client != null) {
-            println("DevTools Server: Client disconnected - ${client.info.clientName}")
-            broadcastClientList()
-        }
+        println("DevTools Server: Client disconnected - ${client.info.clientName}")
+        broadcastClientList()
     }
 
     /**
@@ -125,26 +128,28 @@ public class ClientManager {
     ): Unit = mutex.withLock {
         val client = clients[clientId] ?: return@withLock
 
-        if ((client.info.role == ClientRole.LISTENER || client.info.role == ClientRole.ORCHESTRATOR) && client.info.publisherClientId != null) {
+        if ((client.info.role == ClientRole.LISTENER || client.info.role == ClientRole.ORCHESTRATOR) &&
+            client.info.publisherClientId != null
+        ) {
             subscriptions[client.info.publisherClientId]?.remove(clientId)
         }
 
-        client.info = client.info.copy(
-            role = role,
-            publisherClientId = publisherClientId
+        clients[clientId] = client.copy(
+            info = client.info.copy(role = role, publisherClientId = publisherClientId)
         )
 
         if ((role == ClientRole.LISTENER || role == ClientRole.ORCHESTRATOR) && publisherClientId != null) {
             subscriptions.getOrPut(publisherClientId) { mutableSetOf() }.add(clientId)
         }
 
-        val message = DevToolsMessage.RoleAssignment(
-            targetClientId = clientId,
-            role = role,
-            publisherClientId = publisherClientId
+        enqueue(
+            clientId,
+            DevToolsMessage.RoleAssignment(
+                targetClientId = clientId,
+                role = role,
+                publisherClientId = publisherClientId
+            )
         )
-
-        sendToClient(clientId, message)
 
         println("DevTools Server: Assigned role $role to ${client.info.clientName}")
 
@@ -167,13 +172,15 @@ public class ClientManager {
         val publisherId = currentPublisherId ?: return@withLock emptyList()
         val attached = mutableListOf<Pair<String, ClientRole>>()
 
-        clients.values.forEach { connectedClient ->
+        clients.values.toList().forEach { connectedClient ->
             val info = connectedClient.info
             val isObserver = info.role == ClientRole.LISTENER || info.role == ClientRole.ORCHESTRATOR
             if (isObserver && info.publisherClientId == null && info.clientId != publisherId) {
-                connectedClient.info = info.copy(publisherClientId = publisherId)
+                clients[info.clientId] = connectedClient.copy(
+                    info = info.copy(publisherClientId = publisherId)
+                )
                 subscriptions.getOrPut(publisherId) { mutableSetOf() }.add(info.clientId)
-                sendToClient(
+                enqueue(
                     info.clientId,
                     DevToolsMessage.RoleAssignment(
                         targetClientId = info.clientId,
@@ -194,13 +201,6 @@ public class ClientManager {
     public suspend fun currentPublisher(): String? = mutex.withLock { currentPublisherId }
 
     /**
-     * Whether [clientId] refers to a registered ghost device rather than a live client.
-     */
-    public suspend fun isGhost(clientId: String): Boolean = mutex.withLock {
-        ghostDevices.containsKey(clientId)
-    }
-
-    /**
      * Broadcasts a message to every connected orchestrator.
      *
      * Client status is not tied to a publisher subscription: a follower reporting that it cannot
@@ -209,64 +209,21 @@ public class ClientManager {
     public suspend fun broadcastToOrchestrators(message: DevToolsMessage): Unit = mutex.withLock {
         clients.values
             .filter { it.info.role == ClientRole.ORCHESTRATOR }
-            .forEach { sendToClient(it.info.clientId, message) }
+            .forEach { enqueue(it.info.clientId, message) }
     }
 
     /**
      * Broadcasts a message to all listeners of a publisher.
      */
     public suspend fun broadcastToListeners(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
-        val listeners = subscriptions[publisherId] ?: emptySet()
-
-        listeners.forEach { listenerId ->
-            sendToClient(listenerId, message)
-        }
-    }
-
-    /**
-     * Broadcasts the current client list to all connected clients.
-     * Includes both real clients and ghost devices.
-     */
-    public suspend fun broadcastClientList() {
-        val realClients = clients.values.map { it.info }
-        val ghostClients = ghostDevices.values.map { ghost ->
-            ClientInfo(
-                clientId = ghost.ghostClientId,
-                clientName = "[Ghost] ${ghost.originalClientInfo.clientName}",
-                platform = "${ghost.originalClientInfo.platform} (Recorded)",
-                role = if (currentPublisherId == ghost.ghostClientId) ClientRole.PUBLISHER else ClientRole.UNASSIGNED,
-                publisherClientId = null,
-                connectedAt = ghost.sessionStartTime,
-                isGhost = true
-            )
-        }
-        val clientList = realClients + ghostClients
-        val message = DevToolsMessage.ClientListUpdate(clientList)
-
-        clients.keys.forEach { clientId ->
-            sendToClient(clientId, message)
-        }
+        (subscriptions[publisherId] ?: emptySet()).forEach { enqueue(it, message) }
     }
 
     /**
      * Sends a message to the publisher client.
      */
     public suspend fun sendToPublisher(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
-        sendToClient(publisherId, message)
-    }
-
-    /**
-     * Sends a message to a specific client.
-     */
-    private suspend fun sendToClient(clientId: String, message: DevToolsMessage) {
-        val client = clients[clientId] ?: return
-
-        try {
-            val jsonString = json.encodeToString(message)
-            client.session.send(Frame.Text(jsonString))
-        } catch (e: Exception) {
-            println("DevTools Server: Failed to send message to $clientId - ${e.message}")
-        }
+        enqueue(publisherId, message)
     }
 
     /**
@@ -279,27 +236,15 @@ public class ClientManager {
     /**
      * Gets all connected clients including ghost devices.
      */
-    public suspend fun getAllClients(): List<ClientInfo> = mutex.withLock {
-        val realClients = clients.values.map { it.info }
-        val ghostClients = ghostDevices.values.map { ghost ->
-            ClientInfo(
-                clientId = ghost.ghostClientId,
-                clientName = "[Ghost] ${ghost.originalClientInfo.clientName}",
-                platform = "${ghost.originalClientInfo.platform} (Recorded)",
-                role = if (currentPublisherId == ghost.ghostClientId) ClientRole.PUBLISHER else ClientRole.UNASSIGNED,
-                publisherClientId = null,
-                connectedAt = ghost.sessionStartTime,
-                isGhost = true
-            )
-        }
-        realClients + ghostClients
-    }
+    public suspend fun getAllClients(): List<ClientInfo> = mutex.withLock { allClientInfos() }
 
     /**
      * Registers a ghost device from an imported session.
      * Ghost devices can be played back and will broadcast events to listeners.
      */
-    public suspend fun registerGhostDevice(registration: DevToolsMessage.GhostDeviceRegistration): String = mutex.withLock {
+    public suspend fun registerGhostDevice(
+        registration: DevToolsMessage.GhostDeviceRegistration
+    ): String = mutex.withLock {
         val ghostId = "ghost-${registration.sessionId}"
 
         ghostDevices[ghostId] = GhostDevice(
@@ -327,20 +272,17 @@ public class ClientManager {
      * Removes a ghost device.
      */
     public suspend fun removeGhostDevice(ghostId: String): Unit = mutex.withLock {
-        val removed = ghostDevices.remove(ghostId)
-        if (removed != null) {
-            println("DevTools Server: Ghost device removed - $ghostId")
+        ghostDevices.remove(ghostId) ?: return@withLock
+        println("DevTools Server: Ghost device removed - $ghostId")
 
-            subscriptions.remove(ghostId)
+        subscriptions.remove(ghostId)
 
-            if (currentPublisherId == ghostId) {
-                val previousPublisher = currentPublisherId
-                currentPublisherId = null
-                broadcastPublisherChanged(null, previousPublisher, "Ghost device removed")
-            }
-
-            broadcastClientList()
+        if (currentPublisherId == ghostId) {
+            currentPublisherId = null
+            broadcastPublisherChanged(null, ghostId, "Ghost device removed")
         }
+
+        broadcastClientList()
     }
 
     /**
@@ -371,7 +313,9 @@ public class ClientManager {
                 println("DevTools Server: Ghost device auto-removed due to real publisher - $previousPublisher")
             } else if (!ghostDevices.containsKey(previousPublisher)) {
                 clients[previousPublisher]?.let {
-                    it.info = it.info.copy(role = ClientRole.UNASSIGNED, publisherClientId = null)
+                    clients[previousPublisher] = it.copy(
+                        info = it.info.copy(role = ClientRole.UNASSIGNED, publisherClientId = null)
+                    )
                 }
             }
         }
@@ -391,26 +335,67 @@ public class ClientManager {
     /**
      * Gets the current publisher ID.
      */
-    public suspend fun getCurrentPublisher(): String? = mutex.withLock {
-        currentPublisherId
+    public suspend fun getCurrentPublisher(): String? = mutex.withLock { currentPublisherId }
+
+    private fun allClientInfos(): List<ClientInfo> {
+        val ghosts = ghostDevices.values.map { ghost ->
+            ClientInfo(
+                clientId = ghost.ghostClientId,
+                clientName = "[Ghost] ${ghost.originalClientInfo.clientName}",
+                platform = "${ghost.originalClientInfo.platform} (Recorded)",
+                role = if (currentPublisherId == ghost.ghostClientId) ClientRole.PUBLISHER else ClientRole.UNASSIGNED,
+                publisherClientId = null,
+                connectedAt = ghost.sessionStartTime,
+                isGhost = true
+            )
+        }
+        return clients.values.map { it.info } + ghosts
     }
 
-    /**
-     * Broadcasts a publisher changed notification to all clients.
-     */
-    private suspend fun broadcastPublisherChanged(
+    private fun broadcastClientList() {
+        broadcast(DevToolsMessage.ClientListUpdate(allClientInfos()))
+    }
+
+    private fun broadcastPublisherChanged(
         newPublisherId: String?,
         previousPublisherId: String?,
         reason: String
     ) {
-        val message = DevToolsMessage.PublisherChanged(
-            newPublisherId = newPublisherId,
-            previousPublisherId = previousPublisherId,
-            reason = reason
+        broadcast(
+            DevToolsMessage.PublisherChanged(
+                newPublisherId = newPublisherId,
+                previousPublisherId = previousPublisherId,
+                reason = reason
+            )
         )
+    }
 
-        clients.keys.forEach { clientId ->
-            sendToClient(clientId, message)
+    private fun broadcast(message: DevToolsMessage) {
+        clients.keys.forEach { enqueue(it, message) }
+    }
+
+    private fun enqueue(clientId: String, message: DevToolsMessage) {
+        outbound[clientId]?.queue?.trySend(message)
+    }
+
+    private fun openOutbound(clientId: String, session: WebSocketSession) {
+        val queue = Channel<DevToolsMessage>(Channel.UNLIMITED)
+        val writer = scope.launch {
+            for (message in queue) {
+                try {
+                    session.send(Frame.Text(json.encodeToString(message)))
+                } catch (e: Exception) {
+                    println("DevTools Server: Failed to send message to $clientId - ${e.message}")
+                }
+            }
+        }
+        outbound[clientId] = Outbound(queue, writer)
+    }
+
+    private fun closeOutbound(clientId: String) {
+        outbound.remove(clientId)?.let {
+            it.queue.close()
+            it.writer.cancel()
         }
     }
 }
@@ -420,5 +405,5 @@ public class ClientManager {
  */
 public data class ConnectedClient(
     val session: WebSocketSession,
-    var info: ClientInfo
+    val info: ClientInfo
 )

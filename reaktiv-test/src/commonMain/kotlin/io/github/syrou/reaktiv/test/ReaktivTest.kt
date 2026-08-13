@@ -83,8 +83,8 @@ public fun reaktivTest(
     val store = createStore {
         modules.forEach { module(it) }
         middlewares(recording)
-        configure()
         coroutineContext(StandardTestDispatcher(testScheduler))
+        configure()
     }
     val scope = ReaktivTestScope(this, store, recorded)
     try {

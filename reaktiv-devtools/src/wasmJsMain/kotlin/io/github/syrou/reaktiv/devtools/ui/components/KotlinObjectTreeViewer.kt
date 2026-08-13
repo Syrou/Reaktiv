@@ -33,17 +33,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 
-data class TreeRow(
+internal data class TreeRow(
     val indent: Int,
     val segments: List<TextSegment>
 )
 
-data class TextSegment(
+internal data class TextSegment(
     val text: String,
     val color: SegmentColor
 )
 
-enum class SegmentColor {
+internal enum class SegmentColor {
     CLASS_NAME, KEY, SEPARATOR, VALUE, BRACKET
 }
 
@@ -53,7 +53,7 @@ enum class SegmentColor {
  * Uses an iterative tokenizer to avoid recursion and WASM stack overflow.
  */
 @Composable
-fun KotlinObjectTreeViewer(
+internal fun KotlinObjectTreeViewer(
     text: String,
     modifier: Modifier = Modifier
 ) {
@@ -139,7 +139,7 @@ private fun TreeRowItem(row: TreeRow) {
                     DropdownMenuItem(
                         text = { Text("Copy key") },
                         onClick = {
-                            copyToClipboard(keyText)
+                            copyTextToClipboard(keyText)
                             showCopyMenu = false
                         }
                     )
@@ -148,7 +148,7 @@ private fun TreeRowItem(row: TreeRow) {
                     DropdownMenuItem(
                         text = { Text("Copy value") },
                         onClick = {
-                            copyToClipboard(valueText)
+                            copyTextToClipboard(valueText)
                             showCopyMenu = false
                         }
                     )
@@ -157,7 +157,7 @@ private fun TreeRowItem(row: TreeRow) {
                     DropdownMenuItem(
                         text = { Text("Copy both") },
                         onClick = {
-                            copyToClipboard("$keyText = $valueText")
+                            copyTextToClipboard("$keyText = $valueText")
                             showCopyMenu = false
                         }
                     )
@@ -166,7 +166,7 @@ private fun TreeRowItem(row: TreeRow) {
                 DropdownMenuItem(
                     text = { Text("Copy line") },
                     onClick = {
-                        copyToClipboard(fullLine)
+                        copyTextToClipboard(fullLine)
                         showCopyMenu = false
                     }
                 )
@@ -175,15 +175,13 @@ private fun TreeRowItem(row: TreeRow) {
     }
 }
 
-private fun copyToClipboard(text: String) {
-    js("navigator.clipboard.writeText(text)")
-}
+
 
 /**
  * Iterative tokenizer that converts Kotlin toString() output into flat display rows.
  * Uses a class to avoid closure overhead that can cause WASM compiler OOM.
  */
-object KotlinTokenizer {
+internal object KotlinTokenizer {
 
     fun tokenize(input: String): List<TreeRow> {
         val trimmed = input.trim()

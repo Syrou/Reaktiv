@@ -15,6 +15,8 @@ import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.tooling.ToolingLogic
 import io.github.syrou.reaktiv.introspection.tooling.createToolingModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.network.ktor.ReaktivNetworkInspection
+import io.ktor.client.HttpClientConfig
 
 fun toolingModule(context: Context): Module<*, *>? = createToolingModule(
     config = IntrospectionConfig(
@@ -41,6 +43,10 @@ fun toolingModule(context: Context): Module<*, *>? = createToolingModule(
 }
 
 fun toolingScreens(): List<Screen> = listOf(DevToolsScreen)
+
+fun HttpClientConfig<*>.attachNetworkInspection() {
+    install(ReaktivNetworkInspection)
+}
 
 suspend fun exportCapturedSession(store: StoreAccessor): String? =
     store.selectLogic<ToolingLogic>().exportSessionToDownloads()

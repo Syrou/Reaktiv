@@ -1,16 +1,11 @@
 package io.github.syrou.reaktiv.core
 
-import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
-import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
-import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
-import io.github.syrou.reaktiv.core.tracing.LogicObserver
-import io.github.syrou.reaktiv.core.tracing.LogicTracer
+import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -34,40 +29,78 @@ object DispatchTraceModule : Module<DispatchTraceState, DispatchTraceAction> {
     override val createLogic: (StoreAccessor) -> ModuleLogic = { object : ModuleLogic() {} }
 }
 
+@Serializable
+data class SlowReducerState(val count: Int = 0) : ModuleState
+
+sealed class SlowReducerAction : ModuleAction(SlowReducerModule::class) {
+    data object Increment : SlowReducerAction()
+}
+
+object SlowReducerModule : Module<SlowReducerState, SlowReducerAction> {
+    override val initialState = SlowReducerState()
+    override val reducer: (SlowReducerState, SlowReducerAction) -> SlowReducerState = { state, action ->
+        when (action) {
+            SlowReducerAction.Increment -> {
+                burnMillis(10)
+                state.copy(count = state.count + 1)
+            }
+        }
+    }
+    override val createLogic: (StoreAccessor) -> ModuleLogic = { object : ModuleLogic() {} }
+}
+
+internal fun burnMillis(ms: Long) {
+    val start = currentTimeMillis()
+    var spin = 0L
+    while (currentTimeMillis() - start < ms) {
+        spin += 1
+    }
+    check(spin >= 0)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class DispatchTracingTest {
 
-    private class RecordingObserver : LogicObserver {
-        val started = mutableListOf<LogicMethodStart>()
-        val completed = mutableListOf<LogicMethodCompleted>()
-        val failed = mutableListOf<LogicMethodFailed>()
+    private class RecordingInstrumentation : DispatchInstrumentation {
+        class Started(val actionType: String?, val queueWaitMs: Long, val queueDepth: Long)
 
-        override fun onMethodStart(event: LogicMethodStart) {
-            started.add(event)
+        val started = mutableListOf<Started>()
+        val completed = mutableListOf<Pair<String, Boolean>>()
+        val phases = mutableListOf<Pair<String, Long>>()
+        private var tokenCounter = 0
+
+        override suspend fun onDispatchStarted(
+            action: ModuleAction,
+            queueWaitMs: Long,
+            queueDepth: Long
+        ): String {
+            started.add(Started(action::class.simpleName, queueWaitMs, queueDepth))
+            tokenCounter += 1
+            return "token-$tokenCounter"
         }
 
-        override fun onMethodCompleted(event: LogicMethodCompleted) {
-            completed.add(event)
+        override fun onDispatchCompleted(token: String, applied: Boolean, durationMs: Long) {
+            completed.add(token to applied)
         }
 
-        override fun onMethodFailed(event: LogicMethodFailed) {
-            failed.add(event)
-        }
+        override fun onDispatchFailed(token: String, error: Throwable, durationMs: Long) {}
 
-        fun dispatchStarts() = started.filter { it.logicClass == "StoreDispatch" }
+        override suspend fun onDispatchDropped(action: ModuleAction) {}
 
-        fun dispatchCompletions() = completed.filter { completion ->
-            dispatchStarts().any { it.callId == completion.callId }
-        }
-    }
+        override fun newDispatchDecorator(): DispatchStepDecorator =
+            DispatchStepDecorator { name, step ->
+                { action ->
+                    val startedAt = currentTimeMillis()
+                    step(action)
+                    phases.add(name to currentTimeMillis() - startedAt)
+                }
+            }
 
-    @AfterTest
-    fun tearDown() {
-        LogicTracer.clearObservers()
+        override suspend fun onExternalControlChanged(enabled: Boolean) {}
     }
 
     @Test
-    fun `processed dispatch is traced with queue metrics`() =
+    fun `processed dispatch reports queue metrics and completion`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -76,26 +109,23 @@ class DispatchTracingTest {
             }
             advanceUntilIdle()
 
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
 
             store.dispatch(DispatchTraceAction.Increment)
             advanceUntilIdle()
 
-            val starts = observer.dispatchStarts()
-            assertEquals(1, starts.size)
-            assertEquals("Increment", starts[0].methodName)
-            assertTrue(starts[0].params.containsKey("queueWaitMs"))
-            assertTrue((starts[0].params["queueDepth"]?.toInt() ?: 0) >= 1)
+            assertEquals(1, instrumentation.started.size)
+            assertEquals("Increment", instrumentation.started[0].actionType)
+            assertTrue(instrumentation.started[0].queueDepth >= 1)
 
-            val completions = observer.dispatchCompletions()
-            assertEquals(1, completions.size)
-            assertEquals("Processed", completions[0].result)
+            assertEquals(1, instrumentation.completed.size)
+            assertEquals(true, instrumentation.completed[0].second)
             store.cleanup()
         }
 
     @Test
-    fun `blocked dispatch reports Blocked`() =
+    fun `blocked dispatch reports an unapplied completion`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val blocking: Middleware = { action, _, _, updatedState ->
@@ -110,20 +140,69 @@ class DispatchTracingTest {
             }
             advanceUntilIdle()
 
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
 
             store.dispatch(DispatchTraceAction.Increment)
             advanceUntilIdle()
 
-            val completions = observer.dispatchCompletions()
-            assertEquals(1, completions.size)
-            assertEquals("Blocked", completions[0].result)
+            assertEquals(1, instrumentation.completed.size)
+            assertEquals(false, instrumentation.completed[0].second)
             store.cleanup()
         }
 
     @Test
-    fun `no dispatch trace without an observer`() =
+    fun `a slow reducer reports its phase self time`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(SlowReducerModule)
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
+
+            store.dispatch(SlowReducerAction.Increment)
+            advanceUntilIdle()
+
+            val reducerPhase = instrumentation.phases.single { it.first == "reducer" }
+            assertTrue(reducerPhase.second >= 5L, "Reducer self time was ${reducerPhase.second}")
+            store.cleanup()
+        }
+
+    @Test
+    fun `a slow middleware reports a named phase excluding inner chain time`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val slow: Middleware = { action, _, _, updatedState ->
+                burnMillis(10)
+                updatedState(action)
+            }
+            val store = createStore {
+                module(SlowReducerModule)
+                middlewares(slow)
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
+
+            store.dispatch(SlowReducerAction.Increment)
+            advanceUntilIdle()
+
+            val middlewarePhase = instrumentation.phases.single { it.first.contains("[0]") }
+            assertTrue(middlewarePhase.second >= 5L)
+            val reducerPhase = instrumentation.phases.single { it.first == "reducer" }
+            assertTrue(reducerPhase.second >= 5L)
+            assertTrue(middlewarePhase.second >= reducerPhase.second)
+            store.cleanup()
+        }
+
+    @Test
+    fun `no instrumentation means dispatch runs untimed`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -135,9 +214,9 @@ class DispatchTracingTest {
             store.dispatch(DispatchTraceAction.Increment)
             advanceUntilIdle()
 
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
-            assertEquals(0, observer.dispatchStarts().size)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
+            assertEquals(0, instrumentation.started.size)
             store.cleanup()
         }
 }

@@ -55,9 +55,33 @@ import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.ui.components.ActionStream
 import io.github.syrou.reaktiv.devtools.ui.components.ClientList
 import io.github.syrou.reaktiv.devtools.ui.components.ConnectionStatus
+import io.github.syrou.reaktiv.devtools.ui.components.FindingsPanel
 import io.github.syrou.reaktiv.devtools.ui.components.GhostImportDialog
+import io.github.syrou.reaktiv.devtools.ui.components.CommandPalette
+import io.github.syrou.reaktiv.devtools.ui.components.HelpOverlay
+import io.github.syrou.reaktiv.devtools.ui.components.MarkerDialog
+import io.github.syrou.reaktiv.devtools.ui.components.NetworkDetailPanel
+import io.github.syrou.reaktiv.devtools.ui.components.OnboardingPanel
+import io.github.syrou.reaktiv.devtools.ui.components.PaletteCommand
+import io.github.syrou.reaktiv.devtools.ui.components.SessionTimeline
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import io.github.syrou.reaktiv.devtools.ui.components.PerformancePanel
 import io.github.syrou.reaktiv.devtools.ui.components.StateViewer
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -74,7 +98,7 @@ import kotlinx.coroutines.launch
  * ```
  */
 @Composable
-fun DevToolsApp(store: Store, serverUrl: String = "ws://localhost:8080/ws") {
+internal fun DevToolsApp(store: Store, serverUrl: String = "ws://localhost:8080/ws") {
     println("DevToolsApp: Starting with serverUrl=$serverUrl")
     val storePrepared by store.initialized.collectAsState()
     println("storePrepared: $storePrepared")
@@ -110,15 +134,104 @@ fun DevToolsApp(store: Store, serverUrl: String = "ws://localhost:8080/ws") {
     println("DevToolsApp: Inside StoreProvider")
 
     if(storePrepared) {
-        DevToolsContent(store)
+        DevToolsContent(store, serverUrl)
     }
 }
 
 @Composable
-private fun DevToolsContent(store: Store) {
+private fun DevToolsContent(store: Store, serverUrl: String) {
     val state by composeState<DevToolsUiState>()
     val dispatch = rememberDispatcher()
     val scope = rememberCoroutineScope()
+
+    var showPalette by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
+    var showMarkerDialog by remember { mutableStateOf(false) }
+    var searchFocused by remember { mutableStateOf(false) }
+    var autoPlaying by remember { mutableStateOf(false) }
+    val searchFocusRequester = remember { FocusRequester() }
+    val rootFocusRequester = remember { FocusRequester() }
+    var splitFraction by remember { mutableStateOf(0.6f) }
+    var contentWidthPx by remember { mutableStateOf(0f) }
+
+    fun seek(index: Int) {
+        if (state.actionStateHistory.isEmpty()) return
+        if (state.autoSelectLatest) {
+            dispatch(DevToolsUiAction.ToggleAutoSelectLatest)
+        }
+        val clamped = index.coerceIn(0, state.actionStateHistory.size - 1)
+        if (state.timeTravelEnabled) {
+            dispatch(DevToolsUiAction.SetTimeTravelPosition(clamped))
+        } else {
+            dispatch(DevToolsUiAction.SelectAction(clamped))
+        }
+    }
+
+    fun dropMarker() {
+        if (state.selectedPublisher != null && state.pinnedTimeMs != null) {
+            showMarkerDialog = true
+        }
+    }
+
+    fun markerTargetDescription(): String {
+        val pinned = state.pinnedTimeMs ?: return ""
+        val sessionStart = state.actionStateHistory.firstOrNull()?.timestamp ?: pinned
+        val into = (pinned - sessionStart).coerceAtLeast(0L).milliseconds
+        return "At pinned time $into into the session"
+    }
+
+    fun confirmMarker(label: String, note: String) {
+        val publisher = state.selectedPublisher ?: return
+        val pinned = state.pinnedTimeMs ?: return
+        val index = state.actionStateHistory.withIndex().minByOrNull { (_, event) ->
+            val distance = event.timestamp - pinned
+            if (distance < 0) -distance else distance
+        }?.index ?: -1
+        scope.launch {
+            val logic = DevToolsUiModule.selectLogicTyped(store)
+            logic.addMarkerOnPublisher(
+                publisherClientId = publisher,
+                label = label,
+                note = note,
+                timestampMs = pinned,
+                afterActionIndex = index
+            )
+        }
+        dispatch(DevToolsUiAction.SetPinnedTime(null))
+    }
+
+    fun exportSession() {
+        val publisher = state.connectedClients.find { it.clientId == state.selectedPublisher }
+        val sessionStart = state.publisherSessionStart
+        if (publisher != null && sessionStart != null) {
+            scope.launch {
+                val logic = DevToolsUiModule.selectLogicTyped(store)
+                val json = logic.exportSessionAsGhost(
+                    clientInfo = publisher,
+                    actionHistory = state.actionStateHistory,
+                    logicEvents = state.logicMethodEvents,
+                    sessionStartTime = sessionStart,
+                    initialStateJson = state.initialStateJson,
+                    crashEvent = state.crashEvent,
+                    stateReads = state.stateReads,
+                    markers = state.markers
+                )
+                downloadJson(json, "session_" + publisher.clientId + ".json")
+            }
+        }
+    }
+
+    fun toggleTimeTravel() {
+        if (state.actionStateHistory.isNotEmpty()) {
+            autoPlaying = false
+            dispatch(DevToolsUiAction.ToggleTimeTravel)
+        }
+    }
+
+    LaunchedEffect(Unit) { rootFocusRequester.requestFocus() }
+    LaunchedEffect(state.timeTravelEnabled) {
+        if (!state.timeTravelEnabled) autoPlaying = false
+    }
 
     LaunchedEffect(state.timeTravelEnabled, state.timeTravelPosition, state.selectedPublisher) {
         val publisher = state.selectedPublisher
@@ -149,32 +262,170 @@ private fun DevToolsContent(store: Store) {
     Surface(
         modifier = Modifier.fillMaxSize()
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRequester(rootFocusRequester)
+                .focusable()
+                .onKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                    if ((event.isCtrlPressed || event.isMetaPressed) && event.key == Key.K) {
+                        showPalette = !showPalette
+                        return@onKeyEvent true
+                    }
+                    if (event.key == Key.Escape) {
+                        return@onKeyEvent when {
+                            showHelp -> {
+                                showHelp = false
+                                true
+                            }
+                            showPalette -> {
+                                showPalette = false
+                                true
+                            }
+                            state.devicePanelExpanded -> {
+                                dispatch(DevToolsUiAction.ToggleDevicePanel)
+                                true
+                            }
+                            else -> false
+                        }
+                    }
+                    if (searchFocused || showPalette || showMarkerDialog || state.showImportGhostDialog) {
+                        return@onKeyEvent false
+                    }
+                    when (event.key) {
+                        Key.Slash -> {
+                            if (event.isShiftPressed) showHelp = true else searchFocusRequester.requestFocus()
+                            true
+                        }
+                        Key.T -> {
+                            toggleTimeTravel()
+                            true
+                        }
+                        Key.Spacebar -> {
+                            if (state.timeTravelEnabled) autoPlaying = !autoPlaying
+                            true
+                        }
+                        Key.J, Key.DirectionLeft -> {
+                            seek((state.selectedActionIndex ?: state.actionStateHistory.size) - 1)
+                            true
+                        }
+                        Key.K, Key.DirectionRight -> {
+                            seek((state.selectedActionIndex ?: -1) + 1)
+                            true
+                        }
+                        Key.One -> {
+                            dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.STATE))
+                            true
+                        }
+                        Key.Two -> {
+                            dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.PERFORMANCE))
+                            true
+                        }
+                        Key.Three -> {
+                            dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.FINDINGS))
+                            true
+                        }
+                        Key.Four -> {
+                            dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.NETWORK))
+                            true
+                        }
+                        Key.M -> {
+                            dropMarker()
+                            true
+                        }
+                        Key.G -> {
+                            dispatch(DevToolsUiAction.ShowImportGhostDialog)
+                            true
+                        }
+                        Key.E -> {
+                            exportSession()
+                            true
+                        }
+                        Key.D -> {
+                            dispatch(DevToolsUiAction.ToggleDevicePanel)
+                            true
+                        }
+                        else -> false
+                    }
+                }
+        ) {
             // Main content
             Column(modifier = Modifier.fillMaxSize()) {
                 ConnectionStatus(
                     connectionState = state.connectionState,
                     deviceCount = state.connectedClients.size,
                     isDevicePanelExpanded = state.devicePanelExpanded,
-                    onToggleDevicePanel = { dispatch(DevToolsUiAction.ToggleDevicePanel) }
+                    onToggleDevicePanel = { dispatch(DevToolsUiAction.ToggleDevicePanel) },
+                    onReconnect = {
+                        scope.launch {
+                            DevToolsUiModule.selectLogicTyped(store)
+                                .reconnect("devtools-ui", "DevTools UI", "WASM Browser")
+                        }
+                    }
                 )
 
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
                         .weight(1f)
+                        .onSizeChanged { contentWidthPx = it.width.toFloat() }
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .weight(0.6f)
+                            .weight(splitFraction)
                     ) {
+                        if (state.actionStateHistory.isNotEmpty()) {
+                            SessionTimeline(
+                                dataRevision = state.dataRevision,
+                                actions = state.actionStateHistory,
+                                logicMethodEvents = state.logicMethodEvents,
+                                markers = state.markers,
+                                crash = state.crashEvent?.info,
+                                networkEvents = state.networkEvents,
+                                selectedActionIndex = state.selectedActionIndex,
+                                selectedSpanCallId = state.selectedLogicMethodCallId,
+                                selectedNetworkRequestId = state.selectedNetworkRequestId,
+                                pinnedTimeMs = state.pinnedTimeMs,
+                                onPinTime = { dispatch(DevToolsUiAction.SetPinnedTime(it)) },
+                                onSeek = { index -> seek(index) },
+                                onSelectSpan = { callId ->
+                                    dispatch(DevToolsUiAction.SelectLogicMethodEvent(callId))
+                                },
+                                onSelectNetwork = { requestId ->
+                                    dispatch(DevToolsUiAction.SelectNetworkRequest(requestId))
+                                },
+                                canDropMarker = state.selectedPublisher != null && state.pinnedTimeMs != null,
+                                onDropMarker = { dropMarker() }
+                            )
+                            Divider(modifier = Modifier.fillMaxWidth().height(1.dp))
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                        if (state.actionStateHistory.isEmpty() && state.logicMethodEvents.isEmpty()) {
+                            OnboardingPanel(
+                                serverUrl = serverUrl,
+                                hasClients = state.connectedClients.any {
+                                    !it.isGhost && it.clientId != "devtools-ui"
+                                },
+                                onImportGhost = { dispatch(DevToolsUiAction.ShowImportGhostDialog) }
+                            )
+                        } else {
                         ActionStream(
+                            dataRevision = state.dataRevision,
                             actions = state.actionStateHistory,
                             logicMethodEvents = state.logicMethodEvents,
                             crashEvent = state.crashEvent,
+                            markers = state.markers,
+                            deviceLogs = state.deviceLogs,
+                            networkEvents = state.networkEvents,
                             selectedIndex = state.selectedActionIndex,
                             selectedLogicMethodCallId = state.selectedLogicMethodCallId,
+                            selectedNetworkRequestId = state.selectedNetworkRequestId,
                             crashSelected = state.crashSelected,
                             autoSelectLatest = state.autoSelectLatest,
                             excludedActionTypes = state.excludedActionTypes,
@@ -183,18 +434,30 @@ private fun DevToolsContent(store: Store) {
                             timeTravelEnabled = state.timeTravelEnabled,
                             showActions = state.showActions,
                             showLogicMethods = state.showLogicMethods,
+                            showLogs = state.showLogs,
+                            showNetwork = state.showNetwork,
+                            searchQuery = state.searchQuery,
+                            onSearchQueryChange = { dispatch(DevToolsUiAction.SetSearchQuery(it)) },
+                            searchFocusRequester = searchFocusRequester,
+                            onSearchFocusChanged = { searchFocused = it },
                             onSelectAction = { dispatch(DevToolsUiAction.SelectAction(it)) },
                             onSelectLogicMethod = { dispatch(DevToolsUiAction.SelectLogicMethodEvent(it)) },
+                            onSelectNetworkRequest = { dispatch(DevToolsUiAction.SelectNetworkRequest(it)) },
                             onSelectCrash = { dispatch(DevToolsUiAction.SelectCrash(it)) },
+                            onMarkerClick = { marker ->
+                                if (marker.afterActionIndex >= 0) seek(marker.afterActionIndex)
+                            },
                             onToggleAutoSelect = { dispatch(DevToolsUiAction.ToggleAutoSelectLatest) },
                             onAddExclusion = { dispatch(DevToolsUiAction.AddActionExclusion(it)) },
                             onRemoveExclusion = { dispatch(DevToolsUiAction.RemoveActionExclusion(it)) },
                             onSetExclusions = { dispatch(DevToolsUiAction.SetActionExclusions(it)) },
                             onAddLogicMethodExclusion = { dispatch(DevToolsUiAction.AddLogicMethodExclusion(it)) },
                             onRemoveLogicMethodExclusion = { dispatch(DevToolsUiAction.RemoveLogicMethodExclusion(it)) },
-                            onToggleTimeTravel = { dispatch(DevToolsUiAction.ToggleTimeTravel) },
+                            onToggleTimeTravel = { toggleTimeTravel() },
                             onToggleShowActions = { dispatch(DevToolsUiAction.ToggleShowActions) },
                             onToggleShowLogicMethods = { dispatch(DevToolsUiAction.ToggleShowLogicMethods) },
+                            onToggleShowLogs = { dispatch(DevToolsUiAction.ToggleShowLogs) },
+                            onToggleShowNetwork = { dispatch(DevToolsUiAction.ToggleShowNetwork) },
                             onClear = { dispatch(DevToolsUiAction.ClearHistory) }
                         )
 
@@ -203,8 +466,11 @@ private fun DevToolsContent(store: Store) {
                                 currentPosition = state.timeTravelPosition,
                                 totalEvents = state.actionStateHistory.size,
                                 isGhostMode = state.activeGhostId != null,
+                                autoPlaying = autoPlaying,
+                                onAutoPlayingChange = { autoPlaying = it },
                                 onPositionChange = { dispatch(DevToolsUiAction.SetTimeTravelPosition(it)) },
                                 onClose = {
+                                    autoPlaying = false
                                     dispatch(DevToolsUiAction.ToggleTimeTravel)
                                     if (state.activeGhostId != null) {
                                         dispatch(DevToolsUiAction.SetActiveGhostId(null))
@@ -213,43 +479,109 @@ private fun DevToolsContent(store: Store) {
                                 modifier = Modifier.align(Alignment.BottomCenter)
                             )
                         }
+                        }
+                        }
                     }
 
-                    Divider(
+                    Box(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .width(1.dp)
+                            .width(6.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            .pointerInput(Unit) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    if (contentWidthPx > 0f) {
+                                        splitFraction = (splitFraction + dragAmount.x / contentWidthPx)
+                                            .coerceIn(0.3f, 0.8f)
+                                    }
+                                }
+                            }
                     )
 
                     Column(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .weight(0.4f)
+                            .weight(1f - splitFraction)
                     ) {
-                        TabRow(selectedTabIndex = if (state.showPerformancePanel) 1 else 0) {
+                        TabRow(selectedTabIndex = state.rightPanelTab.ordinal) {
                             Tab(
-                                selected = !state.showPerformancePanel,
-                                onClick = { dispatch(DevToolsUiAction.SetPerformancePanel(false)) },
+                                selected = state.rightPanelTab == RightPanelTab.STATE,
+                                onClick = { dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.STATE)) },
                                 text = { Text("State") }
                             )
                             Tab(
-                                selected = state.showPerformancePanel,
-                                onClick = { dispatch(DevToolsUiAction.SetPerformancePanel(true)) },
+                                selected = state.rightPanelTab == RightPanelTab.PERFORMANCE,
+                                onClick = { dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.PERFORMANCE)) },
                                 text = { Text("Performance") }
                             )
+                            Tab(
+                                selected = state.rightPanelTab == RightPanelTab.FINDINGS,
+                                onClick = { dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.FINDINGS)) },
+                                text = { Text("Findings") }
+                            )
+                            Tab(
+                                selected = state.rightPanelTab == RightPanelTab.NETWORK,
+                                onClick = { dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.NETWORK)) },
+                                text = { Text("Network") }
+                            )
                         }
-                        if (state.showPerformancePanel) {
+                        if (state.rightPanelTab == RightPanelTab.PERFORMANCE) {
                             PerformancePanel(
+                                dataRevision = state.dataRevision,
+                                logicMethodEvents = state.logicMethodEvents,
+                                actionStateHistory = state.actionStateHistory,
+                                initialStateJson = state.initialStateJson
+                            )
+                        } else if (state.rightPanelTab == RightPanelTab.NETWORK) {
+                            NetworkDetailPanel(
+                                networkEvents = state.networkEvents,
+                                selectedRequestId = state.selectedNetworkRequestId,
+                                bodies = state.networkBodies,
+                                filter = state.networkFilter,
+                                showStats = state.showNetworkStats,
+                                onFilterChange = { dispatch(DevToolsUiAction.SetNetworkFilter(it)) },
+                                onToggleStats = { dispatch(DevToolsUiAction.ToggleNetworkStats) },
+                                onExportHar = {
+                                    downloadJson(
+                                        harJson.encodeToString(
+                                            kotlinx.serialization.json.JsonObject.serializer(),
+                                            state.networkEvents.toHar()
+                                        ),
+                                        "reaktiv-network.har"
+                                    )
+                                },
+                                onSelectRequest = { dispatch(DevToolsUiAction.SelectNetworkRequest(it)) },
+                                onFetchBody = { requestId, part ->
+                                    val owner = state.networkEvents
+                                        .lastOrNull { it.event.id == requestId }
+                                        ?.clientId
+                                    if (owner != null) {
+                                        scope.launch {
+                                            val logic = DevToolsUiModule.selectLogicTyped(store)
+                                            logic.fetchNetworkBody(owner, requestId, part)
+                                        }
+                                    }
+                                }
+                            )
+                        } else if (state.rightPanelTab == RightPanelTab.FINDINGS) {
+                            FindingsPanel(
+                                dataRevision = state.dataRevision,
                                 logicMethodEvents = state.logicMethodEvents,
                                 actionStateHistory = state.actionStateHistory,
                                 initialStateJson = state.initialStateJson,
-                                warningFilter = state.performanceWarningFilter,
-                                onWarningFilterChange = {
-                                    dispatch(DevToolsUiAction.SetPerformanceWarningFilter(it))
+                                stateReads = state.stateReads,
+                                onSeekTimestamp = { ts ->
+                                    val index = state.actionStateHistory.withIndex().minByOrNull { (_, event) ->
+                                        val distance = event.timestamp - ts
+                                        if (distance < 0) -distance else distance
+                                    }?.index
+                                    if (index != null) seek(index)
                                 }
                             )
                         } else {
                             StateViewer(
+                                dataRevision = state.dataRevision,
                                 actionStateHistory = state.actionStateHistory,
                                 selectedActionIndex = state.selectedActionIndex,
                                 logicMethodEvents = state.logicMethodEvents,
@@ -327,25 +659,7 @@ private fun DevToolsContent(store: Store) {
                             }
                         },
                         onImportGhost = { dispatch(DevToolsUiAction.ShowImportGhostDialog) },
-                        onExportSession = {
-                            val publisher = state.connectedClients.find { it.clientId == state.selectedPublisher }
-                            val sessionStart = state.publisherSessionStart
-                            if (publisher != null && sessionStart != null) {
-                                scope.launch {
-                                    val logic = DevToolsUiModule.selectLogicTyped(store)
-                                    val json = logic.exportSessionAsGhost(
-                                        clientInfo = publisher,
-                                        actionHistory = state.actionStateHistory,
-                                        logicEvents = state.logicMethodEvents,
-                                        sessionStartTime = sessionStart,
-                                        initialStateJson = state.initialStateJson,
-                                        crashEvent = state.crashEvent,
-                                        stateReads = state.stateReads
-                                    )
-                                    downloadJson(json, "session_${publisher.clientId}.json")
-                                }
-                            }
-                        }
+                        onExportSession = { exportSession() }
                     )
                 }
             }
@@ -362,6 +676,64 @@ private fun DevToolsContent(store: Store) {
                     onDismiss = { dispatch(DevToolsUiAction.HideImportGhostDialog) }
                 )
             }
+
+            if (showPalette) {
+                CommandPalette(
+                    commands = listOf(
+                        PaletteCommand("Toggle time travel", "t", state.actionStateHistory.isNotEmpty()) {
+                            toggleTimeTravel()
+                        },
+                        PaletteCommand("Play or pause playback", "space", state.timeTravelEnabled) {
+                            autoPlaying = !autoPlaying
+                        },
+                        PaletteCommand("Jump to session start", null, state.timeTravelEnabled) { seek(0) },
+                        PaletteCommand("Jump to session end", null, state.timeTravelEnabled) {
+                            seek(state.actionStateHistory.size - 1)
+                        },
+                        PaletteCommand("Show state tab", "1") {
+                            dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.STATE))
+                        },
+                        PaletteCommand("Show performance tab", "2") {
+                            dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.PERFORMANCE))
+                        },
+                        PaletteCommand("Show findings tab", "3") {
+                            dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.FINDINGS))
+                        },
+                        PaletteCommand(
+                            "Drop marker at pinned time", "m",
+                            state.selectedPublisher != null && state.pinnedTimeMs != null
+                        ) { dropMarker() },
+                        PaletteCommand(
+                            "Export session", "e",
+                            state.canExportSession && state.selectedPublisher != null
+                        ) { exportSession() },
+                        PaletteCommand("Import ghost session", "g") {
+                            dispatch(DevToolsUiAction.ShowImportGhostDialog)
+                        },
+                        PaletteCommand("Toggle device panel", "d") {
+                            dispatch(DevToolsUiAction.ToggleDevicePanel)
+                        },
+                        PaletteCommand(
+                            "Clear history", null,
+                            state.actionStateHistory.isNotEmpty() || state.logicMethodEvents.isNotEmpty()
+                        ) { dispatch(DevToolsUiAction.ClearHistory) },
+                        PaletteCommand("Keyboard shortcuts", "?") { showHelp = true }
+                    ),
+                    onDismiss = { showPalette = false }
+                )
+            }
+
+            if (showHelp) {
+                HelpOverlay { showHelp = false }
+            }
+
+            if (showMarkerDialog) {
+                MarkerDialog(
+                    targetDescription = markerTargetDescription(),
+                    onConfirm = { label, note -> confirmMarker(label, note) },
+                    onDismiss = { showMarkerDialog = false }
+                )
+            }
         }
     }
 }
@@ -375,20 +747,21 @@ private fun TimeTravelBar(
     currentPosition: Int,
     totalEvents: Int,
     isGhostMode: Boolean,
+    autoPlaying: Boolean,
+    onAutoPlayingChange: (Boolean) -> Unit,
     onPositionChange: (Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var playbackSpeed by remember { mutableStateOf(1f) }
     var showSpeedMenu by remember { mutableStateOf(false) }
-    var autoPlaying by remember { mutableStateOf(false) }
 
     LaunchedEffect(autoPlaying, currentPosition, playbackSpeed) {
         if (autoPlaying && currentPosition < totalEvents - 1) {
             delay((1000 / playbackSpeed).toLong())
             onPositionChange(currentPosition + 1)
         } else if (currentPosition >= totalEvents - 1) {
-            autoPlaying = false
+            onAutoPlayingChange(false)
         }
     }
 
@@ -487,7 +860,7 @@ private fun TimeTravelBar(
                     )
                 }
 
-                IconButton(onClick = { autoPlaying = !autoPlaying }) {
+                IconButton(onClick = { onAutoPlayingChange(!autoPlaying) }) {
                     Icon(
                         imageVector = if (autoPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (autoPlaying) "Pause" else "Play",
@@ -561,3 +934,5 @@ private fun downloadJson(json: String, filename: String) {
         })(json, filename)
     """)
 }
+
+private val harJson: kotlinx.serialization.json.Json = kotlinx.serialization.json.Json { prettyPrint = true }

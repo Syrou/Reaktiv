@@ -12,6 +12,9 @@ import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
 import io.github.syrou.reaktiv.introspection.protocol.SessionExport
 import io.github.syrou.reaktiv.introspection.protocol.SessionExportFormat
+import io.github.syrou.reaktiv.introspection.network.NetworkBodyPart
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
+import io.github.syrou.reaktiv.introspection.protocol.SessionMarker
 import io.github.syrou.reaktiv.introspection.tooling.ServiceStatus
 import kotlinx.serialization.Serializable
 
@@ -23,6 +26,10 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 public sealed class DevToolsMessage {
+
+    public sealed interface FromClient {
+        public val clientId: String
+    }
 
     @Serializable
     public data class ClientRegistration(
@@ -75,27 +82,27 @@ public sealed class DevToolsMessage {
      */
     @Serializable
     public data class LogicMethodStarted(
-        val clientId: String,
+        override val clientId: String,
         val event: CoreLogicMethodStart
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), FromClient
 
     /**
      * Sent when a traced logic method completes successfully.
      */
     @Serializable
     public data class LogicMethodCompleted(
-        val clientId: String,
+        override val clientId: String,
         val event: CoreLogicMethodCompleted
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), FromClient
 
     /**
      * Sent when a traced logic method fails with an exception.
      */
     @Serializable
     public data class LogicMethodFailed(
-        val clientId: String,
+        override val clientId: String,
         val event: CoreLogicMethodFailed
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), FromClient
 
     /**
      * Registers a ghost device from an imported session.
@@ -182,15 +189,73 @@ public sealed class DevToolsMessage {
      */
     @Serializable
     public data class CrashReport(
-        val clientId: String,
+        override val clientId: String,
         val crash: CrashInfo,
         val sessionJson: String?
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), FromClient
 
     @Serializable
     public data class StateReadReport(
-        val clientId: String,
+        override val clientId: String,
         val read: StateRead
+    ) : DevToolsMessage(), FromClient
+
+    /**
+     * A batch of device log lines forwarded from a publisher.
+     */
+    @Serializable
+    public data class LogBatch(
+        override val clientId: String,
+        val entries: List<DeviceLogEntry>
+    ) : DevToolsMessage(), FromClient
+
+    @Serializable
+    public data class NetworkBatch(
+        override val clientId: String,
+        val events: List<NetworkRequestCapture>
+    ) : DevToolsMessage(), FromClient
+
+    @Serializable
+    public data class FetchNetworkBody(
+        val targetClientId: String,
+        val requestId: String,
+        val part: NetworkBodyPart,
+        val offset: Int = 0,
+        val maxBytes: Int = 64 * 1024
+    ) : DevToolsMessage()
+
+    @Serializable
+    public data class NetworkBodyChunk(
+        override val clientId: String,
+        val requestId: String,
+        val part: NetworkBodyPart,
+        val content: String,
+        val offset: Int,
+        val nextOffset: Int,
+        val totalBytes: Int,
+        val isLast: Boolean,
+        val available: Boolean = true
+    ) : DevToolsMessage(), FromClient
+
+    /**
+     * A marker captured on the publisher, relayed to observers.
+     */
+    @Serializable
+    public data class MarkerAdded(
+        override val clientId: String,
+        val marker: SessionMarker
+    ) : DevToolsMessage(), FromClient
+
+    /**
+     * A request from an observer to drop a marker into the target client's capture.
+     */
+    @Serializable
+    public data class AddMarkerRequest(
+        val targetClientId: String,
+        val label: String,
+        val note: String = "",
+        val timestampMs: Long? = null,
+        val afterActionIndex: Int = -1
     ) : DevToolsMessage()
 
     /**
@@ -199,9 +264,9 @@ public sealed class DevToolsMessage {
      */
     @Serializable
     public data class SessionHistorySync(
-        val clientId: String,
+        override val clientId: String,
         val history: SessionHistory
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), FromClient
 
 
     /**
@@ -210,12 +275,20 @@ public sealed class DevToolsMessage {
      */
     @Serializable
     public data class SessionHistoryChunk(
-        val clientId: String,
+        override val clientId: String,
         val chunkIndex: Int,
         val totalChunks: Int,
         val history: SessionHistory
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), FromClient
 }
+
+@Serializable
+public data class DeviceLogEntry(
+    val level: String,
+    val category: String,
+    val message: String,
+    val timestampMs: Long
+)
 
 @Serializable
 public enum class ClientRole {

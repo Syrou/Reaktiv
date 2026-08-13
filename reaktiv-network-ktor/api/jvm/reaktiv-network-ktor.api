@@ -1,0 +1,22 @@
+public final class io/github/syrou/reaktiv/network/ktor/ReaktivNetworkInspectionConfig {
+	public fun <init> ()V
+	public final fun getBodyRetentionBytes ()J
+	public final fun getBodyRetentionCount ()I
+	public final fun getCaptureBodies ()Z
+	public final fun getHardBodyLimitBytes ()J
+	public final fun getMaxBodyBytes ()I
+	public final fun getRedactedHeaders ()Ljava/util/Set;
+	public final fun getShouldCaptureBody ()Lkotlin/jvm/functions/Function1;
+	public final fun setBodyRetentionBytes (J)V
+	public final fun setBodyRetentionCount (I)V
+	public final fun setCaptureBodies (Z)V
+	public final fun setHardBodyLimitBytes (J)V
+	public final fun setMaxBodyBytes (I)V
+	public final fun setRedactedHeaders (Ljava/util/Set;)V
+	public final fun setShouldCaptureBody (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class io/github/syrou/reaktiv/network/ktor/ReaktivNetworkInspectionKt {
+	public static final fun getReaktivNetworkInspection ()Lio/ktor/client/plugins/api/ClientPlugin;
+}
+

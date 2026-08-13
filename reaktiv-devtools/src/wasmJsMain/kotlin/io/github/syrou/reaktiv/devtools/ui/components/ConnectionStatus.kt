@@ -21,22 +21,23 @@ import io.github.syrou.reaktiv.devtools.ui.DevToolsColors
  * Displays the current connection status to the DevTools server.
  */
 @Composable
-fun ConnectionStatus(
+internal fun ConnectionStatus(
     connectionState: ConnectionState,
     deviceCount: Int = 0,
     isDevicePanelExpanded: Boolean = false,
-    onToggleDevicePanel: () -> Unit = {}
+    onToggleDevicePanel: () -> Unit = {},
+    onReconnect: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(16.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(12.dp)
+                .size(8.dp)
                 .background(
                     color = when (connectionState) {
                         ConnectionState.CONNECTED -> DevToolsColors.success
@@ -53,12 +54,30 @@ fun ConnectionStatus(
         Text(
             text = when (connectionState) {
                 ConnectionState.CONNECTED -> "Connected"
-                ConnectionState.CONNECTING -> "Connecting..."
+                ConnectionState.CONNECTING -> "Connecting"
                 ConnectionState.DISCONNECTED -> "Disconnected"
-                ConnectionState.ERROR -> "Connection Error"
+                ConnectionState.ERROR -> "Connection lost"
             },
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.labelMedium
         )
+
+        if (connectionState == ConnectionState.ERROR || connectionState == ConnectionState.DISCONNECTED) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Reconnect",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable { onReconnect() }
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Anything shown below is the last data received.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 

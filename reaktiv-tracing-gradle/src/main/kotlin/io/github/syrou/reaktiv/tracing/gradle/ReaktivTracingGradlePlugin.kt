@@ -38,6 +38,7 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         const val GROUP_ID = "io.github.syrou"
         const val COMPILER_ARTIFACT_ID = "reaktiv-tracing-compiler"
         const val ANNOTATIONS_ARTIFACT_ID = "reaktiv-tracing-annotations"
+        const val RUNTIME_ARTIFACT_ID = "reaktiv-tracing-runtime"
     }
 
     private lateinit var extension: ReaktivTracingExtension
@@ -75,6 +76,10 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 project.dependencies.add(
                     config.name,
                     "$GROUP_ID:$ANNOTATIONS_ARTIFACT_ID:$version"
+                )
+                project.dependencies.add(
+                    config.name,
+                    "$GROUP_ID:$RUNTIME_ARTIFACT_ID:$version"
                 )
             }
         }

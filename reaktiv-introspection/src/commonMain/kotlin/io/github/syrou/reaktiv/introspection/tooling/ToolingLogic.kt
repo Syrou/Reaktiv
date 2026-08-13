@@ -4,11 +4,13 @@ import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.tracing.DispatchOriginTracker
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.core.tracing.StateReadTracker
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.introspection.CrashHandler
+import io.github.syrou.reaktiv.introspection.DispatchTracingInstrumentation
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.StallWatchdog
 import io.github.syrou.reaktiv.introspection.PlatformContext
@@ -39,6 +41,7 @@ public class ToolingLogic internal constructor(
             (storeAccessor as? Store)?.serializersModule?.let { capture.attachStateSerializers(it) }
             if (config.installLogicTracing) {
                 logicObserver = IntrospectionLogicObserver(capture).also { LogicTracer.addObserver(it) }
+                (storeAccessor as? Store)?.setDispatchInstrumentation(DispatchTracingInstrumentation())
             }
             stateReadObserver = { read: StateRead -> capture.captureStateRead(read) }
                 .also { StateReadTracker.addObserver(it) }
@@ -97,6 +100,10 @@ public class ToolingLogic internal constructor(
 
     public fun getSessionCapture(): SessionCapture = capture
 
+    public suspend fun addMarker(label: String, note: String = "") {
+        capture.addMarker(label, note)
+    }
+
     public suspend fun exportSessionJson(): String = capture.exportSession()
 
     public suspend fun exportCrashSessionJson(throwable: Throwable): String =
@@ -121,6 +128,8 @@ public class ToolingLogic internal constructor(
             }
         }
         capture.clear()
+        (storeAccessor as? Store)?.setDispatchInstrumentation(null)
+        DispatchOriginTracker.clear()
         logicObserver?.let { LogicTracer.removeObserver(it) }
         logicObserver = null
         stateReadObserver?.let { StateReadTracker.removeObserver(it) }

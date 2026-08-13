@@ -5,17 +5,15 @@ package io.github.syrou.reaktiv.devtools.server
  *
  * Run this to start the server:
  * ```
- * ./gradlew :reaktiv-devtools:macosArm64Binaries
- * ./reaktiv-devtools/build/bin/macosArm64/releaseExecutable/reaktiv-devtools.kexe [ui-path]
+ * ./gradlew :reaktiv-devtools:runDevToolsServer
  * ```
  *
- * If ui-path is provided, the WASM UI will be served from that directory.
- * Otherwise, only the WebSocket endpoint will be available.
+ * Or run a built binary directly, optionally passing the UI directory to serve and a port:
+ * ```
+ * ./reaktiv-devtools.kexe build/dist/wasmJs/productionExecutable 8081
+ * ```
  *
- * Example with UI:
- * ```
- * ./reaktiv-devtools.kexe build/dist/wasmJs/productionExecutable
- * ```
+ * Without a UI directory only the WebSocket endpoint is available.
  */
 public fun main(args: Array<String>) {
     println("=".repeat(60))
@@ -23,7 +21,8 @@ public fun main(args: Array<String>) {
     println("=".repeat(60))
     println()
 
-    val uiPath = args.getOrNull(0)
+    val uiPath = args.getOrNull(0)?.takeIf { it.isNotBlank() }
+    val port = args.getOrNull(1)?.toIntOrNull() ?: 8080
 
-    DevToolsServer.start(port = 8080, host = "0.0.0.0", uiPath = uiPath)
+    DevToolsServer.start(port = port, host = "0.0.0.0", uiPath = uiPath)
 }

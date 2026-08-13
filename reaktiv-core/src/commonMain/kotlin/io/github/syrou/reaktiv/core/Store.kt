@@ -3,19 +3,17 @@
 package io.github.syrou.reaktiv.core
 
 import io.github.syrou.reaktiv.core.persistance.PersistenceManager
-import io.github.syrou.reaktiv.core.persistance.PersistenceStrategy
-import io.github.syrou.reaktiv.core.tracing.LogicTracer
-import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
+import io.github.syrou.reaktiv.core.util.CopyOnWriteRegistry
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -30,668 +28,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
-import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
-import io.github.syrou.reaktiv.core.util.reaktivJson
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.PolymorphicModuleBuilder
 import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.serializer
 import kotlin.coroutines.CoroutineContext
-import kotlin.jvm.JvmName
 import kotlin.reflect.KClass
-
-
-@RequiresOptIn(
-    message = "This API is for specialized DevTools and testing use only. " +
-            "Using it in application code bypasses MVLI patterns and is strongly discouraged.",
-    level = RequiresOptIn.Level.WARNING
-)
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
-public annotation class ExperimentalReaktivApi
-
-/**
- * Determines how the Store should handle a crash after listeners are notified.
- */
-public enum class CrashRecovery {
-    /**
-     * Navigate to crash screen and do NOT re-throw.
-     * The developer is responsible for reporting to Crashlytics via recordException().
-     */
-    NAVIGATE_TO_CRASH_SCREEN,
-
-    /**
-     * Let the crash propagate normally. Default behavior.
-     */
-    RETHROW
-}
-
-/**
- * Listener for crashes that occur during logic execution in the Store.
- *
- * Implementations can handle crash recovery (e.g., navigating to a crash screen)
- * and return a [CrashRecovery] to control whether the exception is re-thrown.
- *
- * The [action] parameter is provided for context when a crash is associated with a
- * specific action dispatch, and null when the crash occurred in a coroutine launched
- * via `storeAccessor.launch` from a logic method.
- */
-@ExperimentalReaktivApi
-public interface CrashListener {
-    public suspend fun onLogicCrash(exception: Throwable, action: ModuleAction?): CrashRecovery
-}
-
-
-/**
- * Marker interface for module state classes.
- *
- * States represent the data of your application at a given point in time.
- * They must be immutable and should be data classes marked with @Serializable.
- *
- * Example:
- * ```kotlin
- * @Serializable
- * data class CounterState(
- *     val count: Int = 0,
- *     val isLoading: Boolean = false,
- *     val error: String? = null
- * ) : ModuleState
- * ```
- */
-public interface ModuleState
-
-
-/**
- * Marker interface for high-priority actions.
- *
- * Actions implementing this interface bypass the normal queue and are processed
- * immediately. Use this for time-sensitive operations like cancellations or
- * emergency stops.
- *
- * Example:
- * ```kotlin
- * sealed class UrgentAction : ModuleAction(UrgentModule::class), HighPriorityAction {
- *     data object CancelOperation : UrgentAction()
- *     data object EmergencyStop : UrgentAction()
- * }
- * ```
- */
-public interface HighPriorityAction
-
-
-/**
- * Base class for module actions.
- *
- * Actions are events that describe changes in your application. They are dispatched
- * to the store to trigger state updates via reducers.
- *
- * Example:
- * ```kotlin
- * sealed class CounterAction : ModuleAction(CounterModule::class) {
- *     data object Increment : CounterAction()
- *     data object Decrement : CounterAction()
- *     data class SetCount(val value: Int) : CounterAction()
- * }
- * ```
- *
- * @param moduleTag The KClass of the module that handles this action
- */
-@Serializable
-public abstract class ModuleAction(@Transient internal val moduleTag: KClass<*> = KClass::class)
-
-public interface ExternalControlExempt
-
-
-public typealias Dispatch = (ModuleAction) -> Unit
-
-/**
- * Result of a dispatch operation, indicating whether the action was processed.
- */
-public sealed class DispatchResult {
-    /** Action was processed and applied to state */
-    public data object Processed : DispatchResult()
-
-    /** Action was blocked by middleware (e.g., spam protection) */
-    public data object Blocked : DispatchResult()
-
-    /** Action processing failed with an error */
-    public data class Error(val cause: Throwable) : DispatchResult()
-}
-
-/**
- * Internal envelope wrapping an action with an optional completion signal.
- * Used to track when async dispatch processing completes.
- */
-internal data class DispatchEnvelope(
-    val action: ModuleAction,
-    val completion: CompletableDeferred<DispatchResult>?,
-    val enqueuedAtMs: Long = 0L
-)
-
-
-public interface Logic
-
-
-/**
- * Base class for module logic implementations.
- *
- * Logic classes handle side effects, async operations, and complex business logic.
- * Define public suspend methods for operations that can be called from Composables
- * or other Logic classes.
- *
- * Example:
- * ```kotlin
- * class UserLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
- *     private val api = UserApi()
- *
- *     suspend fun loadUser(userId: String) {
- *         storeAccessor.dispatch(UserAction.SetLoading(true))
- *         try {
- *             val user = api.fetchUser(userId)
- *             storeAccessor.dispatch(UserAction.SetUser(user))
- *         } catch (e: Exception) {
- *             storeAccessor.dispatch(UserAction.SetError(e.message))
- *         } finally {
- *             storeAccessor.dispatch(UserAction.SetLoading(false))
- *         }
- *     }
- *
- *     suspend fun logout() {
- *         api.logout()
- *         storeAccessor.dispatch(UserAction.ClearUser)
- *     }
- * }
- * ```
- */
-public open class ModuleLogic : Logic {
-
-    /**
-     * Called on the **current** logic instance just before the store is reset.
-     *
-     * Override to clean up resources held by this logic instance — for example,
-     * running lifecycle handlers, releasing observers, or clearing caches — before
-     * the instance is discarded and a new one is created by [Module.createLogic].
-     *
-     * This is called after all operational coroutines have been cancelled and joined,
-     * but before modules are reinitialized. Suspend calls are safe here.
-     *
-     * Example:
-     * ```kotlin
-     * class MyLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
-     *     private var observer: SomeObserver? = null
-     *
-     *     init {
-     *         observer = SomeObserver()
-     *     }
-     *
-     *     override suspend fun beforeReset() {
-     *         observer?.release()
-     *         observer = null
-     *     }
-     * }
-     * ```
-     */
-    public open suspend fun beforeReset() {}
-
-    /**
-     * Called when the store enters or leaves external control.
-     *
-     * While a store is externally driven its state is authored by a remote publisher through
-     * [InternalStoreOperations.applyExternalStates], and every locally dispatched action that
-     * is not [ExternalControlExempt] is dropped. Override this to quiesce work that would
-     * otherwise compete with the incoming projection, such as start-up resolution or
-     * long-running observation.
-     *
-     * Invoked before the dispatch gate engages and after it disengages, so suspend calls and
-     * dispatches made from this hook are still processed normally.
-     *
-     * @param externallyDriven `true` when entering external control, `false` when leaving it
-     */
-    public open suspend fun onExternalControlChanged(externallyDriven: Boolean) {}
-}
-
-/**
- * The recommended interface for defining modules with type-safe logic access.
- *
- * ModuleWithLogic extends Module with typed logic, allowing direct access to
- * logic methods without type casting. This is the preferred pattern for new modules.
- *
- * Example:
- * ```kotlin
- * @Serializable
- * data class CounterState(val count: Int = 0) : ModuleState
- *
- * sealed class CounterAction : ModuleAction(CounterModule::class) {
- *     data object Increment : CounterAction()
- *     data class SetCount(val value: Int) : CounterAction()
- * }
- *
- * class CounterLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
- *     suspend fun incrementAsync() {
- *         delay(1000)
- *         storeAccessor.dispatch(CounterAction.Increment)
- *     }
- * }
- *
- * object CounterModule : ModuleWithLogic<CounterState, CounterAction, CounterLogic> {
- *     override val initialState = CounterState()
- *
- *     override val reducer: (CounterState, CounterAction) -> CounterState = { state, action ->
- *         when (action) {
- *             is CounterAction.Increment -> state.copy(count = state.count + 1)
- *             is CounterAction.SetCount -> state.copy(count = action.value)
- *         }
- *     }
- *
- *     override val createLogic: (StoreAccessor) -> CounterLogic = { CounterLogic(it) }
- * }
- * ```
- *
- * @param S The state type for this module (must implement ModuleState)
- * @param A The action type for this module (must extend ModuleAction)
- * @param L The logic type for this module (must extend ModuleLogic)
- */
-public interface ModuleWithLogic<S : ModuleState, A : ModuleAction, L : ModuleLogic> : Module<S, A> {
-
-    override val createLogic: (StoreAccessor) -> L
-
-    /**
-     * Select the typed logic instance from the store.
-     *
-     * @param store The store to select logic from
-     * @return The typed logic instance
-     */
-    public suspend fun selectLogicTyped(store: StoreAccessor): L {
-        @Suppress("UNCHECKED_CAST")
-        return selectLogic(store) as L
-    }
-}
-
-/**
- * Interface for defining modules in the MVLI architecture.
- *
- * A module owns a slice of application state, a reducer for transforming that state,
- * and a logic factory for creating the logic instance that handles side effects.
- *
- * For type-safe logic access without casting, prefer [ModuleWithLogic].
- */
-public interface Module<S : ModuleState, A : ModuleAction> {
-
-    public val initialState: S
-
-
-    public val reducer: (S, A) -> S
-
-
-    public val createLogic: (storeAccessor: StoreAccessor) -> ModuleLogic
-
-    /**
-     * Optional factory for creating a middleware provided by this module.
-     *
-     * When a module provides a middleware factory, the middleware will be created
-     * and automatically registered with the Store during initialization. Module
-     * middlewares are applied after explicitly registered middlewares (closer to
-     * the reducer in the chain).
-     *
-     * The middleware can use `storeAccessor.selectLogic<T>()` to access Logic,
-     * which will suspend until Logic is initialized.
-     *
-     * Example usage:
-     * ```kotlin
-     * class DevToolsModule(config: DevToolsConfig, scope: CoroutineScope)
-     *     : ModuleWithLogic<DevToolsState, DevToolsAction, DevToolsLogic> {
-     *
-     *     override val createMiddleware: (() -> Middleware) = {
-     *         DevToolsMiddleware(config, scope).middleware
-     *     }
-     * }
-     * ```
-     */
-    public val createMiddleware: (() -> Middleware)?
-        get() = null
-
-    public fun selectStateFlowNonSuspend(store: StoreAccessor): StateFlow<S> {
-        @Suppress("UNCHECKED_CAST")
-        return store.getStateFlowForModule(this) as? StateFlow<S>
-            ?: error("No state found for module $this")
-    }
-
-    public suspend fun selectLogic(store: StoreAccessor): ModuleLogic {
-        return store.getLogicForModule(this)
-            ?: error("No logic found for module $this")
-    }
-}
-
-internal data class ModuleInfo(
-    val module: Module<*, *>,
-    val state: MutableStateFlow<ModuleState>,
-    var logic: ModuleLogic? = null
-)
-
-
-/**
- * Type alias for middleware functions.
- *
- * Middleware allows you to intercept actions and perform additional operations
- * like logging, analytics, or side effects before and after the action is processed.
- *
- * Example:
- * ```kotlin
- * val loggingMiddleware: Middleware = { action, getAllStates, storeAccessor, updatedState ->
- *     println("Before: $action")
- *     val newState = updatedState(action)
- *     println("After: $newState")
- * }
- *
- * val store = createStore {
- *     module(MyModule)
- *     middlewares(loggingMiddleware)
- * }
- * ```
- *
- * @param action The action being dispatched
- * @param getAllStates Function to get all current module states
- * @param storeAccessor Access to dispatch, state selection, and logic selection
- * @param updatedState Function to continue processing the action and get the resulting state
- */
-public typealias Middleware = suspend (
-    action: ModuleAction,
-    getAllStates: suspend () -> Map<String, ModuleState>,
-    storeAccessor: StoreAccessor,
-    updatedState: suspend (ModuleAction) -> ModuleState,
-) -> Unit
-
-
-/**
- * Internal operations for specialized use cases like DevTools and testing.
- *
- * This interface provides low-level access to store internals that bypasses
- * the normal MVLI action/reducer/logic pipeline. It should ONLY be used for:
- *
- * - DevTools state synchronization from remote sources
- * - Test fixtures and state setup
- * - State restoration from external systems
- *
- * Using this in normal application logic defeats the purpose of the MVLI
- * architecture and should be avoided.
- */
-@ExperimentalReaktivApi
-public interface InternalStoreOperations {
-    /**
-     * Applies external state updates directly to the store, bypassing the
-     * action/reducer/logic pipeline.
-     *
-     * This method updates the store's state without dispatching actions or
-     * executing reducers. The states are applied atomically within the store's
-     * internal mutex lock to ensure thread safety.
-     *
-     * Example usage:
-     * ```kotlin
-     * val internalOps = storeAccessor.asInternalOperations()
-     * internalOps?.applyExternalStates(mapOf(
-     *     "com.example.CounterState" to CounterState(value = 42),
-     *     "com.example.UserState" to UserState(name = "Alice")
-     * ))
-     * ```
-     *
-     * @param states Map of state class qualified names to new state instances
-     */
-    public suspend fun applyExternalStates(states: Map<String, ModuleState>)
-
-    /**
-     * Puts the store under external control, making a remote publisher the author of its state.
-     *
-     * Every subsequently dispatched action that is not [ExternalControlExempt] is dropped and
-     * reported as [DispatchResult.Blocked], so the only way state changes is
-     * [applyExternalStates]. Each [ModuleLogic] is notified through
-     * [ModuleLogic.onExternalControlChanged] before the gate engages, giving logic a chance to
-     * settle in-flight work while dispatch still works.
-     *
-     * Must not be called from within action processing. The notification hook dispatches, and
-     * the dispatch loop is a single consumer, so calling this from a middleware or a reducer
-     * deadlocks.
-     *
-     * Example usage:
-     * ```kotlin
-     * storeAccessor.asInternalOperations()?.beginExternalControl()
-     * ```
-     */
-    public suspend fun beginExternalControl()
-
-    /**
-     * Engages the dispatch gate synchronously, before any logic has had a chance to run.
-     *
-     * Tooling uses this when a client is configured to start as a follower, so that start-up
-     * work is never begun rather than begun and then cancelled. Safe to call from a
-     * [Module.createLogic] constructor: no hooks are notified, because no logic can have
-     * in-flight work at that point.
-     *
-     * Prefer [beginExternalControl] once the store is running.
-     */
-    public fun markExternallyDriven()
-
-    /**
-     * Returns the store to local control, re-enabling the normal dispatch pipeline.
-     *
-     * State projected while under external control is left in place, so callers that want a
-     * clean local start should follow this with [Store.reset].
-     */
-    public suspend fun endExternalControl()
-}
-
-
-/**
- * Provides access to dispatch, state selection, and logic selection.
- *
- * StoreAccessor is passed to Logic classes during construction, allowing them
- * to dispatch actions, read state from other modules, and access other Logic instances.
- *
- * Example:
- * ```kotlin
- * class OrderLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
- *     suspend fun placeOrder(order: Order) {
- *         // Dispatch an action
- *         storeAccessor.dispatch(OrderAction.SetProcessing(true))
- *
- *         // Read state from another module
- *         val userState = storeAccessor.selectState<UserState>().first()
- *
- *         // Access another module's logic
- *         val paymentLogic = storeAccessor.selectLogic<PaymentLogic>()
- *         paymentLogic.processPayment(order.total)
- *     }
- * }
- * ```
- */
-public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
-    override val coroutineContext: CoroutineContext = scope.coroutineContext
-
-    /**
-     * Select a module's state flow by its class.
-     *
-     * @param stateClass The KClass of the state to select
-     * @return StateFlow of the requested state type
-     */
-    public abstract suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S>
-
-    /**
-     * Select a module's logic instance by its class.
-     *
-     * @param logicClass The KClass of the logic to select
-     * @return The logic instance
-     */
-    public abstract suspend fun <L : ModuleLogic> selectLogic(logicClass: KClass<L>): L
-
-    /**
-     * The dispatch function for sending actions to the store.
-     * This is fire-and-forget - it returns immediately without waiting for processing.
-     */
-    public abstract val dispatch: Dispatch
-
-    /**
-     * Dispatch an action and wait for it to be processed.
-     * Returns a [DispatchResult] indicating whether the action was applied or blocked.
-     *
-     * Use this when you need to know the outcome of the dispatch, for example:
-     * - When middleware might block the action (spam protection)
-     * - When you need to perform follow-up work only if the action was applied
-     *
-     * @param action The action to dispatch
-     * @return [DispatchResult.Processed] if action was applied,
-     *         [DispatchResult.Blocked] if middleware blocked the action,
-     *         [DispatchResult.Error] if processing failed
-     */
-    public abstract suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult
-
-    /**
-     * Resets the store by cancelling all child coroutines and restarting action processing.
-     *
-     * Only one reset can execute at a time. If a reset is already in progress, this function
-     * returns false immediately without waiting or executing.
-     *
-     * All module logic instances will have their [ModuleLogic.onStoreReset] method called
-     * sequentially. Any exceptions thrown during reset will propagate to the caller.
-     *
-     * Safe to call from action handlers - uses [NonCancellable] context to ensure
-     * reset completes even if called from within the store's own action processing.
-     *
-     * For fire-and-forget usage, use [resetAsync] instead.
-     *
-     * @return true if reset was executed, false if skipped due to concurrent reset
-     * @throws IllegalArgumentException if the store is not initialized
-     */
-    public abstract suspend fun reset(): Boolean
-
-    /**
-     * Non-suspend convenience function that resets the store asynchronously.
-     *
-     * This launches [reset] in the store's coroutine scope and returns immediately.
-     * Use this for fire-and-forget reset operations where you don't need to wait
-     * for completion.
-     *
-     * If you need to wait for reset to complete, use the suspend [reset] function instead.
-     *
-     * @return A [Job] that completes when the reset finishes.
-     */
-    public abstract fun resetAsync(): Job
-
-    /**
-     * Provides access to internal store operations for specialized use cases.
-     *
-     * This method returns an [InternalStoreOperations] instance if the store
-     * supports it, allowing access to low-level operations like external state
-     * application.
-     *
-     * This is intentionally not a direct property to make misuse less discoverable.
-     * Requires [ExperimentalReaktivApi] opt-in.
-     *
-     * @return InternalStoreOperations instance or null if not supported
-     */
-    @ExperimentalReaktivApi
-    public fun asInternalOperations(): InternalStoreOperations? = this as? InternalStoreOperations
-
-    /**
-     * Get a module instance by its class.
-     *
-     * Use this when the module type is only known at runtime (e.g. dynamic plugin systems,
-     * middleware, debug tooling). When the type is known at compile time, prefer the reified
-     * overload [getModule] or [getRegisteredModules] for Swift/Obj-C interop.
-     *
-     * Example usage:
-     * ```kotlin
-     * val navModule = storeAccessor.getModule(NavigationModule::class)
-     *     ?: error("NavigationModule not registered")
-     * ```
-     *
-     * @param moduleClass The [KClass] of the module to retrieve
-     * @return The module instance if registered, null otherwise
-     * @see getModule reified overload for compile-time known types
-     * @see getRegisteredModules for Swift/Obj-C interop
-     */
-    public abstract fun <M : Any> getModule(moduleClass: KClass<M>): M?
-
-    /**
-     * Convenience reified overload for [getModule].
-     *
-     * Preferred way to retrieve a module from Kotlin when the type is known at compile time.
-     *
-     * Example usage:
-     * ```kotlin
-     * val navModule = storeAccessor.getModule<NavigationModule>()
-     *     ?: error("NavigationModule not registered")
-     * ```
-     *
-     * @return The module instance if registered, null otherwise
-     * @see getRegisteredModules for Swift/Obj-C interop
-     */
-    public inline fun <reified M : Any> getModule(): M? = getModule(M::class)
-
-    /**
-     * Returns all modules registered in this store.
-     *
-     * This is the Swift/Obj-C-friendly way to retrieve a specific module instance.
-     * Swift cannot construct a [KClass] to pass to [getModule], so this method allows
-     * Swift to use its own type system instead:
-     *
-     * ```swift
-     * let navModule = store.getRegisteredModules()
-     *     .first { $0 is NavigationModule } as? NavigationModule
-     * ```
-     *
-     * The recommended primary approach for Swift interop is to expose module instances
-     * as typed properties on your SDK class, and use this method only as a fallback
-     * when a direct reference is not available.
-     *
-     * From Kotlin, prefer [getModule] with a reified type parameter instead.
-     *
-     * @return Snapshot list of all registered module instances
-     * @see getModule for Kotlin callers
-     */
-    public abstract fun getRegisteredModules(): List<Module<*, *>>
-
-    /**
-     * Returns the [StateFlow] for the given module's state, or null if the module
-     * is not registered in this store.
-     *
-     * This is a non-suspend, direct accessor intended for use by module interface
-     * default implementations (e.g. [Module.selectStateFlowNonSuspend]) and for
-     * Swift/SKIE interop where suspend functions cannot be called.
-     *
-     * @param module The module whose state flow to retrieve
-     * @return The [StateFlow] of the module's state, or null if not registered
-     */
-    public abstract fun getStateFlowForModule(module: Module<*, *>): StateFlow<ModuleState>?
-
-    /**
-     * Returns the logic instance for the given module, suspending until the store
-     * is fully initialized.
-     *
-     * @param module The module whose logic to retrieve
-     * @return The logic instance, or null if the module is not registered
-     */
-    public abstract suspend fun getLogicForModule(module: Module<*, *>): ModuleLogic?
-
-    /**
-     * Registers a [CrashListener] to be notified when logic invocation throws.
-     */
-    @ExperimentalReaktivApi
-    public abstract fun addCrashListener(listener: CrashListener)
-
-    /**
-     * Removes a previously registered [CrashListener].
-     */
-    @ExperimentalReaktivApi
-    public abstract fun removeCrashListener(listener: CrashListener)
-
-}
-
 
 @OptIn(ExperimentalReaktivApi::class)
 public class Store private constructor(
@@ -702,26 +46,41 @@ public class Store private constructor(
     private val persistenceManager: PersistenceManager?,
     public val serializersModule: SerializersModule,
 ) : StoreAccessor(coroutineScope), InternalStoreOperations {
-    private val stateUpdateMutex = Mutex()
     private val resetMutex = Mutex()
     private val highPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
     private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
-    private val moduleInfo: MutableMap<String, ModuleInfo> = mutableMapOf()
 
-    private fun info(key: KClass<*>): ModuleInfo? = moduleInfo[key.qualifiedName]
+    private val moduleInfo: Map<String, ModuleInfo> = buildMap {
+        modules.forEach { module ->
+            val info = ModuleInfo(module, MutableStateFlow(module.initialState))
+            put(module::class.qualifiedName!!, info)
+            put(module.initialState::class.qualifiedName!!, info)
+        }
+    }
 
-    private fun info(qualifiedName: String): ModuleInfo? = moduleInfo[qualifiedName]
+    private val logicIndex = AtomicReference<Map<String, ModuleInfo>>(emptyMap())
+
+    private val moduleInfos: List<ModuleInfo> = moduleInfo.values.distinct()
+
+    private fun info(key: KClass<*>): ModuleInfo? = key.qualifiedName?.let(::info)
+
+    private fun info(qualifiedName: String): ModuleInfo? =
+        moduleInfo[qualifiedName] ?: logicIndex.load()[qualifiedName]
 
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     public val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
-    private val crashListeners = mutableListOf<CrashListener>()
+
+    private val constructed = AtomicBoolean(false)
+    private val crashListeners = CopyOnWriteRegistry<CrashListener>()
+
+    private val crashScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val baseContext: CoroutineContext =
         coroutineScope.coroutineContext + CoroutineExceptionHandler { _, throwable ->
-            if (crashListeners.isEmpty()) {
+            if (crashListeners.isEmpty) {
                 throw throwable
             }
-            CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            crashScope.launch {
                 val recovery = handleLogicException(throwable, null)
                 if (recovery == CrashRecovery.RETHROW) {
                     throw throwable
@@ -731,11 +90,14 @@ public class Store private constructor(
 
     private val storeJob: Job = SupervisorJob(coroutineScope.coroutineContext[Job])
 
+    private val pipelineJob: Job = SupervisorJob(coroutineScope.coroutineContext[Job])
+
     private val dispatchEnqueuedCount = AtomicLong(0L)
     private val dispatchProcessedCount = AtomicLong(0L)
 
     private val externalControlMutex = Mutex()
     private val externallyDriven = AtomicBoolean(false)
+    private val dispatchInstrumentation = AtomicReference<DispatchInstrumentation?>(null)
 
     /**
      * `true` while a remote publisher authors this store's state.
@@ -763,93 +125,49 @@ public class Store private constructor(
         crashListeners.remove(listener)
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
-    override val dispatch: Dispatch = { action ->
-        if (lowPriorityChannel.isClosedForSend || highPriorityChannel.isClosedForSend) {
-            throw IllegalStateException("Store is closed")
-        }
-
-        val envelope = DispatchEnvelope(
-            action,
-            completion = null,
-            enqueuedAtMs = if (LogicTracer.active) currentTimeMillis() else 0L
-        )
-        dispatchEnqueuedCount.addAndFetch(1L)
-        launch {
-            when (action) {
-                is HighPriorityAction -> highPriorityChannel.send(envelope)
-                else -> lowPriorityChannel.send(envelope)
-            }
-        }
-    }
-
-    @OptIn(DelicateCoroutinesApi::class)
-    override suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult {
-        if (lowPriorityChannel.isClosedForSend || highPriorityChannel.isClosedForSend) {
-            throw IllegalStateException("Store is closed")
-        }
-
-        val completion = CompletableDeferred<DispatchResult>()
+    private fun enqueue(action: ModuleAction, completion: CompletableDeferred<DispatchResult>?) {
+        val target = if (action is HighPriorityAction) highPriorityChannel else lowPriorityChannel
         val envelope = DispatchEnvelope(
             action,
             completion,
-            enqueuedAtMs = if (LogicTracer.active) currentTimeMillis() else 0L
+            enqueuedAtMs = if (instrumentationActive()) currentTimeMillis() else 0L
         )
-        dispatchEnqueuedCount.addAndFetch(1L)
-
-        when (action) {
-            is HighPriorityAction -> highPriorityChannel.send(envelope)
-            else -> lowPriorityChannel.send(envelope)
+        if (target.trySend(envelope).isFailure) {
+            throw IllegalStateException("Store is closed")
         }
+        dispatchEnqueuedCount.addAndFetch(1L)
+    }
 
+    override val dispatch: Dispatch = { action -> enqueue(action, completion = null) }
+
+    override suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult {
+        val completion = CompletableDeferred<DispatchResult>()
+        enqueue(action, completion)
         return completion.await()
     }
 
-    private fun registerModuleStates() {
-        modules.forEach { module ->
-            val info = ModuleInfo(
-                module = module,
-                state = MutableStateFlow(module.initialState)
-            )
-            moduleInfo[module::class.qualifiedName!!] = info
-            moduleInfo[module.initialState::class.qualifiedName!!] = info
+    private fun initializeModules(resetState: Boolean) {
+        if (resetState) {
+            moduleInfos.forEach { info -> info.state.update { info.module.initialState } }
         }
-    }
-
-    private fun createLogicFor(module: Module<*, *>) {
-        val info = info(module::class)!!
-        info.logic = module.createLogic(this)
-        info.logic!!::class.qualifiedName?.let { moduleInfo[it] = info }
-    }
-
-    private suspend fun initializeModules() = stateUpdateMutex.withLock {
-        modules.forEach(::createLogicFor)
-        _initialized.update { true }
-    }
-
-    private suspend fun reinitializeModules() {
-        _initialized.update { false }
-        externallyDriven.store(false)
-        stateUpdateMutex.withLock {
-            modules.forEach { module ->
-                info(module::class)!!.state.update { module.initialState }
-            }
-            modules.forEach(::createLogicFor)
+        val logicKeys = mutableMapOf<String, ModuleInfo>()
+        moduleInfos.forEach { info ->
+            val logic = info.module.createLogic(this)
+            info.logic.store(logic)
+            logic::class.qualifiedName?.let { logicKeys[it] = info }
         }
+        logicIndex.store(logicKeys)
+        constructed.store(true)
         _initialized.update { true }
     }
 
     init {
-        registerModuleStates()
-        launch {
-            initializeModules()
-            processActionChannel()
-        }
+        launch { initializeModules(resetState = false) }
+        CoroutineScope(baseContext + pipelineJob).launch { processActionChannel() }
     }
 
-
     override suspend fun reset(): Boolean {
-        if (!initialized.value) {
+        if (!constructed.load()) {
             throw IllegalArgumentException("Reset can not be called until the Store has been constructed!")
         }
 
@@ -859,18 +177,13 @@ public class Store private constructor(
 
         return withContext(NonCancellable) {
             try {
-                storeJob.cancelChildren(CancellationException("Store Reset"))
-                yield()
+                _initialized.update { false }
+                externallyDriven.store(false)
+                cancelLogic()
 
-                moduleInfo.values.distinctBy { it.module }.forEach { entry ->
-                    entry.logic?.beforeReset()
-                }
+                moduleInfos.forEach { it.logic.load()?.beforeReset() }
 
-                crashListeners.clear()
-
-                reinitializeModules()
-
-                this@Store.launch { processActionChannel() }
+                initializeModules(resetState = true)
 
                 true
             } finally {
@@ -879,66 +192,67 @@ public class Store private constructor(
         }
     }
 
+    private suspend fun cancelLogic() {
+        storeJob.cancelChildren(CancellationException("Store Reset"))
+        yield()
+    }
+
     override fun resetAsync(): Job = launch {
         reset()
     }
 
-    private suspend fun processActionChannel() = withContext(coroutineContext) {
-        launch {
-            for (envelope in highPriorityChannel) {
-                processEnvelope(envelope)
+    private suspend fun processActionChannel() {
+        while (true) {
+            val envelope = highPriorityChannel.tryReceive().getOrNull()
+                ?: select {
+                    highPriorityChannel.onReceiveCatching { it.getOrNull() }
+                    lowPriorityChannel.onReceiveCatching { it.getOrNull() }
+                }
+                ?: return
+            if (!_initialized.value) {
+                initialized.first { it }
             }
-        }
-
-        launch {
-            for (envelope in lowPriorityChannel) {
-                processEnvelope(envelope)
-                yield()
-            }
+            processEnvelope(envelope)
+            yield()
         }
     }
 
+    private fun instrumentationActive(): Boolean = dispatchInstrumentation.load()?.isActive == true
+
+    public fun setDispatchInstrumentation(instrumentation: DispatchInstrumentation?) {
+        dispatchInstrumentation.store(instrumentation)
+    }
+
     private suspend fun processEnvelope(envelope: DispatchEnvelope) {
+        val instrumentation = dispatchInstrumentation.load()?.takeIf { it.isActive }
         if (externallyDriven.load() && envelope.action !is ExternalControlExempt) {
-            traceExternalControlDrop(envelope.action)
+            instrumentation?.onDispatchDropped(envelope.action)
             envelope.completion?.complete(DispatchResult.Blocked)
             dispatchProcessedCount.addAndFetch(1L)
             return
         }
-        var callId = ""
+        var token = ""
         var processStartMs = 0L
-        if (LogicTracer.active) {
+        if (instrumentation != null) {
             processStartMs = currentTimeMillis()
             val queueWaitMs = if (envelope.enqueuedAtMs > 0L) {
                 (processStartMs - envelope.enqueuedAtMs).coerceAtLeast(0L)
             } else 0L
             val queueDepth = (dispatchEnqueuedCount.load() - dispatchProcessedCount.load())
                 .coerceAtLeast(1L)
-            callId = LogicTracer.notifyMethodStart(
-                logicClass = "StoreDispatch",
-                methodName = envelope.action::class.simpleName ?: "Action",
-                params = mapOf(
-                    "queueWaitMs" to queueWaitMs.toString(),
-                    "queueDepth" to queueDepth.toString()
-                )
-            )
+            token = instrumentation.onDispatchStarted(envelope.action, queueWaitMs, queueDepth)
         }
         try {
-            val wasApplied = processAction(envelope.action)
-            if (callId.isNotEmpty()) {
-                LogicTracer.notifyMethodCompleted(
-                    callId = callId,
-                    result = if (wasApplied) "Processed" else "Blocked",
-                    resultType = "DispatchResult",
-                    durationMs = currentTimeMillis() - processStartMs
-                )
+            val wasApplied = processAction(envelope.action, instrumentation)
+            if (token.isNotEmpty()) {
+                instrumentation?.onDispatchCompleted(token, wasApplied, currentTimeMillis() - processStartMs)
             }
             envelope.completion?.complete(
                 if (wasApplied) DispatchResult.Processed else DispatchResult.Blocked
             )
         } catch (e: Throwable) {
-            if (callId.isNotEmpty()) {
-                LogicTracer.notifyMethodFailed(callId, e, currentTimeMillis() - processStartMs)
+            if (token.isNotEmpty()) {
+                instrumentation?.onDispatchFailed(token, e, currentTimeMillis() - processStartMs)
             }
             envelope.completion?.complete(DispatchResult.Error(e))
         } finally {
@@ -950,14 +264,18 @@ public class Store private constructor(
      * Process an action through the middleware chain.
      * @return true if the action was applied to state, false if blocked by middleware
      */
-    private suspend fun processAction(action: ModuleAction): Boolean {
+    private suspend fun processAction(
+        action: ModuleAction,
+        instrumentation: DispatchInstrumentation?
+    ): Boolean {
         var wasApplied = false
-        val chain = createMiddlewareChain { wasApplied = true }
+        val chain = createMiddlewareChain(instrumentation?.newDispatchDecorator()) { wasApplied = true }
         chain(action)
         return wasApplied
     }
 
-    private suspend fun createMiddlewareChain(
+    private fun createMiddlewareChain(
+        decorator: DispatchStepDecorator?,
         onActionApplied: () -> Unit
     ): suspend (ModuleAction) -> Unit {
         val baseHandler: suspend (ModuleAction) -> Unit = { action ->
@@ -965,25 +283,31 @@ public class Store private constructor(
                 "No module found for action: ${action::class}"
             )
 
-            val currentState = info.state.value
             @Suppress("UNCHECKED_CAST")
-            val newState = (info.module.reducer as (ModuleState, ModuleAction) -> ModuleState)(currentState, action)
-            updateState(newState::class.qualifiedName!!, newState)
+            val reducer = info.module.reducer as (ModuleState, ModuleAction) -> ModuleState
+            info.state.update { current -> reducer(current, action) }
 
             onActionApplied()
         }
 
-        return middlewares.foldRight(baseHandler) { middleware, next ->
-            { action: ModuleAction ->
-                middleware(action, ::getAllStates, this) { innerAction ->
+        val innermost = decorator?.decorate("reducer", baseHandler) ?: baseHandler
+        return middlewares.foldRightIndexed(innermost) { index, middleware, next ->
+            val step: suspend (ModuleAction) -> Unit = { action ->
+                middleware(action, { getAllStates() }, this) { innerAction ->
                     if (innerAction == action) {
                         next(innerAction)
                     } else {
                         dispatch(innerAction)
                     }
-                    moduleInfo[action.moduleTag.qualifiedName]?.state?.value
+                    info(action.moduleTag)?.state?.value
                         ?: throw IllegalStateException("No state found for module: ${action.moduleTag}")
                 }
+            }
+            if (decorator == null) {
+                step
+            } else {
+                val simpleName = middleware::class.simpleName?.takeIf { it.isNotBlank() } ?: "middleware"
+                decorator.decorate("$simpleName[$index]", step)
             }
         }
     }
@@ -993,7 +317,7 @@ public class Store private constructor(
         action: ModuleAction?
     ): CrashRecovery {
         var recovery = CrashRecovery.RETHROW
-        for (listener in crashListeners) {
+        for (listener in crashListeners.snapshot()) {
             try {
                 val result = listener.onLogicCrash(exception, action)
                 if (result == CrashRecovery.NAVIGATE_TO_CRASH_SCREEN) {
@@ -1005,33 +329,28 @@ public class Store private constructor(
         return recovery
     }
 
-    private suspend fun updateState(stateClass: String, newState: ModuleState) = stateUpdateMutex.withLock {
-        info(stateClass)?.state?.value = newState
+    private fun applyState(stateClassName: String, newState: ModuleState, source: String) {
+        val info = info(stateClassName)
+        when {
+            info == null ->
+                ReaktivDebug.warn("$source: Cannot apply state for unknown module: $stateClassName")
+
+            info.state.value::class != newState::class ->
+                ReaktivDebug.warn(
+                    "$source: State type mismatch for $stateClassName - " +
+                        "expected ${info.state.value::class.simpleName}, got ${newState::class.simpleName}"
+                )
+
+            else -> info.state.value = newState
+        }
     }
 
-    private suspend fun getAllStates(): Map<String, ModuleState> = stateUpdateMutex.withLock {
-        return@withLock moduleInfo.values.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
-    }
+    private fun getAllStates(): Map<String, ModuleState> =
+        moduleInfos.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
 
     @ExperimentalReaktivApi
-    override suspend fun applyExternalStates(states: Map<String, ModuleState>): Unit = stateUpdateMutex.withLock {
-        states.forEach { (stateClassName, newState) ->
-            val info = info(stateClassName)
-
-            when {
-                info == null -> {
-                    ReaktivDebug.warn("DevTools: Cannot apply state for unknown module: $stateClassName")
-                }
-
-                info.state.value::class != newState::class -> {
-                    ReaktivDebug.warn("DevTools: State type mismatch for $stateClassName - expected ${info.state.value::class.simpleName}, got ${newState::class.simpleName}")
-                }
-
-                else -> {
-                    info.state.value = newState
-                }
-            }
-        }
+    override suspend fun applyExternalStates(states: Map<String, ModuleState>) {
+        states.forEach { (stateClassName, newState) -> applyState(stateClassName, newState, "DevTools") }
     }
 
     @ExperimentalReaktivApi
@@ -1051,9 +370,9 @@ public class Store private constructor(
     }
 
     private suspend fun notifyExternalControl(enabled: Boolean) {
-        moduleInfo.values.distinctBy { it.module }.forEach { entry ->
+        moduleInfos.forEach { entry ->
             try {
-                entry.logic?.onExternalControlChanged(enabled)
+                entry.logic.load()?.onExternalControlChanged(enabled)
             } catch (e: Exception) {
                 ReaktivDebug.warn("Store: onExternalControlChanged failed - ${e.message}")
             }
@@ -1061,62 +380,29 @@ public class Store private constructor(
     }
 
     private suspend fun traceExternalControl(enabled: Boolean) {
-        if (!LogicTracer.active) return
-        val callId = LogicTracer.notifyMethodStart(
-            logicClass = "StoreDispatch",
-            methodName = if (enabled) "beginExternalControl" else "endExternalControl",
-            params = emptyMap()
-        )
-        LogicTracer.notifyMethodCompleted(callId, "Applied", "Unit", 0L)
+        dispatchInstrumentation.load()?.takeIf { it.isActive }?.onExternalControlChanged(enabled)
     }
 
-    private suspend fun traceExternalControlDrop(action: ModuleAction) {
-        if (!LogicTracer.active) return
-        val callId = LogicTracer.notifyMethodStart(
-            logicClass = "StoreDispatch",
-            methodName = action::class.simpleName ?: "Action",
-            params = mapOf("externalControl" to "dropped")
-        )
-        LogicTracer.notifyMethodCompleted(callId, "Blocked", "DispatchResult", 0L)
-    }
-
-
-    @Suppress("UNCHECKED_CAST")
     override suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
         initialized.first { it }
-        stateUpdateMutex.lock()
-        try {
-            return selectStateNonSuspend(stateClass)
-        } finally {
-            stateUpdateMutex.unlock()
-        }
+        return selectStateNonSuspend(stateClass)
     }
 
     public fun <S : ModuleState> selectStateNonSuspend(stateClass: KClass<S>): StateFlow<S> {
-        val info = info(stateClass)
         @Suppress("UNCHECKED_CAST")
-        return info?.state?.asStateFlow() as? StateFlow<S>
-            ?: throw IllegalStateException(
-                "No state found for state class: ${stateClass.qualifiedName}, stateExists: ${info != null}"
-            )
+        return info(stateClass)?.state?.asStateFlow() as StateFlow<S>?
+            ?: throw IllegalStateException("No state found for state class: ${stateClass.qualifiedName}")
     }
-
 
     public suspend inline fun <reified S : ModuleState> selectState(): StateFlow<S> = selectState(S::class)
 
     public inline fun <reified S : ModuleState> selectStateNonSuspend(): StateFlow<S> = selectStateNonSuspend(S::class)
 
-
     @Suppress("UNCHECKED_CAST")
     override suspend fun <L : ModuleLogic> selectLogic(logicClass: KClass<L>): L {
         initialized.first { it }
-        stateUpdateMutex.lock()
-        try {
-            return info(logicClass)?.logic as? L
-                ?: throw IllegalStateException("No logic found for logic class: $logicClass")
-        } finally {
-            stateUpdateMutex.unlock()
-        }
+        return info(logicClass)?.logic?.load() as? L
+            ?: throw IllegalStateException("No logic found for logic class: $logicClass")
     }
 
     override fun <M : Any> getModule(moduleClass: KClass<M>): M? {
@@ -1131,22 +417,31 @@ public class Store private constructor(
 
     override suspend fun getLogicForModule(module: Module<*, *>): ModuleLogic? {
         initialized.first { it }
-        return info(module::class)?.logic
+        return info(module::class)?.logic?.load()
     }
 
     public suspend inline fun <reified L : ModuleLogic> selectLogic(): L = selectLogic(L::class)
 
     public fun cleanup() {
-        coroutineScope.cancel()
         highPriorityChannel.close()
         lowPriorityChannel.close()
+        failPending(highPriorityChannel)
+        failPending(lowPriorityChannel)
+        crashScope.cancel()
+        coroutineScope.cancel()
     }
 
+    private fun failPending(channel: Channel<DispatchEnvelope>) {
+        val closed = IllegalStateException("Store is closed")
+        while (true) {
+            val envelope = channel.tryReceive().getOrNull() ?: return
+            envelope.completion?.complete(DispatchResult.Error(closed))
+        }
+    }
 
     public suspend fun saveState(state: Map<String, ModuleState>) {
         persistenceManager?.persistState(state) ?: throw IllegalStateException("No persistence strategy set")
     }
-
 
     public suspend fun loadState() {
         val restoredState = persistenceManager?.restoreState()
@@ -1154,10 +449,9 @@ public class Store private constructor(
             ReaktivDebug.warn("No persistence strategy set when using loadState")
         }
         restoredState?.forEach { (key, state) ->
-            updateState(key, state)
+            applyState(key, state, "Persistence")
         }
     }
-
 
     public suspend fun hasPersistedState(): Boolean = persistenceManager?.hasPersistedState() ?: false
 
@@ -1178,123 +472,4 @@ public class Store private constructor(
             )
         }
     }
-}
-
-
-public class StoreDSL {
-    private var coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val middlewares = mutableListOf<Middleware>()
-    private val modules: MutableList<Module<ModuleState, ModuleAction>> = mutableListOf()
-    private var persistenceStrategy: PersistenceStrategy? = null
-    private val moduleStateRegistrations = mutableMapOf<String, (PolymorphicModuleBuilder<ModuleState>) -> Unit>()
-    private val customTypeRegistrars = mutableListOf<CustomTypeRegistrar>()
-
-    @OptIn(InternalSerializationApi::class)
-
-    public fun <S : ModuleState, A : ModuleAction> module(
-        stateClass: KClass<S>,
-        module: Module<S, A>
-    ) {
-        val stateClassName = module.initialState::class.qualifiedName
-            ?: throw IllegalArgumentException("Module state class must have a qualified name")
-
-        if (moduleStateRegistrations.containsKey(stateClassName)) {
-            throw IllegalArgumentException(
-                "Duplicate module state registration detected: $stateClassName. " +
-                        "Each state class can only be registered once. " +
-                        "Check that you're not adding the same module multiple times or using the same state class in different modules."
-            )
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        modules.add(module as Module<ModuleState, ModuleAction>)
-        moduleStateRegistrations[stateClassName] = { builder ->
-            @Suppress("UNCHECKED_CAST")
-            val actualStateClass = module.initialState::class as KClass<S>
-            builder.subclass(actualStateClass, actualStateClass.serializer())
-        }
-
-        if (module is CustomTypeRegistrar) {
-            customTypeRegistrars.add(module)
-        }
-    }
-
-
-    public inline fun <reified S : ModuleState, A : ModuleAction> module(module: Module<S, A>) {
-        module(S::class, module)
-    }
-
-    @JvmName("moduleErased")
-    public fun module(module: Module<*, *>) {
-        @Suppress("UNCHECKED_CAST")
-        module(module.initialState::class as KClass<ModuleState>, module as Module<ModuleState, ModuleAction>)
-    }
-
-
-    public fun middlewares(vararg newMiddlewares: Middleware) {
-        middlewares.addAll(newMiddlewares)
-    }
-
-
-    public fun coroutineContext(context: CoroutineContext) {
-        coroutineScope = CoroutineScope(SupervisorJob() + context.minusKey(Job))
-    }
-
-
-    public fun persistenceManager(persistenceStrategy: PersistenceStrategy) {
-        this.persistenceStrategy = persistenceStrategy
-    }
-
-    internal fun build(): Store {
-        val serializersModule = SerializersModule {
-            polymorphic(ModuleState::class) {
-                moduleStateRegistrations.values.forEach { it(this) }
-            }
-            customTypeRegistrars.forEach { registrar ->
-                registrar.registerAdditionalSerializers(this)
-            }
-        }
-
-        val persistenceManager = persistenceStrategy?.let {
-            PersistenceManager(
-                json = reaktivJson(serializersModule),
-                persistenceStrategy = it
-            )
-        }
-
-        // Combine explicit middlewares with module-provided middlewares
-        // Explicit middlewares run first (outer), module middlewares run after (inner/closer to reducer)
-        val moduleMiddlewares = modules.mapNotNull { it.createMiddleware?.invoke() }
-        val allMiddlewares = middlewares + moduleMiddlewares
-
-        return Store.create(coroutineScope, allMiddlewares, modules, persistenceManager, serializersModule)
-    }
-}
-
-
-/**
- * Creates a new Store instance using the DSL builder.
- *
- * The store is the central piece of the Reaktiv architecture. It manages state,
- * handles actions, and coordinates between different modules.
- *
- * Example:
- * ```kotlin
- * val store = createStore {
- *     module(CounterModule)
- *     module(UserModule)
- *     module(navigationModule)
- *
- *     middlewares(loggingMiddleware, analyticsMiddleware)
- *     coroutineContext(Dispatchers.Default)
- *     persistenceManager(PlatformPersistenceStrategy())
- * }
- * ```
- *
- * @param block DSL block for configuring the store
- * @return The configured Store instance
- */
-public fun createStore(block: StoreDSL.() -> Unit): Store {
-    val dsl = StoreDSL().apply(block)
-    return dsl.build()
 }

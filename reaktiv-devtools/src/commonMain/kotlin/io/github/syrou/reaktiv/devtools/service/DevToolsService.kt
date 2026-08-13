@@ -6,6 +6,10 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.ReaktivLogSink
+import io.github.syrou.reaktiv.devtools.protocol.DeviceLogEntry
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.devtools.client.ConnectionState
@@ -24,10 +28,16 @@ import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import io.github.syrou.reaktiv.introspection.protocol.mergeCapturedDeltas
 import io.github.syrou.reaktiv.introspection.protocol.mergeFieldJson
+import io.github.syrou.reaktiv.introspection.network.NetworkEventListener
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
+import io.github.syrou.reaktiv.introspection.network.NetworkTap
+import io.github.syrou.reaktiv.introspection.restoreRedactedModuleElement
 import io.github.syrou.reaktiv.introspection.tooling.ToolingServiceContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.NonCancellable
@@ -52,6 +62,8 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     override val name: String = "devtools"
 
     private var context: ToolingServiceContext? = null
+
+    private var serviceScope: CoroutineScope? = null
     private var connection: DevToolsConnection? = null
     private var currentRole: ClientRole = ClientRole.UNASSIGNED
     private var currentServerUrl: String? = config.serverUrl
@@ -65,6 +77,16 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private var reconnectJob: Job? = null
     private var listenerHandshake: Job? = null
     private var firstProjection: CompletableDeferred<Unit>? = null
+    private var logSink: ReaktivLogSink? = null
+    private val logBuffer = Channel<DeviceLogEntry>(
+        capacity = 512,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    private var networkListener: NetworkEventListener? = null
+    private val networkBuffer = Channel<NetworkRequestCapture>(
+        capacity = 256,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     /**
      * Set once a follower has given up waiting for state and been handed back to local control.
@@ -120,22 +142,30 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 clientId = clientId,
                 scope = context.storeAccessor,
                 isConnected = { isConnected() },
+                shouldForward = { currentRole == ClientRole.PUBLISHER },
                 sendMessage = { send(it) }
             )
             logicObserver = observer
             LogicTracer.addObserver(observer)
         }
 
-        context.storeAccessor.launch {
+        serviceScope?.cancel()
+        val scope = CoroutineScope(
+            context.storeAccessor.coroutineContext +
+                SupervisorJob(context.storeAccessor.coroutineContext[Job])
+        )
+        serviceScope = scope
+
+        scope.launch {
             context.capture.actions.collect { event ->
                 if (currentRole == ClientRole.PUBLISHER &&
                     config.allowActionCapture && config.allowStateCapture && isConnected()
                 ) {
-                    conflatedSend(context.storeAccessor, event)
+                    conflatedSend(scope, event)
                 }
             }
         }
-        context.storeAccessor.launch {
+        scope.launch {
             context.capture.crashes.collect { crash ->
                 if (isConnected()) {
                     try {
@@ -152,13 +182,42 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 }
             }
         }
-        context.storeAccessor.launch {
+        scope.launch {
             context.capture.stateReads.collect { read ->
                 if (currentRole == ClientRole.PUBLISHER && isConnected()) {
                     try {
                         send(DevToolsMessage.StateReadReport(clientId = clientId, read = read))
                     } catch (e: Exception) {
                         ReaktivDebug.warn("DevTools: Failed to send state read - ${e.message}")
+                    }
+                }
+            }
+        }
+        val sink = ReaktivLogSink { level, category, message ->
+            logBuffer.trySend(
+                DeviceLogEntry(level, category, message, currentTimeMillis())
+            )
+        }
+        logSink = sink
+        ReaktivDebug.addSink(sink)
+        scope.forwardBatched(logBuffer, LOG_BATCH_LIMIT, "log") {
+            DevToolsMessage.LogBatch(clientId = clientId, entries = it)
+        }
+        val tapListener = NetworkEventListener { event ->
+            networkBuffer.trySend(event)
+        }
+        networkListener = tapListener
+        NetworkTap.addListener(tapListener)
+        scope.forwardBatched(networkBuffer, NETWORK_BATCH_LIMIT, "network") {
+            DevToolsMessage.NetworkBatch(clientId = clientId, events = it)
+        }
+        scope.launch {
+            context.capture.markers.collect { marker ->
+                if (currentRole == ClientRole.PUBLISHER && isConnected()) {
+                    try {
+                        send(DevToolsMessage.MarkerAdded(clientId = clientId, marker = marker))
+                    } catch (e: Exception) {
+                        ReaktivDebug.warn("DevTools: Failed to send marker - ${e.message}")
                     }
                 }
             }
@@ -180,9 +239,42 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         }
     }
 
+    private fun serviceLaunch(block: suspend CoroutineScope.() -> Unit): Job? =
+        serviceScope?.launch(block = block)
+
+    private fun <T> CoroutineScope.forwardBatched(
+        buffer: Channel<T>,
+        limit: Int,
+        label: String,
+        message: (List<T>) -> DevToolsMessage
+    ): Job = launch {
+        while (true) {
+            delay(LOG_FLUSH_INTERVAL_MS)
+            if (currentRole != ClientRole.PUBLISHER || !isConnected()) continue
+            val batch = ArrayList<T>(limit)
+            while (batch.size < limit) {
+                batch.add(buffer.tryReceive().getOrNull() ?: break)
+            }
+            if (batch.isNotEmpty()) {
+                try {
+                    send(message(batch))
+                } catch (e: Exception) {
+                    ReaktivDebug.warn("DevTools: Failed to send $label batch - ${e.message}")
+                }
+            }
+        }
+    }
+
     override suspend fun stop() {
-        listenerHandshake?.cancel()
+        logSink?.let { ReaktivDebug.removeSink(it) }
+        logSink = null
+        networkListener?.let { NetworkTap.removeListener(it) }
+        networkListener = null
         listenerHandshake = null
+        reconnectJob = null
+        deltaFlushJob = null
+        serviceScope?.cancel()
+        serviceScope = null
         disconnect()
         logicObserver?.let { LogicTracer.removeObserver(it) }
         logicObserver = null
@@ -229,13 +321,13 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         connectionState.value == ConnectionState.CONNECTED
 
     private fun launchConnectionMonitor(monitored: DevToolsConnection) {
-        val context = context ?: return
-        context.storeAccessor.launch {
+        serviceLaunch {
             monitored.connectionState.first {
                 it == ConnectionState.ERROR || it == ConnectionState.DISCONNECTED
             }
-            if (connection !== monitored || manuallyDisconnected) return@launch
-            handleConnectionLoss()
+            if (connection === monitored && !manuallyDisconnected) {
+                handleConnectionLoss()
+            }
         }
     }
 
@@ -261,7 +353,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private fun launchReconnectLoop(roleToRequest: ClientRole?) {
         val context = context ?: return
         reconnectJob?.cancel()
-        reconnectJob = context.storeAccessor.launch {
+        reconnectJob = serviceLaunch {
             var delayMs = RECONNECT_INITIAL_DELAY_MS
             while (!manuallyDisconnected && !isConnected()) {
                 report(ServiceStatus(ServiceState.STARTING, "reconnecting in ${delayMs / 1000}s"))
@@ -331,7 +423,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         firstProjection = gate
         context.storeAccessor.asInternalOperations()?.beginExternalControl()
         listenerHandshake?.cancel()
-        listenerHandshake = context.storeAccessor.launch {
+        listenerHandshake = serviceLaunch {
             val arrived = withTimeoutOrNull(FIRST_PROJECTION_SLOW_MS) { gate.await() }
             if (arrived == null) {
                 ReaktivDebug.warn("DevTools: No publisher state yet, still waiting")
@@ -400,28 +492,35 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
      * desyncs the follower until the next full state sync.
      */
     private suspend fun conflatedSend(scope: CoroutineScope, event: CapturedAction) {
-        pendingDeltasMutex.withLock {
+        val startFlush = pendingDeltasMutex.withLock {
             val pending = pendingDeltas[event.moduleName]
             pendingDeltas[event.moduleName] =
                 if (pending != null) mergeCapturedDeltas(pending, event) else event
+
+            val idle = deltaFlushJob?.isActive != true
+            if (idle) {
+                deltaFlushJob = null
+            }
+            idle
         }
-        if (deltaFlushJob?.isActive != true) {
-            deltaFlushJob = scope.launch {
-                delay(DELTA_CONFLATION_WINDOW_MS)
-                val batch = pendingDeltasMutex.withLock {
-                    val drained = pendingDeltas.values.toList()
-                    pendingDeltas.clear()
-                    drained
-                }
-                batch.forEach { pending ->
-                    try {
-                        send(DevToolsMessage.ActionDispatched(pending))
-                    } catch (e: Exception) {
-                        ReaktivDebug.warn("DevTools: Failed to send action - ${e.message}")
-                    }
+        if (!startFlush) return
+
+        val job = scope.launch {
+            delay(DELTA_CONFLATION_WINDOW_MS)
+            val batch = pendingDeltasMutex.withLock {
+                val drained = pendingDeltas.values.toList()
+                pendingDeltas.clear()
+                drained
+            }
+            batch.forEach { pending ->
+                try {
+                    send(DevToolsMessage.ActionDispatched(pending))
+                } catch (e: Exception) {
+                    ReaktivDebug.warn("DevTools: Failed to send action - ${e.message}")
                 }
             }
         }
+        pendingDeltasMutex.withLock { deltaFlushJob = job }
     }
 
     private suspend fun requestRole(role: ClientRole, publisherClientId: String?) {
@@ -466,6 +565,44 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
             is DevToolsMessage.ActionDispatched -> {
                 if (currentRole == ClientRole.LISTENER) {
                     applyActionDelta(message.event)
+                }
+            }
+            is DevToolsMessage.FetchNetworkBody -> {
+                if (message.targetClientId == clientId) {
+                    val slice = NetworkTap.bodySlice(
+                        requestId = message.requestId,
+                        part = message.part,
+                        offset = message.offset,
+                        maxBytes = message.maxBytes
+                    )
+                    try {
+                        send(
+                            DevToolsMessage.NetworkBodyChunk(
+                                clientId = clientId,
+                                requestId = message.requestId,
+                                part = message.part,
+                                content = slice?.content.orEmpty(),
+                                offset = slice?.offset ?: message.offset,
+                                nextOffset = slice?.nextOffset ?: message.offset,
+                                totalBytes = slice?.totalBytes ?: 0,
+                                isLast = slice?.isLast ?: true,
+                                available = slice != null
+                            )
+                        )
+                    } catch (e: Exception) {
+                        ReaktivDebug.warn("DevTools: Failed to send body chunk - ${e.message}")
+                    }
+                }
+            }
+            is DevToolsMessage.AddMarkerRequest -> {
+                if (message.targetClientId == clientId) {
+                    context?.capture?.addMarker(
+                        label = message.label,
+                        note = message.note,
+                        source = "remote",
+                        timestampMs = message.timestampMs,
+                        afterActionIndex = message.afterActionIndex
+                    )
                 }
             }
             else -> {}
@@ -602,6 +739,9 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         const val RECONNECT_INITIAL_DELAY_MS: Long = 1000L
         const val RECONNECT_MAX_DELAY_MS: Long = 30_000L
         const val FIRST_PROJECTION_SLOW_MS: Long = 10_000L
+        const val LOG_FLUSH_INTERVAL_MS: Long = 300L
+        const val LOG_BATCH_LIMIT: Int = 100
+        const val NETWORK_BATCH_LIMIT: Int = 50
     }
 
     private val followerShadow = mutableMapOf<String, JsonObject>()
@@ -632,7 +772,8 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
             }
             followerShadow[event.moduleName] = merged
             val state: ModuleState = json.decodeFromString(
-                PolymorphicSerializer(ModuleState::class), merged.toString()
+                PolymorphicSerializer(ModuleState::class),
+                restoreRedactedModuleElement(json, merged).toString()
             )
             context?.storeAccessor?.asInternalOperations()?.applyExternalStates(mapOf(event.moduleName to state))
         } catch (e: Exception) {
@@ -671,8 +812,11 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         tree.forEach { (moduleName, element) ->
             (element as? JsonObject)?.let { followerShadow[moduleName] = it }
             try {
+                val safe = (element as? JsonObject)
+                    ?.let { restoreRedactedModuleElement(json, it) }
+                    ?: element
                 applied[moduleName] = json.decodeFromString(
-                    PolymorphicSerializer(ModuleState::class), element.toString()
+                    PolymorphicSerializer(ModuleState::class), safe.toString()
                 )
             } catch (e: Exception) {
                 failed[moduleName] = e.message ?: "decode failed"
@@ -686,9 +830,13 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         val json = json ?: return
         try {
             if (sync.moduleName.isNotBlank()) {
+                val parsed = json.parseToJsonElement(sync.stateJson)
+                val safe = (parsed as? JsonObject)
+                    ?.let { restoreRedactedModuleElement(json, it) }
+                    ?: parsed
                 val single = mapOf(
                     sync.moduleName to json.decodeFromString(
-                        PolymorphicSerializer(ModuleState::class), sync.stateJson
+                        PolymorphicSerializer(ModuleState::class), safe.toString()
                     )
                 )
                 storeAccessor.asInternalOperations()?.applyExternalStates(single)

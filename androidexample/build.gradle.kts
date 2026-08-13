@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     kotlin("plugin.serialization")
@@ -117,4 +119,57 @@ dependencies {
     implementation(project(":reaktiv-tracing-annotations"))
     debugImplementation(project(":reaktiv-introspection"))
     debugImplementation(project(":reaktiv-devtools"))
+    debugImplementation(project(":reaktiv-network-ktor"))
+}
+val androidSdkDir: Provider<String> = providers.environmentVariable("ANDROID_HOME")
+    .orElse(providers.environmentVariable("ANDROID_SDK_ROOT"))
+    .orElse(
+        providers.provider {
+            val props = rootProject.file("local.properties")
+            if (!props.exists()) return@provider null
+            val loaded = Properties()
+            props.inputStream().use { loaded.load(it) }
+            loaded.getProperty("sdk.dir")
+        }
+    )
+
+val adbExecutable: Provider<String> = androidSdkDir.zip(providers.systemProperty("os.name")) { sdk, os ->
+    val binary = if (os.lowercase().contains("win")) "adb.exe" else "adb"
+    File(sdk, "platform-tools/$binary").absolutePath
+}
+
+val launchComponent = "eu.syrou.androidexample/eu.syrou.androidexample.MainActivity"
+
+tasks.register<Exec>("runDebug") {
+    group = "reaktiv"
+    description = "Builds and installs the debug app on the connected device, then launches it"
+    dependsOn("installDebug")
+    doFirst {
+        val adb = adbExecutable.orNull
+            ?: error("Android SDK not found. Set ANDROID_HOME or sdk.dir in local.properties.")
+        commandLine(adb, "shell", "am", "start", "-n", launchComponent)
+    }
+}
+
+tasks.register<Exec>("stopDebug") {
+    group = "reaktiv"
+    description = "Force-stops the example app on the connected device"
+    doFirst {
+        val adb = adbExecutable.orNull
+            ?: error("Android SDK not found. Set ANDROID_HOME or sdk.dir in local.properties.")
+        commandLine(adb, "shell", "am", "force-stop", "eu.syrou.androidexample")
+    }
+}
+
+tasks.register<Exec>("reinstallDebug") {
+    group = "reaktiv"
+    description = "Uninstalls any existing install, then builds, installs and launches the debug app"
+    dependsOn("assembleDebug")
+    doFirst {
+        val adb = adbExecutable.orNull
+            ?: error("Android SDK not found. Set ANDROID_HOME or sdk.dir in local.properties.")
+        commandLine(adb, "uninstall", "eu.syrou.androidexample")
+        isIgnoreExitValue = true
+    }
+    finalizedBy("runDebug")
 }

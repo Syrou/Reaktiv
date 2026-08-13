@@ -25,11 +25,12 @@ public class DevToolsLogicObserver(
     private val clientId: String,
     private val scope: CoroutineScope,
     private val isConnected: () -> Boolean,
+    private val shouldForward: () -> Boolean = { true },
     private val sendMessage: suspend (DevToolsMessage) -> Unit
 ) : LogicObserver {
 
     private fun send(message: DevToolsMessage) {
-        if (!isConnected()) return
+        if (!isConnected() || !shouldForward()) return
         scope.launch {
             try {
                 sendMessage(message)

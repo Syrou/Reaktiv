@@ -83,6 +83,46 @@ class StallWatchdogTest {
     }
 
     @Test
+    fun `a sustained stall samples stacks and names the hottest frame`() {
+        val executor = Executors.newSingleThreadExecutor()
+        val monitored = executor.asCoroutineDispatcher()
+        val scope = CoroutineScope(SupervisorJob())
+        val observer = RecordingObserver()
+        LogicTracer.addObserver(observer)
+
+        var calls = 0
+        val watchdog = StallWatchdog(
+            scope = scope,
+            thresholdMs = 150L,
+            heartbeatMs = 30L,
+            monitoredDispatcher = monitored,
+            stackCapturer = {
+                calls += 1
+                if (calls == 1) "at ColdFrame\nat deeper" else "at HotFrame\nat deeper"
+            }
+        )
+        try {
+            assertTrue(watchdog.start())
+            runBlocking {
+                delay(120)
+                withContext(monitored) {
+                    Thread.sleep(500)
+                }
+                delay(300)
+            }
+
+            val stallStart = observer.started.first { it.logicClass == StallWatchdog.TRACE_CLASS }
+            assertEquals("at HotFrame", stallStart.params["hottestFrame"])
+            assertTrue((stallStart.params["samples"]?.toInt() ?: 0) >= 2)
+            assertTrue(stallStart.params["stack"]!!.contains("ColdFrame"))
+        } finally {
+            watchdog.stop()
+            scope.cancel()
+            executor.shutdown()
+        }
+    }
+
+    @Test
     fun `responsive dispatcher reports nothing`() {
         val executor = Executors.newSingleThreadExecutor()
         val monitored = executor.asCoroutineDispatcher()

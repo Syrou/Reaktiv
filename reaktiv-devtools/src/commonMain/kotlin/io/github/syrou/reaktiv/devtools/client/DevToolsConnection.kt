@@ -9,8 +9,10 @@ import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,7 +68,7 @@ public class DevToolsConnection(private val serverUrl: String) {
             }
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.ERROR
-            println("DevTools: Failed to connect to $serverUrl - ${e.message}")
+            ReaktivDebug.warn("DevTools: Failed to connect to $serverUrl - ${e.message}")
         }
     }
 
@@ -80,7 +82,7 @@ public class DevToolsConnection(private val serverUrl: String) {
             val jsonString = json.encodeToString(message)
             session?.send(Frame.Text(jsonString))
         } catch (e: Exception) {
-            println("DevTools: Failed to send message - ${e.message}")
+            ReaktivDebug.warn("DevTools: Failed to send message - ${e.message}")
         }
     }
 
@@ -93,12 +95,11 @@ public class DevToolsConnection(private val serverUrl: String) {
         messageHandler.value = handler
     }
 
-    /**
-     * Disconnects from the server and closes the connection.
-     */
     public suspend fun disconnect() {
         session?.close()
+        session = null
         client.close()
+        scope.cancel()
         _connectionState.value = ConnectionState.DISCONNECTED
     }
 
@@ -115,19 +116,19 @@ public class DevToolsConnection(private val serverUrl: String) {
                         val message = json.decodeFromString<DevToolsMessage>(text)
                         messageHandler.value?.invoke(message)
                     } catch (e: Exception) {
-                        println("DevTools: Failed to parse message - ${e.message}")
+                        ReaktivDebug.warn("DevTools: Failed to parse message - ${e.message}")
                     }
                 }
             }
         } catch (e: Exception) {
             if (_connectionState.value == ConnectionState.CONNECTED) {
                 _connectionState.value = ConnectionState.ERROR
-                println("DevTools: Connection error - ${e.message}")
+                ReaktivDebug.warn("DevTools: Connection error - ${e.message}")
             }
         }
         if (_connectionState.value == ConnectionState.CONNECTED) {
             _connectionState.value = ConnectionState.DISCONNECTED
-            println("DevTools: Connection closed by server")
+            ReaktivDebug.warn("DevTools: Connection closed by server")
         }
     }
 }

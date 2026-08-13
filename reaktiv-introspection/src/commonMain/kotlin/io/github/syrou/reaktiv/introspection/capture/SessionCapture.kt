@@ -5,10 +5,16 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
+import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.introspection.ClientMetadata
+import io.github.syrou.reaktiv.introspection.DEFAULT_SENSITIVE_KEYS
 import io.github.syrou.reaktiv.introspection.StateRedactor
+import io.github.syrou.reaktiv.introspection.normalizeRedactionKey
+import io.github.syrou.reaktiv.introspection.redactModuleElement
+import io.github.syrou.reaktiv.introspection.restoreRedactedModuleElement
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -24,6 +30,7 @@ import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
 import io.github.syrou.reaktiv.introspection.protocol.SessionExport
 import io.github.syrou.reaktiv.introspection.protocol.SessionExportFormat
+import io.github.syrou.reaktiv.introspection.protocol.SessionMarker
 import io.github.syrou.reaktiv.introspection.protocol.toCrashException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +52,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlin.concurrent.atomics.AtomicLong
+import kotlin.random.Random
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -87,14 +95,18 @@ import kotlin.uuid.Uuid
 public class SessionCapture(
     private val maxActions: Int? = null,
     private val maxLogicEvents: Int? = null,
-    private val redactor: StateRedactor? = null
+    private val redactor: StateRedactor? = null,
+    private val redactSensitiveKeys: Boolean = true
 ) {
-    private val actionsStorage: CaptureStorage = createCaptureStorage("actions")
-    private val logicStartedStorage: CaptureStorage = createCaptureStorage("logic_started")
-    private val logicCompletedStorage: CaptureStorage = createCaptureStorage("logic_completed")
-    private val logicFailedStorage: CaptureStorage = createCaptureStorage("logic_failed")
-    private val crashStorage: CaptureStorage = createCaptureStorage("crashes")
-    private val stateReadStorage: CaptureStorage = createCaptureStorage("state_reads")
+    private val storageId: String = nextStorageId()
+
+    private val actionsStorage: CaptureStorage = createCaptureStorage("$storageId-actions")
+    private val logicStartedStorage: CaptureStorage = createCaptureStorage("$storageId-logic_started")
+    private val logicCompletedStorage: CaptureStorage = createCaptureStorage("$storageId-logic_completed")
+    private val logicFailedStorage: CaptureStorage = createCaptureStorage("$storageId-logic_failed")
+    private val crashStorage: CaptureStorage = createCaptureStorage("$storageId-crashes")
+    private val stateReadStorage: CaptureStorage = createCaptureStorage("$storageId-state_reads")
+    private val markerStorage: CaptureStorage = createCaptureStorage("$storageId-markers")
 
     private var sessionStartTime: Long = 0
     private var clientId: String = ""
@@ -143,6 +155,13 @@ public class SessionCapture(
 
     public val stateReads: SharedFlow<StateRead> = _stateReads
 
+    private val _markers = MutableSharedFlow<SessionMarker>(
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
+    public val markers: SharedFlow<SessionMarker> = _markers
+
     private sealed interface Record
     private class DispatchedAction(val action: ModuleAction, val state: ModuleState, val timestamp: Long) : Record
     private class PrebuiltAction(val event: CapturedAction) : Record
@@ -152,6 +171,9 @@ public class SessionCapture(
     private class LogicFailed(val event: LogicMethodFailed) : Record
     private class CrashRecord(val info: CrashInfo) : Record
     private class StateReadRecord(val read: StateRead) : Record
+    private class MarkerRecord(val marker: SessionMarker, val historical: Boolean) : Record
+
+    private object ResetWorkerState : Record
 
     /**
      * Starts a new session capture and its background worker.
@@ -182,8 +204,7 @@ public class SessionCapture(
         logicFailedStorage.clear()
         crashStorage.clear()
         stateReadStorage.clear()
-        previousModuleJson.clear()
-        actionCount = 0
+        markerStorage.clear()
 
         val newChannel = Channel<Record>(capacity = Channel.UNLIMITED)
         val newScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -191,6 +212,7 @@ public class SessionCapture(
         workerScope = newScope
         newScope.launch { runWorker(newChannel) }
         started = true
+        enqueue(ResetWorkerState)
     }
 
     /**
@@ -264,6 +286,29 @@ public class SessionCapture(
         enqueue(StateReadRecord(read))
     }
 
+    @OptIn(ExperimentalUuidApi::class)
+    public fun addMarker(
+        label: String,
+        note: String = "",
+        source: String = "device",
+        timestampMs: Long? = null,
+        afterActionIndex: Int = -1
+    ) {
+        enqueue(
+            MarkerRecord(
+                SessionMarker(
+                    id = Uuid.random().toString(),
+                    label = label,
+                    note = note,
+                    timestampMs = timestampMs ?: currentTimeMillis(),
+                    afterActionIndex = afterActionIndex,
+                    source = source
+                ),
+                historical = timestampMs != null
+            )
+        )
+    }
+
     /**
      * Suggests an export file name carrying client identity and app version.
      * The prefix defaults to crash when a crash has been captured, session otherwise.
@@ -321,7 +366,8 @@ public class SessionCapture(
             logicStarted = readLogicStarted(),
             logicCompleted = readLogicCompleted(),
             logicFailed = readLogicFailed(),
-            stateReads = readStateReads()
+            stateReads = readStateReads(),
+            markers = readMarkers()
         )
     }
 
@@ -365,7 +411,8 @@ public class SessionCapture(
                 logicStartedEvents = logicStartedList,
                 logicCompletedEvents = logicCompletedList,
                 logicFailedEvents = logicFailedList,
-                stateReads = stateReadsList
+                stateReads = stateReadsList,
+                markers = readMarkers()
             ),
             droppedRecords = droppedCount.load(),
             diagnosis = diagnosis
@@ -393,9 +440,10 @@ public class SessionCapture(
         logicFailedStorage.clear()
         crashStorage.clear()
         stateReadStorage.clear()
-        previousModuleJson.clear()
-        actionCount = 0
+        markerStorage.clear()
         capturedCrash = null
+        enqueue(ResetWorkerState)
+        flush()
     }
 
     /**
@@ -412,6 +460,7 @@ public class SessionCapture(
         logicFailedStorage.delete()
         crashStorage.delete()
         stateReadStorage.delete()
+        markerStorage.delete()
     }
 
     private fun stopWorker() {
@@ -419,8 +468,7 @@ public class SessionCapture(
         workerScope?.cancel()
         channel = null
         workerScope = null
-        enqueuedCount.store(0L)
-        processedCount.value = 0L
+        processedCount.value = enqueuedCount.load()
     }
 
     private fun enqueue(record: Record) {
@@ -430,8 +478,9 @@ public class SessionCapture(
             droppedCount.addAndFetch(1L)
             return
         }
-        if (target.trySend(record).isSuccess) {
-            enqueuedCount.addAndFetch(1L)
+        enqueuedCount.addAndFetch(1L)
+        if (target.trySend(record).isFailure) {
+            processedCount.update { it + 1L }
         }
     }
 
@@ -455,6 +504,9 @@ public class SessionCapture(
 
     private val previousModuleJson = mutableMapOf<String, JsonObject>()
     private var actionCount = 0
+    private val normalizedSensitiveKeys = DEFAULT_SENSITIVE_KEYS.map { it.normalizeRedactionKey() }
+    private val reportedRedactionIssues = mutableSetOf<String>()
+    private val pendingRedactionIssues = ArrayList<String>()
 
     private fun currentRouteFromShadow(): String? {
         val navKey = previousModuleJson.keys.firstOrNull { it.endsWith(".NavigationState") } ?: return null
@@ -464,8 +516,59 @@ public class SessionCapture(
 
     private fun encodeModuleObject(moduleName: String, state: ModuleState): JsonObject {
         val element = stateJson.encodeToJsonElement(PolymorphicSerializer(ModuleState::class), state)
-        val redacted = redactor?.redact(moduleName, element) ?: element
+        var current: JsonElement = element
+        if (redactSensitiveKeys) {
+            val obj = current as? JsonObject
+            val strategy = stateJson.serializersModule.getPolymorphic(ModuleState::class, state)
+            if (obj != null && strategy != null) {
+                val outcome = redactModuleElement(
+                    stateJson.serializersModule, strategy.descriptor, obj, normalizedSensitiveKeys
+                )
+                current = outcome.element
+                outcome.unrestorablePaths.forEach { unsafePath ->
+                    queueRedactionIssue("unsafe redaction in $moduleName: $unsafePath")
+                }
+            }
+        }
+        val redacted = redactor?.redact(moduleName, current) ?: current
         return redacted as? JsonObject ?: buildJsonObject {}
+    }
+
+    private fun verifyDecodable(moduleName: String, full: JsonObject) {
+        try {
+            val restored = restoreRedactedModuleElement(stateJson, full)
+            stateJson.decodeFromString(PolymorphicSerializer(ModuleState::class), restored.toString())
+        } catch (e: Exception) {
+            queueRedactionIssue("captured state for $moduleName does not decode: ${e.message}")
+        }
+    }
+
+    private fun queueRedactionIssue(detail: String) {
+        if (reportedRedactionIssues.add(detail)) {
+            pendingRedactionIssues.add(detail)
+        }
+    }
+
+    private suspend fun reportRedactionIssues() {
+        if (pendingRedactionIssues.isEmpty()) return
+        val issues = pendingRedactionIssues.toList()
+        pendingRedactionIssues.clear()
+        for (issue in issues) {
+            ReaktivDebug.error("RedactionWatchdog: $issue")
+            val callId = LogicTracer.notifyMethodStart(
+                logicClass = REDACTION_TRACE_CLASS,
+                methodName = "unsafeCapture",
+                params = mapOf("detail" to issue)
+            )
+            if (callId.isNotEmpty()) {
+                LogicTracer.notifyMethodCompleted(
+                    callId = callId,
+                    result = issue,
+                    resultType = "RedactionIssue",
+                    durationMs = 0L
+                )
+            }
+        }
     }
 
     private fun diffAgainstShadow(moduleName: String, full: JsonObject): Pair<String, DeltaKind> {
@@ -485,13 +588,14 @@ public class SessionCapture(
         return changed.toString() to DeltaKind.FIELDS
     }
 
-    private fun process(batch: List<Record>) {
+    private suspend fun process(batch: List<Record>) {
         val actionLines = ArrayList<String>()
         val startedLines = ArrayList<String>()
         val completedLines = ArrayList<String>()
         val failedLines = ArrayList<String>()
         val crashLines = ArrayList<String>()
         val stateReadLines = ArrayList<String>()
+        val markerLines = ArrayList<String>()
 
         for (record in batch) {
             try {
@@ -501,6 +605,9 @@ public class SessionCapture(
                             ?: record.state::class.simpleName ?: "Unknown"
                         val full = encodeModuleObject(moduleName, record.state)
                         val (deltaJson, deltaKind) = diffAgainstShadow(moduleName, full)
+                        if (deltaKind == DeltaKind.FULL || actionCount % VERIFY_SAMPLE_INTERVAL == 0) {
+                            verifyDecodable(moduleName, full)
+                        }
                         val event = CapturedAction(
                             clientId = clientId,
                             timestamp = record.timestamp,
@@ -523,7 +630,10 @@ public class SessionCapture(
                         val objects = record.states.mapValues { (key, state) ->
                             encodeModuleObject(key, state)
                         }
-                        objects.forEach { (key, value) -> previousModuleJson[key] = value }
+                        objects.forEach { (key, value) ->
+                            previousModuleJson[key] = value
+                            verifyDecodable(key, value)
+                        }
                         initialStateJson = JsonObject(objects).toString()
                     }
                     is LogicStarted -> startedLines.add(json.encodeToString(record.event))
@@ -532,6 +642,25 @@ public class SessionCapture(
                     is StateReadRecord -> {
                         stateReadLines.add(json.encodeToString(record.read))
                         _stateReads.tryEmit(record.read)
+                    }
+                    is ResetWorkerState -> {
+                        previousModuleJson.clear()
+                        actionCount = 0
+                        reportedRedactionIssues.clear()
+                        pendingRedactionIssues.clear()
+                    }
+                    is MarkerRecord -> {
+                        val enriched = record.marker.copy(
+                            route = record.marker.route
+                                ?: if (record.historical) null else currentRouteFromShadow(),
+                            afterActionIndex = if (record.marker.afterActionIndex >= 0) {
+                                record.marker.afterActionIndex
+                            } else {
+                                actionCount - 1
+                            }
+                        )
+                        markerLines.add(json.encodeToString(enriched))
+                        _markers.tryEmit(enriched)
                     }
                     is CrashRecord -> {
                         val enriched = record.info.copy(
@@ -564,7 +693,9 @@ public class SessionCapture(
         if (failedLines.isNotEmpty()) logicFailedStorage.appendLines(failedLines)
         if (crashLines.isNotEmpty()) crashStorage.appendLines(crashLines)
         if (stateReadLines.isNotEmpty()) stateReadStorage.appendLines(stateReadLines)
+        if (markerLines.isNotEmpty()) markerStorage.appendLines(markerLines)
         trimLogicEvents()
+        reportRedactionIssues()
     }
 
     private fun trimLogicEvents() {
@@ -603,8 +734,13 @@ public class SessionCapture(
     private fun readStateReads(): List<StateRead> =
         stateReadStorage.readLines().map { json.decodeFromString(it) }
 
+    private fun readMarkers(): List<SessionMarker> =
+        markerStorage.readLines().map { json.decodeFromString(it) }
+
     private companion object {
         const val HIGH_WATER_MARK: Long = 50_000L
+        const val VERIFY_SAMPLE_INTERVAL: Int = 100
+        const val REDACTION_TRACE_CLASS: String = "RedactionWatchdog"
     }
 }
 
@@ -619,7 +755,8 @@ public data class SessionHistory(
     val logicStarted: List<LogicMethodStart>,
     val logicCompleted: List<LogicMethodCompleted>,
     val logicFailed: List<LogicMethodFailed>,
-    val stateReads: List<StateRead> = emptyList()
+    val stateReads: List<StateRead> = emptyList(),
+    val markers: List<SessionMarker> = emptyList()
 )
 
 public fun SessionHistory.chunked(
@@ -647,7 +784,18 @@ public fun SessionHistory.chunked(
             logicStarted = slice(logicStarted, index, eventsPerChunk),
             logicCompleted = slice(logicCompleted, index, eventsPerChunk),
             logicFailed = slice(logicFailed, index, eventsPerChunk),
-            stateReads = if (index == 0) stateReads else emptyList()
+            stateReads = if (index == 0) stateReads else emptyList(),
+            markers = if (index == 0) markers else emptyList()
         )
     }
 }
+
+@OptIn(ExperimentalAtomicApi::class)
+private val storageIdCounter = AtomicLong(0L)
+
+private val storageIdPrefix: String by lazy {
+    "${currentTimeMillis()}-${Random.nextInt(Int.MAX_VALUE)}"
+}
+
+@OptIn(ExperimentalAtomicApi::class)
+private fun nextStorageId(): String = "$storageIdPrefix-${storageIdCounter.addAndFetch(1L)}"

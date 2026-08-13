@@ -50,7 +50,6 @@ object TestModule : Module<TestModule.TestState, TestModule.Action> {
         { object : ModuleLogic() {} }
 }
 
-
 object TestModule2 : Module<TestModule2.TestState2, TestModule2.Action> {
 
     @Serializable
@@ -134,11 +133,11 @@ class StoreTest {
         }
 
         jobs.joinAll()
+        advanceUntilIdle()
 
         val finalState = store.selectState<TestModule.TestState>().value
         assertEquals(0, finalState.value, "Final state should be 0 after equal increments and decrements")
     }
-
 
     @Test
     fun testRapidStateChanges() = runTest {
@@ -154,6 +153,7 @@ class StoreTest {
                 stateChanges.add(it.value)
             }
         }
+        advanceUntilIdle()
 
         repeat(100) {
             store.dispatch(TestModule.Action.IncrementAction)
@@ -186,7 +186,6 @@ class StoreTest {
 
         val truth =
             "abcdefgijklmnopqrstuvwxyz0123456789ABCDEFGHJKILMNOPQRSTUVWXYZabcdefgijklmnopqrstuvwxyz0123456789ABCDEFGHJKILMNOPQRSTUVWXYZ"
-
 
         repeat(truth.length) { iteration ->
             val thing = store.selectState<TestModule.TestState>().first().text
@@ -284,7 +283,6 @@ class StoreTest {
         assertEquals(500, finalState1.value, "TestModule state should reflect all increments")
         assertEquals(500, finalState2.value.length, "TestModule2 state should reflect all updates")
     }
-
 
     @Test
     fun testComplexStateChanges() = runTest {

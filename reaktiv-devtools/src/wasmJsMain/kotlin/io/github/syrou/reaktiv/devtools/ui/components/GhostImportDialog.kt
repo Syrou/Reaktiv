@@ -45,7 +45,7 @@ import androidx.compose.ui.window.Dialog
  * ```
  */
 @Composable
-fun GhostImportDialog(
+internal fun GhostImportDialog(
     onImport: (String) -> Unit,
     onDismiss: () -> Unit
 ) {

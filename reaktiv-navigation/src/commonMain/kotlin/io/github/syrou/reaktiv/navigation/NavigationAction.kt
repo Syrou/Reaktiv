@@ -54,7 +54,7 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     public data class Replace(@Contextual val entry: NavigationEntry) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    public object Back : NavigationAction(), HighPriorityAction
+    public data class Back(val expectedTopKey: String? = null) : NavigationAction(), HighPriorityAction
 
     @Serializable
     public object ClearBackstack : NavigationAction(), HighPriorityAction

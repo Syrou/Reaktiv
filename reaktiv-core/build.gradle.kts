@@ -53,5 +53,6 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-opt-in=kotlin.experimental.ExperimentalObjCName")
         optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
+        optIn.add("kotlinx.serialization.ExperimentalSerializationApi")
     }
 }

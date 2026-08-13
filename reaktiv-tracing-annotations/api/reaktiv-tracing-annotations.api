@@ -7,3 +7,6 @@ public abstract interface annotation class io/github/syrou/reaktiv/tracing/annot
 public abstract interface annotation class io/github/syrou/reaktiv/tracing/annotations/Sensitive : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class io/github/syrou/reaktiv/tracing/annotations/Trace : java/lang/annotation/Annotation {
+}
+

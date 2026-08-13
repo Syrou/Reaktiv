@@ -22,9 +22,12 @@ public fun Route.staticFiles(folder: String) {
     val pathParameter = "static-content-path-parameter"
 
     get("{$pathParameter...}") {
-        val relativePath = call.parameters.getAll(pathParameter)?.joinToString("/") ?: return@get
-        val file = Path(dir, relativePath)
-        call.respondStatic(file)
+        val segments = call.parameters.getAll(pathParameter) ?: return@get
+        if (segments.any { it == ".." || it.isEmpty() || it.contains('\\') || it.contains(':') }) {
+            call.respond(HttpStatusCode.Forbidden)
+            return@get
+        }
+        call.respondStatic(Path(dir, segments.joinToString("/")))
     }
 
     get("/") {
@@ -38,6 +41,7 @@ public fun Route.staticFiles(folder: String) {
  */
 public suspend fun ApplicationCall.respondStatic(path: Path) {
     if (SystemFileSystem.exists(path)) {
+        response.headers.append(HttpHeaders.CacheControl, "no-store, must-revalidate")
         respond(LocalFileContent(path, ContentType.defaultForFile(path)))
     } else {
         respond(HttpStatusCode.NotFound)

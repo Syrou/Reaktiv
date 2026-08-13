@@ -70,7 +70,7 @@ object DevToolsColors {
  * Extended colors for diff visualization that don't fit Material 3's standard scheme.
  * These provide clear semantic meaning for state changes in debugging.
  */
-data class DiffColors(
+internal data class DiffColors(
     // Added - Green tones for new/added items
     val added: Color = Color(0xFF4EC9B0),
     val addedContainer: Color = Color(0xFF1E4D40),
@@ -90,7 +90,7 @@ data class DiffColors(
 /**
  * Syntax highlighting colors for JSON/code visualization.
  */
-data class SyntaxColors(
+internal data class SyntaxColors(
     val key: Color = DevToolsColors.primary,
     val string: Color = DevToolsColors.secondary,
     val boolean: Color = DevToolsColors.tertiary,
@@ -100,8 +100,8 @@ data class SyntaxColors(
     val oldValue: Color = DevToolsColors.error
 )
 
-val LocalDiffColors = staticCompositionLocalOf { DiffColors() }
-val LocalSyntaxColors = staticCompositionLocalOf { SyntaxColors() }
+internal val LocalDiffColors = staticCompositionLocalOf { DiffColors() }
+internal val LocalSyntaxColors = staticCompositionLocalOf { SyntaxColors() }
 
 private val DevToolsDarkColorScheme = darkColorScheme(
     // Primary - for keys, links, interactive elements
@@ -159,7 +159,7 @@ private val DevToolsDarkColorScheme = darkColorScheme(
  * ```
  */
 @Composable
-fun DevToolsTheme(content: @Composable () -> Unit) {
+internal fun DevToolsTheme(content: @Composable () -> Unit) {
     androidx.compose.runtime.CompositionLocalProvider(
         LocalDiffColors provides DiffColors(),
         LocalSyntaxColors provides SyntaxColors()

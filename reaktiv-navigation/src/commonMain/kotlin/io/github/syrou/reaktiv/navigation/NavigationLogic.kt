@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.AbstractCoroutineContextElement
@@ -105,6 +106,8 @@ public class NavigationLogic(
     private val entryLifecycleJobs = mutableMapOf<String, Job>()
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
 
+    private val pendingRemovals = mutableSetOf<Job>()
+
     private data class CachedEvaluation(val key: Any?, val value: Any?)
 
     private val evaluationCache = mutableMapOf<Any, CachedEvaluation>()
@@ -146,7 +149,9 @@ public class NavigationLogic(
 
         val bootstrapSelector = bootstrapEntry.route
         bootstrapJob = storeAccessor.launch {
-            try {
+            navigationMutex.withLock {
+              withContext(NavigationLockMarker()) {
+                try {
                 val selectedNode = evaluateCached(bootstrapSelector, bootstrapEntry.cacheKey) {
                     bootstrapSelector.invoke(storeAccessor)
                 }
@@ -180,13 +185,15 @@ public class NavigationLogic(
                     routeBuilder.validate()
                     executeNavigation(routeBuilder) { it + listOf(NavigationAction.BootstrapComplete) }
                 }
-            } finally {
-                withContext(NonCancellable) {
-                    bootstrapCompleted.complete(Unit)
-                    if (getCurrentNavigationState().isEvaluatingNavigation) {
-                        storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+                } finally {
+                    withContext(NonCancellable) {
+                        bootstrapCompleted.complete(Unit)
+                        if (getCurrentNavigationState().isEvaluatingNavigation) {
+                            storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+                        }
                     }
                 }
+              }
             }
         }
     }
@@ -208,6 +215,10 @@ public class NavigationLogic(
     }
 
     override suspend fun beforeReset() {
+        pendingRemovals.toList().forEach { it.cancel() }
+        pendingRemovals.clear()
+        transitionSettleJob?.cancel()
+        transitionSettleJob = null
         entryLifecycles.values.forEach { it.runRemovalHandlers(RemovalReason.RESET) }
         entryLifecycleJobs.clear()
         entryLifecycles.clear()
@@ -741,12 +752,12 @@ public class NavigationLogic(
      * Routing through [evaluateAndExecute] would needlessly serialize the dismiss
      * behind the in-flight evaluation.
      */
-    public suspend fun navigateBack() {
+    public suspend fun navigateBack(expectedTopKey: String? = null) {
         val currentState = getCurrentNavigationState()
         if (!currentState.canGoBack) return
         if (currentState.isEvaluatingNavigation) return
         if (currentState.currentEntry.navigatable is LoadingModal) return
-        storeAccessor.dispatchAndAwait(NavigationAction.Back)
+        storeAccessor.dispatchAndAwait(NavigationAction.Back(expectedTopKey))
     }
 
     /**
@@ -875,7 +886,7 @@ public class NavigationLogic(
                     } else {
                         val entryPath = resolution.targetNavigatable.fullPathOrRoute()
                         val entry = createNavigationEntry(step, resolution, entryPath, 0)
-                        if (sim.backStack.isNotEmpty() && entry.path == sim.currentEntry.path) {
+                        if (sim.backStack.isNotEmpty() && entry.stableKey == sim.currentEntry.stableKey) {
                             continue
                         }
                         val isModal = entry.navigatable is Modal
@@ -907,7 +918,7 @@ public class NavigationLogic(
                 }
 
                 NavigationOperation.Back -> {
-                    batchedActions.add(NavigationAction.Back)
+                    batchedActions.add(NavigationAction.Back())
                     sim = NavigationStackMath.applyBack(sim)
                     lastNavigatedEntry = null
                 }
@@ -1043,6 +1054,7 @@ public class NavigationLogic(
         val exitMs = navigationStartEntry.navigatable.exitTransition.durationMillis.toLong()
         val animMs = maxOf(enterMs, exitMs)
         if (animMs > 0L) {
+            transitionSettleJob?.cancel()
             transitionSettleJob = storeAccessor.launch { delay(animMs) }
         }
     }
@@ -1081,11 +1093,13 @@ public class NavigationLogic(
                 lifecycle.runRemovalHandlers(RemovalReason.NAVIGATION)
                 lifecycleJob?.cancel()
             } else {
-                storeAccessor.launch {
+                val pending = storeAccessor.launch {
                     delay(exitMs)
                     lifecycle.runRemovalHandlers(RemovalReason.NAVIGATION)
                     lifecycleJob?.cancel()
                 }
+                pendingRemovals.add(pending)
+                pending.invokeOnCompletion { pendingRemovals.remove(pending) }
             }
         }
     }

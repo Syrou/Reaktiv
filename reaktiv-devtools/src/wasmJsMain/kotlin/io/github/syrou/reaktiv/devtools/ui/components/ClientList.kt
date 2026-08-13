@@ -2,32 +2,63 @@ package io.github.syrou.reaktiv.devtools.ui.components
 
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.PhoneIphone
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.introspection.tooling.ServiceState
 import io.github.syrou.reaktiv.introspection.tooling.ServiceStatus
 
-/**
- * Displays the list of connected clients with their roles and platforms.
- */
+private fun platformIcon(platform: String): ImageVector {
+    val normalized = platform.lowercase()
+    return when {
+        "android" in normalized -> Icons.Default.Android
+        "ios" in normalized || "iphone" in normalized || "ipad" in normalized -> Icons.Default.PhoneIphone
+        "wasm" in normalized || "browser" in normalized || "web" in normalized -> Icons.Default.Language
+        else -> Icons.Default.Computer
+    }
+}
+
 @Composable
-fun ClientList(
+internal fun ClientList(
     clients: List<ClientInfo>,
     selectedPublisher: String?,
     selectedListener: String?,
@@ -40,8 +71,20 @@ fun ClientList(
     onImportGhost: () -> Unit = {},
     onExportSession: () -> Unit = {}
 ) {
-    val realClients = clients.filter { !it.isGhost }
-    val ghostClients = clients.filter { it.isGhost }
+    val devices = clients.filter { !it.isGhost && it.role != ClientRole.ORCHESTRATOR }
+    val ghosts = clients.filter { it.isGhost }
+    val observers = clients.count { !it.isGhost && it.role == ClientRole.ORCHESTRATOR }
+
+    val publisherDevices = devices.filter {
+        it.role == ClientRole.PUBLISHER || it.clientId == selectedPublisher
+    }
+    val followerDevices = devices.filter {
+        it.role == ClientRole.LISTENER && it.clientId !in publisherDevices.map { p -> p.clientId }
+    }
+    val availableDevices = devices.filter { device ->
+        publisherDevices.none { it.clientId == device.clientId } &&
+            followerDevices.none { it.clientId == device.clientId }
+    }
 
     Column(
         modifier = Modifier
@@ -54,48 +97,40 @@ fun ClientList(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Connected Clients (${clients.size})",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Column {
+                Text(
+                    text = "Devices",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = buildString {
+                        append(devices.size)
+                        append(if (devices.size == 1) " device" else " devices")
+                        if (ghosts.isNotEmpty()) append(", ${ghosts.size} saved")
+                        if (observers > 0) append(", $observers observing")
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (canExportSession) {
                     IconButton(onClick = onExportSession) {
                         Icon(
                             imageVector = Icons.Default.Download,
-                            contentDescription = "Export Session",
+                            contentDescription = "Export session",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
-
-                IconButton(onClick = onImportGhost) {
-                    Icon(
-                        imageVector = Icons.Default.Upload,
-                        contentDescription = "Import Ghost Session",
-                        tint = MaterialTheme.colorScheme.tertiary
-                    )
+                TextButton(onClick = onImportGhost) {
+                    Text("Import session")
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-
-        if (selectedPublisher != null && selectedListener != null) {
-            Button(
-                onClick = { onAssignRole(selectedListener, selectedPublisher) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-            ) {
-                val publisherName = clients.find { it.clientId == selectedPublisher }?.clientName
-                val listenerName = clients.find { it.clientId == selectedListener }?.clientName
-                Text("Assign \"$listenerName\" to listen to \"$publisherName\"")
-            }
-        }
-
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
 
         val listState = rememberLazyListState()
 
@@ -103,61 +138,129 @@ fun ClientList(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxWidth().padding(end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (ghostClients.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Ghost Devices",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
+                if (publisherDevices.isNotEmpty()) {
+                    item(key = "section-publisher") {
+                        SectionLabel("Publisher", MaterialTheme.colorScheme.primary)
                     }
-
-                    items(ghostClients, key = { it.clientId }) { client ->
-                        GhostClientCard(
+                    items(publisherDevices, key = { it.clientId }) { client ->
+                        DeviceCard(
                             client = client,
-                            isSelectedAsPublisher = client.clientId == selectedPublisher,
-                            onPublisherClick = {
-                                onPublisherSelected(
-                                    if (client.clientId == selectedPublisher) null else client.clientId
-                                )
-                            },
-                            onRemove = { onRemoveGhost(client.clientId) }
+                            status = clientStatuses[client.clientId],
+                            accent = MaterialTheme.colorScheme.primary,
+                            highlighted = true,
+                            roleLine = "Publishing this session",
+                            actions = {
+                                if (canExportSession) {
+                                    TextButton(onClick = onExportSession) {
+                                        Text("Export", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                                TextButton(onClick = { onPublisherSelected(null) }) {
+                                    Text("Deselect", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
                         )
-                    }
-
-                    if (realClients.isNotEmpty()) {
-                        item {
-                            Divider(modifier = Modifier.padding(vertical = 8.dp))
-                            Text(
-                                text = "Live Devices",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        }
                     }
                 }
 
-                items(realClients, key = { it.clientId }) { client ->
-                    ClientCard(
-                        client = client,
-                        status = clientStatuses[client.clientId],
-                        isSelectedAsPublisher = client.clientId == selectedPublisher,
-                        isSelectedAsListener = client.clientId == selectedListener,
-                        onPublisherClick = {
-                            onPublisherSelected(
-                                if (client.clientId == selectedPublisher) null else client.clientId
-                            )
-                        },
-                        onListenerClick = {
-                            onListenerSelected(
-                                if (client.clientId == selectedListener) null else client.clientId
-                            )
-                        }
-                    )
+                if (followerDevices.isNotEmpty()) {
+                    item(key = "section-followers") {
+                        SectionLabel("Followers", MaterialTheme.colorScheme.secondary)
+                    }
+                    items(followerDevices, key = { it.clientId }) { client ->
+                        DeviceCard(
+                            client = client,
+                            status = clientStatuses[client.clientId],
+                            accent = MaterialTheme.colorScheme.secondary,
+                            highlighted = client.clientId == selectedListener,
+                            roleLine = client.publisherClientId?.let { "Following $it" } ?: "Following",
+                            actions = {
+                                TextButton(onClick = { onPublisherSelected(client.clientId) }) {
+                                    Text("Make publisher", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        )
+                    }
+                }
+
+                if (availableDevices.isNotEmpty()) {
+                    item(key = "section-available") {
+                        SectionLabel("Available", MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    items(availableDevices, key = { it.clientId }) { client ->
+                        DeviceCard(
+                            client = client,
+                            status = clientStatuses[client.clientId],
+                            accent = MaterialTheme.colorScheme.outline,
+                            highlighted = false,
+                            roleLine = "Not assigned",
+                            actions = {
+                                TextButton(onClick = { onPublisherSelected(client.clientId) }) {
+                                    Text("Make publisher", style = MaterialTheme.typography.labelSmall)
+                                }
+                                if (selectedPublisher != null && selectedPublisher != client.clientId) {
+                                    TextButton(onClick = {
+                                        onListenerSelected(client.clientId)
+                                        onAssignRole(client.clientId, selectedPublisher)
+                                    }) {
+                                        Text("Follow publisher", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+
+                if (devices.isEmpty()) {
+                    item(key = "no-devices") {
+                        Text(
+                            text = "No live devices connected",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+
+                if (ghosts.isNotEmpty()) {
+                    item(key = "section-ghosts") {
+                        SectionLabel("Saved sessions", MaterialTheme.colorScheme.tertiary)
+                    }
+                    items(ghosts, key = { it.clientId }) { client ->
+                        DeviceCard(
+                            client = client,
+                            status = null,
+                            accent = MaterialTheme.colorScheme.tertiary,
+                            highlighted = client.clientId == selectedPublisher,
+                            roleLine = "Recorded session",
+                            icon = Icons.Default.History,
+                            actions = {
+                                TextButton(onClick = {
+                                    onPublisherSelected(
+                                        if (client.clientId == selectedPublisher) null else client.clientId
+                                    )
+                                }) {
+                                    Text(
+                                        if (client.clientId == selectedPublisher) "Unload" else "Load",
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onRemoveGhost(client.clientId) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove saved session",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        )
+                    }
                 }
             }
 
@@ -170,215 +273,102 @@ fun ClientList(
 }
 
 @Composable
-private fun ClientCard(
+private fun SectionLabel(text: String, color: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = color,
+        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+    )
+}
+
+@Composable
+private fun DeviceCard(
     client: ClientInfo,
     status: ServiceStatus?,
-    isSelectedAsPublisher: Boolean,
-    isSelectedAsListener: Boolean,
-    onPublisherClick: () -> Unit,
-    onListenerClick: () -> Unit
+    accent: Color,
+    highlighted: Boolean,
+    roleLine: String,
+    icon: ImageVector = platformIcon(client.platform),
+    actions: @Composable () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = when {
-                isSelectedAsPublisher -> MaterialTheme.colorScheme.primaryContainer
-                isSelectedAsListener -> MaterialTheme.colorScheme.secondaryContainer
-                else -> MaterialTheme.colorScheme.surfaceVariant
-            }
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = client.clientName,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = client.platform,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                RoleBadge(client.role, client.publisherClientId)
-            }
-
-            if (status != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = status.detail?.let { "${status.state}: $it" } ?: status.state.toString(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = when (status.state) {
-                        ServiceState.DEGRADED -> MaterialTheme.colorScheme.error
-                        ServiceState.RUNNING -> MaterialTheme.colorScheme.onSurfaceVariant
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = onPublisherClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelectedAsPublisher)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.outline
-                    )
-                ) {
-                    Text("Publisher", style = MaterialTheme.typography.bodySmall)
-                }
-
-                Button(
-                    onClick = onListenerClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelectedAsListener)
-                            MaterialTheme.colorScheme.secondary
-                        else
-                            MaterialTheme.colorScheme.outline
-                    )
-                ) {
-                    Text("Listener", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GhostClientCard(
-    client: ClientInfo,
-    isSelectedAsPublisher: Boolean,
-    onPublisherClick: () -> Unit,
-    onRemove: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 2.dp,
-                color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f),
-                shape = MaterialTheme.shapes.medium
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelectedAsPublisher) {
-                MaterialTheme.colorScheme.tertiaryContainer
+            containerColor = if (highlighted) {
+                MaterialTheme.colorScheme.surfaceVariant
             } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                MaterialTheme.colorScheme.surface
             }
         )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = client.platform,
+                tint = accent,
+                modifier = Modifier.size(22.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
                         text = client.clientName,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.tertiary
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = client.platform,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    HealthDot(status)
                 }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.tertiary,
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            text = "GHOST",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onTertiary
-                        )
-                    }
-
-                    IconButton(onClick = onRemove) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Remove ghost",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
+                Text(
+                    text = "${client.platform}  $roleLine",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val detail = status?.detail
+                if (detail != null) {
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (status.state == ServiceState.DEGRADED) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = onPublisherClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isSelectedAsPublisher)
-                        MaterialTheme.colorScheme.tertiary
-                    else
-                        MaterialTheme.colorScheme.outline
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text("Select as Publisher", style = MaterialTheme.typography.bodySmall)
+                actions()
             }
         }
     }
 }
 
 @Composable
-private fun RoleBadge(role: ClientRole, publisherClientId: String?, isGhost: Boolean = false) {
-    val roleText = when {
-        isGhost -> "GHOST"
-        role == ClientRole.PUBLISHER -> "PUBLISHER"
-        role == ClientRole.LISTENER -> "LISTENER${publisherClientId?.let { " ($it)" } ?: ""}"
-        role == ClientRole.ORCHESTRATOR -> "ORCHESTRATOR${publisherClientId?.let { " ($it)" } ?: ""}"
-        else -> "UNASSIGNED"
+private fun HealthDot(status: ServiceStatus?) {
+    val color = when (status?.state) {
+        ServiceState.RUNNING -> Color(0xFF4CAF50)
+        ServiceState.DEGRADED -> MaterialTheme.colorScheme.error
+        null -> MaterialTheme.colorScheme.outlineVariant
+        else -> MaterialTheme.colorScheme.tertiary
     }
-
-    val roleColor = when {
-        isGhost -> MaterialTheme.colorScheme.tertiary
-        role == ClientRole.PUBLISHER -> MaterialTheme.colorScheme.primary
-        role == ClientRole.LISTENER -> MaterialTheme.colorScheme.secondary
-        role == ClientRole.ORCHESTRATOR -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.outline
-    }
-
     Surface(
-        color = roleColor,
-        shape = MaterialTheme.shapes.small
-    ) {
-        Text(
-            text = roleText,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimary
-        )
-    }
+        color = color,
+        shape = CircleShape,
+        modifier = Modifier.size(7.dp).clip(CircleShape)
+    ) {}
 }

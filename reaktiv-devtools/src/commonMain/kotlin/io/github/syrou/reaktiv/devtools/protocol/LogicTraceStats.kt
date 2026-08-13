@@ -107,6 +107,14 @@ public fun aggregateDispatchStats(
 
 public const val STALL_TRACE_CLASS: String = "MainThreadWatchdog"
 
+public val SYNTHETIC_TRACE_CLASSES: Set<String> = setOf(
+    DISPATCH_TRACE_CLASS,
+    STALL_TRACE_CLASS,
+    "DispatchPhase",
+    "RedactionWatchdog",
+    "NavigationGuards"
+)
+
 public fun isMainThread(thread: String): Boolean {
     val normalized = thread.lowercase()
     return normalized == "main" || normalized.startsWith("main ") || normalized.contains("main thread")
@@ -313,6 +321,7 @@ public fun aggregateThreadStats(
     failed: List<LogicMethodFailed>
 ): List<ThreadStats> {
     val uniqueStarted = started.distinctBy { it.callId }
+        .filter { it.logicClass !in SYNTHETIC_TRACE_CLASSES }
     val uniqueCompleted = completed.distinctBy { it.callId }
     val uniqueFailed = failed.distinctBy { it.callId }
     val startByCallId = uniqueStarted.associateBy { it.callId }

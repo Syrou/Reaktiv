@@ -48,6 +48,7 @@ kotlin {
         getByName("commonMain") {
             dependencies {
                 implementation(project(":reaktiv-core"))
+                api(project(":reaktiv-tracing-runtime"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.io.core)
@@ -58,6 +59,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(project(":reaktiv-tracing-annotations"))
             }
         }
     }
@@ -65,6 +67,7 @@ kotlin {
     compilerOptions {
         optIn.add("kotlin.time.ExperimentalTime")
         optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
+        optIn.add("kotlinx.serialization.ExperimentalSerializationApi")
     }
 
     sourceSets.configureEach {

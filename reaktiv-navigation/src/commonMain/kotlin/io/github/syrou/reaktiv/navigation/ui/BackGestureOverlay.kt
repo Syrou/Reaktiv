@@ -21,7 +21,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -96,45 +95,22 @@ internal fun Modifier.backGestureRecognizer(controller: InteractiveTransitionCon
 
             val kind = InteractiveTransitionController.ScrubKind.ContentBack(top, revealed)
             if (!controller.beginScrub(kind)) return@awaitEachGesture
-
-            val velocityTracker = VelocityTracker()
-            velocityTracker.addPosition(down.uptimeMillis, down.position)
-            velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
             slopChange.consume()
 
-            fun progressOf(x: Float): Float = if (isLtr) {
-                (x - down.position.x) / width
-            } else {
-                (down.position.x - x) / width
-            }
+            val outcome = trackScrub(
+                controller = controller,
+                latestState = latestState,
+                top = top,
+                down = down,
+                slopChange = slopChange,
+                axis = ScrubAxis.horizontal(down, width, isLtr),
+                velocityThresholdPx = velocityThresholdPx
+            ) { onDrag -> pumpInitialPassDrag(down, onDrag) }
 
-            controller.scrubTo(progressOf(slopChange.position.x))
-
-            var invalidated = false
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                if (!change.pressed) break
-                velocityTracker.addPosition(change.uptimeMillis, change.position)
-                if (latestState.value.currentEntry.stableKey != top.stableKey) {
-                    invalidated = true
-                }
-                if (!invalidated) {
-                    controller.scrubTo(progressOf(change.position.x))
-                }
-                change.consume()
-            }
-
-            val rawVelocityX = velocityTracker.calculateVelocity().x
-            val backVelocity = if (isLtr) rawVelocityX else -rawVelocityX
-            val commit = !invalidated && InteractiveTransitionController.shouldCommit(
-                progress = controller.progress,
-                velocity = backVelocity,
-                velocityThreshold = velocityThresholdPx
-            )
-            val progressVelocity = backVelocity / width
             scope.launch {
-                completeContentGesture(commit, progressVelocity, controller, store, navModule, top, revealed)
+                completeInteractiveDismiss(
+                    outcome.commit, outcome.progressVelocity, controller, store, top, revealed
+                )
             }
         }
     }
@@ -173,40 +149,20 @@ internal fun Modifier.fullSurfaceBackGestureRecognizer(controller: InteractiveTr
             val kind = InteractiveTransitionController.ScrubKind.ContentBack(top, revealed)
             if (!controller.beginScrub(kind)) return@awaitEachGesture
 
-            val velocityTracker = VelocityTracker()
-            velocityTracker.addPosition(down.uptimeMillis, down.position)
-            velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
+            val outcome = trackScrub(
+                controller = controller,
+                latestState = latestState,
+                top = top,
+                down = down,
+                slopChange = slopChange,
+                axis = ScrubAxis.horizontal(down, width, isLtr),
+                velocityThresholdPx = velocityThresholdPx
+            ) { onDrag -> horizontalDrag(down.id, onDrag) }
 
-            fun progressOf(x: Float): Float = if (isLtr) {
-                (x - down.position.x) / width
-            } else {
-                (down.position.x - x) / width
-            }
-
-            controller.scrubTo(progressOf(slopChange.position.x))
-
-            var invalidated = false
-            horizontalDrag(down.id) { change ->
-                velocityTracker.addPosition(change.uptimeMillis, change.position)
-                if (latestState.value.currentEntry.stableKey != top.stableKey) {
-                    invalidated = true
-                }
-                if (!invalidated) {
-                    controller.scrubTo(progressOf(change.position.x))
-                }
-                change.consume()
-            }
-
-            val rawVelocityX = velocityTracker.calculateVelocity().x
-            val backVelocity = if (isLtr) rawVelocityX else -rawVelocityX
-            val commit = !invalidated && InteractiveTransitionController.shouldCommit(
-                progress = controller.progress,
-                velocity = backVelocity,
-                velocityThreshold = velocityThresholdPx
-            )
-            val progressVelocity = backVelocity / width
             scope.launch {
-                completeContentGesture(commit, progressVelocity, controller, store, navModule, top, revealed)
+                completeInteractiveDismiss(
+                    outcome.commit, outcome.progressVelocity, controller, store, top, revealed
+                )
             }
         }
     }
@@ -242,35 +198,20 @@ internal fun Modifier.dismissGestureRecognizer(controller: InteractiveTransition
             val kind = InteractiveTransitionController.ScrubKind.ContentDismiss(top, revealed)
             if (!controller.beginScrub(kind)) return@awaitEachGesture
 
-            val velocityTracker = VelocityTracker()
-            velocityTracker.addPosition(down.uptimeMillis, down.position)
-            velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
+            val outcome = trackScrub(
+                controller = controller,
+                latestState = latestState,
+                top = top,
+                down = down,
+                slopChange = slopChange,
+                axis = ScrubAxis.vertical(down, height),
+                velocityThresholdPx = velocityThresholdPx
+            ) { onDrag -> verticalDrag(down.id, onDrag) }
 
-            fun progressOf(y: Float): Float = (y - down.position.y) / height
-
-            controller.scrubTo(progressOf(slopChange.position.y))
-
-            var invalidated = false
-            verticalDrag(down.id) { change ->
-                velocityTracker.addPosition(change.uptimeMillis, change.position)
-                if (latestState.value.currentEntry.stableKey != top.stableKey) {
-                    invalidated = true
-                }
-                if (!invalidated) {
-                    controller.scrubTo(progressOf(change.position.y))
-                }
-                change.consume()
-            }
-
-            val downVelocity = velocityTracker.calculateVelocity().y
-            val commit = !invalidated && InteractiveTransitionController.shouldCommit(
-                progress = controller.progress,
-                velocity = downVelocity,
-                velocityThreshold = velocityThresholdPx
-            )
-            val progressVelocity = downVelocity / height
             scope.launch {
-                completeContentGesture(commit, progressVelocity, controller, store, navModule, top, revealed)
+                completeInteractiveDismiss(
+                    outcome.commit, outcome.progressVelocity, controller, store, top, revealed
+                )
             }
         }
     }
@@ -329,40 +270,22 @@ internal fun Modifier.topEdgeDismissRecognizer(controller: InteractiveTransition
 
             val kind = InteractiveTransitionController.ScrubKind.ContentDismiss(top, revealed)
             if (!controller.beginScrub(kind)) return@awaitEachGesture
-
-            val velocityTracker = VelocityTracker()
-            velocityTracker.addPosition(down.uptimeMillis, down.position)
-            velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
             slopChange.consume()
 
-            fun progressOf(y: Float): Float = (y - down.position.y) / height
+            val outcome = trackScrub(
+                controller = controller,
+                latestState = latestState,
+                top = top,
+                down = down,
+                slopChange = slopChange,
+                axis = ScrubAxis.vertical(down, height),
+                velocityThresholdPx = velocityThresholdPx
+            ) { onDrag -> pumpInitialPassDrag(down, onDrag) }
 
-            controller.scrubTo(progressOf(slopChange.position.y))
-
-            var invalidated = false
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                if (!change.pressed) break
-                velocityTracker.addPosition(change.uptimeMillis, change.position)
-                if (latestState.value.currentEntry.stableKey != top.stableKey) {
-                    invalidated = true
-                }
-                if (!invalidated) {
-                    controller.scrubTo(progressOf(change.position.y))
-                }
-                change.consume()
-            }
-
-            val downVelocity = velocityTracker.calculateVelocity().y
-            val commit = !invalidated && InteractiveTransitionController.shouldCommit(
-                progress = controller.progress,
-                velocity = downVelocity,
-                velocityThreshold = velocityThresholdPx
-            )
-            val progressVelocity = downVelocity / height
             scope.launch {
-                completeContentGesture(commit, progressVelocity, controller, store, navModule, top, revealed)
+                completeInteractiveDismiss(
+                    outcome.commit, outcome.progressVelocity, controller, store, top, revealed
+                )
             }
         }
     }
@@ -539,9 +462,9 @@ internal class GestureNestedScrollConnection(
         )
         val progressVelocity = axisVelocity / extent
         if (modal) {
-            completeModalDismiss(commit, progressVelocity, controller, store, navModule, top)
+            completeInteractiveDismiss(commit, progressVelocity, controller, store, top, revealed = null)
         } else if (revealed != null) {
-            completeContentGesture(commit, progressVelocity, controller, store, navModule, top, revealed)
+            completeInteractiveDismiss(commit, progressVelocity, controller, store, top, revealed)
         } else {
             controller.reset()
         }
@@ -561,42 +484,4 @@ internal class GestureNestedScrollConnection(
     }
 }
 
-internal suspend fun completeContentGesture(
-    commit: Boolean,
-    progressVelocity: Float,
-    controller: InteractiveTransitionController,
-    store: Store,
-    navModule: NavigationModule,
-    top: NavigationEntry,
-    revealed: NavigationEntry
-) {
-    try {
-        if (commit) {
-            controller.markCommittedTarget(revealed)
-        }
-        controller.settle(commit = commit, initialVelocity = progressVelocity)
-        if (!commit) {
-            return
-        }
-        val state = store.selectState<NavigationState>().first()
-        val stillValid = state.currentEntry.stableKey == top.stableKey &&
-            state.canGoBack &&
-            !state.isEvaluatingNavigation
-        if (!stillValid) {
-            return
-        }
-        controller.armHandoff(poppedKey = top.stableKey, targetKey = revealed.stableKey)
-        val dismissHandler = top.navigatable.onDismissRequest
-        if (dismissHandler != null) {
-            dismissHandler.invoke(store)
-        } else {
-            store.dispatchAndAwait(NavigationAction.Back)
-        }
-        val after = store.selectState<NavigationState>().first()
-        if (after.currentEntry.stableKey == top.stableKey) {
-            controller.settle(commit = false)
-        }
-    } finally {
-        controller.reset()
-    }
-}
+

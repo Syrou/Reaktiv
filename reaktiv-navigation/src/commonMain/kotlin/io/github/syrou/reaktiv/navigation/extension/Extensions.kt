@@ -20,8 +20,8 @@ public suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() 
     navigationLogic.navigate(block)
 }
 
-public suspend fun StoreAccessor.navigateBack() {
-    selectLogic<NavigationLogic>().navigateBack()
+public suspend fun StoreAccessor.navigateBack(expectedTopKey: String? = null) {
+    selectLogic<NavigationLogic>().navigateBack(expectedTopKey)
 }
 
 public suspend fun StoreAccessor.navigate(route: String, params: Params? = null) {

@@ -1,10 +1,8 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
-import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
-import kotlinx.serialization.json.Json
+import io.github.syrou.reaktiv.introspection.protocol.ModuleShadow
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 
 public const val SIZE_GROWTH_STREAK_THRESHOLD: Int = 10
 
@@ -16,7 +14,9 @@ public data class ModuleSizeStats(
     val maxBytes: Int,
     val firstBytes: Int,
     val samples: Int,
-    val growthStreak: Int
+    val growthStreak: Int,
+    val topGrowingField: String? = null,
+    val topGrowingFieldGrowthBytes: Int = 0
 ) {
     public val shortName: String get() = moduleName.substringAfterLast('.')
     public val growthPercent: Int
@@ -35,17 +35,18 @@ public class StateSizeTracker {
         var growthStreak: Int
     )
 
-    private val shadows = mutableMapOf<String, JsonObject>()
+    private class MutableFieldSize(val firstBytes: Int, var currentBytes: Int)
+
+    private val shadow = ModuleShadow()
     private val sizes = LinkedHashMap<String, MutableSize>()
+    private val fieldSizes = mutableMapOf<String, LinkedHashMap<String, MutableFieldSize>>()
 
     public var processed: Int = 0
         private set
 
     public fun feedInitial(initialStateJson: String) {
-        val root = runCatching { Json.parseToJsonElement(initialStateJson).jsonObject }.getOrNull() ?: return
-        for ((moduleName, element) in root) {
-            val obj = element as? JsonObject ?: continue
-            shadows[moduleName] = obj
+        shadow.seed(initialStateJson)
+        for ((moduleName, obj) in shadow.snapshot()) {
             val bytes = obj.toString().length
             sizes[moduleName] = MutableSize(
                 currentBytes = bytes,
@@ -54,21 +55,34 @@ public class StateSizeTracker {
                 samples = 1,
                 growthStreak = 0
             )
+            trackFieldSizes(moduleName, obj)
         }
     }
 
-    public fun feed(action: CapturedAction) {
-        processed += 1
-        if (action.moduleName.isBlank()) return
-        val delta = runCatching { Json.parseToJsonElement(action.stateDeltaJson).jsonObject }.getOrNull() ?: return
-        val merged = when (action.deltaKind) {
-            DeltaKind.FULL -> delta
-            DeltaKind.FIELDS -> {
-                val previous = shadows[action.moduleName]
-                if (previous != null) JsonObject(previous + delta) else delta
+    private fun trackFieldSizes(moduleName: String, merged: JsonObject) {
+        val fields = fieldSizes.getOrPut(moduleName) { LinkedHashMap() }
+        for ((key, value) in merged) {
+            if (key == "type") continue
+            val bytes = value.toString().length
+            val entry = fields[key]
+            if (entry == null) {
+                fields[key] = MutableFieldSize(firstBytes = bytes, currentBytes = bytes)
+            } else {
+                entry.currentBytes = bytes
             }
         }
-        shadows[action.moduleName] = merged
+    }
+
+    private fun topGrowingField(moduleName: String): Pair<String, Int>? =
+        fieldSizes[moduleName]?.mapNotNull { (field, size) ->
+            val growth = size.currentBytes - size.firstBytes
+            if (growth > 0) field to growth else null
+        }?.maxByOrNull { it.second }
+
+    public fun feed(action: CapturedAction) {
+        processed += 1
+        val merged = shadow.apply(action) ?: return
+        trackFieldSizes(action.moduleName, merged)
         val bytes = merged.toString().length
 
         val entry = sizes[action.moduleName]
@@ -89,13 +103,16 @@ public class StateSizeTracker {
     }
 
     public fun snapshot(): List<ModuleSizeStats> = sizes.map { (moduleName, size) ->
+        val topField = topGrowingField(moduleName)
         ModuleSizeStats(
             moduleName = moduleName,
             currentBytes = size.currentBytes,
             maxBytes = size.maxBytes,
             firstBytes = size.firstBytes,
             samples = size.samples,
-            growthStreak = size.growthStreak
+            growthStreak = size.growthStreak,
+            topGrowingField = topField?.first,
+            topGrowingFieldGrowthBytes = topField?.second ?: 0
         )
     }.sortedByDescending { it.currentBytes }
 }

@@ -23,6 +23,7 @@ import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.tooling.ServiceState
+import io.github.syrou.reaktiv.introspection.tooling.ToolingLogic
 import io.github.syrou.reaktiv.introspection.tooling.ToolingState
 import io.github.syrou.reaktiv.introspection.tooling.createToolingModule
 import io.github.syrou.reaktiv.navigation.NavigationState
@@ -80,6 +81,32 @@ object E2EAuthModule : ModuleWithLogic<E2EAuthState, E2EAuthAction, E2EAuthLogic
     override val createLogic: (StoreAccessor) -> E2EAuthLogic = { E2EAuthLogic(it) }
 }
 
+@Serializable
+enum class E2EClearance { UNKNOWN, LOW, HIGH }
+
+@Serializable
+data class E2EVaultState(
+    val secretLevel: E2EClearance = E2EClearance.HIGH,
+    val revision: Int = 0
+) : ModuleState
+
+sealed class E2EVaultAction : ModuleAction(E2EVaultModule::class) {
+    data class SetLevel(val value: E2EClearance) : E2EVaultAction()
+}
+
+class E2EVaultLogic : ModuleLogic()
+
+object E2EVaultModule : ModuleWithLogic<E2EVaultState, E2EVaultAction, E2EVaultLogic> {
+    override val initialState = E2EVaultState()
+    override val reducer: (E2EVaultState, E2EVaultAction) -> E2EVaultState = { state, action ->
+        when (action) {
+            is E2EVaultAction.SetLevel ->
+                state.copy(secretLevel = action.value, revision = state.revision + 1)
+        }
+    }
+    override val createLogic: (StoreAccessor) -> E2EVaultLogic = { E2EVaultLogic() }
+}
+
 /**
  * Drives a real [DevToolsServer] over real websockets with two real stores, so the transport,
  * the role handshake, external control and state projection are all exercised together.
@@ -91,6 +118,7 @@ object E2EAuthModule : ModuleWithLogic<E2EAuthState, E2EAuthAction, E2EAuthLogic
 class EndToEndReplicationTest {
 
     private lateinit var server: RunningDevToolsServer
+    private var serverPort: Int = 0
     private val stores = mutableListOf<Store>()
 
     private fun screen(route: String) = object : Screen {
@@ -132,7 +160,7 @@ class EndToEndReplicationTest {
         includeDetailRoute: Boolean = true
     ): Store {
         val devToolsConfig = DevToolsConfig(
-            serverUrl = "ws://127.0.0.1:${server.port}/ws",
+            serverUrl = "ws://127.0.0.1:$serverPort/ws",
             autoConnect = true,
             autoReconnect = false,
             defaultRole = role
@@ -141,7 +169,7 @@ class EndToEndReplicationTest {
             clientId = clientId,
             clientName = clientId,
             platform = "JVM",
-            installLogicTracing = false,
+            installLogicTracing = true,
             installStallWatchdog = false,
             installCrashHandler = false
         )
@@ -152,6 +180,7 @@ class EndToEndReplicationTest {
                 }
             )
             module(E2EAuthModule)
+            module(E2EVaultModule)
             module(createNavigationModule {
                 loadingModal(overlay)
                 rootGraph {
@@ -222,9 +251,10 @@ class EndToEndReplicationTest {
     }
 
     @BeforeTest
-    fun startServer() {
+    fun startServer() = runBlocking {
         DevToolsServer.resetState()
         server = DevToolsServer.startEmbedded(port = 0)
+        serverPort = server.port()
     }
 
     @AfterTest
@@ -354,7 +384,7 @@ class EndToEndReplicationTest {
         val publisher = startPublisher("e2e-publisher-3", Counters())
 
         val received = CompletableDeferred<SessionHistory>()
-        val ui = DevToolsConnection("ws://127.0.0.1:${server.port}/ws")
+        val ui = DevToolsConnection("ws://127.0.0.1:$serverPort/ws")
         try {
             ui.connect("devtools-ui", "devtools-ui", "wasm")
             ui.observeMessages { message ->
@@ -441,6 +471,39 @@ class EndToEndReplicationTest {
         assertTrue(
             detail.contains("home/detail"),
             "Status must name the unresolvable route so it can be added to the graph, was: $detail"
+        )
+    }
+
+    @Test
+    fun `a masked sensitive enum crosses the wire and decodes on the listener`() = runBlocking {
+        val publisher = startPublisher("e2e-publisher-5", Counters())
+
+        val listenerCounters = Counters()
+        val listener = buildClient("e2e-listener-5", ClientRole.LISTENER, listenerCounters)
+        awaitState(
+            listener.selectState<NavigationState>(),
+            description = "listener initial replication",
+            diagnostics = { describe("listener", listener) + "\n" + describe("publisher", publisher) }
+        ) { it.currentEntry.route == "detail" }
+
+        publisher.selectLogic<ToolingLogic>().getSessionCapture().clear()
+        publisher.dispatch(E2EVaultAction.SetLevel(E2EClearance.LOW))
+        awaitState(
+            publisher.selectState<E2EVaultState>(),
+            description = "publisher vault change to settle"
+        ) { it.revision == 1 }
+
+        val vault = awaitState(
+            listener.selectState<E2EVaultState>(),
+            description = "listener to apply the redacted vault delta",
+            diagnostics = { describe("listener", listener) }
+        ) { it.revision == 1 }
+        assertEquals(E2EClearance.UNKNOWN, vault.secretLevel)
+
+        val tooling = listener.selectState<ToolingState>().first()
+        assertTrue(
+            tooling.services["devtools"]?.state != ServiceState.DEGRADED,
+            "Redacted state must decode on the listener, was: ${tooling.services["devtools"]}"
         )
     }
 

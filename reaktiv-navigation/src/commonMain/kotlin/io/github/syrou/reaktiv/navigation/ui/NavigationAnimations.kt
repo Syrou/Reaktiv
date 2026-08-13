@@ -202,13 +202,13 @@ public object NavigationAnimations {
                                     velocityThreshold = velocityThresholdPx
                                 )
                                 scope.launch {
-                                    completeModalDismiss(
+                                    completeInteractiveDismiss(
                                         commit = commit,
                                         progressVelocity = downVelocity / height,
                                         controller = controller,
                                         store = store,
-                                        navModule = navModule,
-                                        entry = entry
+                                        top = entry,
+                                        revealed = null
                                     )
                                 }
                             }
@@ -278,41 +278,7 @@ internal fun Modifier.navTransitionGraphics(
     transformOrigin = TransformOrigin.Center
 }
 
-internal suspend fun completeModalDismiss(
-    commit: Boolean,
-    progressVelocity: Float,
-    controller: InteractiveTransitionController,
-    store: Store,
-    navModule: NavigationModule,
-    entry: NavigationEntry
-) {
-    try {
-        controller.settle(commit = commit, initialVelocity = progressVelocity)
-        if (!commit) {
-            return
-        }
-        val state = store.selectState<NavigationState>().first()
-        val stillValid = state.currentEntry.stableKey == entry.stableKey &&
-            state.canGoBack &&
-            !state.isEvaluatingNavigation
-        if (!stillValid) {
-            return
-        }
-        controller.armModalHandoff(entry.stableKey)
-        val dismissHandler = entry.navigatable.onDismissRequest
-        if (dismissHandler != null) {
-            dismissHandler.invoke(store)
-        } else {
-            store.navigateBack()
-        }
-        val after = store.selectState<NavigationState>().first()
-        if (after.currentEntry.stableKey == entry.stableKey) {
-            controller.settle(commit = false)
-        }
-    } finally {
-        controller.reset()
-    }
-}
+
 
 /**
  * Modifier extension for screen transition animations

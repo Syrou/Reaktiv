@@ -25,6 +25,8 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
+private const val REDACTED_FALLBACK = "[REDACTED]"
+
 /**
  * IR transformer that instruments ModuleLogic methods with tracing calls.
  *
@@ -54,6 +56,9 @@ class LogicMethodTransformer(
 
     private val moduleLogicFqName = FqName("io.github.syrou.reaktiv.core.ModuleLogic")
     private val noTraceFqName = FqName("io.github.syrou.reaktiv.tracing.annotations.NoTrace")
+    private val traceFqName = FqName("io.github.syrou.reaktiv.tracing.annotations.Trace")
+    private val sensitiveFqName = FqName("io.github.syrou.reaktiv.tracing.annotations.Sensitive")
+    private val piiFqName = FqName("io.github.syrou.reaktiv.tracing.annotations.PII")
 
     private val irBuiltIns get() = pluginContext.irBuiltIns
 
@@ -80,15 +85,26 @@ class LogicMethodTransformer(
         logicTracerClass?.owner?.properties?.find { it.name.asString() == "active" }?.getter?.symbol
     }
 
+    private val obfuscationClass: IrClassSymbol? by lazy {
+        pluginContext.finderForBuiltins().findClass(
+            ClassId(FqName("io.github.syrou.reaktiv.core.tracing"), Name.identifier("Obfuscation"))
+        )
+    }
+
+    private val redactFun: IrSimpleFunctionSymbol? by lazy {
+        obfuscationClass?.owner?.functions?.find { it.name.asString() == "redact" }?.symbol
+    }
+
+    private val maskPiiFun: IrSimpleFunctionSymbol? by lazy {
+        obfuscationClass?.owner?.functions?.find { it.name.asString() == "maskPII" }?.symbol
+    }
+
     // Reference to the multiplatform io.github.syrou.reaktiv.core.util.currentTimeMillis() for timing
     private val getTimeMillisFun: IrSimpleFunctionSymbol? by lazy {
         val funRef = pluginContext.finderForBuiltins().findFunctions(
             CallableId(FqName("io.github.syrou.reaktiv.core.util"), Name.identifier("currentTimeMillis"))
         ).firstOrNull()
-        messageCollector.report(
-            org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-            "ReaktivTracing: currentTimeMillis resolved: ${funRef != null}"
-        )
+        messageCollector.info { "ReaktivTracing: currentTimeMillis resolved: ${funRef != null}" }
         funRef
     }
 
@@ -125,32 +141,31 @@ class LogicMethodTransformer(
 
         // Check if we have all required references
         val tracerClass = logicTracerClass ?: run {
-            messageCollector.report(org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING, "ReaktivTracing: LogicTracer class not found, skipping transformation for \${declaration.name}")
+            messageCollector.warn { "ReaktivTracing: LogicTracer class not found, skipping transformation for \${declaration.name}" }
             return super.visitFunctionNew(declaration)
         }
         val startFun = notifyMethodStartFun ?: run {
-            messageCollector.report(org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING, "ReaktivTracing: notifyMethodStart not found, skipping transformation")
+            messageCollector.warn { "ReaktivTracing: notifyMethodStart not found, skipping transformation" }
             return super.visitFunctionNew(declaration)
         }
         val completedFun = notifyMethodCompletedFun ?: run {
-            messageCollector.report(org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING, "ReaktivTracing: notifyMethodCompleted not found, skipping transformation")
+            messageCollector.warn { "ReaktivTracing: notifyMethodCompleted not found, skipping transformation" }
             return super.visitFunctionNew(declaration)
         }
         val failedFun = notifyMethodFailedFun ?: run {
-            messageCollector.report(org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING, "ReaktivTracing: notifyMethodFailed not found, skipping transformation")
+            messageCollector.warn { "ReaktivTracing: notifyMethodFailed not found, skipping transformation" }
             return super.visitFunctionNew(declaration)
         }
 
         val originalBody = declaration.body ?: return super.visitFunctionNew(declaration)
 
-        val parentClass = declaration.parent as? IrClass ?: return super.visitFunctionNew(declaration)
-        val className = parentClass.fqNameWhenAvailable?.asString() ?: parentClass.name.asString()
+        val parentClass = declaration.parent as? IrClass
+        val className = parentClass?.fqNameWhenAvailable?.asString()
+            ?: parentClass?.name?.asString()
+            ?: declaration.fileEntry.name.substringAfterLast('/').substringAfterLast('\\')
         val methodName = declaration.name.asString()
 
-        messageCollector.report(
-            org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-            "ReaktivTracing: Transforming method $className.$methodName"
-        )
+        messageCollector.info { "ReaktivTracing: Transforming method $className.$methodName" }
 
         // Transform the function body
         declaration.body = transformBody(
@@ -216,13 +231,15 @@ class LogicMethodTransformer(
             val callIdVar = irTemporary(
                 value = irCall(startFun).apply {
                     dispatchReceiver = irGetObject(tracerClass)
-                    val valueParamOffset = if (startFun.owner.dispatchReceiverParameter != null) 1 else 0
-                    arguments[valueParamOffset + 0] = irString(className)
-                    arguments[valueParamOffset + 1] = irString(methodName)
-                    arguments[valueParamOffset + 2] = irGet(paramsVar)
-                    arguments[valueParamOffset + 3] = relativeFilePath?.let { irString(it) } ?: irNull()
-                    arguments[valueParamOffset + 4] = lineNumber?.let { irInt(it) } ?: irNull()
-                    arguments[valueParamOffset + 5] = githubSourceUrl?.let { irString(it) } ?: irNull()
+                    setValueArgs(
+                        startFun,
+                        irString(className),
+                        irString(methodName),
+                        irGet(paramsVar),
+                        relativeFilePath?.let { irString(it) } ?: irNull(),
+                        lineNumber?.let { irInt(it) } ?: irNull(),
+                        githubSourceUrl?.let { irString(it) } ?: irNull()
+                    )
                 },
                 nameHint = "tracing_callId"
             )
@@ -261,7 +278,6 @@ class LogicMethodTransformer(
             }
 
             // Calculate offset for value parameters for completedFun
-            val completedValueParamOffset = if (completedFun.owner.dispatchReceiverParameter != null) 1 else 0
 
             // Build try block (original body + success notification)
             val tryBlock = if (isUnitReturn) {
@@ -277,13 +293,7 @@ class LogicMethodTransformer(
                         else -> { /* IrSyntheticBody - skip */ }
                     }
                     // On success: LogicTracer.notifyMethodCompleted(callId, null, "Unit", duration)
-                    +irCall(completedFun).apply {
-                        dispatchReceiver = irGetObject(tracerClass)
-                        arguments[completedValueParamOffset + 0] = irGet(callIdVar)
-                        arguments[completedValueParamOffset + 1] = irNull()
-                        arguments[completedValueParamOffset + 2] = irString("Unit")
-                        arguments[completedValueParamOffset + 3] = irComputeDuration(startTimeVar)
-                    }
+                    +irNotifyCompleted(tracerClass, completedFun, callIdVar, startTimeVar, null, "Unit")
                 }
             } else {
                 // For non-Unit return, we need to transform all return statements
@@ -324,47 +334,28 @@ class LogicMethodTransformer(
                                     is IrBlock -> "IrBlock (size=${lastStatement.statements.size})"
                                     else -> lastStatement::class.simpleName ?: "unknown"
                                 }
-                                messageCollector.report(
-                                    org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                                    "ReaktivTracing: $methodName last statement: $lastStatementDetail, transformed: ${transformedLast::class.simpleName}"
-                                )
+                                messageCollector.info { "ReaktivTracing: $methodName last statement: $lastStatementDetail, transformed: ${transformedLast::class.simpleName}" }
 
                                 // Check if last statement is already a return (handled by transformer)
                                 // or if it's an expression that should be the implicit return value
                                 if (lastStatement is IrReturn) {
-                                    messageCollector.report(
-                                        org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                                        "ReaktivTracing: $methodName - explicit return path"
-                                    )
+                                    messageCollector.info { "ReaktivTracing: $methodName - explicit return path" }
                                     // Already transformed by ReturnTransformer - it returns a block expression
                                     +(transformedLast as IrExpression)
                                 } else if (transformedLast is IrExpression) {
-                                    messageCollector.report(
-                                        org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                                        "ReaktivTracing: $methodName - implicit return expression path, adding completion call"
-                                    )
+                                    messageCollector.info { "ReaktivTracing: $methodName - implicit return expression path, adding completion call" }
                                     // Implicit return - capture result and notify
                                     val resultTmp = irTemporary(
                                         value = transformedLast,
                                         nameHint = "tracing_implicitResult"
                                     )
-                                    +irCall(completedFun).apply {
-                                        dispatchReceiver = irGetObject(tracerClass)
-                                        arguments[completedValueParamOffset + 0] = irGet(callIdVar)
-                                        arguments[completedValueParamOffset + 1] = irIfTracerActive(
-                                            type = irBuiltIns.stringType.makeNullable(),
-                                            thenPart = irToStringSafe(irGet(resultTmp)),
-                                            elsePart = irNull()
-                                        )
-                                        arguments[completedValueParamOffset + 2] = irString(returnType.classFqName?.shortName()?.asString() ?: "Unknown")
-                                        arguments[completedValueParamOffset + 3] = irComputeDuration(startTimeVar)
-                                    }
+                                    +irNotifyCompleted(
+                                        tracerClass, completedFun, callIdVar, startTimeVar,
+                                        resultTmp, returnType.traceName()
+                                    )
                                     +irGet(resultTmp)
                                 } else {
-                                    messageCollector.report(
-                                        org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING,
-                                        "ReaktivTracing: $methodName - last statement is not expression (${transformedLast::class.simpleName}), NO completion call added!"
-                                    )
+                                    messageCollector.warn { "ReaktivTracing: $methodName - last statement is not expression (${transformedLast::class.simpleName}), NO completion call added!" }
                                     // Not an expression - add as statement
                                     +(transformedLast as IrStatement)
                                 }
@@ -376,17 +367,10 @@ class LogicMethodTransformer(
                                 value = originalBody.expression.transform(returnTransformer, null),
                                 nameHint = "tracing_result"
                             )
-                            +irCall(completedFun).apply {
-                                dispatchReceiver = irGetObject(tracerClass)
-                                arguments[completedValueParamOffset + 0] = irGet(callIdVar)
-                                arguments[completedValueParamOffset + 1] = irIfTracerActive(
-                                            type = irBuiltIns.stringType.makeNullable(),
-                                            thenPart = irToStringSafe(irGet(resultTmp)),
-                                            elsePart = irNull()
-                                        )
-                                arguments[completedValueParamOffset + 2] = irString(returnType.classFqName?.shortName()?.asString() ?: "Unknown")
-                                arguments[completedValueParamOffset + 3] = irComputeDuration(startTimeVar)
-                            }
+                            +irNotifyCompleted(
+                                tracerClass, completedFun, callIdVar, startTimeVar,
+                                resultTmp, returnType.traceName()
+                            )
                             +irGet(resultTmp)
                         }
                         else -> { /* IrSyntheticBody - skip */ }
@@ -428,10 +412,7 @@ class LogicMethodTransformer(
     private fun IrBuilderWithScope.irComputeDuration(startTimeVar: IrVariable): IrExpression {
         val timeFun = getTimeMillisFun
         if (timeFun == null) {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING,
-                "ReaktivTracing: currentTimeMillis not available, duration will be 0"
-            )
+            messageCollector.warn { "ReaktivTracing: currentTimeMillis not available, duration will be 0" }
             return irLong(0L)
         }
 
@@ -455,10 +436,7 @@ class LogicMethodTransformer(
                 arguments[paramOffset] = startTime
             }
         } else {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING,
-                "ReaktivTracing: Long.minus not found, duration will be 0"
-            )
+            messageCollector.warn { "ReaktivTracing: Long.minus not found, duration will be 0" }
             irLong(0L)
         }
     }
@@ -498,22 +476,66 @@ class LogicMethodTransformer(
                 nameHint = "tracing_paramsMap"
             )
 
-            // For each parameter: map.put(name, value.toString())
             for (param in valueParams) {
                 val paramName = param.name.asString()
-                val paramValue = irGet(param)
-                val valueAsString = irToStringSafe(paramValue)
+                val valueAsString = irParamValue(param)
 
                 +irCall(mapPut).apply {
                     dispatchReceiver = irGet(mapVar)
-                    val putOffset = if (mapPut.owner.dispatchReceiverParameter != null) 1 else 0
-                    arguments[putOffset + 0] = irString(paramName)
-                    arguments[putOffset + 1] = valueAsString
+                    setValueArgs(mapPut, irString(paramName), valueAsString)
                 }
             }
 
             // Return the map (cast to Map<String, String>)
             +irGet(mapVar)
+        }
+    }
+
+    private fun IrType.traceName(): String = classFqName?.shortName()?.asString() ?: "Unknown"
+
+    private fun IrBuilderWithScope.irNotifyCompleted(
+        tracerClass: IrClassSymbol,
+        completedFun: IrSimpleFunctionSymbol,
+        callIdVar: IrVariable,
+        startTimeVar: IrVariable,
+        result: IrVariable?,
+        resultTypeName: String
+    ): IrExpression = irCall(completedFun).apply {
+        dispatchReceiver = irGetObject(tracerClass)
+        setValueArgs(
+            completedFun,
+            irGet(callIdVar),
+            result?.let {
+                irIfTracerActive(
+                    type = irBuiltIns.stringType.makeNullable(),
+                    thenPart = irToStringSafe(irGet(it)),
+                    elsePart = irNull()
+                )
+            } ?: irNull(),
+            irString(resultTypeName),
+            irComputeDuration(startTimeVar)
+        )
+    }
+
+    private fun IrBuilderWithScope.irParamValue(param: IrValueParameter): IrExpression {
+        val obfuscation = obfuscationClass
+        return when {
+            param.hasAnnotation(sensitiveFqName) -> {
+                val redact = redactFun
+                if (obfuscation == null || redact == null) irString(REDACTED_FALLBACK)
+                else irCall(redact).apply { dispatchReceiver = irGetObject(obfuscation) }
+            }
+
+            param.hasAnnotation(piiFqName) -> {
+                val maskPii = maskPiiFun
+                if (obfuscation == null || maskPii == null) irString(REDACTED_FALLBACK)
+                else irCall(maskPii).apply {
+                    dispatchReceiver = irGetObject(obfuscation)
+                    setValueArgs(maskPii, irGet(param))
+                }
+            }
+
+            else -> irToStringSafe(irGet(param))
         }
     }
 
@@ -565,23 +587,31 @@ class LogicMethodTransformer(
     private fun shouldTrace(function: IrFunction): Boolean {
         val funcName = "${(function.parent as? IrClass)?.name?.asString() ?: "?"}.${function.name.asString()}"
 
+        val isAnnotatedTrace = function.hasAnnotation(traceFqName)
+
         // Must be a suspend function
         if (!function.isSuspend) {
+            if (isAnnotatedTrace) {
+                messageCollector.warn { "ReaktivTracing: $funcName has @Trace but is not suspend, skipping" }
+            }
             return false
         }
 
         // Must not have @NoTrace annotation
         if (function.hasAnnotation(noTraceFqName)) {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                "ReaktivTracing: $funcName has @NoTrace, skipping"
-            )
+            messageCollector.info { "ReaktivTracing: $funcName has @NoTrace, skipping" }
             return false
         }
 
         // Must be a user-defined function (not generated)
         if (function.origin != IrDeclarationOrigin.DEFINED) {
             return false
+        }
+
+        // @Trace opts any suspend function in, regardless of the containing class
+        if (isAnnotatedTrace) {
+            messageCollector.info { "ReaktivTracing: Will trace @Trace annotated function $funcName" }
+            return true
         }
 
         // Parent must be a class
@@ -595,33 +625,21 @@ class LogicMethodTransformer(
         // Check visibility
         val visibility = function.visibility
         if (visibility == DescriptorVisibilities.PUBLIC) {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                "ReaktivTracing: Will trace public method $funcName"
-            )
+            messageCollector.info { "ReaktivTracing: Will trace public method $funcName" }
             return true
         }
         if (tracePrivateMethods && visibility == DescriptorVisibilities.PRIVATE) {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                "ReaktivTracing: Will trace private method $funcName"
-            )
+            messageCollector.info { "ReaktivTracing: Will trace private method $funcName" }
             return true
         }
 
-        messageCollector.report(
-            org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-            "ReaktivTracing: $funcName visibility $visibility not traced"
-        )
+        messageCollector.info { "ReaktivTracing: $funcName visibility $visibility not traced" }
         return false
     }
 
     private fun isModuleLogicSubclass(irClass: IrClass): Boolean {
         val result = isModuleLogicSubclassRecursive(irClass, mutableSetOf())
-        messageCollector.report(
-            org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-            "ReaktivTracing: Checking ${irClass.fqNameWhenAvailable} extends ModuleLogic: $result"
-        )
+        messageCollector.info { "ReaktivTracing: Checking ${irClass.fqNameWhenAvailable} extends ModuleLogic: $result" }
         return result
     }
 
@@ -705,35 +723,22 @@ class LogicMethodTransformer(
     ) : IrElementTransformerVoid() {
 
         override fun visitTry(aTry: IrTry): IrExpression {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                "ReaktivTracing: $methodName - visiting IrTry block"
-            )
+            messageCollector.info { "ReaktivTracing: $methodName - visiting IrTry block" }
             return super.visitTry(aTry)
         }
 
         override fun visitReturn(expression: IrReturn): IrExpression {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                "ReaktivTracing: $methodName - visitReturn called, target: ${expression.returnTargetSymbol}, our target: ${targetFunction.symbol}"
-            )
+            messageCollector.info { "ReaktivTracing: $methodName - visitReturn called, target: ${expression.returnTargetSymbol}, our target: ${targetFunction.symbol}" }
 
             // Only transform returns from our target function
             if (expression.returnTargetSymbol != targetFunction.symbol) {
-                messageCollector.report(
-                    org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                    "ReaktivTracing: $methodName - return target mismatch, not transforming"
-                )
+                messageCollector.info { "ReaktivTracing: $methodName - return target mismatch, not transforming" }
                 return super.visitReturn(expression)
             }
 
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
-                "ReaktivTracing: $methodName - TRANSFORMING return statement!"
-            )
+            messageCollector.info { "ReaktivTracing: $methodName - TRANSFORMING return statement!" }
 
             val builder = DeclarationIrBuilder(pluginContext, targetFunction.symbol)
-            val completedValueParamOffset = if (completedFun.owner.dispatchReceiverParameter != null) 1 else 0
 
             return builder.irBlock(resultType = irBuiltIns.nothingType) {
                 // Capture the return value
@@ -744,17 +749,10 @@ class LogicMethodTransformer(
                 )
 
                 // Call notifyMethodCompleted
-                +irCall(completedFun).apply {
-                    dispatchReceiver = irGetObject(tracerClass)
-                    arguments[completedValueParamOffset + 0] = irGet(callIdVar)
-                    arguments[completedValueParamOffset + 1] = irIfTracerActive(
-                                            type = irBuiltIns.stringType.makeNullable(),
-                                            thenPart = irToStringSafe(irGet(resultTmp)),
-                                            elsePart = irNull()
-                                        )
-                    arguments[completedValueParamOffset + 2] = irString(returnType.classFqName?.shortName()?.asString() ?: "Unknown")
-                    arguments[completedValueParamOffset + 3] = irComputeDuration(startTimeVar)
-                }
+                +irNotifyCompleted(
+                    tracerClass, completedFun, callIdVar, startTimeVar,
+                    resultTmp, returnType.traceName()
+                )
 
                 // Return the captured value
                 +IrReturnImpl(

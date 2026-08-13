@@ -1,5 +1,6 @@
 package eu.syrou.androidexample.domain.network.news
 
+import eu.syrou.androidexample.tooling.attachNetworkInspection
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.UserAgent
@@ -18,6 +19,7 @@ import kotlinx.serialization.json.Json
 abstract class BaseNewsSource : NewsSource {
     @OptIn(ExperimentalSerializationApi::class)
     protected val client = HttpClient {
+        attachNetworkInspection()
         expectSuccess = true
         install(UserAgent) {
             agent = "android:eu.syrou.androidexample:v1.0 (Reaktiv example app)"

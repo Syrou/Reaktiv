@@ -1,5 +1,6 @@
 package eu.syrou.androidexample.domain.network.twitchstream
 
+import eu.syrou.androidexample.tooling.attachNetworkInspection
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -12,6 +13,7 @@ import kotlinx.serialization.json.Json
 
 class TwitchApiClient(private val accessToken: String) {
     private val client = HttpClient {
+        attachNetworkInspection()
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true

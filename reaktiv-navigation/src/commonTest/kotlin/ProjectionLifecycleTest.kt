@@ -141,7 +141,7 @@ class ProjectionLifecycleTest {
             advanceUntilIdle()
             lifecycleEvents.clear()
 
-            store.dispatch(NavigationAction.Back)
+            store.dispatch(NavigationAction.Back())
             advanceUntilIdle()
 
             assertEquals(listOf("proj-profile:removed"), lifecycleEvents)

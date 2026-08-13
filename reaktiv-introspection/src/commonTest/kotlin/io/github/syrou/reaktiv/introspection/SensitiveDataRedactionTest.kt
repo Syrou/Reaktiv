@@ -2,15 +2,11 @@ package io.github.syrou.reaktiv.introspection
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 class SensitiveDataRedactionTest {
 
@@ -57,31 +53,4 @@ class SensitiveDataRedactionTest {
         assertEquals("a@b.c", result["email"]!!.jsonPrimitive.content)
     }
 
-    @Test
-    fun defaultConfigRedactsSensitiveKeys() {
-        val redactor = IntrospectionConfig(platform = "Test").resolveRedactor()
-        assertNotNull(redactor)
-        assertEquals(REDACTED_PLACEHOLDER, redact("""{"password":"x"}""", redactor)["password"]!!.jsonPrimitive.content)
-    }
-
-    @Test
-    fun disablingRedactionWithoutCustomYieldsNoRedactor() {
-        assertNull(IntrospectionConfig(platform = "Test", redactSensitiveKeys = false).resolveRedactor())
-    }
-
-    @Test
-    fun customRedactorComposesOnTopOfBuiltIn() {
-        val custom = StateRedactor { _, state ->
-            buildJsonObject {
-                state.jsonObject.forEach { (key, value) ->
-                    put(key, if (key == "email") JsonPrimitive("[HIDDEN]") else value)
-                }
-            }
-        }
-        val redactor = IntrospectionConfig(platform = "Test", redactor = custom).resolveRedactor()
-        assertNotNull(redactor)
-        val result = redact("""{"password":"x","email":"a@b.c"}""", redactor)
-        assertEquals(REDACTED_PLACEHOLDER, result["password"]!!.jsonPrimitive.content)
-        assertEquals("[HIDDEN]", result["email"]!!.jsonPrimitive.content)
-    }
 }

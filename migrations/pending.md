@@ -3055,3 +3055,942 @@ New helpers `RouteResolver.canonicalGraphId(route)` and `RouteResolver.fullPathF
 back the canonicalization. No application code changes are required.
 
 ---
+### [BC-39] Redaction is type aware and captured state always decodes
+
+**Type:** Behavioural
+
+**Grep:** `redactSensitiveKeys|sensitiveKeyRedactor|SessionCapture\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Every string leaf under a sensitive key became the mask string, including
+// string-serialized types, so the capture stopped decoding:
+// {"secretLevel": "[REDACTED]"}   // was an enum, decode threw
+// {"tokenIssuedAt": "[REDACTED]"} // was an Instant, decode threw
+```
+
+**After:**
+```kotlin
+// Masking is guided by the module state's SerialDescriptor and every decode
+// path restores masked constrained values to valid ones:
+// {"secretLevel": "[REDACTED]"}   // still masked on the wire and in exports
+// a follower or reconstruction decodes it as a fallback constant instead of throwing
+```
+
+**Notes:** Closes the known gap documented in BC-36. The built-in sensitive-key pass no longer
+runs as a blind JsonElement transform inside a composed StateRedactor. SessionCapture now
+walks the encoded JSON in parallel with the state class's SerialDescriptor, so it knows
+whether a string leaf is a plain String, an enum, or a custom string format, and every decode
+path (follower replication, per-action deltas, single-module sync) restores the `[REDACTED]`
+sentinel to a valid value before typed decoding. Enum fallbacks resolve in order: a constant
+pinned with `@RedactedAs`, a constant named REDACTED, UNKNOWN, or UNSPECIFIED, null when the
+property is nullable, otherwise the first constant. Custom string formats resolve through
+`@RedactedAs`, nullability, then `RedactionFallbacks.formatFallbacks` (Instant, LocalDate,
+Duration, Uuid and friends map to epoch-style values).
+
+SessionCapture gained a `redactSensitiveKeys: Boolean = true` constructor parameter and the
+config's custom `redactor` now runs after the built-in pass instead of being composed with it.
+Output of a custom StateRedactor is also repaired on decode, so a legacy redactor that masks
+an enum no longer breaks replication.
+
+The capture worker now verification-decodes its own redacted output (every FULL delta, every
+initial-state module, and a 1-in-100 sample of FIELDS deltas). A failure or an unrestorable
+masked leaf is reported once per cause as a synthetic logic event with logicClass
+`RedactionWatchdog` plus a `ReaktivDebug.error`, so an undecodable capture is loud on the
+publisher instead of surfacing as a degraded follower.
+
+Chars under a sensitive key now mask to `*` instead of the placeholder, since the placeholder
+does not decode as a Char. Booleans remain untouched, numbers are still zeroed only where the
+key naming them is itself sensitive.
+
+---
+### [AD-59] Redacted and RedactedAs annotations with symmetric restore
+
+**Type:** Addition
+
+**Grep:** `@Redacted|@RedactedAs|restoreRedactedModuleElement|RedactionFallbacks`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+import io.github.syrou.reaktiv.core.serialization.Redacted
+import io.github.syrou.reaktiv.core.serialization.RedactedAs
+
+@Serializable
+data class VaultState(
+    @Redacted val internalCode: Clearance = Clearance.HIGH,
+    @RedactedAs("UNKNOWN") val tier: Clearance = Clearance.HIGH,
+    val password: String = ""
+) : ModuleState
+
+// Tooling-owned decode paths repair sentinels before typed decoding:
+val decodable = restoreRedactedModuleElement(json, capturedModuleJson)
+```
+
+**Notes:** `@Redacted` (reaktiv-tracing-runtime, package `core.serialization`) marks a property as sensitive
+regardless of its name, so redaction no longer depends on key-name heuristics alone.
+`@RedactedAs("VALUE")` additionally pins the value the decode side restores, an enum constant
+name for enums or a literal for custom string formats, and implies `@Redacted`. Both are
+SerialInfo annotations read from the descriptor, so publisher and follower agree by sharing
+the same compiled state classes. They ship in reaktiv-tracing-runtime, which is release-safe
+and auto-added by the tracing Gradle plugin, keeping reaktiv-core free of them while release
+state classes still compile and their generated serializers still resolve the annotation class
+at runtime.
+
+`restoreRedactedModuleElement(json, element)` (reaktiv-introspection) is the single decode
+choke point: it resolves the module state's concrete descriptor from the polymorphic
+discriminator and replaces `[REDACTED]` sentinels with valid values. DevToolsService uses it
+on every follower decode path. Any new code that decodes captured or replicated module state
+must go through it rather than a raw Json decode, that convention is what keeps the
+"redaction never produces undecodable state" invariant durable. `RedactionFallbacks` exposes
+the built-in per-serialName fallback registry and the recognized enum fallback constant names.
+See BC-39 for the behavioural side.
+
+---
+### [BC-40] Store dispatch tracing moved behind an instrumentation seam
+
+**Type:** Breaking | Behavioural
+
+**Grep:** `setDispatchInstrumentation|DispatchInstrumentation`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Store emitted StoreDispatch spans directly through LogicTracer whenever
+// any observer was registered, and core's dispatch path referenced LogicTracer.
+```
+
+**After:**
+```kotlin
+// Store holds only a nullable DispatchInstrumentation reference. The tooling
+// module installs the LogicTracer-forwarding implementation:
+// ToolingLogic calls store.setDispatchInstrumentation(DispatchTracingInstrumentation())
+// when installLogicTracing is enabled, and clears it in beforeReset.
+```
+
+**Notes:** Core's `Store` no longer contains any tracing or measurement code.
+`DispatchInstrumentation` (reaktiv-core) is a neutral SPI with callbacks for dispatch
+start/completion/failure, external-control drops and transitions, and an optional
+`DispatchStepDecorator` hook: Store hands each chain step (every middleware by name plus the
+reducer) to the decorator for wrapping, and all timing, self-time math, thresholds, and span
+emission live in the tooling-side decorator, not in Store. Without an installed instrumentation the dispatch path costs one
+null check and emits nothing, so apps that never add the tooling dependency carry no dispatch
+tracing. Consequence: StoreDispatch spans (queue wait, queue depth, AD-44) now appear only when
+`createToolingModule` is installed. `DispatchTracingInstrumentation` (reaktiv-introspection)
+reproduces the previous span shapes exactly, so downstream consumers (perf lens, capture) see
+unchanged data.
+
+---
+### [AD-60] Dispatch phase self times and logic call trees
+
+**Type:** Addition
+
+**Grep:** `DispatchPhase|parentCallId`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// The tooling decorator wraps every dispatch chain step and computes self
+// times itself. With tooling installed, phases at or above 1ms become child spans:
+// logicClass "DispatchPhase", methodName "reducer" or "<middleware>[index]",
+// parented to the StoreDispatch span via LogicMethodStart.parentCallId.
+```
+
+**Notes:** `LogicMethodStart` gained `parentCallId: String? = null`. LogicTracer tracks a
+per-coroutine-Job call stack, so any traced call started while another traced call is active in
+the same coroutine records that caller as its parent. This links nested logic calls and parents
+dispatch-phase spans under their dispatch, enabling flame-style rendering. Phase timings are
+self times computed by the decorator's frame stack: a middleware's time excludes the chain
+below it. Phase spans carry their true start timestamps, emit only at 4ms self time or more
+(clock-tick noise stays silent), are hidden from the DevTools event stream like StoreDispatch
+spans, and pipeline synthetics are excluded from per-thread contention stats so one nested
+dispatch never reads as concurrent load. A slow reducer or middleware is
+also surfaced as a Finding (see AD-63). Serialization is backward compatible, the field
+defaults to null.
+
+---
+### [AD-61] Session markers
+
+**Type:** Addition
+
+**Grep:** `addMarker|SessionMarker|MarkerAdded`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// On device, from a debug menu or report button:
+store.selectLogic<ToolingLogic>().addMarker("saw the glitch", "list jumped to top")
+
+// From the DevTools UI or any orchestrator, dropped remotely:
+// DevToolsMessage.AddMarkerRequest(targetClientId, label, note)
+```
+
+**Notes:** `SessionMarker(id, label, note, timestampMs, afterActionIndex, route, source)` is
+enriched by the capture worker with the current route and the action index at the moment of the
+mark, exactly like crashes, so a marker pins a scrubbable position in the session. Markers
+persist in capture storage, ride `SessionHistory` and `SessionExport` (format 3.5), stream live
+as `DevToolsMessage.MarkerAdded`, and the server relays `AddMarkerRequest` to the publisher,
+which records it with source "remote". `SessionCapture.addMarker(label, note, source)` is the
+low-level API.
+
+---
+### [AD-62] Stall culprit sampling
+
+**Type:** Addition
+
+**Grep:** `hottestFrame|STACK_SAMPLE_LIMIT`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// MainThreadWatchdog stall events now carry:
+// params["stack"]        first stack captured at stall onset
+// params["samples"]      number of stacks sampled during the stall
+// params["hottestFrame"] most frequent top frame across samples
+```
+
+**Notes:** StallWatchdog samples the monitored thread's stack on every monitor tick while the
+stall persists (capped at 50 samples) instead of once at onset, and reports the most frequent
+top frame. On platforms without stack capture the findings layer falls back to correlating the
+stall window against in-flight main-thread logic spans (AD-63). The constructor accepts an
+injectable `stackCapturer` for tests.
+
+---
+### [AD-63] Findings, recomposition churn, and state growth field attribution
+
+**Type:** Addition
+
+**Grep:** `computeFindings|aggregateChurn|topGrowingField`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val findings = computeFindings(
+    starts = logicStarts,
+    completions = logicCompletions,
+    sizes = stateSizeTracker.snapshot(),
+    churn = aggregateChurn(actions, stateReads)
+)
+```
+
+**Notes:** All in reaktiv-devtools commonMain, computed UI-side from already-captured data with
+zero protocol change. `computeFindings` produces a ranked triage list: main-thread stalls with
+an exact culprit (hottest sampled frame, else the longest overlapping main-thread logic span
+with its file, line, and GitHub link), capture redaction issues, dispatch queue-wait warnings
+naming the worst action, slow dispatch phases (reducer at 8ms is critical, middleware at 16ms
+warns), suspicious state growth naming the fastest-growing field
+(`ModuleSizeStats.topGrowingField`, tracked per top-level JSON field), and recomposition churn.
+`aggregateChurn` scores each composable by the change volume of the states it reads, joining
+the AD-41 state-read stream with captured action counts.
+
+---
+### [BC-41] Tracing runtime extracted from reaktiv-core
+
+**Type:** Breaking
+
+**Grep:** `io.github.syrou.reaktiv.core.tracing`
+**File glob:** `**/*.kt, **/build.gradle.kts`
+
+**Before:**
+```kotlin
+// LogicTracer, LogicMethodStart/Completed/Failed, LogicObserver, StateRead,
+// StateReadTracker and Obfuscation shipped inside reaktiv-core.
+```
+
+**After:**
+```kotlin
+// The same classes, same package io.github.syrou.reaktiv.core.tracing, now ship
+// in the reaktiv-tracing-runtime artifact. Apps applying the tracing Gradle
+// plugin get it automatically. Direct users add:
+// implementation("io.github.syrou:reaktiv-tracing-runtime:<version>")
+```
+
+**Notes:** reaktiv-core now contains no tracing machinery at all: no tracer, no event types,
+no observers. The only tracing-adjacent surface left in core is the neutral
+`DispatchInstrumentation` seam from BC-40, which has zero dependencies. The package name is
+unchanged, so source code, the compiler plugin's injected calls, and the JSON wire and export
+formats are all unaffected, this is purely a dependency-graph change. The tracing Gradle
+plugin auto-adds the runtime alongside the annotations artifact, so apps using `reaktivTracing`
+need no change. reaktiv-introspection and reaktiv-devtools expose the event types in their
+public APIs and declare the runtime as an api dependency, so their consumers also need no
+change. reaktiv-navigation carries an implementation dependency on the runtime for guard
+tracing (AD-38), which keeps guard observability zero-config, the artifact is a small inert
+event bus that no-ops without observers. A consumer that imported these types while depending
+only on reaktiv-core must add the dependency shown above.
+
+---
+### [AD-64] Trace annotation for suspend functions outside ModuleLogic
+
+**Type:** Addition
+
+**Grep:** `@Trace`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+import io.github.syrou.reaktiv.tracing.annotations.Trace
+
+class NewsRepository {
+    @Trace
+    suspend fun fetchTopStories(): List<Story> = api.load()
+}
+```
+
+**Notes:** ModuleLogic suspend methods are instrumented automatically. `@Trace`
+(reaktiv-tracing-annotations) opts any other suspend function into the same instrumentation:
+repositories, data sources, use-case helpers, and top-level suspend functions (attributed to
+their file name as the logic class). Events carry the same duration, params, file, line, and
+GitHub link, and nest under the calling traced method through `parentCallId`, so a traced
+repository call appears as a child of the logic span that invoked it. The function must be
+suspend, the compiler warns and skips otherwise. `@NoTrace` is not needed alongside it, simply
+omit `@Trace`. Instrumentation only exists in build types where the tracing plugin applies.
+
+---
+### [AD-65] Dispatch call-site provenance and dispatch-storm findings
+
+**Type:** Addition
+
+**Grep:** `dispatchedFrom|DispatchOriginTracker|dispatch-storm`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// With the tracing plugin applied, every dispatch call site is recorded:
+// StoreDispatch span params gain
+//   "dispatchedFrom" -> "com.example.NewsLogic.refresh (NewsLogic.kt:42)"
+// covering store.dispatch(...), dispatchAndAwait(...), and injected Dispatch lambdas.
+```
+
+**Notes:** A new compiler transformer wraps dispatch call sites (member `dispatchAndAwait` on
+Store or StoreAccessor, and `invoke` on anything named `dispatch`, which covers the `Dispatch`
+property and constructor-injected dispatch lambdas) to record the enclosing function, file, and
+line into `DispatchOriginTracker` (reaktiv-tracing-runtime) just before the call. The tracker
+pairs origins to action instances by identity with FIFO queues, no-ops when the tracer is
+inactive, and is bounded at 256 entries. `DispatchTracingInstrumentation` consumes the origin
+in `onDispatchStarted` and attaches it as the `dispatchedFrom` param on the StoreDispatch span,
+so every action in the devtools stream answers "who dispatched this" with a clickable location.
+`computeFindings` gained a dispatch-storm detector: 20 or more dispatches of the same action
+type within one second produces a warning naming the recorded origin of the burst, which is how
+feedback-loop bugs surface. Verified end to end by instrumented tests in reaktiv-introspection
+(its own test compilation runs the plugin) on JVM, mingwX64, and wasmJs.
+
+---
+### [AD-66] Device log forwarding and positioned markers
+
+**Type:** Addition
+
+**Grep:** `ReaktivLogSink|LogBatch|addMarker`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// Any ReaktivDebug output on a publisher now streams to the DevTools UI:
+ReaktivDebug.general("sync finished with 42 items")
+// arrives batched as DevToolsMessage.LogBatch and renders as log rows in the stream
+
+// Markers can pin an explicit moment instead of "now":
+capture.addMarker("saw it here", timestampMs = actionTime, afterActionIndex = 17)
+```
+
+**Notes:** `ReaktivLogSink` is a neutral fan-out seam on `ReaktivDebug` (reaktiv-core), the same
+pattern as `DispatchInstrumentation`: copy-on-write sink list, zero work with no sinks, sinks
+receive lines even when console printing is disabled. `DevToolsService` registers a sink that
+feeds a 512-entry drop-oldest channel, flushed every 300ms in batches of up to 100 as
+`DevToolsMessage.LogBatch` only while the client is a connected publisher, so memory overhead
+is bounded on every platform. The UI retains the newest 3000 lines and renders them as
+level-colored rows merged into the event stream behind a Logs toggle.
+`SessionCapture.addMarker` and `DevToolsMessage.AddMarkerRequest` gained optional
+`timestampMs` and `afterActionIndex`, letting the DevTools UI drop a marker at the currently
+selected action rather than at receive time. Historical markers skip route enrichment, since
+the current route would be wrong for a past moment.
+
+---
+
+### [AD-67] Ktor network inspection with timeline and cURL export
+
+**Type:** Addition
+
+**Grep:** `ReaktivNetworkInspection`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val client = HttpClient(engine) {
+    install(ReaktivNetworkInspection) {
+        maxBodyBytes = 64 * 1024
+        redactedHeaders = setOf("Authorization", "Cookie", "Set-Cookie", "Proxy-Authorization")
+        bodyRetentionCount = 50
+    }
+}
+```
+
+**Notes:** New module `reaktiv-network-ktor` provides a Ktor client plugin that captures
+every request and response (method, url, headers, bodies, status, timing, errors) and emits
+them through the new `NetworkTap` seam in reaktiv-introspection. The DevTools service
+forwards captures from a publisher in batches (`DevToolsMessage.NetworkBatch`) using the
+same buffered flush pipeline as device logs. In the WASM UI network requests appear as a
+dedicated lane in the session timeline and as rows in the event stream, clicking one opens
+the Network tab in the side panel with full headers, pretty printed bodies, copy as cURL
+(`CurlFormatter.toCurl`), copy URL, and copy response. The originating client re-executes the
+retained original request (with unredacted headers kept on device only) and tags the new
+capture. Redaction applies before anything leaves the device. Bodies are
+captured only for textual content types (json, xml, form, text, excluding event-stream),
+truncated at `maxBodyBytes`, and skipped entirely above `hardBodyLimitBytes`. Capture is
+inert until a listener attaches to `NetworkTap`, so an installed plugin without a connected
+DevTools session does no work. Streaming reads through `prepare { }.execute { }` may be
+read into memory by response body capture, set `captureBodies = false` or narrow
+`shouldCaptureBody` for streaming-heavy clients.
+
+---
+
+### [BC-42] `@Sensitive` and `@PII` now actually redact traced parameters
+
+**Type:** Behavioural
+
+**Grep:** `@Sensitive|@PII`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// The annotations were documented as redacting, but the compiler plugin never read them.
+// A traced call recorded the real value:
+//   params = { "password": "hunter2" }
+suspend fun signIn(@Sensitive password: String) { }
+```
+
+**After:**
+```kotlin
+// Same source, but the plugin now emits Obfuscation.redact() / Obfuscation.maskPII(value):
+//   params = { "password": "[REDACTED]" }
+suspend fun signIn(@Sensitive password: String) { }
+```
+
+**Notes:** No source change is required, but traces, session exports and DevTools output will
+start showing `[REDACTED]` for `@Sensitive` parameters and partially masked values for `@PII`
+where they previously showed the value in full. Anything asserting on traced parameter strings
+must be updated. A `@Sensitive` parameter is never evaluated at the call site, so a costly
+`toString` on a secret no longer runs. If the redaction runtime cannot be resolved the parameter
+is redacted rather than traced. See AD-68.
+
+---
+
+### [BC-43] `Obfuscation.redact` takes no argument
+
+**Type:** Breaking
+
+**Grep:** `Obfuscation.redact(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val masked = Obfuscation.redact(value)
+```
+
+**After:**
+```kotlin
+val masked = Obfuscation.redact()
+```
+
+**Notes:** The argument was ignored, and taking one forced the call site to evaluate the secret
+it was about to discard. See BC-42.
+
+---
+
+### [BC-44] DevTools server client bookkeeping is suspending
+
+**Type:** Breaking
+
+**Grep:** `DevToolsServer.resetState\(\)|RunningDevToolsServer|\.broadcastClientList\(|clientManager\.isGhost\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+DevToolsServer.resetState()
+val server = DevToolsServer.startEmbedded(port = 0)
+val url = "ws://127.0.0.1:${server.port}/ws"
+```
+
+**After:**
+```kotlin
+// resetState and port are suspending; call them from a coroutine
+DevToolsServer.resetState()
+val server = DevToolsServer.startEmbedded(port = 0)
+val url = "ws://127.0.0.1:${server.port()}/ws"
+```
+
+**Notes:** `RunningDevToolsServer.port` became `suspend fun port()` because the previous
+`by lazy { runBlocking { ... } }` deadlocks when first read from a dispatcher that cannot spare a
+thread. `ClientManager.reset()` became suspending so it takes the same lock as every other
+mutation. `ClientManager.broadcastClientList()` and `ClientManager.isGhost()` are gone:
+broadcasting is now internal to each mutating operation, and `isGhostDevice()` was an identical
+duplicate of `isGhost()`. `ConnectedClient.info` is a `val`; replace the map entry with `copy()`
+instead of mutating in place.
+
+---
+
+### [AD-68] `CopyOnWriteRegistry` for lock-free listener lists
+
+**Type:** Addition
+
+**Grep:** `CopyOnWriteRegistry`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+import io.github.syrou.reaktiv.core.util.CopyOnWriteRegistry
+
+private val observers = CopyOnWriteRegistry<MyObserver>()
+
+fun addObserver(observer: MyObserver): Boolean = observers.add(observer)
+fun removeObserver(observer: MyObserver): Boolean = observers.remove(observer)
+
+fun notify(event: MyEvent) {
+    observers.forEachCatching({ ReaktivDebug.warn("observer threw: ${it.message}") }) {
+        it.onEvent(event)
+    }
+}
+```
+
+**Notes:** Replaces the copy-on-write CAS loop that was hand-written in `ReaktivDebug`,
+`LogicTracer`, `StateReadTracker` and the Store's crash listeners, along with the duplicated
+notify-and-swallow loop. Registration and notification are safe from any thread, and a listener
+added or removed during a notification pass does not disturb the pass in flight.
+
+---
+
+### [BC-45] Store dispatch pipeline is ordered and single-consumer
+
+**Type:** Behavioural
+
+**Grep:** `store.dispatch\(|dispatchAndAwait|addCrashListener|\.cleanup\(\)`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// dispatch enqueued from a launched coroutine, so two calls could reach the reducer
+// in either order, and high and low priority actions were consumed concurrently
+store.dispatch(FirstAction)
+store.dispatch(SecondAction)
+
+// a test could read state immediately, because the enqueue hop gave collectors time to attach
+val state = store.selectState<MyState>().value
+```
+
+**After:**
+```kotlin
+// dispatch enqueues inline: program order is preserved and one consumer applies every action
+store.dispatch(FirstAction)
+store.dispatch(SecondAction)
+
+// nothing delays the reducer any more, so wait for the queue to drain before asserting
+advanceUntilIdle()
+val state = store.selectState<MyState>().value
+```
+
+**Notes:** Four behavioural changes, none of which need a source change outside tests.
+Fire-and-forget `dispatch` now preserves program order. A single consumer drains both channels,
+high priority first, so a `HighPriorityAction` and a normal action targeting the same module can
+no longer interleave and lose an update. `Store.reset()` no longer clears registered
+[CrashListener]s, so a listener installed at startup survives a reset. `Store.cleanup()` now
+completes anything waiting in `dispatchAndAwait` with `DispatchResult.Error` instead of leaving
+the caller suspended forever.
+
+Tests that dispatched and then read state without settling the scheduler were relying on the old
+enqueue hop; add `advanceUntilIdle()` (or await a `dispatchAndAwait`) before asserting. Note that
+a `HighPriorityAction` used as a completion marker will overtake pending normal actions by design,
+so use a normal-priority action when you need a FIFO marker.
+
+---
+
+### [BC-46] Session capture files are per-instance
+
+**Type:** Behavioural
+
+**Grep:** `SessionCapture\(|reaktiv-introspection`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// every SessionCapture in the process wrote to the same files:
+//   <tmp>/reaktiv-introspection/actions.jsonl
+//   <tmp>/reaktiv-introspection/crashes.jsonl
+```
+
+**After:**
+```kotlin
+// each instance gets its own set, discriminated by clock, per-process random value and counter:
+//   <tmp>/reaktiv-introspection/<id>-actions.jsonl
+//   <tmp>/reaktiv-introspection/<id>-crashes.jsonl
+```
+
+**Notes:** Two captures in one process, or two processes sharing the temporary directory, used to
+append to the same file and corrupt each other's session. Nothing outside `SessionCapture` refers
+to these paths, so no source change is needed. One consequence: files now accumulate in the
+temporary directory when a process exits without calling `SessionCapture.stop()`, where
+previously a fixed set of files was reused and overwritten.
+
+---
+
+### [BC-47] `CrashEventCard` removed from the DevTools web UI
+
+**Type:** Breaking
+
+**Grep:** `CrashEventCard`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+CrashEventCard(crashEvent, selected, onClick)
+```
+
+**After:**
+```kotlin
+// Render the crash inline. The two label helpers it used are still available:
+Text("Origin: ${crashOriginLabel(crashEvent.info.origin)}")
+crashLocationLabel(crashEvent.info)?.let { Text(it) }
+```
+
+**Notes:** The composable had no call sites anywhere; the crash panel in `StateViewer` renders its
+own layout and only used the two label helpers, which now live in `CrashLabels.kt`. Only affects
+the wasmJs target of `reaktiv-devtools`, which is the embedded web app rather than a consumed
+library surface.
+
+---
+
+### [BC-48] `NavigationAction.Back` carries the entry it expects to pop
+
+**Type:** Breaking
+
+**Grep:** `NavigationAction\.Back(?![\w(])|navigateBack\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// object, so a reference was enough
+store.dispatch(NavigationAction.Back)
+
+// and the pop always applied to whatever was current at reduce time
+```
+
+**After:**
+```kotlin
+// data class with a defaulted parameter, so a reference becomes a call
+store.dispatch(NavigationAction.Back())
+
+// a caller that knows which entry it means to remove can say so, and the
+// reducer drops the action if the stack has moved since
+store.dispatch(NavigationAction.Back(expectedTopKey = entry.stableKey))
+store.navigateBack(expectedTopKey = entry.stableKey)
+```
+
+**Notes:** Only value positions need the parentheses. Type positions are unchanged, so
+`is NavigationAction.Back`, `mutableListOf<NavigationAction.Back>()` and
+`filterIsInstance<NavigationAction.Back>()` all still compile as written.
+
+`expectedTopKey` defaults to `null`, which pops whatever is current: hardware back, programmatic
+back and `AtomicBatch` members keep their existing behaviour with no source change beyond the
+parentheses.
+
+Why it exists: an interactive gesture decides to go back when its settle animation ends, but the
+pop happens later, in the reducer. Anything enqueued during the animation reduces first, so the
+gesture could pop an entry the user never swiped. Checking the top before dispatching narrows that
+window but cannot close it, because the check and the pop happen at different times. Naming the
+expectation moves the decision into the reducer, which is the only place the state being popped is
+the state actually in effect.
+
+`NavigationLogic.navigateBack` and `StoreAccessor.navigateBack` gained the same defaulted
+parameter. Wire format is unchanged: an object and a data class whose only field defaults to null
+both serialize as `{}` with `encodeDefaults = false`. See AD-69.
+
+---
+
+### [AD-69] `completeInteractiveDismiss` replaces the two gesture completion functions
+
+**Type:** Replaces-deprecated
+
+**Grep:** `completeInteractiveDismiss|completeContentGesture|completeModalDismiss`
+**File glob:** `**/*.kt`
+
+**Replaces:** `completeContentGesture` and `completeModalDismiss`, which were near-identical copies.
+
+**Example:**
+```kotlin
+// content back: an entry is revealed underneath
+completeInteractiveDismiss(commit, progressVelocity, controller, store, top, revealed)
+
+// modal dismiss: nothing is revealed, only the modal hands off
+completeInteractiveDismiss(commit, progressVelocity, controller, store, entry, revealed = null)
+```
+
+**Notes:** Both are `internal`, so this affects no application code. They differed in three ways:
+whether a revealed entry is marked and handed off, which handoff is armed, and how the pop was
+issued. With BC-48 the third difference disappears, leaving `revealed` as the only variable, so
+one function covers both. The unused `navModule` parameter is gone.
+
+Companion to this, `ui/ScrubGesture.kt` now holds `ScrubAxis`, `trackScrub` and
+`pumpInitialPassDrag`, shared by the four content recognisers in `BackGestureOverlay`.
+
+---
+
+### [AD-70] `ModuleShadow` folds captured deltas into per-module state
+
+**Type:** Addition
+
+**Grep:** `ModuleShadow`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+import io.github.syrou.reaktiv.introspection.protocol.ModuleShadow
+
+val shadow = ModuleShadow(session.initialStateJson)
+actions.forEach { shadow.apply(it) }
+val fullStateJson = shadow.encode()
+```
+
+**Notes:** Replaces four hand-rolled copies of the same fold: `StateReconstructor`,
+`KeyframedReconstructor`, `StateSizeTracker` and the follower shadow in `DevToolsService`. Three of
+them round-tripped through a JSON string on every action, which is what made reconstructing a long
+session quadratic; the shadow keeps the tree parsed and serializes only in `encode()`.
+
+`apply` returns null when a `DeltaKind.FIELDS` delta arrives with no baseline, rather than treating
+the partial object as the module's whole state. `StateSizeTracker` previously did treat it that
+way, which under-reported the module's size and then compounded, since every later delta merged
+onto that wrong base. This only differs on a malformed or truncated capture stream.
+
+---
+
+### [AD-71] `DevToolsMessage.FromClient` marks publisher-originated relays
+
+**Type:** Addition
+
+**Grep:** `DevToolsMessage.FromClient`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+when (message) {
+    is DevToolsMessage.RoleAssignment -> { }
+    is DevToolsMessage.FromClient -> clientManager.broadcastToListeners(message.clientId, message)
+}
+```
+
+**Notes:** `LogicMethodStarted`, `LogicMethodCompleted`, `LogicMethodFailed`, `CrashReport`,
+`StateReadReport`, `LogBatch`, `NetworkBatch`, `MarkerAdded`, `SessionHistorySync` and
+`SessionHistoryChunk` implement it. All ten had their own branch in `DevToolsServer.handleMessage`
+reducing to the same relay call. Purely additive: `clientId` was already declared on each of them
+and is now an override.
+
+---
+
+### [AD-73] Gradle tasks for running the example app and the DevTools server
+
+**Type:** Addition
+
+**Grep:** `runDevToolsServer|runDebug`
+**File glob:** `**/*.kts`
+
+**Example:**
+```bash
+./gradlew :reaktiv-devtools:runDevToolsServer          # builds the WASM UI and serves it on 8080
+./gradlew :reaktiv-devtools:runDevToolsServerHeadless  # websocket only, skips the WASM build
+
+./gradlew :androidexample:runDebug        # assemble, install and launch
+./gradlew :androidexample:reinstallDebug  # uninstall first, then the above
+./gradlew :androidexample:stopDebug       # force-stop on device
+```
+
+**Notes:** `buildDevToolsServer` and `buildDevToolsServerFast` produced artifacts but nothing
+served them, so getting a UI up meant running a native binary by hand with the distribution path
+as an argument. `runDevToolsServer` runs the JVM target instead, so no native toolchain is needed
+and the UI path is wired for you.
+
+The Android tasks resolve `adb` from `ANDROID_HOME`, then `ANDROID_SDK_ROOT`, then `sdk.dir` in
+`local.properties`, and fail with a clear message when none is set.
+
+A new `reaktiv-network-ktor/module.md` documents the end to end wiring, and the stale setup
+section in `reaktiv-devtools/module.md` was corrected: it still described `IntrospectionModule`
+and `DevToolsModule`, which no longer exist.
+
+---
+
+### [AD-74] Chunked network body streaming
+
+**Type:** Addition
+
+**Grep:** `FetchNetworkBody|NetworkBodyChunk|bodyRetentionBytes|NetworkTap.bodySlice`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val client = HttpClient(engine) {
+    install(ReaktivNetworkInspection) {
+        maxBodyBytes = 64 * 1024
+        bodyRetentionBytes = 8L * 1024 * 1024
+    }
+}
+```
+
+**Notes:** `maxBodyBytes` still bounds the body carried inline on every `NetworkRequestCapture`,
+so batches stay small. The device now also retains the full request and response bytes, bounded
+by `bodyRetentionCount` entries and the new `bodyRetentionBytes` total, and serves them a slice at a
+time. When the DevTools UI opens a request whose body was truncated it streams the remainder in
+64 KB chunks and renders the reassembled body, so a large JSON response reaches the tree viewer
+instead of failing to parse.
+
+New public API in `reaktiv-introspection`: `NetworkBodyPart`, `NetworkBodySlice`,
+`NetworkBodyProvider`, `ByteArray.sliceOnCharBoundary`, and `NetworkTap.addBodyProvider` /
+`removeBodyProvider` / `bodySlice`. New wire messages in `reaktiv-devtools`:
+`DevToolsMessage.FetchNetworkBody` and `DevToolsMessage.NetworkBodyChunk`.
+
+Slices are cut on UTF-8 character boundaries, so a multi byte character is never split across
+two chunks. `sliceOnCharBoundary` reports `nextOffset` and the caller uses it as the next offset,
+rather than assuming a fixed stride.
+
+A body evicted from the device reports `available = false` and the UI keeps showing the inline
+preview with a retry.
+
+---
+
+### [AD-75] The timeline flag button drops a marker at the pinned time
+
+**Type:** Addition
+
+**Grep:** `onDropMarker`
+**File glob:** `**/*.kt`
+
+**Notes:** The flag button in the session timeline called `addMarkerOnPublisher` directly with a
+label and no timestamp, so the device stamped the marker with its own clock and the marker landed
+at the latest available time rather than the time the user pinned. It also skipped the label and
+note dialog that the `m` shortcut opens. Both paths now go through the same `dropMarker` entry
+point, so the flag opens the dialog and the resulting marker carries the pinned timestamp and the
+nearest action index. The button remains gated on a pinned time, which is what makes the marker
+meaningful.
+
+---
+
+### [BC-49] `ReaktivDebug.isEnabled` is read-only
+
+**Type:** Breaking
+
+**Grep:** `ReaktivDebug\.isEnabled\s*=`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+ReaktivDebug.isEnabled = true
+ReaktivDebug.isEnabled = false
+```
+
+**After:**
+```kotlin
+ReaktivDebug.enable()
+ReaktivDebug.disable()
+```
+
+**Notes:** `isEnabled` is a process-global flag read from every thread on every log call, and it
+was a plain non-volatile `var`, so a write on one thread was not guaranteed to be visible to
+another. It is now backed by an `AtomicBoolean` and exposed as a `val`, with `enable()` and
+`disable()` as the writers. Both existed already (see BC-12), so the migration is mechanical.
+
+Reading `ReaktivDebug.isEnabled` is unchanged.
+
+---
+
+### [BC-50] Recompile against this release: appended constructor parameters
+
+**Type:** Breaking
+
+**Grep:** `ModuleSizeStats\(|SessionHistory\(|SessionData\(|StallWatchdog\(|SessionCapture\(`
+**File glob:** `**/*.kt`
+
+**Notes:** No source change is required for any of the types below. Every new parameter is
+appended at the end of the parameter list and has a default, so existing calls compile as
+written. They are listed because the generated constructor and `copy` descriptors changed, which
+is a binary break: a consumer compiled against an older Reaktiv and run against this one gets
+`NoSuchMethodError` until it is recompiled. Rebuild rather than patch.
+
+| Type | Gained |
+|---|---|
+| `SessionHistory` | `markers: List<SessionMarker> = emptyList()` |
+| `SessionData` | `markers: List<SessionMarker> = emptyList()` |
+| `ModuleSizeStats` | `topGrowingField: String? = null`, `topGrowingFieldGrowthBytes: Int = 0` |
+| `SessionCapture` | a trailing `Boolean` capture flag |
+| `StallWatchdog` | a trailing culprit-sampling lambda |
+
+In the same category, `clientId` on `CrashReport`, `LogicMethodStarted`, `LogicMethodCompleted`,
+`LogicMethodFailed`, `SessionHistorySync`, `SessionHistoryChunk` and `StateReadReport` went from
+`final` to an override of `DevToolsMessage.FromClient.clientId` (see AD-71). Reading it is
+unchanged in source.
+
+---
+
+### [AD-76] Network filtering, endpoint stats, HAR export and timing phases
+
+**Type:** Addition
+
+**Grep:** `applyNetworkFilter|endpointStats|toHar\(|waitMs|downloadMs`
+**File glob:** `**/*.kt`
+
+**Notes:** `NetworkRequestCapture` gained `waitMs` (request start to response headers) and
+`downloadMs` (headers to body read). Ktor exposes no DNS or connect timing, so those phases are
+absent rather than guessed. Both are nullable and default to null, so an adapter that cannot
+measure them simply omits them.
+
+The Network tab gained a query, a failures-only toggle, per-method chips and newest/slowest/largest
+sorting, an "By endpoint" aggregate view (calls, failures, median, slowest, bytes), and HAR 1.2
+export for sharing a capture or opening it in browser devtools.
+
+---
+
+### [AD-78] DevTools UI state carries a data revision
+
+**Type:** Addition
+
+**Grep:** `dataRevision`
+**File glob:** `**/*.kt`
+
+**Notes:** Derived values in the DevTools UI were cached on `list.size`, which does not change when
+a list is refilled with different content by a publisher switch or a re-sync, and does not change
+at all once a capped list such as `networkEvents` reaches its 2000 entry cap. Findings, churn,
+size stats and the timeline range could therefore describe the previous device.
+
+The reducer now derives `dataRevision` by comparing the identity of every data-bearing field
+after each action, so any content change bumps it and no per-action bookkeeping can be forgotten.
+All 22 cache keys use it and dropped their `.size` terms.
+
+---
+
+### [AD-79] DevTools UI selection is a sealed type
+
+**Type:** Addition
+
+**Grep:** `Selection\.(None|Action|LogicCall|Crash|NetworkRequest)`
+**File glob:** `**/*.kt`
+
+**Notes:** The four mutually exclusive selection fields became one `Selection` value, so the
+invariant is structural instead of being hand-maintained by a `selectingOnly` helper. Existing
+read sites are unchanged: `selectedActionIndex`, `selectedLogicMethodCallId`,
+`selectedNetworkRequestId` and `crashSelected` remain as extension properties over the sealed type.
+
+The UI state and reducer moved from `wasmJsMain` to `commonMain` as `internal`, which adds no
+public API and makes the reducer testable on the JVM for the first time.
+
+---
+
+### [BC-51] `ReaktivDebug.isEnabled` and oversized response bodies
+
+**Type:** Behavioural
+
+**Grep:** `hardBodyLimitBytes`
+**File glob:** `**/*.kt`
+
+**Notes:** A response whose text exceeds `hardBodyLimitBytes` is no longer copied into a byte array
+before being trimmed for display. It is now reported with a bounded preview taken from the string,
+`responseBodyTruncated = true`, and the real size, instead of costing a full second copy of the
+body in memory. The captured preview is unchanged for bodies under the limit.
+
+See BC-49 for the `ReaktivDebug.isEnabled` change recorded alongside this work.
+
+---

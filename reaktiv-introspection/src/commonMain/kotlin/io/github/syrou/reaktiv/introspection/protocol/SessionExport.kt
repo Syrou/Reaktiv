@@ -11,8 +11,19 @@ import kotlinx.serialization.Serializable
  * JSON export format version for captured sessions.
  */
 public object SessionExportFormat {
-    public const val VERSION: String = "3.4"
+    public const val VERSION: String = "3.5"
 }
+
+@Serializable
+public data class SessionMarker(
+    val id: String,
+    val label: String,
+    val note: String = "",
+    val timestampMs: Long,
+    val afterActionIndex: Int = -1,
+    val route: String? = null,
+    val source: String = "device"
+)
 
 /**
  * Complete exported session data.
@@ -97,7 +108,8 @@ public data class SessionData(
     val logicStartedEvents: List<LogicMethodStart>,
     val logicCompletedEvents: List<LogicMethodCompleted>,
     val logicFailedEvents: List<LogicMethodFailed>,
-    val stateReads: List<StateRead> = emptyList()
+    val stateReads: List<StateRead> = emptyList(),
+    val markers: List<SessionMarker> = emptyList()
 )
 
 /**

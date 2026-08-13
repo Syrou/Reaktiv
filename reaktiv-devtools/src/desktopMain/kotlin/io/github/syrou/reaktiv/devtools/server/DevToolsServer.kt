@@ -39,12 +39,7 @@ import kotlin.time.Duration.Companion.seconds
 public class RunningDevToolsServer internal constructor(
     private val engine: EmbeddedServer<*, *>
 ) {
-    /**
-     * The port the engine actually bound to, resolved even when 0 was requested.
-     */
-    public val port: Int by lazy {
-        runBlocking { engine.engine.resolvedConnectors().first().port }
-    }
+    public suspend fun port(): Int = engine.engine.resolvedConnectors().first().port
 
     public fun stop(gracePeriodMillis: Long = 0, timeoutMillis: Long = 2_000) {
         engine.stop(gracePeriodMillis, timeoutMillis)
@@ -74,9 +69,26 @@ public object DevToolsServer {
             println("DevTools Server: No UI path provided, WebSocket only")
         }
 
-        embeddedServer(CIO, port = port, host = host) {
-            configureServer(uiPath)
-        }.start(wait = true)
+        try {
+            embeddedServer(CIO, port = port, host = host) {
+                configureServer(uiPath)
+            }.start(wait = true)
+        } catch (e: Throwable) {
+            val addressInUse = generateSequence(e) { it.cause }.any {
+                it::class.simpleName == "BindException" ||
+                    it.message?.contains("Address already in use", ignoreCase = true) == true
+            }
+            if (addressInUse) {
+                println()
+                println("DevTools Server: port $port is already in use.")
+                println("DevTools Server: another server is probably still running.")
+                println("DevTools Server: stop it, or start this one on a different port with")
+                println("DevTools Server:   ./gradlew :reaktiv-devtools:runDevToolsServer -Pport=8081")
+                println("DevTools Server: and point the client's serverUrl at that port.")
+                return
+            }
+            throw e
+        }
     }
 
     /**
@@ -119,7 +131,7 @@ public object DevToolsServer {
      * over its lifetime (notably a test suite) would otherwise inherit stale clients and
      * publisher assignments from the previous one.
      */
-    public fun resetState() {
+    public suspend fun resetState() {
         clientManager.reset()
     }
 
@@ -218,7 +230,6 @@ public object DevToolsServer {
                 println("DevTools Server: StateSync from ${message.fromClientId}")
                 clientManager.broadcastToListeners(message.fromClientId, message)
             }
-
 
             is DevToolsMessage.RoleAssignment -> {
                 println("DevTools Server: Role assignment request - ${message.role} for ${message.targetClientId}")
@@ -319,23 +330,12 @@ public object DevToolsServer {
                 println("DevTools Server: Role acknowledged by ${message.clientId} - ${message.role}")
             }
 
-            is DevToolsMessage.LogicMethodStarted -> {
-                println("DevTools Server: LogicMethodStarted from ${message.clientId} - ${message.event.logicClass}.${message.event.methodName}")
-                clientManager.broadcastToListeners(message.clientId, message)
+            is DevToolsMessage.AddMarkerRequest -> {
+                clientManager.sendToPublisher(message.targetClientId, message)
             }
 
-            is DevToolsMessage.LogicMethodCompleted -> {
-                println("DevTools Server: LogicMethodCompleted from ${message.clientId} - ${message.event.callId}")
-                clientManager.broadcastToListeners(message.clientId, message)
-            }
-
-            is DevToolsMessage.LogicMethodFailed -> {
-                println("DevTools Server: LogicMethodFailed from ${message.clientId} - ${message.event.callId}")
-                clientManager.broadcastToListeners(message.clientId, message)
-            }
-
-            is DevToolsMessage.StateReadReport -> {
-                clientManager.broadcastToListeners(message.clientId, message)
+            is DevToolsMessage.FetchNetworkBody -> {
+                clientManager.sendToPublisher(message.targetClientId, message)
             }
 
             is DevToolsMessage.GhostDeviceRegistration -> {
@@ -349,22 +349,8 @@ public object DevToolsServer {
                 clientManager.removeGhostDevice(message.ghostClientId)
             }
 
-            is DevToolsMessage.SessionHistorySync -> {
-                println("DevTools Server: SessionHistorySync from ${message.clientId} (${message.history.actions.size} actions)")
-                clientManager.broadcastToListeners(message.clientId, message)
-            }
-
-            is DevToolsMessage.SessionHistoryChunk -> {
-                clientManager.broadcastToListeners(message.clientId, message)
-            }
-
             is DevToolsMessage.PublisherChanged -> {
                 println("DevTools Server: PublisherChanged - ${message.previousPublisherId} -> ${message.newPublisherId}")
-            }
-
-            is DevToolsMessage.CrashReport -> {
-                println("DevTools Server: CrashReport from ${message.clientId} - ${message.crash.exception.exceptionType}")
-                clientManager.broadcastToListeners(message.clientId, message)
             }
 
             is DevToolsMessage.ListenerAttached -> {
@@ -377,6 +363,10 @@ public object DevToolsServer {
 
             is DevToolsMessage.GhostSessionRestore -> {
                 // Server-generated, should not be received from clients
+            }
+
+            is DevToolsMessage.FromClient -> {
+                clientManager.broadcastToListeners(message.clientId, message)
             }
         }
     }

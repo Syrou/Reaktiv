@@ -37,7 +37,9 @@ include("reaktiv-compose")
 include("reaktiv-navigation")
 include("reaktiv-introspection")
 include("reaktiv-devtools")
+include("reaktiv-network-ktor")
 include("reaktiv-tracing-annotations")
+include("reaktiv-tracing-runtime")
 include("reaktiv-test")
 include("reaktiv-test-navigation")
 includeBuild("reaktiv-tracing-compiler")
@@ -47,6 +49,8 @@ gradle.allprojects {
         resolutionStrategy.dependencySubstitution {
             substitute(module("io.github.syrou:reaktiv-tracing-annotations"))
                 .using(project(":reaktiv-tracing-annotations"))
+            substitute(module("io.github.syrou:reaktiv-tracing-runtime"))
+                .using(project(":reaktiv-tracing-runtime"))
         }
     }
 }

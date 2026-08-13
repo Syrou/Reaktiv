@@ -90,12 +90,11 @@ public object StateReconstructor {
      */
     public fun reconstructAtIndex(initialStateJson: String, actions: List<CapturedAction>, index: Int): String {
         if (actions.isEmpty()) return initialStateJson
-        var state = initialStateJson
+        val shadow = ModuleShadow(initialStateJson)
         val end = index.coerceIn(0, actions.size - 1)
         for (i in 0..end) {
-            val action = actions[i]
-            state = applyDelta(state, action)
+            shadow.apply(actions[i])
         }
-        return state
+        return shadow.encode()
     }
 }

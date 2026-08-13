@@ -22,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +43,14 @@ import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.protocol.DISPATCH_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.protocol.DispatchStats
 import io.github.syrou.reaktiv.devtools.protocol.MethodStats
+import io.github.syrou.reaktiv.devtools.protocol.SYNTHETIC_TRACE_CLASSES
+import io.github.syrou.reaktiv.devtools.protocol.asClipboardText
+import io.github.syrou.reaktiv.devtools.protocol.computeFindings
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.size
 import io.github.syrou.reaktiv.devtools.protocol.ModuleSizeStats
 import io.github.syrou.reaktiv.devtools.protocol.STALL_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.protocol.StallGroup
@@ -52,33 +61,31 @@ import io.github.syrou.reaktiv.devtools.protocol.aggregateLogicStats
 import io.github.syrou.reaktiv.devtools.protocol.aggregateStalls
 import io.github.syrou.reaktiv.devtools.protocol.aggregateThreadStats
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
-import io.github.syrou.reaktiv.devtools.ui.WarningFilter
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 
 @Composable
-fun PerformancePanel(
+internal fun PerformancePanel(
+    dataRevision: Long,
     logicMethodEvents: List<LogicMethodEvent>,
     actionStateHistory: List<CapturedAction> = emptyList(),
     initialStateJson: String = "{}",
-    warningFilter: WarningFilter = WarningFilter.ALL,
-    onWarningFilterChange: (WarningFilter) -> Unit = {}
 ) {
-    val started = remember(logicMethodEvents.size) {
+    val started = remember(dataRevision) {
         logicMethodEvents.filterIsInstance<LogicMethodEvent.Started>().map { it.event }
     }
-    val completed = remember(logicMethodEvents.size) {
+    val completed = remember(dataRevision) {
         logicMethodEvents.filterIsInstance<LogicMethodEvent.Completed>().map { it.event }
     }
-    val failed = remember(logicMethodEvents.size) {
+    val failed = remember(dataRevision) {
         logicMethodEvents.filterIsInstance<LogicMethodEvent.Failed>().map { it.event }
     }
-    val stats = remember(logicMethodEvents.size) { aggregateLogicStats(started, completed, failed) }
-    val threadStats = remember(logicMethodEvents.size) { aggregateThreadStats(started, completed, failed) }
-    val dispatchStats = remember(logicMethodEvents.size) { aggregateDispatchStats(started, completed, failed) }
+    val stats = remember(dataRevision) { aggregateLogicStats(started, completed, failed) }
+    val threadStats = remember(dataRevision) { aggregateThreadStats(started, completed, failed) }
+    val dispatchStats = remember(dataRevision) { aggregateDispatchStats(started, completed, failed) }
     val maxTotal = stats.maxOfOrNull { it.totalMs } ?: 0L
 
     val stallStats = stats.firstOrNull { it.logicClass == STALL_TRACE_CLASS }
-    val stallGroups = remember(logicMethodEvents.size) { aggregateStalls(started, completed) }
+    val stallGroups = remember(dataRevision) { aggregateStalls(started, completed) }
     val congestedMethods = stats.filter {
         it.isCongested && it.logicClass != DISPATCH_TRACE_CLASS && it.logicClass != STALL_TRACE_CLASS
     }
@@ -88,7 +95,7 @@ fun PerformancePanel(
     val sizeTracker = remember(initialStateJson) {
         StateSizeTracker().also { it.feedInitial(initialStateJson) }
     }
-    val sizeStats = remember(actionStateHistory.size, initialStateJson) {
+    val sizeStats = remember(dataRevision, initialStateJson) {
         val tracker = if (actionStateHistory.size < sizeTracker.processed) {
             StateSizeTracker().also { it.feedInitial(initialStateJson) }
         } else {
@@ -100,6 +107,14 @@ fun PerformancePanel(
         tracker.snapshot()
     }
     val suspiciousModules = sizeStats.filter { it.isSuspicious }
+
+    var sortBy by remember { mutableStateOf(MethodSort.TOTAL) }
+    var methodFilter by remember { mutableStateOf("") }
+    var warningsExpanded by remember { mutableStateOf(false) }
+    var showPipeline by remember { mutableStateOf(false) }
+    val findings = remember(dataRevision) {
+        computeFindings(started, completed, sizeStats, emptyList())
+    }
 
     Column(
         modifier = Modifier
@@ -126,47 +141,102 @@ fun PerformancePanel(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 FilterChip(
-                    selected = warningFilter == WarningFilter.ALL,
-                    onClick = { onWarningFilterChange(WarningFilter.ALL) },
-                    label = { Text("All", style = MaterialTheme.typography.labelSmall) }
+                    selected = warningsExpanded,
+                    onClick = { warningsExpanded = !warningsExpanded },
+                    label = {
+                        Text("Warnings ${findings.size}", style = MaterialTheme.typography.labelSmall)
+                    }
                 )
+                IconButton(
+                    onClick = {
+                        copyTextToClipboard(
+                            findings.joinToString(separator = "\n") { it.asClipboardText() }
+                        )
+                    },
+                    enabled = findings.isNotEmpty(),
+                    modifier = Modifier.size(26.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = "Copy all warnings",
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = methodFilter,
+                onValueChange = { methodFilter = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Filter methods", style = MaterialTheme.typography.labelSmall) },
+                singleLine = true
+            )
+            listOf(
+                MethodSort.TOTAL to "Total",
+                MethodSort.MAX to "Max",
+                MethodSort.AVG to "Avg",
+                MethodSort.CALLS to "Calls"
+            ).forEach { (sort, label) ->
                 FilterChip(
-                    selected = warningFilter == WarningFilter.WARNINGS_ONLY,
-                    onClick = { onWarningFilterChange(WarningFilter.WARNINGS_ONLY) },
-                    label = { Text("Warnings", style = MaterialTheme.typography.labelSmall) }
+                    selected = sortBy == sort,
+                    onClick = { sortBy = sort },
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) }
                 )
-                FilterChip(
-                    selected = warningFilter == WarningFilter.HIDDEN,
-                    onClick = { onWarningFilterChange(WarningFilter.HIDDEN) },
-                    label = { Text("Hide", style = MaterialTheme.typography.labelSmall) }
+            }
+            FilterChip(
+                selected = showPipeline,
+                onClick = { showPipeline = !showPipeline },
+                label = { Text("Pipeline", style = MaterialTheme.typography.labelSmall) }
+            )
+            IconButton(
+                onClick = {
+                    copyTextToClipboard(
+                        displayedStatsText(
+                            stats.filter { methodFilter.isBlank() || it.methodIdentifier.contains(methodFilter, ignoreCase = true) }
+                                .filter { showPipeline || it.logicClass !in SYNTHETIC_TRACE_CLASSES }
+                        )
+                    )
+                },
+                modifier = Modifier.size(26.dp)
+            ) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = "Copy method stats",
+                    modifier = Modifier.size(15.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        val showWarnings = warningFilter != WarningFilter.HIDDEN
+        val showWarnings = warningsExpanded
         val hasAnyWarning = congestedMethods.isNotEmpty() ||
             congestedThreads.isNotEmpty() || dispatchCongested || suspiciousModules.isNotEmpty() ||
             stallStats != null
 
-        val visibleSizeStats = when (warningFilter) {
-            WarningFilter.WARNINGS_ONLY -> suspiciousModules
-            else -> sizeStats
-        }
-        val visibleStats = when (warningFilter) {
-            WarningFilter.WARNINGS_ONLY -> stats.filter {
-                (it.isCongested || it.failures > 0 || it.logicClass == STALL_TRACE_CLASS) &&
-                    it.logicClass != DISPATCH_TRACE_CLASS
+        val visibleSizeStats = sizeStats
+        val visibleStats = stats
+        val visibleThreadStats = threadStats
+        val showDispatch = dispatchStats != null
+        val displayedStats = visibleStats
+            .filter { methodFilter.isBlank() || it.methodIdentifier.contains(methodFilter, ignoreCase = true) }
+            .filter { showPipeline || it.logicClass !in SYNTHETIC_TRACE_CLASSES }
+            .let { list ->
+                when (sortBy) {
+                    MethodSort.TOTAL -> list.sortedByDescending { it.totalMs }
+                    MethodSort.MAX -> list.sortedByDescending { it.maxMs }
+                    MethodSort.AVG -> list.sortedByDescending { it.avgMs }
+                    MethodSort.CALLS -> list.sortedByDescending { it.calls }
+                }
             }
-            else -> stats
-        }
-        val visibleThreadStats = when (warningFilter) {
-            WarningFilter.WARNINGS_ONLY -> threadStats.filter { it.isCongested || (it.isMain && it.busyMs > 0) }
-            else -> threadStats
-        }
-        val showDispatch = dispatchStats != null &&
-            (warningFilter != WarningFilter.WARNINGS_ONLY || dispatchCongested)
 
         Box(modifier = Modifier.fillMaxSize()) {
             val listState = rememberLazyListState()
@@ -200,32 +270,28 @@ fun PerformancePanel(
                 }
                 if (visibleSizeStats.isNotEmpty()) {
                     item(key = "state-size-summary") {
-                        StateSizeSummary(visibleSizeStats, suppressWarnings = warningFilter == WarningFilter.HIDDEN)
+                        StateSizeSummary(visibleSizeStats, suppressWarnings = false)
                     }
                 }
-                if (visibleStats.isEmpty()) {
+                if (displayedStats.isEmpty()) {
                     item(key = "empty-message") {
                         Box(
                             modifier = Modifier.fillMaxWidth().padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (warningFilter == WarningFilter.WARNINGS_ONLY && stats.isNotEmpty()) {
-                                    "No warnings"
-                                } else {
-                                    "No logic trace events captured yet"
-                                },
+                                text = "No logic trace events captured yet",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 } else {
-                    items(visibleStats, key = { it.methodIdentifier }) { stat ->
+                    items(displayedStats, key = { it.methodIdentifier }) { stat ->
                         MethodStatsCard(
                             stat = stat,
                             maxTotal = maxTotal,
-                            suppressWarnings = warningFilter == WarningFilter.HIDDEN
+                            suppressWarnings = false
                         )
                     }
                 }
@@ -877,21 +943,10 @@ private fun StatLabel(label: String, value: String) {
     }
 }
 
-private fun openInBrowser(url: String) {
-    js("window.open(url, '_blank')")
-}
+private enum class MethodSort { TOTAL, MAX, AVG, CALLS }
 
-private fun formatBytes(bytes: Int): String = when {
-    bytes >= 1_048_576 -> "${bytes / 1_048_576}.${(bytes % 1_048_576) * 10 / 1_048_576}MB"
-    bytes >= 1024 -> "${bytes / 1024}.${(bytes % 1024) * 10 / 1024}KB"
-    else -> "${bytes}B"
-}
-
-private fun formatDuration(ms: Long): String = when {
-    ms >= 60_000 -> "${ms / 60_000}m ${(ms % 60_000) / 1000}s"
-    ms >= 1000 -> {
-        val tenths = (ms % 1000) / 100
-        "${ms / 1000}.${tenths}s"
+private fun displayedStatsText(stats: List<MethodStats>): String =
+    stats.joinToString(separator = "\n") {
+        it.methodIdentifier + "  calls=" + it.calls + "  total=" + it.totalMs +
+            "ms  avg=" + it.avgMs + "ms  max=" + it.maxMs + "ms"
     }
-    else -> "${ms}ms"
-}

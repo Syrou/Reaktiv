@@ -69,7 +69,7 @@ public fun rememberStore(): Store {
 @Composable
 public fun rememberDispatcher(): Dispatch {
     val store = rememberStore()
-    return remember { store.dispatch }
+    return remember(store) { store.dispatch }
 }
 
 
@@ -113,7 +113,7 @@ public fun StoreProvider(
 @Composable
 public inline fun <reified S : ModuleState> selectState(): StateFlow<S> {
     val store = rememberStore()
-    return remember { store.selectStateNonSuspend<S>() }
+    return remember(store) { store.selectStateNonSuspend<S>() }
 }
 
 /**

@@ -128,20 +128,10 @@ private fun maskLeaves(
     }
 }
 
-private fun String.normalizeRedactionKey(): String =
+internal fun String.normalizeRedactionKey(): String =
     lowercase().replace("_", "").replace("-", "")
 
-private fun String.isSensitiveRedactionKey(normalizedKeys: List<String>): Boolean {
+internal fun String.isSensitiveRedactionKey(normalizedKeys: List<String>): Boolean {
     val normalized = normalizeRedactionKey()
     return normalizedKeys.any { normalized.contains(it) }
-}
-
-internal fun IntrospectionConfig.resolveRedactor(): StateRedactor? {
-    val builtin = if (redactSensitiveKeys) sensitiveKeyRedactor() else null
-    val custom = redactor
-    return when {
-        builtin != null && custom != null ->
-            StateRedactor { module, state -> custom.redact(module, builtin.redact(module, state)) }
-        else -> builtin ?: custom
-    }
 }

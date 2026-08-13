@@ -17,3 +17,7 @@ open annotation class io.github.syrou.reaktiv.tracing.annotations/PII : kotlin/A
 open annotation class io.github.syrou.reaktiv.tracing.annotations/Sensitive : kotlin/Annotation { // io.github.syrou.reaktiv.tracing.annotations/Sensitive|null[0]
     constructor <init>() // io.github.syrou.reaktiv.tracing.annotations/Sensitive.<init>|<init>(){}[0]
 }
+
+open annotation class io.github.syrou.reaktiv.tracing.annotations/Trace : kotlin/Annotation { // io.github.syrou.reaktiv.tracing.annotations/Trace|null[0]
+    constructor <init>() // io.github.syrou.reaktiv.tracing.annotations/Trace.<init>|<init>(){}[0]
+}

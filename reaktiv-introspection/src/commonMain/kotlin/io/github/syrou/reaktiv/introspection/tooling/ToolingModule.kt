@@ -10,7 +10,6 @@ import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.PlatformContext
-import io.github.syrou.reaktiv.introspection.resolveRedactor
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -70,7 +69,8 @@ public class ToolingModule internal constructor(
     internal val capture: SessionCapture = SessionCapture(
         maxActions = config.maxActions,
         maxLogicEvents = config.maxLogicEvents,
-        redactor = config.resolveRedactor()
+        redactor = config.redactor,
+        redactSensitiveKeys = config.redactSensitiveKeys
     )
 
     override val initialState: ToolingState = ToolingState()

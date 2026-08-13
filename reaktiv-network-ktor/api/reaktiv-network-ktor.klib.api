@@ -1,0 +1,36 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, linuxArm64, linuxX64, macosArm64, mingwX64, wasmJs]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <io.github.syrou:reaktiv-network-ktor>
+final class io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig { // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig|null[0]
+    constructor <init>() // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.<init>|<init>(){}[0]
+
+    final var bodyRetentionBytes // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.bodyRetentionBytes|{}bodyRetentionBytes[0]
+        final fun <get-bodyRetentionBytes>(): kotlin/Long // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.bodyRetentionBytes.<get-bodyRetentionBytes>|<get-bodyRetentionBytes>(){}[0]
+        final fun <set-bodyRetentionBytes>(kotlin/Long) // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.bodyRetentionBytes.<set-bodyRetentionBytes>|<set-bodyRetentionBytes>(kotlin.Long){}[0]
+    final var bodyRetentionCount // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.bodyRetentionCount|{}bodyRetentionCount[0]
+        final fun <get-bodyRetentionCount>(): kotlin/Int // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.bodyRetentionCount.<get-bodyRetentionCount>|<get-bodyRetentionCount>(){}[0]
+        final fun <set-bodyRetentionCount>(kotlin/Int) // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.bodyRetentionCount.<set-bodyRetentionCount>|<set-bodyRetentionCount>(kotlin.Int){}[0]
+    final var captureBodies // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.captureBodies|{}captureBodies[0]
+        final fun <get-captureBodies>(): kotlin/Boolean // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.captureBodies.<get-captureBodies>|<get-captureBodies>(){}[0]
+        final fun <set-captureBodies>(kotlin/Boolean) // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.captureBodies.<set-captureBodies>|<set-captureBodies>(kotlin.Boolean){}[0]
+    final var hardBodyLimitBytes // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.hardBodyLimitBytes|{}hardBodyLimitBytes[0]
+        final fun <get-hardBodyLimitBytes>(): kotlin/Long // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.hardBodyLimitBytes.<get-hardBodyLimitBytes>|<get-hardBodyLimitBytes>(){}[0]
+        final fun <set-hardBodyLimitBytes>(kotlin/Long) // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.hardBodyLimitBytes.<set-hardBodyLimitBytes>|<set-hardBodyLimitBytes>(kotlin.Long){}[0]
+    final var maxBodyBytes // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.maxBodyBytes|{}maxBodyBytes[0]
+        final fun <get-maxBodyBytes>(): kotlin/Int // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.maxBodyBytes.<get-maxBodyBytes>|<get-maxBodyBytes>(){}[0]
+        final fun <set-maxBodyBytes>(kotlin/Int) // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.maxBodyBytes.<set-maxBodyBytes>|<set-maxBodyBytes>(kotlin.Int){}[0]
+    final var redactedHeaders // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.redactedHeaders|{}redactedHeaders[0]
+        final fun <get-redactedHeaders>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.redactedHeaders.<get-redactedHeaders>|<get-redactedHeaders>(){}[0]
+        final fun <set-redactedHeaders>(kotlin.collections/Set<kotlin/String>) // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.redactedHeaders.<set-redactedHeaders>|<set-redactedHeaders>(kotlin.collections.Set<kotlin.String>){}[0]
+    final var shouldCaptureBody // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.shouldCaptureBody|{}shouldCaptureBody[0]
+        final fun <get-shouldCaptureBody>(): kotlin/Function1<io.ktor.http/ContentType?, kotlin/Boolean> // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.shouldCaptureBody.<get-shouldCaptureBody>|<get-shouldCaptureBody>(){}[0]
+        final fun <set-shouldCaptureBody>(kotlin/Function1<io.ktor.http/ContentType?, kotlin/Boolean>) // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig.shouldCaptureBody.<set-shouldCaptureBody>|<set-shouldCaptureBody>(kotlin.Function1<io.ktor.http.ContentType?,kotlin.Boolean>){}[0]
+}
+
+final val io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspection // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspection|{}ReaktivNetworkInspection[0]
+    final fun <get-ReaktivNetworkInspection>(): io.ktor.client.plugins.api/ClientPlugin<io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspectionConfig> // io.github.syrou.reaktiv.network.ktor/ReaktivNetworkInspection.<get-ReaktivNetworkInspection>|<get-ReaktivNetworkInspection>(){}[0]

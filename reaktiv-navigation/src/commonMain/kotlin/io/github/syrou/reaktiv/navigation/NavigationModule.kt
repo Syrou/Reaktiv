@@ -32,7 +32,6 @@ import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.contextual
 import kotlin.time.Duration
 
-
 /**
  * The MVLI module that owns the navigation system.
  *
@@ -316,11 +315,16 @@ public class NavigationModule internal constructor(
         }
 
         is NavigationAction.Back -> {
-            if (state.backStack.size <= 1) {
-                state
-            } else {
-                val snapshot = NavigationStackMath.applyBack(state.toStackSnapshot())
-                reduceNavigationStateUpdate(state, snapshot.currentEntry, snapshot.backStack, snapshot.modalContexts, action)
+            val expected = action.expectedTopKey
+            when {
+                state.backStack.size <= 1 -> state
+                expected != null && state.currentEntry.stableKey != expected -> state
+                else -> {
+                    val snapshot = NavigationStackMath.applyBack(state.toStackSnapshot())
+                    reduceNavigationStateUpdate(
+                        state, snapshot.currentEntry, snapshot.backStack, snapshot.modalContexts, action
+                    )
+                }
             }
         }
 
@@ -351,7 +355,6 @@ public class NavigationModule internal constructor(
         is NavigationAction.BootstrapComplete -> state.copy(
             isBootstrapping = false
         )
-
 
         is NavigationAction.SetEvaluating -> state.copy(isEvaluatingNavigation = action.isEvaluating)
     }
@@ -506,7 +509,7 @@ public data class PrecomputedNavigationData(
                 graphDefinitions = graphDefinitions,
                 routeToNavigatable = routeToNavigatable.toMap(),
                 navigatableToFullPath = navigatableToFullPath.toMap(),
-                graphHierarchy = graphHierarchies,
+                graphHierarchy = graphHierarchies.toMap(),
                 notFoundScreen = notFoundScreen
             )
 
@@ -527,12 +530,12 @@ public data class PrecomputedNavigationData(
             return PrecomputedNavigationData(
                 routeResolver = routeResolver,
                 availableNavigatables = availableNavigatables,
-                graphDefinitions = graphDefinitions,
-                allNavigatables = allNavigatables,
-                graphHierarchies = graphHierarchies,
-                navigatableToGraph = navigatableToGraph,
-                routeToNavigatable = routeToNavigatable,
-                navigatableToFullPath = navigatableToFullPath,
+                graphDefinitions = graphDefinitions.toMap(),
+                allNavigatables = allNavigatables.toMap(),
+                graphHierarchies = graphHierarchies.toMap(),
+                navigatableToGraph = navigatableToGraph.toMap(),
+                routeToNavigatable = routeToNavigatable.toMap(),
+                navigatableToFullPath = navigatableToFullPath.toMap(),
                 notFoundScreen = notFoundScreen,
                 crashScreen = crashScreen,
                 interceptedRoutes = interceptedRoutes,

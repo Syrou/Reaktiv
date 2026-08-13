@@ -36,7 +36,32 @@ public final class io/github/syrou/reaktiv/navigation/NavigationAction$AtomicBat
 
 public final class io/github/syrou/reaktiv/navigation/NavigationAction$Back : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
 	public static final field $stable I
-	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$Back;
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$Back$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/NavigationAction$Back;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationAction$Back;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationAction$Back;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExpectedTopKey ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationAction$Back$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$Back$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationAction$Back;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationAction$Back;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$Back$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
@@ -297,7 +322,8 @@ public final class io/github/syrou/reaktiv/navigation/NavigationLogic : io/githu
 	public final fun navigate (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;ZLkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun navigate (Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun navigate$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;ZLkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public final fun navigateBack (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun navigateBack (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun navigateBack$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun navigateDeepLink (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun navigateDeepLink$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public fun onExternalControlChanged (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1076,7 +1102,8 @@ public final class io/github/syrou/reaktiv/navigation/extension/ExtensionsKt {
 	public static final fun dismissModal (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun navigate (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun navigate$default (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun navigateBack (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun navigateBack (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun navigateBack$default (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun navigateDeepLink (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun navigateDeepLink$default (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun navigation (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

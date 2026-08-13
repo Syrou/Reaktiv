@@ -1,17 +1,19 @@
 package io.github.syrou.reaktiv.introspection.protocol
 
+import kotlinx.serialization.json.JsonObject
+
 public class KeyframedReconstructor(
     initialStateJson: String,
     private val actions: List<CapturedAction>,
     private val interval: Int = 500
 ) {
-    private val keyframes: List<String> = buildList {
-        var state = initialStateJson
-        add(state)
+    private val keyframes: List<Map<String, JsonObject>> = buildList {
+        val shadow = ModuleShadow(initialStateJson)
+        add(shadow.snapshot())
         actions.forEachIndexed { index, action ->
-            state = StateReconstructor.applyDelta(state, action)
+            shadow.apply(action)
             if ((index + 1) % interval == 0) {
-                add(state)
+                add(shadow.snapshot())
             }
         }
     }
@@ -19,13 +21,16 @@ public class KeyframedReconstructor(
     public val size: Int get() = actions.size
 
     public fun stateAt(index: Int): String {
-        if (index < 0) return keyframes.first()
+        if (index < 0) return shadowOf(keyframes.first()).encode()
         val clamped = index.coerceAtMost(actions.size - 1)
         val frame = ((clamped + 1) / interval).coerceAtMost(keyframes.size - 1)
-        var state = keyframes[frame]
+        val shadow = shadowOf(keyframes[frame])
         for (i in frame * interval..clamped) {
-            state = StateReconstructor.applyDelta(state, actions[i])
+            shadow.apply(actions[i])
         }
-        return state
+        return shadow.encode()
     }
+
+    private fun shadowOf(modules: Map<String, JsonObject>): ModuleShadow =
+        ModuleShadow().apply { modules.forEach { (name, state) -> put(name, state) } }
 }

@@ -33,7 +33,7 @@ import kotlinx.serialization.json.*
  * Interactive JSON tree viewer with syntax highlighting and expand/collapse.
  */
 @Composable
-fun JsonTreeViewer(
+internal fun JsonTreeViewer(
     jsonString: String,
     previousJsonString: String? = null,
     searchQuery: String = "",
@@ -397,7 +397,7 @@ private fun JsonTreeNode(
                     DropdownMenuItem(
                         text = { Text("Copy key") },
                         onClick = {
-                            copyToClipboard(node.key)
+                            copyTextToClipboard(node.key)
                             showCopyMenu = false
                         }
                     )
@@ -406,7 +406,7 @@ private fun JsonTreeNode(
                     DropdownMenuItem(
                         text = { Text("Copy value") },
                         onClick = {
-                            copyToClipboard(valueString)
+                            copyTextToClipboard(valueString)
                             showCopyMenu = false
                         }
                     )
@@ -415,7 +415,7 @@ private fun JsonTreeNode(
                     DropdownMenuItem(
                         text = { Text("Copy both") },
                         onClick = {
-                            copyToClipboard("${node.key}: $valueString")
+                            copyTextToClipboard("${node.key}: $valueString")
                             showCopyMenu = false
                         }
                     )
@@ -456,6 +456,4 @@ private fun Builder.renderPrimitiveValue(
     }
 }
 
-private fun copyToClipboard(text: String) {
-    js("navigator.clipboard.writeText(text)")
-}
+

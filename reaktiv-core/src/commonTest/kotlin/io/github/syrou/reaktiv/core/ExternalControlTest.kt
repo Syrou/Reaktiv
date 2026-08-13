@@ -1,10 +1,5 @@
 package io.github.syrou.reaktiv.core
 
-import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
-import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
-import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
-import io.github.syrou.reaktiv.core.tracing.LogicObserver
-import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.selectState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -60,24 +55,8 @@ object ExternalControlModule : ModuleWithLogic<ExternalControlState, ExternalCon
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalReaktivApi::class)
 class ExternalControlTest {
 
-    private class RecordingObserver : LogicObserver {
-        val started = mutableListOf<LogicMethodStart>()
-        val completed = mutableListOf<LogicMethodCompleted>()
-
-        override fun onMethodStart(event: LogicMethodStart) {
-            started.add(event)
-        }
-
-        override fun onMethodCompleted(event: LogicMethodCompleted) {
-            completed.add(event)
-        }
-
-        override fun onMethodFailed(event: LogicMethodFailed) {}
-    }
-
     @AfterTest
     fun tearDown() {
-        LogicTracer.clearObservers()
         ExternalControlModule.lastLogic = null
     }
 
@@ -207,7 +186,7 @@ class ExternalControlTest {
         }
 
     @Test
-    fun `dropped dispatch is traced with an externalControl marker`() =
+    fun `dropped dispatch reports through the instrumentation seam`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val store = createStore {
                 module(ExternalControlModule)
@@ -218,15 +197,29 @@ class ExternalControlTest {
             store.beginExternalControl()
             advanceUntilIdle()
 
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val dropped = mutableListOf<String?>()
+            store.setDispatchInstrumentation(object : DispatchInstrumentation {
+                override suspend fun onDispatchStarted(
+                    action: ModuleAction,
+                    queueWaitMs: Long,
+                    queueDepth: Long
+                ): String = ""
 
-            store.dispatchAndAwait(ExternalControlAction.Plain)
+                override fun onDispatchCompleted(token: String, applied: Boolean, durationMs: Long) {}
+
+                override fun onDispatchFailed(token: String, error: Throwable, durationMs: Long) {}
+
+                override suspend fun onDispatchDropped(action: ModuleAction) {
+                    dropped.add(action::class.simpleName)
+                }
+
+                override suspend fun onExternalControlChanged(enabled: Boolean) {}
+            })
+
+            assertEquals(DispatchResult.Blocked, store.dispatchAndAwait(ExternalControlAction.Plain))
             advanceUntilIdle()
 
-            val drop = observer.started.single { it.params["externalControl"] == "dropped" }
-            assertEquals("Plain", drop.methodName)
-            assertEquals("Blocked", observer.completed.single { it.callId == drop.callId }.result)
+            assertEquals<List<String?>>(listOf("Plain"), dropped)
             store.cleanup()
         }
 }

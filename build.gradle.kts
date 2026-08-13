@@ -84,6 +84,7 @@ dependencies {
     dokka(project(":reaktiv-devtools"))
     dokka(project(":reaktiv-tracing-annotations"))
     dokka(project(":reaktiv-introspection"))
+    dokka(project(":reaktiv-network-ktor"))
 }
 
 allprojects {

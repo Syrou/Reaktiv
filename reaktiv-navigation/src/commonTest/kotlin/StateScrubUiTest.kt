@@ -112,7 +112,7 @@ class StateScrubUiTest {
         )
         waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
 
-        store.dispatch(NavigationAction.Back)
+        store.dispatch(NavigationAction.Back())
         awaitCurrentScreen(store, "ui-home")
         waitUntil(timeoutMillis = UI_TEST_WAIT_MS) {
             onAllNodesWithText("UI Detail").fetchSemanticsNodes().isEmpty()
