@@ -217,14 +217,39 @@ public class Store private constructor(
         }
     }
 
-    private fun instrumentationActive(): Boolean = dispatchInstrumentation.load()?.isActive == true
+    /**
+     * The installed [DispatchInstrumentation], or `null` when none is installed or the installed one
+     * reports [DispatchInstrumentation.isActive] as `false`.
+     *
+     * Modules that emit spans for work outside the dispatch pipeline read this before doing any
+     * work, so nothing is built when nothing is listening.
+     *
+     * Usage:
+     * ```kotlin
+     * val instrumentation = (storeAccessor as? Store)?.activeDispatchInstrumentation
+     *     ?: return evaluate()
+     * val token = instrumentation.onEvaluationStarted("MyScope", "evaluate", emptyMap())
+     * ```
+     *
+     * @see setDispatchInstrumentation to install one
+     */
+    public val activeDispatchInstrumentation: DispatchInstrumentation?
+        get() = dispatchInstrumentation.load()?.takeIf { it.isActive }
 
+    private fun instrumentationActive(): Boolean = activeDispatchInstrumentation != null
+
+    /**
+     * Installs the instrumentation that observes this store, or `null` to remove it.
+     *
+     * @param instrumentation The implementation to install, replacing any previous one
+     * @see activeDispatchInstrumentation
+     */
     public fun setDispatchInstrumentation(instrumentation: DispatchInstrumentation?) {
         dispatchInstrumentation.store(instrumentation)
     }
 
     private suspend fun processEnvelope(envelope: DispatchEnvelope) {
-        val instrumentation = dispatchInstrumentation.load()?.takeIf { it.isActive }
+        val instrumentation = activeDispatchInstrumentation
         if (externallyDriven.load() && envelope.action !is ExternalControlExempt) {
             instrumentation?.onDispatchDropped(envelope.action)
             envelope.completion?.complete(DispatchResult.Blocked)

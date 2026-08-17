@@ -20,9 +20,29 @@ reaktivTracing {
 ```
 
 The tracing compiler plugin only instruments the listed build types, so release
-bytecode carries no injected calls. reaktiv-tracing-annotations stays a plain
+bytecode carries no injected calls, and no tracing runtime dependency is added
+to variants that are not instrumented. reaktiv-tracing-annotations stays a plain
 implementation dependency: it is a few-KB annotations-only artifact so main
 sources may carry @NoTrace.
+
+Tracing is off unless something activates it. Declaring `buildTypes` is one way,
+and it suits an application module that owns real variants. A library module has
+no build types of its own and cannot see which variant its consumer is building,
+so it keys on the invocation and on the configuration Xcode is building:
+
+```kotlin
+reaktivTracing {
+    enableForTasksMatching("staging")
+    conflictsWithTasksMatching("production")
+    enableForXcodeConfigurations("Debug")
+}
+```
+
+`conflictsWithTasksMatching` matters for any module with a single compilation per
+target, which includes every `com.android.kotlin.multiplatform.library`. Such a
+module produces one artifact per invocation, so `./gradlew testStagingUnitTest
+assembleProduction` would hand instrumented code to the production consumer.
+Declaring the conflicting pattern turns that into a configuration-time failure.
 
 ## The seam
 

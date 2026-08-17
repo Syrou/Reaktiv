@@ -38,7 +38,6 @@ kotlin {
                 implementation(compose.material3)
                 implementation(compose.components.resources)
                 implementation(project(":reaktiv-core"))
-                implementation(project(":reaktiv-tracing-runtime"))
                 implementation(project(":reaktiv-compose"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)

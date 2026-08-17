@@ -1,16 +1,12 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import io.github.syrou.reaktiv.core.DispatchInstrumentation
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.createStore
-import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
-import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
-import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
-import io.github.syrou.reaktiv.core.tracing.LogicObserver
-import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
@@ -25,7 +21,6 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -35,37 +30,84 @@ import kotlin.time.toDuration
 @OptIn(ExperimentalCoroutinesApi::class)
 class GuardTracingTest {
 
-    private class RecordingObserver : LogicObserver {
-        val started = mutableListOf<LogicMethodStart>()
-        val completed = mutableListOf<LogicMethodCompleted>()
-        val failed = mutableListOf<LogicMethodFailed>()
+    private data class EvaluationStart(
+        val scope: String,
+        val name: String,
+        val params: Map<String, String>,
+        val token: String
+    )
 
-        override fun onMethodStart(event: LogicMethodStart) {
-            started.add(event)
+    private data class EvaluationCompletion(
+        val token: String,
+        val result: String?,
+        val resultType: String
+    )
+
+    private data class EvaluationFailure(
+        val token: String,
+        val exceptionType: String,
+        val exceptionMessage: String?
+    )
+
+    private class RecordingInstrumentation : DispatchInstrumentation {
+        val started = mutableListOf<EvaluationStart>()
+        val completed = mutableListOf<EvaluationCompletion>()
+        val failed = mutableListOf<EvaluationFailure>()
+
+        private var tokenCounter = 0
+
+        override suspend fun onDispatchStarted(
+            action: ModuleAction,
+            queueWaitMs: Long,
+            queueDepth: Long
+        ): String = ""
+
+        override fun onDispatchCompleted(token: String, applied: Boolean, durationMs: Long) = Unit
+
+        override fun onDispatchFailed(token: String, error: Throwable, durationMs: Long) = Unit
+
+        override suspend fun onDispatchDropped(action: ModuleAction) = Unit
+
+        override suspend fun onExternalControlChanged(enabled: Boolean) = Unit
+
+        override suspend fun onEvaluationStarted(
+            scope: String,
+            name: String,
+            params: Map<String, String>
+        ): String {
+            val token = "eval-${tokenCounter++}"
+            started.add(EvaluationStart(scope, name, params, token))
+            return token
         }
 
-        override fun onMethodCompleted(event: LogicMethodCompleted) {
-            completed.add(event)
+        override fun onEvaluationCompleted(
+            token: String,
+            result: String?,
+            resultType: String,
+            durationMs: Long
+        ) {
+            completed.add(EvaluationCompletion(token, result, resultType))
         }
 
-        override fun onMethodFailed(event: LogicMethodFailed) {
-            failed.add(event)
+        override fun onEvaluationFailed(token: String, error: Throwable, durationMs: Long) {
+            failed.add(
+                EvaluationFailure(
+                    token = token,
+                    exceptionType = error::class.simpleName ?: "Unknown",
+                    exceptionMessage = error.message
+                )
+            )
         }
 
-        fun guardStarts() = started.filter { it.logicClass == "NavigationGuards" }
+        fun guardStarts() = started.filter { it.scope == "NavigationGuards" }
 
         fun guardCompletions() = completed.filter { completion ->
-            guardStarts().any { it.callId == completion.callId }
+            guardStarts().any { it.token == completion.token }
         }
 
         fun guardFailures() = failed.filter { failure ->
-            guardStarts().any { it.callId == failure.callId }
+            guardStarts().any { it.token == failure.token }
         }
-    }
-
-    @AfterTest
-    fun tearDown() {
-        LogicTracer.clearObservers()
     }
 
     private fun screen(route: String) = object : Screen {
@@ -133,18 +175,18 @@ class GuardTracingTest {
             store.dispatch(AuthAction.Login)
             advanceUntilIdle()
 
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
 
             store.navigation { navigateTo("workspace/home") }
             advanceUntilIdle()
 
-            val starts = observer.guardStarts()
+            val starts = instrumentation.guardStarts()
             assertEquals(1, starts.size)
-            assertTrue(starts[0].methodName.startsWith("guard("))
+            assertTrue(starts[0].name.startsWith("guard("))
             assertEquals("workspace/home", starts[0].params["target"])
 
-            val completions = observer.guardCompletions()
+            val completions = instrumentation.guardCompletions()
             assertEquals(1, completions.size)
             assertEquals("Allow", completions[0].result)
             assertEquals("GuardResult", completions[0].resultType)
@@ -164,13 +206,13 @@ class GuardTracingTest {
                 })
                 coroutineContext(dispatcher)
             }
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
 
             store.navigation { navigateTo("workspace/home") }
             advanceUntilIdle()
 
-            val completions = observer.guardCompletions()
+            val completions = instrumentation.guardCompletions()
             assertEquals(1, completions.size)
             assertEquals("Reject", completions[0].result)
             assertEquals("start", store.selectState<NavigationState>().first().currentEntry.route)
@@ -188,13 +230,13 @@ class GuardTracingTest {
                 })
                 coroutineContext(dispatcher)
             }
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
 
             store.navigation { navigateTo("workspace/home") }
             advanceUntilIdle()
 
-            val completions = observer.guardCompletions()
+            val completions = instrumentation.guardCompletions()
             assertEquals(1, completions.size)
             assertEquals("RedirectTo(login)", completions[0].result)
             assertEquals("login", store.selectState<NavigationState>().first().currentEntry.route)
@@ -209,13 +251,13 @@ class GuardTracingTest {
                 module(guardedModule { throw IllegalStateException("guard exploded") })
                 coroutineContext(dispatcher)
             }
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
 
             runCatching { store.navigation { navigateTo("workspace/home") } }
             advanceUntilIdle()
 
-            val failures = observer.guardFailures()
+            val failures = instrumentation.guardFailures()
             assertEquals(1, failures.size)
             assertEquals("IllegalStateException", failures[0].exceptionType)
             assertEquals("guard exploded", failures[0].exceptionMessage)
@@ -254,18 +296,18 @@ class GuardTracingTest {
             store.dispatch(AuthAction.StartupReady)
             advanceUntilIdle()
 
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
 
             store.navigation { navigateTo("workspace/home") }
             advanceUntilIdle()
 
-            val starts = observer.guardStarts()
+            val starts = instrumentation.guardStarts()
             assertEquals(2, starts.size)
-            assertTrue(starts[0].methodName.startsWith("outerGuard[0]("))
-            assertTrue(starts[1].methodName.startsWith("guard("))
+            assertTrue(starts[0].name.startsWith("outerGuard[0]("))
+            assertTrue(starts[1].name.startsWith("guard("))
 
-            val completions = observer.guardCompletions()
+            val completions = instrumentation.guardCompletions()
             assertEquals(2, completions.size)
             assertTrue(completions.all { it.result == "Allow" })
         }
@@ -291,17 +333,17 @@ class GuardTracingTest {
             }
             advanceUntilIdle()
 
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
 
             store.navigation { navigateTo("workspace") }
             advanceUntilIdle()
 
-            val starts = observer.guardStarts()
+            val starts = instrumentation.guardStarts()
             assertEquals(1, starts.size)
-            assertEquals("entry(workspace)", starts[0].methodName)
+            assertEquals("entry(workspace)", starts[0].name)
 
-            val completions = observer.guardCompletions()
+            val completions = instrumentation.guardCompletions()
             assertEquals(1, completions.size)
             assertEquals("dashboard", completions[0].result)
 
@@ -309,7 +351,7 @@ class GuardTracingTest {
         }
 
     @Test
-    fun `no guard events are recorded without a registered observer`() =
+    fun `no guard events are recorded without installed instrumentation`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
@@ -320,9 +362,9 @@ class GuardTracingTest {
             store.navigation { navigateTo("workspace/home") }
             advanceUntilIdle()
 
-            val observer = RecordingObserver()
-            LogicTracer.addObserver(observer)
-            assertEquals(0, observer.guardStarts().size)
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
+            assertEquals(0, instrumentation.guardStarts().size)
             assertEquals("home", store.selectState<NavigationState>().first().currentEntry.route)
         }
 }

@@ -3994,3 +3994,198 @@ body in memory. The captured preview is unchanged for bodies under the limit.
 See BC-49 for the `ReaktivDebug.isEnabled` change recorded alongside this work.
 
 ---
+### [BC-52] `reaktiv-navigation` no longer brings `reaktiv-tracing-runtime` transitively
+
+**Type:** Breaking
+
+**Grep:** `io.github.syrou.reaktiv.core.tracing`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// build.gradle.kts — reaktiv-tracing-runtime arrived transitively via reaktiv-navigation
+dependencies {
+    implementation("io.github.syrou:reaktiv-navigation:$reaktivVersion")
+}
+
+// LogicTracer resolved without being declared
+import io.github.syrou.reaktiv.core.tracing.LogicTracer
+```
+
+**After:**
+```kotlin
+dependencies {
+    implementation("io.github.syrou:reaktiv-navigation:$reaktivVersion")
+    implementation("io.github.syrou:reaktiv-tracing-runtime:$reaktivVersion")
+}
+```
+
+**Notes:** `reaktiv-navigation` declared `implementation(project(":reaktiv-tracing-runtime"))` solely
+to emit navigation guard and entry-selection spans. Because Kotlin Multiplatform places
+`implementation` dependencies in `runtimeElements`, the tracing runtime landed on every consumer's
+runtime classpath and was packaged into release artifacts with no way to exclude it. On Android,
+R8 could not strip `LogicTracer`, `LogicObserver`, `LogicMethodEvents` or `CallRegistry`, because
+navigation's guard tracing kept them reachable. On iOS there is no such pass at all, so the whole
+module was linked into the framework.
+
+Navigation now routes guard spans through the neutral `DispatchInstrumentation` seam in
+`reaktiv-core`, and `reaktiv-introspection` supplies the forwarder that maps them onto `LogicTracer`.
+Guard traces are unchanged when tooling is installed: the emitted `logicClass` is still
+`"NavigationGuards"`, and the method names, `target` parameter, result strings and result types are
+identical. With no tooling installed, nothing in the navigation module references tracing at all.
+
+Only code that relied on resolving `reaktiv-tracing-runtime` transitively is affected. Declare it
+directly, or depend on `reaktiv-introspection`, which exposes it as `api`. See AD-80 for the seam.
+
+---
+
+### [AD-80] Evaluation hooks on `DispatchInstrumentation`
+
+**Type:** Addition
+
+**Grep:** `onEvaluationStarted|activeDispatchInstrumentation`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+class MyInstrumentation : DispatchInstrumentation {
+
+    override suspend fun onDispatchStarted(
+        action: ModuleAction,
+        queueWaitMs: Long,
+        queueDepth: Long
+    ): String = ""
+
+    override fun onDispatchCompleted(token: String, applied: Boolean, durationMs: Long) = Unit
+    override fun onDispatchFailed(token: String, error: Throwable, durationMs: Long) = Unit
+    override suspend fun onDispatchDropped(action: ModuleAction) = Unit
+    override suspend fun onExternalControlChanged(enabled: Boolean) = Unit
+
+    override suspend fun onEvaluationStarted(
+        scope: String,
+        name: String,
+        params: Map<String, String>
+    ): String {
+        println("$scope.$name started with $params")
+        return "token-1"
+    }
+
+    override fun onEvaluationCompleted(
+        token: String,
+        result: String?,
+        resultType: String,
+        durationMs: Long
+    ) {
+        println("$token -> $result ($resultType) in ${durationMs}ms")
+    }
+
+    override fun onEvaluationFailed(token: String, error: Throwable, durationMs: Long) {
+        println("$token failed: ${error.message}")
+    }
+}
+
+store.setDispatchInstrumentation(MyInstrumentation())
+```
+
+**Notes:** `DispatchInstrumentation` covers work that happens inside the dispatch pipeline. The three
+new methods cover suspending evaluations that happen outside it and still deserve a span, such as
+navigation guards and dynamic entry selectors. All three have no-op defaults, so existing
+implementers compile unchanged.
+
+`onEvaluationStarted` returns a correlation token that is handed back to `onEvaluationCompleted` or
+`onEvaluationFailed`. Returning an empty string is the convention for declining to trace a given
+evaluation, and callers must tolerate it.
+
+`Store.activeDispatchInstrumentation` is the matching read side. It returns the installed
+instrumentation only when its `isActive` is true, so a caller can skip building span arguments
+entirely when nothing is listening. This is how `reaktiv-navigation` keeps guard tracing at a single
+null check when no tooling is attached.
+
+Together these let a module emit spans without depending on any tracing artifact. See BC-52 for the
+dependency this removed from `reaktiv-navigation`.
+
+---
+### [BC-53] `reaktivTracing.enabled` no longer defaults to true
+
+**Type:** Breaking
+
+**Grep:** `reaktivTracing`
+**File glob:** `**/build.gradle.kts`
+
+**Before:**
+```kotlin
+reaktivTracing {
+    tracePrivateMethods.set(true)
+}
+```
+
+**After:**
+```kotlin
+reaktivTracing {
+    enableForTasksMatching("staging")
+    enableForXcodeConfigurations("Debug")
+    tracePrivateMethods.set(true)
+}
+```
+
+**Notes:** `enabled` used to carry `convention(true)`, so applying the plugin without configuring it
+instrumented every compilation, release and production builds included. The compiler plugin bakes
+stringified parameters, source file paths, line numbers and the resolved GitHub URL into each traced
+call site, and on Apple targets there is no shrinker to remove them, so an on-by-default codegen
+plugin is the wrong polarity.
+
+`enabled` now takes its convention from the declared activation criteria (see AD-81) and resolves to
+false when none are declared, along with a configuration-time warning naming the project. Setting
+`enabled` directly still works and still wins, so a build that already computes its own value is
+unaffected.
+
+`buildTypes` counts as a criterion, so a build that already declared
+`buildTypes.set(setOf("debug"))` keeps instrumenting exactly the same compilations. Only a
+`reaktivTracing { }` block that declares no criterion at all, or no block, changes behaviour.
+
+`enabled.set(...)` keeps working exactly as it did and remains the escape hatch. An explicit value
+overrides every criterion and bypasses the conflicting-task guard, so a build that cannot be
+expressed declaratively, or that the criteria misjudge, can always take the decision over.
+
+---
+
+### [AD-81] Declarative activation for the tracing Gradle plugin
+
+**Type:** Addition
+
+**Grep:** `enableForTasksMatching|enableForXcodeConfigurations|conflictsWithTasksMatching`
+**File glob:** `**/build.gradle.kts`
+
+**Example:**
+```kotlin
+reaktivTracing {
+    enableForTasksMatching("staging")
+    conflictsWithTasksMatching("production")
+    enableForXcodeConfigurations("Debug")
+    tracePrivateMethods.set(true)
+}
+```
+
+**Notes:** Instrumentation is a property of the build being run, not of the module holding the Logic
+classes, so a library module that wants tracing had to hand-roll a provider chain over
+`gradle.startParameter.taskNames` and the `CONFIGURATION` environment variable Xcode exports. Those
+three helpers express the same thing declaratively and back `enabled`'s convention.
+
+`enableForTasksMatching` activates when any requested task name contains one of the patterns, matched
+case-insensitively. `enableForXcodeConfigurations` activates when Xcode's `CONFIGURATION` matches, so
+a Debug build through a Run Script phase instruments the framework and an Archive does not. Either
+signal activates on its own.
+
+`conflictsWithTasksMatching` guards the case a compilation-scoped decision cannot express. A module
+with a single compilation per target produces one artifact per invocation, so
+`./gradlew testStagingUnitTest assembleProduction` would feed an instrumented build to the production
+consumer. Declaring the conflicting pattern turns that into a configuration-time failure naming both
+sides instead of a silently instrumented release artifact. It does not make the invocation work,
+which requires per-consumer variant selection.
+
+The underlying properties are `activatingTaskPatterns`, `conflictingTaskPatterns` and
+`xcodeConfigurations`, all `SetProperty<String>` defaulting to empty. `buildTypes` keeps filtering
+compilations as before and now also counts as an activation criterion, so a module that owns real
+variants needs nothing beyond it. See BC-53 for the default change.
+
+---

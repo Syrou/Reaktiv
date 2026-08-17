@@ -49,6 +49,9 @@ public final class io/github/syrou/reaktiv/introspection/DispatchTracingInstrume
 	public fun onDispatchDropped (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun onDispatchFailed (Ljava/lang/String;Ljava/lang/Throwable;J)V
 	public fun onDispatchStarted (Lio/github/syrou/reaktiv/core/ModuleAction;JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onEvaluationCompleted (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V
+	public fun onEvaluationFailed (Ljava/lang/String;Ljava/lang/Throwable;J)V
+	public fun onEvaluationStarted (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun onExternalControlChanged (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 

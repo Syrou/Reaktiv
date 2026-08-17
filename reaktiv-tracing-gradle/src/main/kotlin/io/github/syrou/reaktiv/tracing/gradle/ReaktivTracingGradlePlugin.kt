@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.tracing.gradle
 
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
@@ -10,8 +11,10 @@ import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 /**
  * Gradle plugin for applying the Reaktiv logic tracing compiler plugin.
  *
- * This plugin automatically configures the Kotlin compiler to instrument
- * ModuleLogic subclasses with tracing calls for DevTools integration.
+ * Applying this plugin declares that a module holds ModuleLogic subclasses worth instrumenting. It
+ * does not by itself generate anything: tracing is off until the build being run matches a declared
+ * activation criterion, so a module can carry the plugin permanently and still ship clean release
+ * artifacts.
  *
  * Usage:
  * ```kotlin
@@ -20,14 +23,36 @@ import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
  * }
  *
  * reaktivTracing {
- *     enabled.set(true)
- *     tracePrivateMethods.set(false)
+ *     enableForTasksMatching("staging")
+ *     conflictsWithTasksMatching("production")
+ *     enableForXcodeConfigurations("Debug")
  * }
  * ```
  *
- * Dependencies added automatically:
- * - reaktiv-tracing-annotations (runtime)
- * - reaktiv-tracing-compiler (compiler plugin)
+ * Activation resolves to true when any of the following holds:
+ * - Xcode's `CONFIGURATION` environment variable matches `xcodeConfigurations`
+ * - a requested task name contains one of `activatingTaskPatterns`
+ * - `buildTypes` is non-empty, which then also filters which compilations are instrumented
+ *
+ * Setting `enabled` explicitly bypasses all of that and wins outright, which is the escape hatch
+ * when the declarative criteria do not fit a build or misjudge it:
+ * ```kotlin
+ * reaktivTracing {
+ *     enabled.set(myOwnCondition)
+ * }
+ * ```
+ * An explicit value also skips the conflicting-task guard, since the build has taken responsibility
+ * for the decision.
+ *
+ * When activation is false the compiler plugin is not applied to any compilation and no tracing
+ * dependency is added, so neither generated code nor the tracing runtime can reach the artifact.
+ * When it is true the plugin adds reaktiv-tracing-annotations and reaktiv-tracing-runtime to the
+ * module's implementation configuration and applies reaktiv-tracing-compiler to its compilations.
+ *
+ * Applying the plugin with no criteria and no explicit `enabled` resolves to false and logs a
+ * warning naming the project, since a codegen plugin that silently does nothing is hard to diagnose.
+ *
+ * @see ReaktivTracingExtension for the configuration DSL
  */
 class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
 
@@ -39,6 +64,7 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         const val COMPILER_ARTIFACT_ID = "reaktiv-tracing-compiler"
         const val ANNOTATIONS_ARTIFACT_ID = "reaktiv-tracing-annotations"
         const val RUNTIME_ARTIFACT_ID = "reaktiv-tracing-runtime"
+        const val XCODE_CONFIGURATION_ENV = "CONFIGURATION"
     }
 
     private lateinit var extension: ReaktivTracingExtension
@@ -49,9 +75,12 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
             ReaktivTracingExtension::class.java
         )
 
-        extension.enabled.convention(true)
         extension.tracePrivateMethods.convention(false)
         extension.buildTypes.convention(emptySet())
+        extension.activatingTaskPatterns.convention(emptySet())
+        extension.conflictingTaskPatterns.convention(emptySet())
+        extension.xcodeConfigurations.convention(emptySet())
+        extension.enabled.convention(activationProvider(target))
 
         // Auto-detect git info with conventions
         extension.githubRepoUrl.convention(
@@ -64,8 +93,59 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         target.afterEvaluate {
             if (extension.enabled.get()) {
                 addDependencies(target)
+            } else {
+                warnWhenNoActivationCriteria(target)
             }
         }
+    }
+
+    private fun activationProvider(project: Project): Provider<Boolean> =
+        project.providers.environmentVariable(XCODE_CONFIGURATION_ENV)
+            .map { configuration ->
+                extension.xcodeConfigurations.get().any { it.equals(configuration, ignoreCase = true) } ||
+                    ambientActivation(project)
+            }
+            .orElse(project.provider { ambientActivation(project) })
+
+    private fun ambientActivation(project: Project): Boolean {
+        val activatedByTasks = requestedTasksActivate(project)
+        return activatedByTasks || extension.buildTypes.get().isNotEmpty()
+    }
+
+    private fun requestedTasksActivate(project: Project): Boolean {
+        val patterns = extension.activatingTaskPatterns.get()
+        if (patterns.isEmpty()) return false
+
+        val requested = project.gradle.startParameter.taskNames
+        val activating = patterns.any { pattern ->
+            requested.any { it.contains(pattern, ignoreCase = true) }
+        }
+        if (!activating) return false
+
+        val conflicts = extension.conflictingTaskPatterns.get().filter { pattern ->
+            requested.any { it.contains(pattern, ignoreCase = true) }
+        }
+        if (conflicts.isNotEmpty()) {
+            throw GradleException(
+                "Reaktiv tracing: the requested tasks $requested activate tracing and also match " +
+                    "$conflicts. A module with a single compilation per target cannot produce an " +
+                    "instrumented and a clean artifact in the same invocation, so the non-activating " +
+                    "build would ship instrumentation. Run these as separate Gradle invocations."
+            )
+        }
+        return true
+    }
+
+    private fun warnWhenNoActivationCriteria(project: Project) {
+        if (extension.activatingTaskPatterns.get().isNotEmpty()) return
+        if (extension.xcodeConfigurations.get().isNotEmpty()) return
+        if (extension.buildTypes.get().isNotEmpty()) return
+        project.logger.warn(
+            "reaktivTracing is applied to ${project.path} but declares no activation criteria and " +
+                "resolves to disabled, so no tracing code will be generated. If that is " +
+                "unexpected, declare enableForTasksMatching(...), enableForXcodeConfigurations(...) " +
+                "or buildTypes, or set enabled directly to take the decision over."
+        )
     }
 
     private fun addDependencies(project: Project) {

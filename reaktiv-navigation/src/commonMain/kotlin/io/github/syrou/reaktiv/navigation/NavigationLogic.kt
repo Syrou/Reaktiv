@@ -365,7 +365,11 @@ public class NavigationLogic(
         for ((index, outerEntry) in interceptDef.outerGuards.withIndex()) {
             val result = evaluateCached(outerEntry.guard, outerEntry.cacheKey) {
                 evaluateWithThreshold(outerEntry.loadingThreshold) {
-                    traceGuard("outerGuard[$index]($zoneKey)", targetRoute) { outerEntry.guard(storeAccessor) }
+                    traceGuard(
+                        storeAccessor,
+                        "outerGuard[$index]($zoneKey)",
+                        targetRoute
+                    ) { outerEntry.guard(storeAccessor) }
                 }
             }
             val evaluation = result.toGuardEvaluation()
@@ -374,7 +378,7 @@ public class NavigationLogic(
 
         return evaluateCached(interceptDef.guard, interceptDef.cacheKey) {
             evaluateWithThreshold(interceptDef.loadingThreshold) {
-                traceGuard("guard($zoneKey)", targetRoute) { interceptDef.guard(storeAccessor) }
+                traceGuard(storeAccessor, "guard($zoneKey)", targetRoute) { interceptDef.guard(storeAccessor) }
             }
         }.toGuardEvaluation()
     }
@@ -407,7 +411,7 @@ public class NavigationLogic(
             evaluateWithThreshold(
                 loadingThreshold = entryDef.loadingThreshold
             ) {
-                traceEntrySelection("entry($graphId)", targetRoute) { selector.invoke(storeAccessor) }
+                traceEntrySelection(storeAccessor, "entry($graphId)", targetRoute) { selector.invoke(storeAccessor) }
             }
         }
     }

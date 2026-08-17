@@ -40,6 +40,31 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
         LogicTracer.notifyMethodFailed(token, error, durationMs)
     }
 
+    override suspend fun onEvaluationStarted(
+        scope: String,
+        name: String,
+        params: Map<String, String>
+    ): String = LogicTracer.notifyMethodStart(
+        logicClass = scope,
+        methodName = name,
+        params = params
+    )
+
+    override fun onEvaluationCompleted(
+        token: String,
+        result: String?,
+        resultType: String,
+        durationMs: Long
+    ) {
+        if (token.isEmpty()) return
+        LogicTracer.notifyMethodCompleted(token, result, resultType, durationMs)
+    }
+
+    override fun onEvaluationFailed(token: String, error: Throwable, durationMs: Long) {
+        if (token.isEmpty()) return
+        LogicTracer.notifyMethodFailed(token, error, durationMs)
+    }
+
     override fun newDispatchDecorator(): DispatchStepDecorator = PhaseTracingDecorator()
 
     private class PhaseTracingDecorator : DispatchStepDecorator {

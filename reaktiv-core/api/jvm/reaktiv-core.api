@@ -17,12 +17,18 @@ public abstract interface class io/github/syrou/reaktiv/core/DispatchInstrumenta
 	public abstract fun onDispatchDropped (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun onDispatchFailed (Ljava/lang/String;Ljava/lang/Throwable;J)V
 	public abstract fun onDispatchStarted (Lio/github/syrou/reaktiv/core/ModuleAction;JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onEvaluationCompleted (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V
+	public fun onEvaluationFailed (Ljava/lang/String;Ljava/lang/Throwable;J)V
+	public fun onEvaluationStarted (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun onExternalControlChanged (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class io/github/syrou/reaktiv/core/DispatchInstrumentation$DefaultImpls {
 	public static fun isActive (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;)Z
 	public static fun newDispatchDecorator (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;)Lio/github/syrou/reaktiv/core/DispatchStepDecorator;
+	public static fun onEvaluationCompleted (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V
+	public static fun onEvaluationFailed (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;Ljava/lang/String;Ljava/lang/Throwable;J)V
+	public static fun onEvaluationStarted (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract class io/github/syrou/reaktiv/core/DispatchResult {
@@ -146,6 +152,7 @@ public final class io/github/syrou/reaktiv/core/Store : io/github/syrou/reaktiv/
 	public final fun cleanup ()V
 	public fun dispatchAndAwait (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun endExternalControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getActiveDispatchInstrumentation ()Lio/github/syrou/reaktiv/core/DispatchInstrumentation;
 	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
 	public fun getDispatch ()Lkotlin/jvm/functions/Function1;
 	public final fun getInitialized ()Lkotlinx/coroutines/flow/StateFlow;
