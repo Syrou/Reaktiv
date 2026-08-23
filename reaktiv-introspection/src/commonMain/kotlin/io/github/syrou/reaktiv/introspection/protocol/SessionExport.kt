@@ -5,13 +5,14 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.introspection.ClientMetadata
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import kotlinx.serialization.Serializable
 
 /**
  * JSON export format version for captured sessions.
  */
 public object SessionExportFormat {
-    public const val VERSION: String = "3.5"
+    public const val VERSION: String = "3.6"
 }
 
 @Serializable
@@ -109,7 +110,8 @@ public data class SessionData(
     val logicCompletedEvents: List<LogicMethodCompleted>,
     val logicFailedEvents: List<LogicMethodFailed>,
     val stateReads: List<StateRead> = emptyList(),
-    val markers: List<SessionMarker> = emptyList()
+    val markers: List<SessionMarker> = emptyList(),
+    val network: List<NetworkRequestCapture> = emptyList()
 )
 
 /**

@@ -88,9 +88,14 @@ internal fun GhostImportDialog(
                 OutlinedButton(
                     onClick = {
                         openFilePicker { content, name ->
-                            jsonInput = content
-                            fileName = name
-                            errorMessage = null
+                            if (name.startsWith("error:")) {
+                                errorMessage = name.removePrefix("error:")
+                                fileName = null
+                            } else {
+                                jsonInput = content
+                                fileName = name
+                                errorMessage = null
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -100,7 +105,7 @@ internal fun GhostImportDialog(
                         contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp)
                     )
-                    Text(fileName ?: "Choose JSON File")
+                    Text(fileName ?: "Choose Session File (.json or .json.gz)")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -166,23 +171,41 @@ internal fun GhostImportDialog(
 }
 
 /**
- * Opens a file picker dialog for JSON files and returns the content.
+ * Opens a file picker for session files and returns the JSON they contain.
+ *
+ * Sessions are exported gzipped, so the file is read as bytes and inflated when it carries the
+ * gzip magic number, falling back to plain text for exports written before compression existed.
+ * Inflating here rather than in Kotlin keeps the work in the host, where `DecompressionStream` is
+ * a single pipe and no byte array has to cross the wasm boundary.
  */
 private fun openFilePicker(onFileSelected: (content: String, fileName: String) -> Unit) {
     js("""
         (function(callback) {
             var input = document.createElement('input');
             input.type = 'file';
-            input.accept = '.json,application/json';
+            input.accept = '.json,.gz,application/json,application/gzip';
             input.onchange = function(e) {
                 var file = e.target.files[0];
-                if (file) {
-                    var reader = new FileReader();
-                    reader.onload = function(event) {
-                        callback(event.target.result, file.name);
-                    };
-                    reader.readAsText(file);
-                }
+                if (!file) return;
+                file.arrayBuffer().then(function(buffer) {
+                    var head = new Uint8Array(buffer.slice(0, 2));
+                    var gzipped = head.length === 2 && head[0] === 0x1f && head[1] === 0x8b;
+                    if (!gzipped) {
+                        return new Response(buffer).text();
+                    }
+                    if (typeof DecompressionStream === 'undefined') {
+                        throw new Error(
+                            'This browser cannot open gzipped sessions. Decompress the file first.'
+                        );
+                    }
+                    var stream = new Response(buffer).body
+                        .pipeThrough(new DecompressionStream('gzip'));
+                    return new Response(stream).text();
+                }).then(function(text) {
+                    callback(text, file.name);
+                }).catch(function(err) {
+                    callback('', 'error:' + (err && err.message ? err.message : 'unreadable file'));
+                });
             };
             input.click();
         })(onFileSelected)

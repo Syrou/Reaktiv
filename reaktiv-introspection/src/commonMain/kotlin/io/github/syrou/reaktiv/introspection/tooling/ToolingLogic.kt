@@ -15,6 +15,7 @@ import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.StallWatchdog
 import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.SessionFileExport
+import io.github.syrou.reaktiv.introspection.gzipCompress
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.introspection.tracing.IntrospectionLogicObserver
 import kotlinx.coroutines.launch
@@ -111,12 +112,18 @@ public class ToolingLogic internal constructor(
 
     public suspend fun exportSessionToDownloads(fileName: String? = null): String {
         val json = capture.exportSession()
-        return fileExport.saveToDownloads(json, fileName ?: capture.suggestFileName())
+        return fileExport.saveToDownloads(
+            gzipCompress(json.encodeToByteArray()),
+            fileName ?: capture.suggestFileName()
+        )
     }
 
     public suspend fun exportCrashSessionToDownloads(throwable: Throwable, fileName: String? = null): String {
         val json = capture.exportCrashSession(throwable)
-        return fileExport.saveToDownloads(json, fileName ?: capture.suggestFileName("crash"))
+        return fileExport.saveToDownloads(
+            gzipCompress(json.encodeToByteArray()),
+            fileName ?: capture.suggestFileName("crash")
+        )
     }
 
     override suspend fun beforeReset() {

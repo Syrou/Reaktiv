@@ -4189,3 +4189,701 @@ compilations as before and now also counts as an activation criterion, so a modu
 variants needs nothing beyond it. See BC-53 for the default change.
 
 ---
+### [BC-54] `SessionFileExport.saveToDownloads` takes bytes, and exports are gzipped
+
+**Type:** Breaking
+
+**Grep:** `saveToDownloads`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val json = capture.exportSession()
+val path = SessionFileExport(platformContext).saveToDownloads(json, "session.json")
+```
+
+**After:**
+```kotlin
+val json = capture.exportSession()
+val bytes = gzipCompress(json.encodeToByteArray())
+val path = SessionFileExport(platformContext).saveToDownloads(bytes, "session.json.gz")
+```
+
+**Notes:** Session exports are now gzipped, so the writer takes bytes rather than a string.
+`ToolingLogic.exportSessionToDownloads` and `exportCrashSessionToDownloads` compress for you and are
+unchanged at the call site, as are the platform crash handlers. Only code calling `SessionFileExport`
+directly needs updating.
+
+`SessionCapture.suggestFileName` now returns a `.json.gz` name, and the Android writer reports
+`application/gzip` for those. Import paths accept both, so files exported by earlier versions keep
+loading, see AD-83.
+
+---
+
+### [AD-82] Network traffic is captured, exported and replayed
+
+**Type:** Addition
+
+**Grep:** `session.network|SessionHistory.*network|recordNetworkExchange`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val export = json.decodeFromString<SessionExport>(sessionJson)
+
+export.session.network.forEach { exchange ->
+    println("${exchange.method} ${exchange.url} -> ${exchange.responseStatus}")
+    println(exchange.responseBody)
+}
+```
+
+**Notes:** `SessionCapture` subscribes to `NetworkTap` while started and persists exchanges to its
+own storage lane, so `SessionData.network` and `SessionHistory.network` both carry them. Format
+version is now 3.6.
+
+Network was previously visible only through the live `NetworkBatch` push, which meant it was absent
+from exported sessions entirely and absent from the history a late-attaching orchestrator receives.
+Both now show the traffic that transpired.
+
+Bodies are materialised when the exchange is recorded rather than when the session is exported. The
+event carried by `NetworkTap` holds only a bounded preview, and the full body lives in the emitting
+plugin's retention window, which evicts as later requests arrive. Pulling at export time would race
+that eviction and silently produce a thinner export than the same session showed live.
+
+Imported sessions feed the DevTools Network tab through `AppendNetworkEvents`, the same action the
+live path uses, so a ghost behaves like a live publisher.
+
+---
+
+### [AD-83] Gzip codec for session exports
+
+**Type:** Addition
+
+**Grep:** `gzipCompress|gzipDecompress|decodeSessionBytes|isGzip`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val bytes = gzipCompress(exportJson.encodeToByteArray())
+
+val json = decodeSessionBytes(bytes)
+```
+
+**Notes:** Session JSON is dominated by repeated keys, urls, header names and JSON bodies, all of
+which deflate compresses heavily, so exports are written and transferred gzipped. Implemented with
+`java.util.zip` on JVM and Android, and `platform.zlib` through cinterop on every native target,
+which ships with Kotlin/Native so no dependency is added.
+
+`decodeSessionBytes` sniffs the gzip magic number and falls back to plain text, which is how exports
+written before this change keep loading without a version check.
+
+Both functions suspend, because the only gzip primitive a browser exposes is the asynchronous Web
+Streams API. On wasmJs they throw: the DevTools UI inflates a session while it reads the file, on the
+JavaScript side, so no byte array crosses the wasm boundary. `DecompressionStream` is required to
+open a gzipped session in the browser, and the picker reports a clear error where it is missing.
+
+---
+
+### [AD-84] `ObservabilityOnly` messages reach orchestrators only
+
+**Type:** Addition
+
+**Grep:** `ObservabilityOnly|broadcastToObservers`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+public data class NetworkBatch(
+    override val clientId: String,
+    val events: List<NetworkRequestCapture>
+) : DevToolsMessage(), ObservabilityOnly
+```
+
+**Notes:** `NetworkBatch` and `LogBatch` were relayed to every subscriber of a publisher, so each
+attached listener received and deserialized batches it only discards. A listener replicates state,
+it renders nothing.
+
+`DevToolsMessage.ObservabilityOnly` marks a payload as UI-bound, and the server routes it through
+`ClientManager.broadcastToObservers`, which filters the same subscription set to `ORCHESTRATOR`.
+Marking the message rather than listing types in the server means a new observability message cannot
+silently get replication routing.
+
+---
+
+### [BC-55] Ghost session payloads are pulled, not pushed
+
+**Type:** Behavioural
+
+**Grep:** `GhostSessionRestore|GhostSessionRequest`
+**File glob:** `**/*.kt`
+
+**Notes:** The server used to send `GhostSessionRestore`, carrying the whole session export, to every
+client the moment it registered. At that point the client has no role yet, so a device connecting to
+a server that already held an imported ghost was handed a payload it never reads. On Apple platforms
+that exceeds `NSURLSessionWebSocketTask`'s default 1 MiB message limit and the connection stalls,
+which presented as a listener stuck connecting whenever the ghost was imported before it connected.
+
+Ghosts are already advertised through `ClientListUpdate`, so the payload is now requested. An
+orchestrator that sees a ghost it does not hold sends `GhostSessionRequest`, and the server answers
+that client alone. Combined with AD-89, which compresses the payload, the frame that crosses the
+socket is both smaller and only sent to a client that asked for it.
+
+---
+### [AD-85] The capture lane serves bodies the emitting window has evicted
+
+**Type:** Addition
+
+**Grep:** `addBodyProvider|bodySlice`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val slice = NetworkTap.bodySlice(requestId, NetworkBodyPart.RESPONSE, offset = 0, maxBytes = 65_536)
+```
+
+**Notes:** `ReaktivNetworkInspection` keeps a rolling window of full bodies, 50 exchanges and 8 MB by
+default, so a live UI could inspect recent traffic but anything older was gone for good. Scrolling
+back past the window returned nothing.
+
+`SessionCapture` now registers as a fallback `NetworkBodyProvider` while it is started. `NetworkTap`
+tries providers in turn, so a hot body still comes from the plugin and an evicted one is served from
+the capture lane, which keeps everything it recorded. The last resolved body is cached so paging
+through a large response does not rescan the lane per slice.
+
+The practical effect is that a live session and an imported one now answer the same questions, and
+raising `bodyRetentionCount` is no longer the only way to keep older bodies reachable.
+
+---
+
+### [AD-86] Markers on imported sessions
+
+**Type:** Addition
+
+**Grep:** `ReplaceMarker|updateMarker|analyst`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+logic.addMarkerOnPublisher(
+    publisherClientId = activeGhostId,
+    label = "checkout hang starts here",
+    note = "token refresh returns 401",
+    timestampMs = pinnedTime
+)
+
+logic.updateMarker(markerId, label = "root cause", note = "stale refresh token")
+```
+
+**Notes:** Markers were requested from the publisher and echoed back as `MarkerAdded`, so a ghost,
+which has no device to ask, could not be annotated at all. `addMarkerOnPublisher` now detects that
+the selected publisher is the active ghost and creates the marker locally instead, tagged
+`source = "analyst"` rather than `"device"`, so post-session annotation stays distinguishable from
+what the device recorded while it ran.
+
+`updateMarker` and the new `ReplaceMarker` action edit a marker in place, keeping its id and
+position. Only analyst markers are editable: a device marker records what the session did and stays
+as the device wrote it, so re-exporting cannot quietly rewrite history.
+
+Two related data losses are fixed alongside. Importing a ghost dropped `session.markers` entirely,
+and `exportSessionAsGhost` had no `network` parameter, so re-exporting an imported session lost its
+network traffic. Both now round trip, which is what makes annotate-then-reshare work.
+
+---
+### [AD-87] `onConflict` resolves mixed invocations instead of failing them
+
+**Type:** Addition
+
+**Grep:** `onConflict|TracingConflictPolicy`
+**File glob:** `**/build.gradle.kts`
+
+**Example:**
+```kotlin
+reaktivTracing {
+    enableForTasksMatching("staging")
+    conflictsWithTasksMatching("production")
+    enableForXcodeConfigurations("Debug")
+}
+```
+
+**Notes:** `conflictsWithTasksMatching` used to throw when one invocation requested both a tracing
+build and a conflicting one. That made `./gradlew assembleProduction assembleStaging` fail, which is
+a normal CI command, so detection alone was not enough.
+
+`onConflict` now decides the outcome, and defaults to `TracingConflictPolicy.DISABLE`: tracing is
+switched off for that invocation, the production artifact stays clean, the staging artifact simply
+carries no traces, and the build succeeds with a lifecycle line saying so. `FAIL` restores the old
+behaviour for teams that would rather split the invocation than get an untraced staging build, and
+`INSTRUMENT_ALL` opts into instrumenting both, which is only safe when the non-tracing artifact is
+not shipped.
+
+Building the tracing variant on its own is unaffected and still produces traces. The conflict is
+reported once per project rather than once per compilation.
+
+None of this makes a single compilation serve both forms at once, which needs per-consumer variant
+selection through Gradle attributes. It makes the choice explicit and safe by default.
+
+---
+
+### [AD-88] `reaktiv-navigation` targets wasmJs
+
+**Type:** Addition
+
+**Grep:** `reaktiv-navigation`
+**File glob:** `**/build.gradle.kts`
+
+**Example:**
+```kotlin
+kotlin {
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs { browser() }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation("io.github.syrou:reaktiv-navigation:$reaktivVersion")
+        }
+    }
+}
+```
+
+**Notes:** `reaktiv-navigation` now builds for wasmJs alongside jvm, android, iOS and macOS, so a
+Compose Multiplatform app can share its navigation graph with a web target. `reaktiv-core` and
+`reaktiv-compose` already targeted wasmJs, so navigation was the only gap in that chain.
+
+The public API is identical on wasmJs: the klib dump gained the target with no signature changes.
+
+`PlatformBackHandler` is a no-op on wasmJs, as it is on jvm. Browsers deliver back through history
+navigation rather than a callback the Compose tree can intercept, so back is driven by the app,
+through UI affordances or the edge swipe gesture, which is enabled. Wiring the browser history API
+to navigation is a separate piece of work and is not included.
+
+Compose gesture tests moved from `commonTest` to a new `uiTest` source set that jvm and apple test
+compilations depend on and wasmJs does not. Those tests drive touch input against a live Store, and
+a headless browser is a poor host for both halves: the viewport differs from every other target, and
+a Store whose logic runs on `Dispatchers.Default` deadlocks under `wasmJsBrowserTest`. All 374 jvm
+tests still run, including the 13 UI suites that moved.
+
+`reaktiv-test-navigation` does not target wasmJs, so navigation testing utilities are unavailable
+there for now.
+
+---
+
+### [AD-89] Session payloads are compressed on the wire
+
+**Type:** Addition
+
+**Grep:** `encodeSessionPayload|decodeSessionPayload|isPlainSessionJson`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+connection.send(
+    DevToolsMessage.GhostDeviceRegistration(
+        sessionId = export.sessionId,
+        sessionExportJson = encodeSessionPayload(jsonString)
+    )
+)
+
+val export = json.decodeFromString<GhostSessionExport>(
+    decodeSessionPayload(message.sessionExportJson)
+)
+```
+
+**Notes:** `GhostDeviceRegistration` and `GhostSessionRestore` carry a whole session inside a JSON
+string field, so they travelled uncompressed while the file paths were already gzipped. They now
+carry base64 of the gzipped JSON. Base64 costs a third over the compressed bytes, which against a
+typical gzip ratio still leaves the payload far smaller than the JSON it replaces.
+
+`decodeSessionPayload` returns anything starting with `{` untouched, so a client on an older version
+still interoperates in both directions and no protocol version gate is needed.
+
+The wasmJs implementation keeps only strings crossing the wasm boundary: the host does the gzip and
+the base64 with `CompressionStream`, `DecompressionStream` and `btoa`/`atob`, bridged into a suspend
+function with `suspendCoroutine` rather than Promise interop. Marshalling a `ByteArray` into a
+`Uint8Array` element by element would be slower and easier to get subtly wrong. JVM and Android use
+`java.util.Base64`, native uses `kotlin.io.encoding.Base64`, both over the existing gzip codec from
+AD-83.
+
+The server relays the field opaquely and needed no change.
+
+---
+
+### [AD-90] DevTools UI exports are gzipped and carry network traffic
+
+**Type:** Addition
+
+**Grep:** `downloadSession|exportSessionAsGhost`
+**File glob:** `**/*.kt`
+
+**Notes:** A session exported from the DevTools UI was written as plain `.json` while device exports
+were gzipped, so the two were not interchangeable in size or naming. The UI now writes `.json.gz`
+through `CompressionStream`, falling back to plain JSON where that API is missing, and the import
+picker sniffs the gzip magic number either way.
+
+More importantly, the UI export silently dropped all network traffic. `exportSessionAsGhost` gained a
+`network` parameter in AD-82 with an `emptyList()` default, and the call site was never updated, so
+every UI-exported session contained zero network exchanges. It now passes `state.networkEvents`
+filtered to the selected publisher, so another attached device's traffic cannot leak into the export.
+
+HAR export is unchanged and stays plain, since `.har` is consumed by browser devtools.
+
+---
+
+### [BC-56] Stall spans cover when the stall happened
+
+**Type:** Behavioural
+
+**Grep:** `MainThreadWatchdog`
+**File glob:** `**/*.kt`
+
+**Notes:** `StallWatchdog` emitted its trace span without a start timestamp, so `LogicTracer` stamped
+it with the current time. A stall can only be reported once the main thread recovers, so the span was
+anchored to recovery and then given the stall duration, placing its end that far into the future. On
+the timeline it rendered as a stall that began in the future and never finished.
+
+The span is now anchored to the last heartbeat before the freeze, so it covers the interval the main
+thread was actually blocked. Sessions exported before this fix keep their future-dated spans, since
+the timestamps are baked into the export.
+
+---
+
+### [AD-91] Imported sessions resolve network bodies locally
+
+**Type:** Addition
+
+**Grep:** `NetworkBodyNotFetchable|capturedOnly`
+**File glob:** `**/*.kt`
+
+**Notes:** The network detail panel fetches a body from the publisher whenever the capture marks it
+truncated. An imported session has no device behind it, so the request was never answered and the
+panel sat on "Waiting for the device to send the body." indefinitely, never rendering the JSON tree.
+
+`fetchNetworkBody` now short-circuits when a ghost is active, dispatching `NetworkBodyNotFetchable`
+to close the load as complete and unavailable. The panel falls back to the captured preview, which
+renders as a tree when it parses.
+
+`NetworkBodyLoad.capturedOnly` distinguishes the two reasons a body cannot be fetched, so an imported
+session reads "This session did not capture the full body" while a live device that dropped its body
+keeps "no longer retained on the device".
+
+---
+
+### [AD-92] Session history carries network through chunking
+
+**Type:** Addition
+
+**Grep:** `networkPerChunk`
+**File glob:** `**/*.kt`
+
+**Notes:** `SessionHistory` gained a `network` field in AD-82, but `SessionHistory.chunked` builds
+each chunk explicitly and did not pass it, so the field defaulted to empty and network was dropped
+from every chunk. The orchestrator side did not read it either, so a UI attaching to a live publisher
+never received the traffic that happened before it connected.
+
+`chunked` now slices network alongside actions and logic events, with its own `networkPerChunk`
+defaulting to 50 because exchanges carry full bodies and are much heavier per entry. The count also
+feeds the chunk total, so a history that is only network still splits. `appendHistorySlice` applies
+each slice through `AppendNetworkEvents`, the same action the live push and ghost import use.
+
+---
+
+### [AD-93] One byte budget for everything that batches onto the wire
+
+**Type:** Addition
+
+**Grep:** `WireBudget|approximateWireBytes`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val chunks = history.chunked()
+
+var budget = WireBudget.MAX_PAYLOAD_BYTES
+for (exchange in exchanges) {
+    budget -= exchange.approximateWireBytes()
+    if (budget <= 0) break
+}
+```
+
+**Notes:** Every fan-out point that assembles a message from a variable number of records cut on
+count: 250 actions, 1000 logic events, 50 network exchanges, 100 log lines. That was a reasonable
+proxy while records were small and roughly uniform, and it stopped being one when network exchanges
+began carrying full request and response bodies (AD-82). Fifty exchanges bounded by
+`hardBodyLimitBytes` is a 200 MB frame in the worst case, on a path where only
+`NetworkBodyChunk` was ever byte-aware.
+
+`WireBudget.MAX_PAYLOAD_BYTES` is the shared ceiling, set at 1 MiB to stay inside the per-message
+limits platform websocket clients impose. `approximateWireBytes` estimates an exchange from the
+fields that vary by orders of magnitude, bodies, urls and headers, rather than serializing to
+measure, which is accurate enough to decide where to cut.
+
+`SessionHistory.chunked` now cuts network on whichever comes first, count or budget, and the
+resulting group count feeds the chunk total so a history that is only network still splits correctly.
+`forwardBatched` takes an optional `weigh` function, used by the live `NetworkBatch` path, so a burst
+of large responses closes a batch early instead of riding in one frame. Light records still fill to
+the count limit, so nothing gets slower in the common case.
+
+A single record heavier than the whole budget still goes out on its own. Splitting it at this layer
+would break the message it belongs to, and `FetchNetworkBody` already streams oversized bodies at
+`WireBudget.BODY_CHUNK_BYTES`.
+
+Ordering and completeness are unaffected: the same records go out in the same order, only the cut
+points move.
+
+---
+
+### [BC-57] Graph layouts travel with their screen, and the dismiss affordance wraps them
+
+**Type:** Behavioural
+
+**Grep:** `decideLayoutSharing|DismissIndicatorSlot`
+**File glob:** `**/*.kt`
+
+**Notes:** Two defects in how a graph layout composed with its screens' transitions and gestures,
+both visible on a screen that enters vertically over a screen that does not animate out.
+
+`decideLayoutSharing` treated every layout of the arriving screen as shared chrome unless it was
+lifting an animating exit. A vertical presentation is exactly the case where the outgoing screen
+stays put, so `shouldAnimateExit` was false, no intersection with the previous layouts happened, and
+a layout the previous screen never had was classified as already on screen. Shared layouts render
+outside `animateNavTransition`, so the sheet appeared to slide up underneath chrome that had snapped
+into place. A layout is now shared only when the screen being left actually had it.
+
+`DismissIndicatorSlot` was nested inside `ApplyLayoutsHierarchy`, so the grab pill rendered below the
+graph's own chrome and `indicatorCoordinates` measured the screen rather than the surface being
+dismissed. It now wraps the layouts, so the affordance belongs to everything that arrived together.
+The gesture recognizers themselves were always root level in `NavigationRender` and are unchanged.
+
+The visible change is that a screen showing a dismiss indicator inside a graph layout now reserves
+its indicator strip above the layout rather than inside it, shifting that layout's chrome down by the
+strip height. Screens with no graph layout, or with no dismiss indicator, are unaffected.
+
+`LayoutSharingTest` previously asserted the first defect as correct behaviour, expecting a layout the
+exiting screen never had to be reported as shared. That expectation is corrected.
+
+---
+
+### [AD-94] `Graph` is declarable and can present itself
+
+**Type:** Addition
+
+**Grep:** `: Graph\b|graph\(([A-Z][A-Za-z0-9_]*)\)`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object WizardGraph : Graph {
+    override val route = "wizard"
+    override val enterTransition = NavTransition.SlideUpBottom
+}
+
+createNavigationModule {
+    rootGraph {
+        start(HomeScreen)
+        screens(HomeScreen)
+        graph(WizardGraph) {
+            start(WizardDetailsScreen)
+            screens(WizardDetailsScreen, WizardPaymentScreen, WizardConfirmScreen)
+            layout { content -> WizardLayout(content) }
+        }
+    }
+}
+```
+
+**Notes:** A graph can now be a surface in its own right rather than only a grouping, declared the
+same way `Screen` and `Modal` are. `graph(WizardGraph) { }` joins the existing `graph("wizard") { }`,
+which is unchanged and still declares no presentation.
+
+Alongside `route`, `Graph` carries `enterTransition`, `exitTransition`, `popEnterTransition`,
+`popExitTransition`, `swipeToDismiss`, `showsDismissIndicator` and `onDismissRequest`. Every one has
+a default, so implementing `Graph` with only a route is equivalent to the string form.
+
+Transitions are nullable, and null means the graph has no opinion so the entering screen's own
+transition is used. That is why existing graphs are unaffected. `NavTransition.None` is the
+different statement that the graph arrives without animation.
+
+A navigation animates the outermost boundary it crosses. Entering the graph animates the graph,
+moving between screens already inside it animates the screen, which is what lets wizard steps slide
+sideways inside a sheet that arrived from the bottom. The graph's declaration is reachable at
+runtime through the new `NavigationGraph.declaration: Graph?`.
+
+`swipeToDismiss` defaults to true only when the graph presents on a vertical axis, and
+`showsDismissIndicator` follows it so a structural graph never offers a handle it cannot honour.
+Committing the drag removes every entry belonging to the graph rather than popping one, so a wizard
+dragged away from step three lands where it was opened from. See AD-95 and BC-58.
+
+---
+
+### [AD-95] `TransitionSpec` describes anything that arrives and leaves
+
+**Type:** Addition
+
+**Grep:** `TransitionSpec|presentsItself`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+fun describeArrival(spec: TransitionSpec): String =
+    if (spec.presentsItself) "arrives as its own surface" else "defers to what it contains"
+```
+
+**Notes:** Both `Navigatable` and `Graph` now extend `TransitionSpec`, which holds the four
+transition values. Transition resolution reads them from whichever node is the surface actually
+moving, instead of each kind of node being handled separately.
+
+`Navigatable` narrows `enterTransition` and `exitTransition` back to non-null, so `Screen` and
+`Modal` implementations are unchanged and still must declare both. `Graph` leaves them nullable.
+
+The `presentsItself` extension is the single question the renderer and the gesture predicates ask,
+namely whether a node describes a surface of its own. Related to AD-94.
+
+---
+
+### [BC-58] Dismissing a presented graph collapses it, back still steps through it
+
+**Type:** Behavioural
+
+**Grep:** `swipeToDismiss|showsDismissIndicator|onDismissRequest`
+**File glob:** `**/*.kt`
+
+**Notes:** Only applies once a graph declares a presentation, so nothing changes for graphs declared
+as `graph("id") { }` or for a `Graph` that overrides nothing but `route`.
+
+Inside such a graph, dismissing and going back are now different intents. Only the drag unwinds the
+whole graph. A system back press, and an edge swipe between two screens inside the graph, still pop
+one entry each. Previously both gestures derived their own target at commit time and could disagree with what the user had been watching animate, so
+a horizontal swipe between wizard steps could tear down the entire wizard.
+
+The gesture axis is read from the surface that is actually leaving rather than always from the
+current screen. On the first screen of a vertically presented graph, leaving means leaving the
+graph, so the vertical drag arms and the horizontal swipe does not, even though that screen declares
+horizontal transitions of its own. Between screens inside the graph no boundary is crossed, so the
+screen decides and the horizontal swipe arms as before.
+
+`UnifiedLayerRenderer` takes a fourth parameter, `evaluationOverlay: LoadingModal? = null`. Source
+compatible because it is defaulted, binary incompatible, so recompile rather than swap the artifact.
+Callers rendering their own layers can keep passing three arguments.
+
+`MutableNavigationGraph` gained a `declaration` property in position six, shifting `componentN` for
+the parameters after it. This affects destructuring only, which that builder type was never intended
+for. Related to AD-94 and AD-95.
+
+---
+
+### [BC-59] System-layer navigations no longer wait for bootstrap
+
+**Type:** Behavioural
+
+**Grep:** `RenderLayer.SYSTEM`
+**File glob:** `**/*.kt`
+
+**Notes:** A navigatable on `RenderLayer.SYSTEM` is documented as sitting above everything, but it
+could not reach the screen while the app was still deciding where to start. It waited for bootstrap
+to complete, and bootstrap holds the navigation lock for the whole of its start-destination
+evaluation, so an alert raised during a slow entry lambda or guard sat queued behind the very
+loading screen it was meant to appear over.
+
+System-layer navigations now skip both the bootstrap await and that lock. Every other navigation is
+unchanged and still waits, so a modal or screen dispatched during startup continues to be applied
+after the start destination resolves.
+
+The practical effect is that a crash reporter, a forced-update prompt or a connectivity alert raised
+during startup is now visible during startup. Bootstrap still completes and still reaches its start
+destination, and the alert does not disturb where the app lands.
+
+Anything already placed on the system layer inherits this. If a system-layer navigatable relied on
+being deferred until the app had settled, move it off `RenderLayer.SYSTEM`.
+
+---
+### [BC-60] Clearing the backstack no longer takes system-layer entries with it
+
+**Type:** Behavioural
+
+**Grep:** `clearBackStack\(\)`
+**File glob:** `**/*.kt`
+
+**Notes:** `applyNavigate` already treated the system layer as a tail that content navigations are
+inserted underneath, so an alert stays raised and stays current while the screen beneath it changes.
+`applyClearBackstack` was the one operation that ignored that model and emptied the stack outright.
+
+Clearing the backstack now keeps system-layer entries and drops everything else. The loading modal is
+excluded, because it is navigation's own bootstrap placeholder rather than an app overlay, so it is
+still cleared exactly as before.
+
+The case this was found through: an alert raised while the app was still resolving its start
+destination reached the screen (see BC-59) and was then destroyed the moment bootstrap finished,
+because bootstrap clears the backstack before navigating to the start destination. The alert
+disappeared on its own instead of waiting to be dismissed. It now outlives the loader it was raised
+over, and dismissing it reveals the start destination underneath.
+
+`currentEntry` after a clear is the topmost surviving system entry, or unchanged when none survive,
+which is the same rule `applyNavigate` uses. Callers that clear the backstack while nothing is on the
+system layer see no difference.
+
+---
+### [AD-96] Navigation supplies what a header needs
+
+**Type:** Addition
+
+**Grep:** `rememberNavigationChrome|previousTitle\(\)|showsNavigationChrome|LocalNavigationChromeInsets`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object WizardGraph : Graph {
+    override val route = "wizard"
+    override val enterTransition = NavTransition.SlideUpBottom
+}
+
+@Composable
+fun AppScaffold(content: @Composable () -> Unit) {
+    val navigationState by composeState<NavigationState>()
+    Scaffold(
+        topBar = {
+            if (navigationState.showsNavigationChrome) {
+                val chrome = rememberNavigationChrome()
+                TopAppBar(
+                    title = { Text(chrome.title.orEmpty()) },
+                    navigationIcon = {
+                        chrome.onBack?.let { back ->
+                            IconButton(back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
+                        }
+                    }
+                )
+            }
+        }
+    ) { padding ->
+        CompositionLocalProvider(LocalNavigationChromeInsets provides padding) {
+            Box(Modifier.padding(padding)) { content() }
+        }
+    }
+}
+```
+
+**Notes:** Four additions that answer questions only navigation can answer, so an app does not have
+to reach into the backstack to build a header.
+
+`rememberNavigationChrome()` returns a `NavigationChromeState` carrying the current route, the
+resolved title, the title of whatever a back navigation would reveal, and a back action that is null
+at the root. Titles resolve in composition, so a `titleResource` built from `stringResource` stays
+localised, and the title follows an in flight gesture because it reads the same perceived entry the
+renderer does. The back action routes through the same path as the system back button and the edge
+swipe, so a header cannot disagree with them about what leaving means inside a presented graph.
+
+`previousTitle()` exposes the back label on its own for callers that do not want the whole bundle.
+It skips overlay and system entries, because a back control names the content you would return to
+rather than whatever is layered above it.
+
+`Graph.showsNavigationChrome` declares whether destinations inside a graph want a header at all,
+defaulting to `!presentsItself`. A graph that arrives as its own surface already carries its own
+chrome, so a sheet or wizard opts out with no configuration, and a structural graph keeps the
+header. `NavigationState.showsNavigationChrome` resolves that across the whole current hierarchy and
+is false while a modal is current.
+
+`LocalNavigationChromeInsets` is declared so a screen and the layout framing it can agree on how much
+room the header takes without depending on each other, which matters when they live in different
+modules. Whatever draws the header provides the value.
+
+Reaktiv deliberately ships no header. These are facts, not a design system, so the same values can
+drive a Material app bar, an iOS styled one, or a native platform bar.
+
+---

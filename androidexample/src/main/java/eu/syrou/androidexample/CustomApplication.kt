@@ -22,6 +22,11 @@ import eu.syrou.androidexample.reaktiv.videos.VideosModule
 import eu.syrou.androidexample.ui.scaffold.HomeNavigationScaffold
 import eu.syrou.androidexample.ui.screen.AuthLoadingScreen
 import eu.syrou.androidexample.ui.screen.CrashScreen
+import eu.syrou.androidexample.ui.screen.wizard.WizardConfirmScreen
+import eu.syrou.androidexample.ui.screen.wizard.WizardDetailsScreen
+import eu.syrou.androidexample.ui.screen.wizard.WizardGraph
+import eu.syrou.androidexample.ui.screen.wizard.WizardLayout
+import eu.syrou.androidexample.ui.screen.wizard.WizardPaymentScreen
 import eu.syrou.androidexample.ui.screen.DeepLinkAliasTestScreen
 import eu.syrou.androidexample.ui.screen.deeplink.DeeplinkDemoScreen
 import eu.syrou.androidexample.ui.screen.deeplink.DeeplinkDetailScreen
@@ -134,6 +139,18 @@ class CustomApplication : Application() {
             graph("deeplink-demo") {
                 start(route = { _ -> DeeplinkDemoScreen })
                 screens(DeeplinkDemoScreen, DeeplinkDetailScreen)
+            }
+
+            // Exercises a graph layout composing with its screens' transitions and gestures. The
+            // wizard enters vertically over a screen that stays put, which is the case where an
+            // arriving layout must travel with its screen rather than being treated as chrome that
+            // was already on screen.
+            graph(WizardGraph) {
+                start(WizardDetailsScreen)
+                screens(WizardDetailsScreen, WizardPaymentScreen, WizardConfirmScreen)
+                layout { content ->
+                    WizardLayout(content)
+                }
             }
 
             intercept(

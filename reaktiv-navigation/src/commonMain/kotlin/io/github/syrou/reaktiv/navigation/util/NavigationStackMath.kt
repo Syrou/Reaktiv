@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.util
 
+import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.ModalContext
@@ -106,8 +107,16 @@ internal object NavigationStackMath {
         }
     }
 
-    internal fun applyClearBackstack(snapshot: StackSnapshot): StackSnapshot =
-        snapshot.copy(backStack = emptyList(), modalContexts = emptyMap())
+    internal fun applyClearBackstack(snapshot: StackSnapshot): StackSnapshot {
+        val systemTail = snapshot.backStack.filter {
+            it.renderLayer() == RenderLayer.SYSTEM && it.navigatable !is LoadingModal
+        }
+        return StackSnapshot(
+            currentEntry = systemTail.lastOrNull() ?: snapshot.currentEntry,
+            backStack = systemTail,
+            modalContexts = emptyMap()
+        )
+    }
 
     internal fun applyPopUpTo(
         snapshot: StackSnapshot,

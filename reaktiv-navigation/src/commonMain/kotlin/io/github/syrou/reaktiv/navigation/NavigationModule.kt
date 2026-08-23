@@ -228,6 +228,7 @@ public class NavigationModule internal constructor(
             underlyingScreen = computedState.underlyingScreen,
             modalsInStack = computedState.modalsInStack,
             underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
+            showsNavigationChrome = computedState.showsNavigationChrome,
             activeModalContexts = emptyMap(),
             pendingNavigation = null
         )
@@ -277,6 +278,7 @@ public class NavigationModule internal constructor(
             underlyingScreen = computedState.underlyingScreen,
             modalsInStack = computedState.modalsInStack,
             underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
+            showsNavigationChrome = computedState.showsNavigationChrome,
             activeModalContexts = newModalContexts,
             pendingNavigation = newPendingNavigation,
             isEvaluatingNavigation = state.isEvaluatingNavigation
@@ -575,7 +577,8 @@ private data class ComputedNavigationState(
     val systemLayerEntries: List<NavigationEntry>,
     val underlyingScreen: NavigationEntry?,
     val modalsInStack: List<NavigationEntry>,
-    val underlyingScreenGraphHierarchy: List<String>?
+    val underlyingScreenGraphHierarchy: List<String>?,
+    val showsNavigationChrome: Boolean
 )
 
 // Internal computation function
@@ -620,6 +623,10 @@ private fun computeNavigationDerivedState(
         graphId?.let { precomputedData.graphHierarchies[it] } ?: listOf(screen.route)
     }
 
+    val showsNavigationChrome = !isCurrentModal && currentGraphHierarchy.none { graphId ->
+        precomputedData.graphDefinitions[graphId]?.declaration?.showsNavigationChrome == false
+    }
+
     return ComputedNavigationState(
         visibleLayers = visibleLayers,
         currentFullPath = currentFullPath,
@@ -633,7 +640,8 @@ private fun computeNavigationDerivedState(
         systemLayerEntries = systemLayerEntries,
         underlyingScreen = underlyingScreen,
         modalsInStack = modalsInStack,
-        underlyingScreenGraphHierarchy = underlyingScreenGraphHierarchy
+        underlyingScreenGraphHierarchy = underlyingScreenGraphHierarchy,
+        showsNavigationChrome = showsNavigationChrome
     )
 }
 

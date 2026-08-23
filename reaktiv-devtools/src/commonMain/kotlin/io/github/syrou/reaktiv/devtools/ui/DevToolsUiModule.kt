@@ -20,7 +20,12 @@ import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.protocol.SessionData
 import io.github.syrou.reaktiv.introspection.protocol.StateReconstructor
 import io.github.syrou.reaktiv.introspection.network.NetworkBodyPart
+import io.github.syrou.reaktiv.introspection.decodeSessionPayload
+import io.github.syrou.reaktiv.introspection.encodeSessionPayload
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import io.github.syrou.reaktiv.introspection.protocol.SessionMarker
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import io.github.syrou.reaktiv.core.util.reaktivJson
@@ -255,6 +260,12 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                 }
             }
 
+            is DevToolsUiAction.ReplaceMarker -> {
+                state.copy(
+                    markers = state.markers.map { if (it.id == action.marker.id) action.marker else it }
+                )
+            }
+
             is DevToolsUiAction.SetMarkers -> {
                 val known = state.markers.map { it.id }.toSet()
                 state.copy(markers = state.markers + action.markers.filter { it.id !in known })
@@ -301,6 +312,18 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
 
             is DevToolsUiAction.ToggleNetworkStats -> {
                 state.copy(showNetworkStats = !state.showNetworkStats)
+            }
+
+            is DevToolsUiAction.NetworkBodyNotFetchable -> {
+                val key = networkBodyKey(action.requestId, action.part)
+                state.copy(
+                    networkBodies = state.networkBodies + (key to NetworkBodyLoad(
+                        loading = false,
+                        complete = true,
+                        unavailable = true,
+                        capturedOnly = true
+                    ))
+                )
             }
 
             is DevToolsUiAction.NetworkBodyRequested -> {
@@ -373,6 +396,18 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
 
     private val json = reaktivJson()
 
+    private val ghostSessionRequests = mutableSetOf<String>()
+
+    /**
+     * Adds a marker to the selected publisher, whether it is a live device or an imported session.
+     *
+     * A live device owns its own capture, so the marker is requested from it and comes back through
+     * [DevToolsMessage.MarkerAdded]. A ghost has no device to ask, so the marker is created here and
+     * tagged `analyst` rather than `device`, which keeps post-session annotation distinguishable
+     * from what the device recorded while it ran. Either way it lands in the same state and is
+     * carried by the next export.
+     */
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun addMarkerOnPublisher(
         publisherClientId: String,
         label: String,
@@ -380,6 +415,22 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
         timestampMs: Long? = null,
         afterActionIndex: Int = -1
     ) {
+        val isGhost = storeAccessor.selectState<DevToolsUiState>().value.activeGhostId == publisherClientId
+        if (isGhost) {
+            storeAccessor.dispatch(
+                DevToolsUiAction.AddMarker(
+                    SessionMarker(
+                        id = Uuid.random().toString(),
+                        label = label,
+                        note = note,
+                        timestampMs = timestampMs ?: currentTimeMillis(),
+                        afterActionIndex = afterActionIndex,
+                        source = ANALYST_MARKER_SOURCE
+                    )
+                )
+            )
+            return
+        }
         try {
             connection.send(
                 DevToolsMessage.AddMarkerRequest(
@@ -395,12 +446,41 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
         }
     }
 
+    /**
+     * Replaces the label and note of an existing marker, keeping its id and position.
+     *
+     * Only analyst markers are editable. A device marker records what the session did and stays as
+     * the device wrote it, so re-exporting cannot quietly rewrite history.
+     */
+    suspend fun updateMarker(markerId: String, label: String, note: String) {
+        val state = storeAccessor.selectState<DevToolsUiState>().value
+        val existing = state.markers.firstOrNull { it.id == markerId } ?: return
+        if (existing.source != ANALYST_MARKER_SOURCE) {
+            println("DevTools UI: Refusing to edit device marker $markerId")
+            return
+        }
+        storeAccessor.dispatch(
+            DevToolsUiAction.ReplaceMarker(existing.copy(label = label, note = note))
+        )
+    }
+
+    /**
+     * Asks the publisher for the next slice of a captured body.
+     *
+     * An imported session has no device behind it, so the request would never be answered and the
+     * panel would sit on "waiting" forever. Whatever the session captured is all there will ever
+     * be, so the load is closed as unavailable and the panel falls back to the captured preview.
+     */
     suspend fun fetchNetworkBody(
         publisherClientId: String,
         requestId: String,
         part: NetworkBodyPart,
         offset: Int = 0
     ) {
+        if (storeAccessor.selectState<DevToolsUiState>().value.activeGhostId != null) {
+            storeAccessor.dispatch(DevToolsUiAction.NetworkBodyNotFetchable(requestId, part))
+            return
+        }
         try {
             if (offset == 0) {
                 storeAccessor.dispatch(DevToolsUiAction.NetworkBodyRequested(requestId, part))
@@ -492,6 +572,13 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
         if (history.stateReads.isNotEmpty()) {
             storeAccessor.dispatch(DevToolsUiAction.SetStateReads(history.stateReads))
         }
+        if (history.network.isNotEmpty()) {
+            storeAccessor.dispatch(
+                DevToolsUiAction.AppendNetworkEvents(
+                    history.network.map { NetworkEventRow(clientId = clientId, event = it) }
+                )
+            )
+        }
         val logicEvents = buildList<LogicMethodEvent> {
             history.logicStarted.forEach { add(LogicMethodEvent.Started(clientId, it)) }
             history.logicCompleted.forEach { add(LogicMethodEvent.Completed(clientId, it)) }
@@ -545,6 +632,12 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
                 export.session.logicCompletedEvents.size +
                 export.session.logicFailedEvents.size
 
+            // Apply locally before telling the server. Registering the ghost makes the server
+            // broadcast a client list, and the handler for that asks for any ghost the UI does not
+            // already hold. Applying first sets activeGhostId, so the UI recognises this ghost as
+            // its own and does not pull back a copy it just imported.
+            applyGhostSessionToState(export)
+
             val message = DevToolsMessage.GhostDeviceRegistration(
                 sessionId = export.sessionId,
                 originalClientInfo = originalClientInfo,
@@ -553,12 +646,10 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
                 logicEventCount = totalLogicEvents,
                 sessionStartTime = export.session.startTime,
                 sessionEndTime = export.session.endTime,
-                sessionExportJson = jsonString
+                sessionExportJson = encodeSessionPayload(jsonString)
             )
 
             connection.send(message)
-
-            applyGhostSessionToState(export)
 
             storeAccessor.dispatch(DevToolsUiAction.HideImportGhostDialog)
 
@@ -572,9 +663,33 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
     /**
      * Restores a ghost session from server-stored data without re-registering on the server.
      */
+    /**
+     * Asks the server for any ghost the UI does not already hold.
+     *
+     * Ghost payloads are pulled rather than pushed, so a UI that connects after an import still
+     * gets the session, while devices that would only discard it never receive it. The in-flight
+     * set stops a burst of client list updates from requesting the same payload repeatedly.
+     */
+    private suspend fun requestMissingGhostSessions(clients: List<ClientInfo>, activeGhostId: String?) {
+        clients.filter { it.isGhost }.forEach { ghost ->
+            if (ghost.clientId == activeGhostId) return@forEach
+            if (!ghostSessionRequests.add(ghost.clientId)) return@forEach
+            try {
+                connection.send(DevToolsMessage.GhostSessionRequest(ghost.clientId))
+                println("DevTools UI: Requested ghost session - ${ghost.clientId}")
+            } catch (e: Exception) {
+                ghostSessionRequests.remove(ghost.clientId)
+                println("DevTools UI: Failed to request ghost session - ${e.message}")
+            }
+        }
+    }
+
     private suspend fun importGhostSessionFromRestore(sessionExportJson: String, ghostClientId: String) {
+        ghostSessionRequests.remove(ghostClientId)
         try {
-            val export = json.decodeFromString<GhostSessionExport>(sessionExportJson)
+            val export = json.decodeFromString<GhostSessionExport>(
+                decodeSessionPayload(sessionExportJson)
+            )
 
             applyGhostSessionToState(export)
 
@@ -615,6 +730,18 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
         }
         storeAccessor.dispatch(DevToolsUiAction.BulkAddLogicMethodEvents(logicEvents))
 
+        if (export.session.network.isNotEmpty()) {
+            storeAccessor.dispatch(
+                DevToolsUiAction.AppendNetworkEvents(
+                    export.session.network.map { NetworkEventRow(clientId = ghostClientId, event = it) }
+                )
+            )
+        }
+
+        if (export.session.markers.isNotEmpty()) {
+            storeAccessor.dispatch(DevToolsUiAction.SetMarkers(export.session.markers))
+        }
+
         val ghostId = "ghost-${export.sessionId}"
         storeAccessor.dispatch(DevToolsUiAction.SelectPublisher(ghostId))
         storeAccessor.dispatch(DevToolsUiAction.EnableTimeTravelWithGhost(ghostId))
@@ -644,7 +771,8 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
         initialStateJson: String = "{}",
         crashEvent: CrashEventInfo? = null,
         stateReads: List<StateRead> = emptyList(),
-        markers: List<SessionMarker> = emptyList()
+        markers: List<SessionMarker> = emptyList(),
+        network: List<NetworkRequestCapture> = emptyList()
     ): String {
         val now = currentTimeMillis()
 
@@ -670,7 +798,8 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
                 logicCompletedEvents = logicEvents.filterIsInstance<LogicMethodEvent.Completed>().map { it.event },
                 logicFailedEvents = logicEvents.filterIsInstance<LogicMethodEvent.Failed>().map { it.event },
                 stateReads = stateReads,
-                markers = markers
+                markers = markers,
+                network = network
             )
         )
 
@@ -684,6 +813,8 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
 
                 // Auto-select devices based on their server-assigned roles
                 val state = storeAccessor.selectState<DevToolsUiState>().value
+
+                requestMissingGhostSessions(message.clients, state.activeGhostId)
                 val publisher = message.clients.find { it.role == ClientRole.PUBLISHER && !it.isGhost }
                 val listener = message.clients.find {
                     it.role == ClientRole.LISTENER && it.clientId != "devtools-ui"
@@ -876,6 +1007,14 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
                 println("DevTools UI: Unhandled message type: ${message::class.simpleName}")
             }
         }
+    }
+
+    internal companion object {
+        /**
+         * Marker source for annotations authored in the UI after a session ended, as opposed to
+         * `device`, which is what a running capture writes.
+         */
+        const val ANALYST_MARKER_SOURCE: String = "analyst"
     }
 }
 

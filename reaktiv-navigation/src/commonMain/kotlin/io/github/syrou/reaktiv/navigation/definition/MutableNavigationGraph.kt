@@ -14,6 +14,7 @@ public data class MutableNavigationGraph(
     override val nestedGraphs: List<NavigationGraph>,
     @kotlinx.serialization.Transient
     override val layout: (@Composable (@Composable () -> Unit) -> Unit)? = null,
+    override val declaration: Graph? = null,
     @kotlinx.serialization.Transient
     override val interceptDefinition: InterceptDefinition? = null,
     @kotlinx.serialization.Transient

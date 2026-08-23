@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import kotlinx.coroutines.flow.first
+import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 
@@ -91,6 +92,7 @@ internal suspend fun completeInteractiveDismiss(
     progressVelocity: Float,
     controller: InteractiveTransitionController,
     store: Store,
+    navModule: NavigationModule,
     top: NavigationEntry,
     revealed: NavigationEntry?
 ) {
@@ -114,12 +116,7 @@ internal suspend fun completeInteractiveDismiss(
         } else {
             controller.armModalHandoff(top.stableKey)
         }
-        val dismissHandler = top.navigatable.onDismissRequest
-        if (dismissHandler != null) {
-            dismissHandler.invoke(store)
-        } else {
-            store.navigateBack(expectedTopKey = top.stableKey)
-        }
+        dismissSurface(store, navModule, top, revealed, expectedTopKey = top.stableKey)
         val after = store.selectState<NavigationState>().first()
         if (after.currentEntry.stableKey == top.stableKey) {
             controller.settle(commit = false)

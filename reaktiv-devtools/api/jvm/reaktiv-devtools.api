@@ -451,6 +451,35 @@ public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$Gho
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest$Companion;
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGhostClientId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRequest$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
 public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
 	public static final field $stable I
 	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostSessionRestore$Companion;
@@ -514,7 +543,7 @@ public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$Lis
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogBatch : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage, io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$FromClient {
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogBatch : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage, io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ObservabilityOnly {
 	public static final field $stable I
 	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$LogBatch$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
@@ -669,7 +698,7 @@ public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$Mar
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$NetworkBatch : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage, io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$FromClient {
+public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$NetworkBatch : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage, io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ObservabilityOnly {
 	public static final field $stable I
 	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$NetworkBatch$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
@@ -744,6 +773,9 @@ public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsM
 
 public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$NetworkBodyChunk$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public abstract interface class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$ObservabilityOnly : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$FromClient {
 }
 
 public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$PublisherChanged : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage {
@@ -1240,6 +1272,7 @@ public final class io/github/syrou/reaktiv/devtools/server/ClientManager {
 	public final fun assignRole (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun attachWaitingObservers (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun broadcastToListeners (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun broadcastToObservers (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun broadcastToOrchestrators (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun currentPublisher (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getAllClients (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1251,6 +1284,7 @@ public final class io/github/syrou/reaktiv/devtools/server/ClientManager {
 	public final fun registerGhostDevice (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$GhostDeviceRegistration;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun removeGhostDevice (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun reset (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun sendGhostSession (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun sendToPublisher (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setPublisher (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun unregisterClient (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

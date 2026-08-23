@@ -91,7 +91,7 @@ public class StallWatchdog(
                     val stallMs = lastBeat.load() - stallStartBeat
                     inStall = false
                     if (stallMs > thresholdMs) {
-                        reportStall(stallMs, sampledStacks.toList())
+                        reportStall(stallStartBeat, stallMs, sampledStacks.toList())
                     }
                     sampledStacks.clear()
                 }
@@ -99,7 +99,15 @@ public class StallWatchdog(
         }
     }
 
-    private suspend fun reportStall(stallMs: Long, stacks: List<String>) {
+    /**
+     * Emits the stall as a span covering when it actually happened.
+     *
+     * A stall can only be reported once the main thread recovers, which is already after the
+     * fact, so the span is anchored to [stallStartMs] rather than to now. Without that anchor a
+     * span starting at recovery and lasting [stallMs] extends past the present, which reads on
+     * the timeline as a stall that began in the future and never ended.
+     */
+    private suspend fun reportStall(stallStartMs: Long, stallMs: Long, stacks: List<String>) {
         val params = buildMap {
             put("thresholdMs", thresholdMs.toString())
             val first = stacks.firstOrNull()
@@ -110,7 +118,8 @@ public class StallWatchdog(
         val callId = LogicTracer.notifyMethodStart(
             logicClass = TRACE_CLASS,
             methodName = "stall",
-            params = params
+            params = params,
+            startedAtMs = stallStartMs
         )
         if (callId.isNotEmpty()) {
             LogicTracer.notifyMethodCompleted(

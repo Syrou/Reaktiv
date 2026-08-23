@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import eu.syrou.androidexample.ui.screen.LifecycleDemoScreen
 import eu.syrou.androidexample.ui.screen.PullToRefreshDemoScreen
@@ -77,6 +78,22 @@ object NewsScreen : Screen {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Lifecycle Demo (fields clear on exit)")
+                }
+            }
+            item {
+                Button(
+                    onClick = {
+                        store.launch {
+                            store.navigation {
+                                navigateTo("wizard")
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("open-wizard")
+                ) {
+                    Text("Checkout Wizard (graph layout + drag dismiss)")
                 }
             }
             item { NewsSection() }

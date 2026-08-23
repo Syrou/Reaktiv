@@ -103,6 +103,17 @@ interface ReaktivTracingExtension {
     val xcodeConfigurations: SetProperty<String>
 
     /**
+     * How to resolve an invocation that requests both a tracing build and a conflicting one.
+     *
+     * `./gradlew assembleProduction assembleStaging` is a normal CI command, and a module with a
+     * single compilation per target cannot serve both from one build, so this decides which way it
+     * goes rather than leaving it to chance.
+     *
+     * Default: [TracingConflictPolicy.DISABLE]
+     */
+    val onConflict: Property<TracingConflictPolicy>
+
+    /**
      * Activates tracing when any requested task name contains one of [patterns], compared
      * case-insensitively.
      *
@@ -127,13 +138,13 @@ interface ReaktivTracingExtension {
     }
 
     /**
-     * Fails the build when tracing activates in an invocation that also requests a task matching one
-     * of [patterns].
+     * Declares task patterns that must not be instrumented, so an invocation requesting both is
+     * resolved deliberately rather than by accident.
      *
      * A module with a single compilation per target produces one artifact per invocation, so it
-     * cannot hand an instrumented build to one consumer and a clean one to another. Without this
-     * guard, `./gradlew testStagingUnitTest assembleProduction` quietly feeds instrumented code to
-     * the production consumer.
+     * cannot hand an instrumented build to one consumer and a clean one to another. Without this,
+     * `./gradlew assembleProduction assembleStaging` quietly feeds instrumented code to the
+     * production consumer, because the staging pattern matched.
      *
      * Usage:
      * ```kotlin
@@ -143,10 +154,12 @@ interface ReaktivTracingExtension {
      * }
      * ```
      *
-     * The guard reports a configuration-time failure naming both sides. It does not make the mixed
-     * invocation work, which would require per-consumer variant selection.
+     * [onConflict] decides what happens, and defaults to disabling tracing for that invocation so
+     * the production artifact stays clean. None of this makes the mixed invocation produce both
+     * forms at once, which would require per-consumer variant selection.
      *
-     * @param patterns Substrings that must not co-occur with an activating task
+     * @param patterns Substrings that should never carry instrumentation
+     * @see onConflict to choose the resolution
      */
     fun conflictsWithTasksMatching(vararg patterns: String) {
         conflictingTaskPatterns.addAll(*patterns)

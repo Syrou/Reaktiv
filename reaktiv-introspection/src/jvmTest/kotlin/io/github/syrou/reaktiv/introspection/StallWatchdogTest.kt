@@ -83,6 +83,53 @@ class StallWatchdogTest {
     }
 
     @Test
+    fun `the stall span covers when the stall happened, not when it was noticed`() {
+        val executor = Executors.newSingleThreadExecutor()
+        val monitored = executor.asCoroutineDispatcher()
+        val scope = CoroutineScope(SupervisorJob())
+        val observer = RecordingObserver()
+        LogicTracer.addObserver(observer)
+
+        val watchdog = StallWatchdog(
+            scope = scope,
+            thresholdMs = 150L,
+            heartbeatMs = 30L,
+            monitoredDispatcher = monitored
+        )
+        try {
+            assertTrue(watchdog.start())
+            runBlocking {
+                delay(120)
+                withContext(monitored) {
+                    Thread.sleep(400)
+                }
+                delay(300)
+            }
+            val reportedAt = System.currentTimeMillis()
+
+            val start = observer.started.first { it.logicClass == StallWatchdog.TRACE_CLASS }
+            val completion = observer.stallCompletions().first()
+
+            assertTrue(
+                start.timestampMs <= reportedAt,
+                "Stall started at ${start.timestampMs} which is after now ($reportedAt)"
+            )
+            assertTrue(
+                start.timestampMs + completion.durationMs <= reportedAt,
+                "Stall span ends at ${start.timestampMs + completion.durationMs}, past now ($reportedAt)"
+            )
+            assertTrue(
+                reportedAt - start.timestampMs >= completion.durationMs,
+                "The span should sit entirely in the past"
+            )
+        } finally {
+            watchdog.stop()
+            scope.cancel()
+            executor.shutdown()
+        }
+    }
+
+    @Test
     fun `a sustained stall samples stacks and names the hottest frame`() {
         val executor = Executors.newSingleThreadExecutor()
         val monitored = executor.asCoroutineDispatcher()

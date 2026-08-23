@@ -31,6 +31,8 @@ public sealed class DevToolsMessage {
         public val clientId: String
     }
 
+    public sealed interface ObservabilityOnly : FromClient
+
     @Serializable
     public data class ClientRegistration(
         val clientName: String,
@@ -133,7 +135,19 @@ public sealed class DevToolsMessage {
     ) : DevToolsMessage()
 
     /**
-     * Sent by the server to restore ghost session data on client reconnect.
+     * Asks the server for a ghost's session export.
+     *
+     * Ghost payloads are pulled rather than pushed. A session export can be tens of megabytes and
+     * only an orchestrator renders it, so the server advertises ghosts through the client list and
+     * sends the payload to whoever asks for it.
+     */
+    @Serializable
+    public data class GhostSessionRequest(
+        val ghostClientId: String
+    ) : DevToolsMessage()
+
+    /**
+     * Sent by the server in answer to [GhostSessionRequest].
      * Contains the full session export JSON so the WASM UI can rebuild its state.
      */
     @Serializable
@@ -207,13 +221,13 @@ public sealed class DevToolsMessage {
     public data class LogBatch(
         override val clientId: String,
         val entries: List<DeviceLogEntry>
-    ) : DevToolsMessage(), FromClient
+    ) : DevToolsMessage(), ObservabilityOnly
 
     @Serializable
     public data class NetworkBatch(
         override val clientId: String,
         val events: List<NetworkRequestCapture>
-    ) : DevToolsMessage(), FromClient
+    ) : DevToolsMessage(), ObservabilityOnly
 
     @Serializable
     public data class FetchNetworkBody(

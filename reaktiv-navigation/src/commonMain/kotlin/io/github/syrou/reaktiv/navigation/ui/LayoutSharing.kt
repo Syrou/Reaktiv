@@ -16,8 +16,14 @@ internal fun decideLayoutSharing(
     val liftExiting = layoutChanged && shouldAnimateExit
 
     var sharedRoutes = currentLayoutRoutes.toSet()
-    if (liftExiting) {
-        sharedRoutes = sharedRoutes.intersect(previousLayoutRoutes.orEmpty().toSet())
+    // A layout is only shared if the screen we are leaving actually had it. Anything else belongs
+    // to the arriving screen and has to travel with it, inside the transition and inside the
+    // gesture handlers wrapped around that slot. Treating a brand new layout as shared pins it
+    // outside the animation, so a screen that slides up from the bottom appears to slide in
+    // underneath chrome that was already there, and a drag handler ends up on the screen alone
+    // rather than on the whole graph.
+    if (previousLayoutRoutes != null) {
+        sharedRoutes = sharedRoutes.intersect(previousLayoutRoutes.toSet())
     }
     if (revealedLayoutRoutes != null) {
         sharedRoutes = sharedRoutes.intersect(revealedLayoutRoutes.toSet())

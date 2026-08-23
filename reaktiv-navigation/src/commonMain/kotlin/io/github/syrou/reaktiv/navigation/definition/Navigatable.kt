@@ -11,6 +11,7 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
@@ -168,13 +169,15 @@ public class BackstackLifecycle(
     }
 }
 
-public interface Navigatable : NavigationNode {
+public interface Navigatable : NavigationNode, TransitionSpec {
     public val titleResource: TitleResource?
     public val actionResource: ActionResource?
-    public val enterTransition: NavTransition
-    public val exitTransition: NavTransition
-    public val popEnterTransition: NavTransition?
-    public val popExitTransition: NavTransition?
+
+    /** A screen always has an arrival, so these narrow the nullable spec to non-null. */
+    override val enterTransition: NavTransition
+    override val exitTransition: NavTransition
+    override val popEnterTransition: NavTransition?
+    override val popExitTransition: NavTransition?
 
     /**
      * Which layer this navigatable should render in

@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
+import io.github.syrou.reaktiv.introspection.protocol.SessionExportFormat
 import io.github.syrou.reaktiv.introspection.protocol.SessionExport
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
@@ -41,7 +42,7 @@ class SessionMarkerTest {
 
         val export = json.decodeFromString<SessionExport>(capture.exportSession())
 
-        assertEquals("3.5", export.version)
+        assertEquals(SessionExportFormat.VERSION, export.version)
         val marker = export.session.markers.single()
         assertEquals("saw the glitch", marker.label)
         assertEquals("list jumped to top", marker.note)

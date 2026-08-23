@@ -34,6 +34,15 @@ public interface NavigationGraph : NavigationNode {
     /** Optional shared layout wrapper applied to every screen inside this graph. */
     public val layout: (@Composable (@Composable () -> Unit) -> Unit)?
 
+    /**
+     * The [Graph] object this was declared from, when one was used.
+     *
+     * Carries the graph's presentation: its transitions, whether it can be dragged away as a
+     * unit, and what dismissal means. Null for graphs declared by id alone, which have no
+     * presentation and behave purely as structure.
+     */
+    public val declaration: Graph? get() = null
+
     /** Guard evaluated before entering any route within this graph. */
     public val interceptDefinition: InterceptDefinition? get() = null
 

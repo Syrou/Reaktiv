@@ -361,8 +361,16 @@ public object DevToolsServer {
                 println("DevTools Server: ClientListUpdate received (${message.clients.size} clients)")
             }
 
+            is DevToolsMessage.GhostSessionRequest -> {
+                currentClientId?.let { clientManager.sendGhostSession(it, message.ghostClientId) }
+            }
+
             is DevToolsMessage.GhostSessionRestore -> {
                 // Server-generated, should not be received from clients
+            }
+
+            is DevToolsMessage.ObservabilityOnly -> {
+                clientManager.broadcastToObservers(message.clientId, message)
             }
 
             is DevToolsMessage.FromClient -> {

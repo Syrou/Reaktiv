@@ -43,6 +43,8 @@ internal fun resolveBodyView(
     val stillPartial = truncated && !complete
 
     val note = when {
+        load != null && load.capturedOnly ->
+            "This session did not capture the full body. Showing the preview it recorded."
         load != null && load.unavailable ->
             "The full body is no longer retained on the device. Showing the captured preview."
         streaming && load.receivedBytes == 0 ->

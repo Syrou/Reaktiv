@@ -20,9 +20,11 @@ public actual class CrashHandler actual constructor(
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                val json = runBlocking { sessionCapture.exportCrashSession(throwable) }
+                val bytes = runBlocking {
+                    gzipCompress(sessionCapture.exportCrashSession(throwable).encodeToByteArray())
+                }
                 val fileName = sessionCapture.suggestFileName("crash")
-                val savedPath = sessionExport.saveToDownloads(json, fileName)
+                val savedPath = sessionExport.saveToDownloads(bytes, fileName)
                 println("Introspection: Crash session saved to $savedPath")
             } catch (e: Exception) {
                 println("Introspection: Failed to save crash session - ${e.message}")

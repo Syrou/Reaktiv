@@ -26,6 +26,7 @@ public class NavigationGraphBuilder(
     private val navigatables = mutableListOf<Navigatable>()
     private val nestedGraphs = mutableListOf<NavigationGraph>()
     private var graphLayout: (@Composable (@Composable () -> Unit) -> Unit)? = null
+    private var graphDeclaration: Graph? = null
     private var pendingEntryDefinition: EntryDefinition? = null
     private val navigatableIntercepts: MutableMap<Navigatable, InterceptDefinition> = mutableMapOf()
 
@@ -121,13 +122,25 @@ public class NavigationGraphBuilder(
         return nestedGraph
     }
 
+    /**
+     * Declares a nested graph from a [Graph] object, carrying its presentation.
+     *
+     * Unlike the id-only overload this keeps the declaration, so the graph's transitions and
+     * dismissal behaviour apply when a navigation crosses its boundary.
+     */
     public fun graph(graph: Graph, builder: NavigationGraphBuilder.() -> Unit): NavigationGraph {
-        return graph(graph.route, builder)
+        val nestedBuilder = NavigationGraphBuilder(graph.route)
+        nestedBuilder.graphDeclaration = graph
+        nestedBuilder.builder()
+        val nested = nestedBuilder.build()
+        nestedGraphs.add(nested)
+        return nested
     }
 
     public fun layout(layoutComposable: @Composable (@Composable () -> Unit) -> Unit) {
         this.graphLayout = layoutComposable
     }
+
 
     /**
      * Define a protected region where all nested graphs and screens require an intercept guard.
@@ -230,6 +243,7 @@ public class NavigationGraphBuilder(
             navigatables = this.navigatables.toList(),
             nestedGraphs = this.nestedGraphs.toList(),
             layout = this.graphLayout,
+            declaration = this.graphDeclaration,
             entryDefinition = this.pendingEntryDefinition,
             navigatableIntercepts = this.navigatableIntercepts.toMap()
         )

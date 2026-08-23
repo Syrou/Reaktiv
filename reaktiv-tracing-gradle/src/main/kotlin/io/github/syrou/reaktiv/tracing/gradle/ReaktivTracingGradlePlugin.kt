@@ -41,8 +41,12 @@ import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
  *     enabled.set(myOwnCondition)
  * }
  * ```
- * An explicit value also skips the conflicting-task guard, since the build has taken responsibility
- * for the decision.
+ * An explicit value also skips conflict resolution entirely, since the build has taken
+ * responsibility for the decision.
+ *
+ * When one invocation requests both a tracing build and a conflicting one, which is what
+ * `./gradlew assembleProduction assembleStaging` does, `onConflict` decides the outcome. It
+ * defaults to disabling tracing for that invocation so the non-tracing artifact stays clean.
  *
  * When activation is false the compiler plugin is not applied to any compilation and no tracing
  * dependency is added, so neither generated code nor the tracing runtime can reach the artifact.
@@ -69,6 +73,8 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
 
     private lateinit var extension: ReaktivTracingExtension
 
+    private var conflictReported = false
+
     override fun apply(target: Project) {
         extension = target.extensions.create(
             EXTENSION_NAME,
@@ -80,6 +86,7 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         extension.activatingTaskPatterns.convention(emptySet())
         extension.conflictingTaskPatterns.convention(emptySet())
         extension.xcodeConfigurations.convention(emptySet())
+        extension.onConflict.convention(TracingConflictPolicy.DISABLE)
         extension.enabled.convention(activationProvider(target))
 
         // Auto-detect git info with conventions
@@ -125,15 +132,49 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         val conflicts = extension.conflictingTaskPatterns.get().filter { pattern ->
             requested.any { it.contains(pattern, ignoreCase = true) }
         }
-        if (conflicts.isNotEmpty()) {
-            throw GradleException(
+        if (conflicts.isEmpty()) return true
+
+        return when (extension.onConflict.get()) {
+            TracingConflictPolicy.INSTRUMENT_ALL -> {
+                reportConflictOnce {
+                    project.logger.warn(
+                        "reaktivTracing: $requested requests both a tracing build and $conflicts. " +
+                            "onConflict is INSTRUMENT_ALL, so the non-tracing artifact will also " +
+                            "carry instrumentation. Do not ship it."
+                    )
+                }
+                true
+            }
+
+            TracingConflictPolicy.FAIL -> throw GradleException(
                 "Reaktiv tracing: the requested tasks $requested activate tracing and also match " +
                     "$conflicts. A module with a single compilation per target cannot produce an " +
-                    "instrumented and a clean artifact in the same invocation, so the non-activating " +
-                    "build would ship instrumentation. Run these as separate Gradle invocations."
+                    "instrumented and a clean artifact in the same invocation. Run these as separate " +
+                    "invocations, or set onConflict to DISABLE or INSTRUMENT_ALL."
             )
+
+            else -> {
+                reportConflictOnce {
+                    project.logger.lifecycle(
+                        "reaktivTracing: $requested requests both a tracing build and $conflicts, " +
+                            "which a single compilation cannot satisfy at once. Tracing is disabled " +
+                            "for this invocation so the non-tracing artifact stays clean. Build the " +
+                            "tracing variant on its own to get traces."
+                    )
+                }
+                false
+            }
         }
-        return true
+    }
+
+    /**
+     * Activation is resolved once per compilation, so the conflict is reported only the first time
+     * to keep a multi-target module from repeating the same line for every target it builds.
+     */
+    private inline fun reportConflictOnce(report: () -> Unit) {
+        if (conflictReported) return
+        conflictReported = true
+        report()
     }
 
     private fun warnWhenNoActivationCriteria(project: Project) {

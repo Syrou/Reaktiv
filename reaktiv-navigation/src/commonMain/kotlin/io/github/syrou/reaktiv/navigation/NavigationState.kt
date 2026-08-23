@@ -99,6 +99,15 @@ public data class NavigationState(
     val isEvaluatingNavigation: Boolean = false,
 
     /**
+     * `true` when the current destination wants a navigation header.
+     *
+     * False while a modal is current, and false anywhere inside a graph that declares
+     * [io.github.syrou.reaktiv.navigation.definition.Graph.showsNavigationChrome] as false, which a
+     * presenting graph does by default because it carries its own chrome.
+     */
+    val showsNavigationChrome: Boolean = true,
+
+    /**
      * Live gesture scrub progress mirrored into state so followers and session
      * captures can replicate interactive gestures. Cleared by any other
      * navigation action.

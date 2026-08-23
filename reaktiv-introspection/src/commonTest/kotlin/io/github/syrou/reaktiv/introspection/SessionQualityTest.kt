@@ -4,7 +4,9 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.introspection.capture.SessionHistory
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import io.github.syrou.reaktiv.introspection.capture.chunked
+import io.github.syrou.reaktiv.introspection.protocol.SessionExportFormat
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.SessionExport
 import kotlinx.coroutines.test.runTest
@@ -43,7 +45,7 @@ class SessionQualityTest {
 
         val export = json.decodeFromString<SessionExport>(capture.exportSession())
 
-        assertEquals("3.5", export.version)
+        assertEquals(SessionExportFormat.VERSION, export.version)
         assertEquals("1.2.3", export.clientInfo.metadata?.appVersion)
         assertEquals("sv_SE", export.clientInfo.metadata?.locale)
         assertEquals(0, export.droppedRecords)
@@ -155,5 +157,47 @@ class SessionHistoryChunkingTest {
         assertEquals("""{"a":1}""", chunks[0].initialStateJson)
         assertEquals("{}", chunks[1].initialStateJson)
         assertEquals(history.actions, chunks.flatMap { it.actions })
+    }
+
+    private fun exchange(index: Int) = NetworkRequestCapture(
+        id = "req-$index",
+        startedAtMs = index.toLong(),
+        durationMs = 10,
+        method = "GET",
+        url = "https://api.example.com/$index",
+        responseStatus = 200
+    )
+
+    @Test
+    fun `network survives chunking instead of being dropped`() {
+        val history = SessionHistory(
+            startTime = 1L,
+            actions = emptyList(),
+            logicStarted = emptyList(),
+            logicCompleted = emptyList(),
+            logicFailed = emptyList(),
+            network = (0 until 120).map { exchange(it) }
+        )
+        val chunks = history.chunked(networkPerChunk = 50)
+
+        assertEquals(history.network, chunks.flatMap { it.network })
+        assertTrue(chunks.size >= 3, "120 exchanges at 50 per chunk needs at least 3 chunks")
+        assertTrue(chunks.all { it.network.size <= 50 })
+    }
+
+    @Test
+    fun `a history with no network still chunks normally`() {
+        val history = SessionHistory(
+            startTime = 1L,
+            actions = (0 until 5).map { action(it) },
+            logicStarted = emptyList(),
+            logicCompleted = emptyList(),
+            logicFailed = emptyList()
+        )
+
+        val chunks = history.chunked()
+
+        assertEquals(1, chunks.size)
+        assertTrue(chunks.single().network.isEmpty())
     }
 }

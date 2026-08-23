@@ -21,12 +21,66 @@ internal fun revealedEntryForBack(state: NavigationState): NavigationEntry? {
     return ordered.getOrNull(ordered.size - 2)
 }
 
+/**
+ * The chain of graph ids enclosing [entry], outermost first.
+ *
+ * Read from the entry's own path rather than a lookup table, so it works for nested graphs
+ * without the caller knowing the hierarchy.
+ */
+internal fun NavigationEntry.graphChain(): List<String> =
+    path.removeSuffix("/${navigatable.route}")
+        .split('/')
+        .filter { it.isNotEmpty() }
+
+/**
+ * The innermost graph containing [entry] that presents itself as a draggable surface.
+ *
+ * Innermost wins: with a sheet presented inside another sheet, the gesture takes away the one
+ * being looked at rather than both.
+ */
+internal fun dismissableBoundary(
+    entry: NavigationEntry,
+    navModule: NavigationModule
+): String? = entry.graphChain().lastOrNull { graphId ->
+    navModule.getGraphDefinitions()[graphId]?.declaration?.swipeToDismiss == true
+}
+
+/**
+ * The entry a dismiss gesture would reveal, skipping everything inside a dismissable boundary.
+ *
+ * A sheet-presented graph leaves as a unit, so the drag reveals whatever sat beneath the whole
+ * graph rather than the previous step within it.
+ */
+internal fun revealedEntryForDismiss(
+    state: NavigationState,
+    navModule: NavigationModule
+): NavigationEntry? {
+    val boundary = dismissableBoundary(state.currentEntry, navModule)
+        ?: return revealedEntryForBack(state)
+    val ordered = state.orderedBackStack
+    return ordered.lastOrNull { candidate ->
+        dismissableBoundary(candidate, navModule) != boundary
+    }
+}
+
 internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: NavigationModule): Boolean {
     if (!canHandleBack(state, navModule)) return false
     val top = state.currentEntry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.backGestureEnabled) return false
-    if (top.gestureAxis() == GestureAxis.Vertical) return false
+
+    val revealed = revealedEntryForBack(state) ?: return false
+    // Read the axis from whatever would actually move. Going back from the first screen of a
+    // presented graph leaves the graph, so a sheet that arrived vertically leaves vertically and
+    // the horizontal edge swipe must not arm for it. Deeper inside the graph nothing is crossed,
+    // so the screen decides and the edge swipe works normally between steps.
+    val departing = presentationSourceFor(
+        from = revealed,
+        to = state.currentEntry,
+        navigatable = top,
+        navModule = navModule
+    )
+    if (departing.gestureAxis() == GestureAxis.Vertical) return false
     return revealedContentEntryAvailable(state, navModule)
 }
 
@@ -34,8 +88,13 @@ internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationMod
     if (!canHandleBack(state, navModule)) return false
     val top = state.currentEntry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
-    if (!top.swipeToDismiss) return false
-    return revealedContentEntryAvailable(state, navModule)
+    // Inside a dismissable graph the surface, not the screen, decides. A step that navigates
+    // horizontally within the graph is still part of a sheet that can be dragged away.
+    val insideDismissableGraph = dismissableBoundary(state.currentEntry, navModule) != null
+    if (!top.swipeToDismiss && !insideDismissableGraph) return false
+    val revealed = revealedEntryForDismiss(state, navModule) ?: return false
+    if (revealed.navigatable.renderLayer != RenderLayer.CONTENT) return false
+    return state.activeModalContexts[revealed.path] == null
 }
 
 private fun revealedContentEntryAvailable(state: NavigationState, navModule: NavigationModule): Boolean {

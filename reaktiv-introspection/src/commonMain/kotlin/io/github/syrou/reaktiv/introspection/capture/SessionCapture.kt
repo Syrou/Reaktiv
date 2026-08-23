@@ -11,6 +11,15 @@ import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.introspection.ClientMetadata
 import io.github.syrou.reaktiv.introspection.DEFAULT_SENSITIVE_KEYS
 import io.github.syrou.reaktiv.introspection.StateRedactor
+import io.github.syrou.reaktiv.introspection.WireBudget
+import io.github.syrou.reaktiv.introspection.approximateWireBytes
+import io.github.syrou.reaktiv.introspection.network.NetworkBodyPart
+import io.github.syrou.reaktiv.introspection.network.NetworkBodyProvider
+import io.github.syrou.reaktiv.introspection.network.NetworkBodySlice
+import io.github.syrou.reaktiv.introspection.network.NetworkEventListener
+import io.github.syrou.reaktiv.introspection.network.sliceOnCharBoundary
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
+import io.github.syrou.reaktiv.introspection.network.NetworkTap
 import io.github.syrou.reaktiv.introspection.normalizeRedactionKey
 import io.github.syrou.reaktiv.introspection.redactModuleElement
 import io.github.syrou.reaktiv.introspection.restoreRedactedModuleElement
@@ -52,6 +61,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.AtomicReference
 import kotlin.random.Random
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.uuid.ExperimentalUuidApi
@@ -107,6 +117,7 @@ public class SessionCapture(
     private val crashStorage: CaptureStorage = createCaptureStorage("$storageId-crashes")
     private val stateReadStorage: CaptureStorage = createCaptureStorage("$storageId-state_reads")
     private val markerStorage: CaptureStorage = createCaptureStorage("$storageId-markers")
+    private val networkStorage: CaptureStorage = createCaptureStorage("$storageId-network")
 
     private var sessionStartTime: Long = 0
     private var clientId: String = ""
@@ -120,6 +131,11 @@ public class SessionCapture(
 
     private val json = reaktivJson(encodeDefaults = true)
     private var stateJson: Json = reaktivJson()
+
+    private var networkListener: NetworkEventListener? = null
+    private var networkBodyProvider: NetworkBodyProvider? = null
+    private val materialisingId = AtomicReference<String?>(null)
+    private val cachedBody = AtomicReference<CachedBody?>(null)
 
     private var workerScope: CoroutineScope? = null
     private var channel: Channel<Record>? = null
@@ -172,6 +188,13 @@ public class SessionCapture(
     private class CrashRecord(val info: CrashInfo) : Record
     private class StateReadRecord(val read: StateRead) : Record
     private class MarkerRecord(val marker: SessionMarker, val historical: Boolean) : Record
+    private class NetworkRecord(val capture: NetworkRequestCapture) : Record
+
+    private class CachedBody(
+        val requestId: String,
+        val part: NetworkBodyPart,
+        val bytes: ByteArray
+    )
 
     private object ResetWorkerState : Record
 
@@ -205,6 +228,9 @@ public class SessionCapture(
         crashStorage.clear()
         stateReadStorage.clear()
         markerStorage.clear()
+        networkStorage.clear()
+
+        attachNetworkListener()
 
         val newChannel = Channel<Record>(capacity = Channel.UNLIMITED)
         val newScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -213,6 +239,114 @@ public class SessionCapture(
         newScope.launch { runWorker(newChannel) }
         started = true
         enqueue(ResetWorkerState)
+    }
+
+    /**
+     * Records a completed network exchange, materialising its full bodies before they age out.
+     *
+     * The event carried by [NetworkTap] holds only a bounded preview. The full body lives in the
+     * emitting plugin's retention window and is evicted as later requests arrive, so it has to be
+     * pulled now rather than at export time, when it would already be gone.
+     */
+    public fun recordNetworkExchange(event: NetworkRequestCapture) {
+        materialisingId.store(event.id)
+        val enriched = try {
+            materialise(event)
+        } finally {
+            materialisingId.store(null)
+        }
+        enqueue(NetworkRecord(enriched))
+    }
+
+    private fun materialise(event: NetworkRequestCapture): NetworkRequestCapture {
+        val request = fullBody(event.id, NetworkBodyPart.REQUEST)
+        val response = fullBody(event.id, NetworkBodyPart.RESPONSE)
+        return event.copy(
+            requestBody = request ?: event.requestBody,
+            requestBodyTruncated = if (request != null) false else event.requestBodyTruncated,
+            responseBody = response ?: event.responseBody,
+            responseBodyTruncated = if (response != null) false else event.responseBodyTruncated
+        )
+    }
+
+    private fun fullBody(requestId: String, part: NetworkBodyPart): String? {
+        val builder = StringBuilder()
+        var offset = 0
+        while (true) {
+            val slice = NetworkTap.bodySlice(requestId, part, offset, BODY_SLICE_BYTES) ?: return null
+            builder.append(slice.content)
+            if (slice.isLast || slice.nextOffset <= offset) break
+            offset = slice.nextOffset
+        }
+        return builder.toString().takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * Serves a body from the capture lane when the emitting plugin has already evicted it.
+     *
+     * The plugin keeps a small rolling window so a live UI can inspect recent traffic, and older
+     * bodies used to be gone for good. The lane keeps every body it recorded, so registering as a
+     * fallback provider means scrolling back past the window still resolves, and a ghost session
+     * and a live one behave the same way.
+     */
+    private fun sliceFromLane(
+        requestId: String,
+        part: NetworkBodyPart,
+        offset: Int,
+        maxBytes: Int
+    ): NetworkBodySlice? {
+        if (materialisingId.load() == requestId) return null
+
+        val cached = cachedBody.load()
+        val bytes = if (cached != null && cached.requestId == requestId && cached.part == part) {
+            cached.bytes
+        } else {
+            val body = findBody(requestId, part) ?: return null
+            body.encodeToByteArray().also {
+                cachedBody.store(CachedBody(requestId, part, it))
+            }
+        }
+        return bytes.sliceOnCharBoundary(offset, maxBytes)
+    }
+
+    /**
+     * Finds one exchange's body without decoding the whole lane.
+     *
+     * The lane holds every body the session captured, so decoding each record to look for one id
+     * would mean parsing megabytes to answer a single slice. Records carry their id verbatim in the
+     * JSON, so a substring check rejects almost every line before any parsing happens.
+     */
+    private fun findBody(requestId: String, part: NetworkBodyPart): String? {
+        val needle = "\"id\":\"$requestId\""
+        val line = networkStorage.readLines().lastOrNull { it.contains(needle) } ?: return null
+        val exchange = runCatching { json.decodeFromString<NetworkRequestCapture>(line) }.getOrNull()
+            ?: return null
+        if (exchange.id != requestId) return null
+        return when (part) {
+            NetworkBodyPart.REQUEST -> exchange.requestBody
+            NetworkBodyPart.RESPONSE -> exchange.responseBody
+        }
+    }
+
+    private fun attachNetworkListener() {
+        detachNetworkListener()
+        val listener = NetworkEventListener { event -> recordNetworkExchange(event) }
+        networkListener = listener
+        NetworkTap.addListener(listener)
+
+        val provider = NetworkBodyProvider { requestId, part, offset, maxBytes ->
+            sliceFromLane(requestId, part, offset, maxBytes)
+        }
+        networkBodyProvider = provider
+        NetworkTap.addBodyProvider(provider)
+    }
+
+    private fun detachNetworkListener() {
+        networkListener?.let { NetworkTap.removeListener(it) }
+        networkListener = null
+        networkBodyProvider?.let { NetworkTap.removeBodyProvider(it) }
+        networkBodyProvider = null
+        cachedBody.store(null)
     }
 
     /**
@@ -317,7 +451,7 @@ public class SessionCapture(
         val effectivePrefix = prefix ?: if (capturedCrash != null) "crash" else "session"
         val client = clientName.ifBlank { "client" }.replace(Regex("[^A-Za-z0-9._-]"), "-")
         val version = clientMetadata?.appVersion ?: "na"
-        return "reaktiv_${effectivePrefix}_${client}_${version}_${currentTimeMillis()}.json"
+        return "reaktiv_${effectivePrefix}_${client}_${version}_${currentTimeMillis()}.json.gz"
     }
 
     /**
@@ -367,7 +501,8 @@ public class SessionCapture(
             logicCompleted = readLogicCompleted(),
             logicFailed = readLogicFailed(),
             stateReads = readStateReads(),
-            markers = readMarkers()
+            markers = readMarkers(),
+            network = readNetwork()
         )
     }
 
@@ -412,7 +547,8 @@ public class SessionCapture(
                 logicCompletedEvents = logicCompletedList,
                 logicFailedEvents = logicFailedList,
                 stateReads = stateReadsList,
-                markers = readMarkers()
+                markers = readMarkers(),
+                network = readNetwork()
             ),
             droppedRecords = droppedCount.load(),
             diagnosis = diagnosis
@@ -441,6 +577,7 @@ public class SessionCapture(
         crashStorage.clear()
         stateReadStorage.clear()
         markerStorage.clear()
+        networkStorage.clear()
         capturedCrash = null
         enqueue(ResetWorkerState)
         flush()
@@ -452,6 +589,7 @@ public class SessionCapture(
      */
     public suspend fun stop() {
         started = false
+        detachNetworkListener()
         flush()
         stopWorker()
         actionsStorage.delete()
@@ -461,6 +599,7 @@ public class SessionCapture(
         crashStorage.delete()
         stateReadStorage.delete()
         markerStorage.delete()
+        networkStorage.delete()
     }
 
     private fun stopWorker() {
@@ -596,6 +735,7 @@ public class SessionCapture(
         val crashLines = ArrayList<String>()
         val stateReadLines = ArrayList<String>()
         val markerLines = ArrayList<String>()
+        val networkLines = ArrayList<String>()
 
         for (record in batch) {
             try {
@@ -636,6 +776,7 @@ public class SessionCapture(
                         }
                         initialStateJson = JsonObject(objects).toString()
                     }
+                    is NetworkRecord -> networkLines.add(json.encodeToString(record.capture))
                     is LogicStarted -> startedLines.add(json.encodeToString(record.event))
                     is LogicCompleted -> completedLines.add(json.encodeToString(record.event))
                     is LogicFailed -> failedLines.add(json.encodeToString(record.event))
@@ -694,6 +835,7 @@ public class SessionCapture(
         if (crashLines.isNotEmpty()) crashStorage.appendLines(crashLines)
         if (stateReadLines.isNotEmpty()) stateReadStorage.appendLines(stateReadLines)
         if (markerLines.isNotEmpty()) markerStorage.appendLines(markerLines)
+        if (networkLines.isNotEmpty()) networkStorage.appendLines(networkLines)
         trimLogicEvents()
         reportRedactionIssues()
     }
@@ -731,6 +873,9 @@ public class SessionCapture(
     private fun readCrashes(): List<CrashInfo> =
         crashStorage.readLines().map { json.decodeFromString(it) }
 
+    private fun readNetwork(): List<NetworkRequestCapture> =
+        networkStorage.readLines().map { json.decodeFromString(it) }
+
     private fun readStateReads(): List<StateRead> =
         stateReadStorage.readLines().map { json.decodeFromString(it) }
 
@@ -738,6 +883,7 @@ public class SessionCapture(
         markerStorage.readLines().map { json.decodeFromString(it) }
 
     private companion object {
+        const val BODY_SLICE_BYTES: Int = 256 * 1024
         const val HIGH_WATER_MARK: Long = 50_000L
         const val VERIFY_SAMPLE_INTERVAL: Int = 100
         const val REDACTION_TRACE_CLASS: String = "RedactionWatchdog"
@@ -756,19 +902,54 @@ public data class SessionHistory(
     val logicCompleted: List<LogicMethodCompleted>,
     val logicFailed: List<LogicMethodFailed>,
     val stateReads: List<StateRead> = emptyList(),
-    val markers: List<SessionMarker> = emptyList()
+    val markers: List<SessionMarker> = emptyList(),
+    val network: List<NetworkRequestCapture> = emptyList()
 )
 
+/**
+ * Splits a history into pieces small enough to send as individual messages.
+ *
+ * Actions and logic events are cut by count, which tracks their size closely enough. Network
+ * exchanges are cut by whichever comes first, count or [WireBudget.MAX_PAYLOAD_BYTES] of estimated
+ * payload, because a single exchange carries full request and response bodies and can be larger on
+ * its own than a thousand logic events.
+ *
+ * @param actionsPerChunk Maximum actions in one chunk
+ * @param eventsPerChunk Maximum logic events of each kind in one chunk
+ * @param networkPerChunk Upper bound on exchanges per chunk, before the byte budget applies
+ * @param networkBytesPerChunk Estimated payload budget for the exchanges in one chunk
+ */
 public fun SessionHistory.chunked(
     actionsPerChunk: Int = 250,
-    eventsPerChunk: Int = 1000
+    eventsPerChunk: Int = 1000,
+    networkPerChunk: Int = 50,
+    networkBytesPerChunk: Int = WireBudget.MAX_PAYLOAD_BYTES
 ): List<SessionHistory> {
     fun chunksNeeded(size: Int, per: Int): Int = if (size == 0) 0 else (size + per - 1) / per
+
+    val networkGroups = ArrayList<List<NetworkRequestCapture>>()
+    var current = ArrayList<NetworkRequestCapture>()
+    var currentBytes = 0
+    for (exchange in network) {
+        val weight = exchange.approximateWireBytes()
+        val wouldExceedBytes = current.isNotEmpty() && currentBytes + weight > networkBytesPerChunk
+        val wouldExceedCount = current.size >= networkPerChunk
+        if (wouldExceedBytes || wouldExceedCount) {
+            networkGroups.add(current)
+            current = ArrayList()
+            currentBytes = 0
+        }
+        current.add(exchange)
+        currentBytes += weight
+    }
+    if (current.isNotEmpty()) networkGroups.add(current)
+
     val totalChunks = maxOf(
         chunksNeeded(actions.size, actionsPerChunk),
         chunksNeeded(logicStarted.size, eventsPerChunk),
         chunksNeeded(logicCompleted.size, eventsPerChunk),
         chunksNeeded(logicFailed.size, eventsPerChunk),
+        networkGroups.size,
         1
     )
     fun <T> slice(list: List<T>, index: Int, per: Int): List<T> {
@@ -785,10 +966,12 @@ public fun SessionHistory.chunked(
             logicCompleted = slice(logicCompleted, index, eventsPerChunk),
             logicFailed = slice(logicFailed, index, eventsPerChunk),
             stateReads = if (index == 0) stateReads else emptyList(),
-            markers = if (index == 0) markers else emptyList()
+            markers = if (index == 0) markers else emptyList(),
+            network = networkGroups.getOrElse(index) { emptyList() }
         )
     }
 }
+
 
 @OptIn(ExperimentalAtomicApi::class)
 private val storageIdCounter = AtomicLong(0L)

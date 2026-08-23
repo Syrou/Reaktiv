@@ -81,19 +81,21 @@ public class ClientManager {
         println("DevTools Server: Client registered - ${registration.clientName} (${registration.platform})")
 
         broadcastClientList()
+    }
 
-        ghostDevices.values.forEach { ghost ->
-            ghost.sessionExportJson?.let {
-                enqueue(
-                    registration.clientId,
-                    DevToolsMessage.GhostSessionRestore(
-                        ghostClientId = ghost.ghostClientId,
-                        sessionExportJson = it
-                    )
-                )
-                println("DevTools Server: Sent ghost session restore to ${registration.clientName} for ${ghost.ghostClientId}")
-            }
-        }
+    /**
+     * Sends a ghost's session export to a single client, in answer to a request.
+     */
+    public suspend fun sendGhostSession(requesterId: String, ghostId: String): Unit = mutex.withLock {
+        val payload = ghostDevices[ghostId]?.sessionExportJson ?: return@withLock
+        enqueue(
+            requesterId,
+            DevToolsMessage.GhostSessionRestore(
+                ghostClientId = ghostId,
+                sessionExportJson = payload
+            )
+        )
+        println("DevTools Server: Sent ghost session for $ghostId to $requesterId")
     }
 
     /**
@@ -217,6 +219,21 @@ public class ClientManager {
      */
     public suspend fun broadcastToListeners(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
         (subscriptions[publisherId] ?: emptySet()).forEach { enqueue(it, message) }
+    }
+
+    /**
+     * Broadcasts to the orchestrators subscribed to a publisher, skipping its listeners.
+     *
+     * Observability payloads such as network and log batches are only rendered by the UI. A
+     * listener replicates state and discards them, so delivering them there costs bandwidth on
+     * every attached device and, for a large batch, can exceed a platform websocket message limit.
+     */
+    public suspend fun broadcastToObservers(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
+        (subscriptions[publisherId] ?: emptySet()).forEach { clientId ->
+            if (clients[clientId]?.info?.role == ClientRole.ORCHESTRATOR) {
+                enqueue(clientId, message)
+            }
+        }
     }
 
     /**

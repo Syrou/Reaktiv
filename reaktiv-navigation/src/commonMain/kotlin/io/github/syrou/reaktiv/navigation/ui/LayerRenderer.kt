@@ -10,6 +10,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -18,6 +20,8 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -27,6 +31,10 @@ import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
+import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
+import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
+import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
+import io.github.syrou.reaktiv.navigation.util.presentationSourceFor
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
 
 internal class ContentScrubPreview(
@@ -74,14 +82,20 @@ private fun RevealedInputShield() {
 public fun UnifiedLayerRenderer(
     layerType: RenderLayer,
     entries: List<NavigationEntry>,
-    graphDefinitions: Map<String, NavigationGraph>
+    graphDefinitions: Map<String, NavigationGraph>,
+    evaluationOverlay: LoadingModal? = null
 ) {
-    if (entries.isNotEmpty()) {
-        when (layerType) {
-            RenderLayer.CONTENT -> ContentLayerRenderer(entries, graphDefinitions)
-            RenderLayer.GLOBAL_OVERLAY -> OverlayLayerRenderer(entries)
-            RenderLayer.SYSTEM -> SystemLayerRenderer(entries)
-        }
+    when (layerType) {
+        RenderLayer.SYSTEM ->
+            if (entries.isNotEmpty() || evaluationOverlay != null) {
+                SystemLayerRenderer(entries, evaluationOverlay)
+            }
+
+        RenderLayer.CONTENT ->
+            if (entries.isNotEmpty()) ContentLayerRenderer(entries, graphDefinitions)
+
+        RenderLayer.GLOBAL_OVERLAY ->
+            if (entries.isNotEmpty()) OverlayLayerRenderer(entries)
     }
 }
 
@@ -123,8 +137,18 @@ private fun ContentLayerRenderer(
         activeKind is InteractiveTransitionController.ScrubKind.ContentBack &&
         activeKind.topEntry.stableKey == currentEntry.stableKey
     ) {
-        val topNavigatable = activeKind.topEntry.navigatable
-        val revealedNavigatable = activeKind.revealedEntry.navigatable
+        val topSource = presentationSourceFor(
+            from = activeKind.revealedEntry,
+            to = activeKind.topEntry,
+            navigatable = activeKind.topEntry.navigatable,
+            navModule = navModule
+        )
+        val revealedSource = presentationSourceFor(
+            from = activeKind.topEntry,
+            to = activeKind.revealedEntry,
+            navigatable = activeKind.revealedEntry.navigatable,
+            navModule = navModule
+        )
         val width = windowInfoForScrub.containerSize.width.toFloat()
         val height = windowInfoForScrub.containerSize.height.toFloat()
         val plan = remember(
@@ -133,7 +157,7 @@ private fun ContentLayerRenderer(
             width,
             height
         ) {
-            computeBackGesturePlan(topNavigatable, revealedNavigatable, width, height)
+            computeBackGesturePlan(topSource, revealedSource, width, height)
         }
         ContentScrubPreview(
             revealedEntry = activeKind.revealedEntry,
@@ -165,18 +189,34 @@ private fun ContentLayerRenderer(
             navigationState.currentEntry.stableKey == currentEntry.stableKey &&
             currentEntry.navigatable !is Modal &&
             canArmSwipeDismiss(navigationState, navModule) -> {
-            currentEntry to revealedEntryForBack(navigationState)
+            currentEntry to revealedEntryForDismiss(navigationState, navModule)
         }
 
         else -> null
     }
-    val dismissTopNavigatable = dismissPair?.first?.navigatable
+    val dismissTopEntry = dismissPair?.first
     val dismissPreview: ContentScrubPreview? = if (
         interactiveController != null &&
         dismissPair != null &&
-        dismissTopNavigatable != null
+        dismissTopEntry != null
     ) {
         val dismissRevealed = dismissPair.second
+        val dismissTopSource: TransitionSpec = dismissRevealed?.let {
+            presentationSourceFor(
+                from = it,
+                to = dismissTopEntry,
+                navigatable = dismissTopEntry.navigatable,
+                navModule = navModule
+            )
+        } ?: dismissTopEntry.navigatable
+        val dismissRevealedSource = dismissRevealed?.let {
+            presentationSourceFor(
+                from = dismissTopEntry,
+                to = it,
+                navigatable = it.navigatable,
+                navModule = navModule
+            )
+        }
         val width = windowInfoForScrub.containerSize.width.toFloat()
         val height = windowInfoForScrub.containerSize.height.toFloat()
         val plan = remember(
@@ -185,7 +225,7 @@ private fun ContentLayerRenderer(
             width,
             height
         ) {
-            computeDismissGesturePlan(dismissTopNavigatable, dismissRevealed?.navigatable, width, height)
+            computeDismissGesturePlan(dismissTopSource, dismissRevealedSource, width, height)
         }
         ContentScrubPreview(
             revealedEntry = dismissRevealed,
@@ -266,6 +306,10 @@ private fun ContentLayerRenderer(
         else -> NavigationZIndex.CONTENT_BACK
     }
 
+    val graphDismissBoundary = dismissableBoundary(navigationState.currentEntry, navModule)
+    val indicatorOwnsSharedChrome = graphDismissBoundary != null &&
+        graphDismissBoundary in sharedRoutes
+
     val slots = buildList {
         if (revealedEntry != null) {
             add(
@@ -299,6 +343,7 @@ private fun ContentLayerRenderer(
             ContentSlot(
                 entry = currentEntry,
                 uniqueLayouts = currentUnique,
+                indicatorHoisted = indicatorOwnsSharedChrome,
                 zIndex = currentZ,
                 isEntering = true,
                 animationDecision = currentDecision,
@@ -313,7 +358,15 @@ private fun ContentLayerRenderer(
     val screenWidth = windowInfo.containerSize.width.toFloat()
     val screenHeight = windowInfo.containerSize.height.toFloat()
 
+    // A graph presented as a draggable surface owns its chrome, so the dismiss affordance belongs
+    // above the shared layouts rather than inside them. Once past the first screen the graph's
+    // layout is shared between steps and renders outside the slots, and an indicator nested under
+    // it would sit below the chrome it is supposed to drag.
     Box(modifier = Modifier.fillMaxSize()) {
+        OptionalDismissIndicator(
+            entry = navigationState.currentEntry,
+            enabled = indicatorOwnsSharedChrome
+        ) {
         ApplyLayoutsHierarchy(sharedLayouts) {
             Box(modifier = Modifier.fillMaxSize()) {
                 slots.forEach { slot ->
@@ -326,12 +379,34 @@ private fun ContentLayerRenderer(
                 }
             }
         }
+        }
+    }
+}
+
+/**
+ * Wraps [content] in the dismiss affordance only when this level owns it.
+ *
+ * The affordance is rendered once, at whichever level represents the surface being dragged: around
+ * the shared chrome for a graph presented as a sheet, or around the slot for a single screen.
+ */
+@Composable
+private fun OptionalDismissIndicator(
+    entry: NavigationEntry,
+    enabled: Boolean,
+    content: @Composable () -> Unit
+) {
+    if (enabled) {
+        DismissIndicatorSlot(entry) { content() }
+    } else {
+        content()
     }
 }
 
 private class ContentSlot(
     val entry: NavigationEntry,
     val uniqueLayouts: List<NavigationGraph>,
+    /** True when the shared chrome level renders the dismiss affordance instead of this slot. */
+    val indicatorHoisted: Boolean = false,
     val zIndex: Float,
     val isEntering: Boolean,
     val animationDecision: AnimationDecision?,
@@ -372,14 +447,32 @@ private fun EntryHost(slot: ContentSlot, screenWidth: Float, screenHeight: Float
             )
             .then(if (slot.blockInput) Modifier.consumeAllPointerInput() else Modifier)
     ) {
+        // Painting only when a colour was actually provided. Color.Unspecified is the default of
+        // LocalNavigationBackgroundColor and is not a paintable value, and a layout that owns its
+        // own surface provides Transparent here so the slot stops covering it.
+        val slotBackground = rememberNavigationBackgroundColor()
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(rememberNavigationBackgroundColor())
+                .then(
+                    if (slotBackground.isSpecified && slotBackground != Color.Transparent) {
+                        Modifier.background(slotBackground)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             HostedEntry(slot.entry) {
-                ApplyLayoutsHierarchy(slot.uniqueLayouts) {
-                    DismissIndicatorSlot(slot.entry) {
+                // The dismiss affordance belongs to the surface being dismissed, which is the
+                // whole slot including the graph layouts that arrived with it, not just the screen
+                // inside them. Nesting it under the layouts would put the grab pill below the
+                // graph's own chrome and measure the dismiss zone from the screen's bounds, so a
+                // drag starting on the header would miss it.
+                OptionalDismissIndicator(
+                    entry = slot.entry,
+                    enabled = !slot.indicatorHoisted
+                ) {
+                    ApplyLayoutsHierarchy(slot.uniqueLayouts) {
                         slot.entry.navigatable.Content(slot.entry.params)
                     }
                 }
@@ -443,10 +536,16 @@ private fun OverlayLayerRenderer(
  * Modal entries are rendered via [NavigationAnimations.AnimatedEntry] so they receive
  * the standard dimmer background and tap-outside dismiss support. Non-modal entries
  * (e.g. full-screen loading overlays) are rendered as plain Boxes.
+ *
+ * [evaluationOverlay] is the loading modal shown while navigation is being evaluated. It has no
+ * backstack entry of its own, but it belongs to this layer and must be ordered here rather than
+ * beside it: zIndex only orders siblings, so an overlay drawn outside this renderer covers every
+ * system entry regardless of elevation, hiding alerts that are meant to sit above everything.
  */
 @Composable
 private fun SystemLayerRenderer(
-    entries: List<NavigationEntry>
+    entries: List<NavigationEntry>,
+    evaluationOverlay: LoadingModal? = null
 ) {
     val navModule = LocalNavigationModule.current
     val windowInfo = LocalWindowInfo.current
@@ -484,6 +583,16 @@ private fun SystemLayerRenderer(
                 }
             }
         }
+
+    if (evaluationOverlay != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(NavigationZIndex.SYSTEM_BASE + evaluationOverlay.elevation)
+        ) {
+            evaluationOverlay.Content(Params.empty())
+        }
+    }
 }
 
 /**

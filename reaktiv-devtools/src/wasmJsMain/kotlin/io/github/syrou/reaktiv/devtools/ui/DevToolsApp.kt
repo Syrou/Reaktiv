@@ -214,9 +214,16 @@ private fun DevToolsContent(store: Store, serverUrl: String) {
                     initialStateJson = state.initialStateJson,
                     crashEvent = state.crashEvent,
                     stateReads = state.stateReads,
-                    markers = state.markers
+                    markers = state.markers,
+                    network = state.networkEvents
+                        .filter { it.clientId == publisher.clientId }
+                        .map { it.event }
                 )
-                downloadJson(json, "session_" + publisher.clientId + ".json")
+                downloadSession(
+                    json = json,
+                    gzName = "session_" + publisher.clientId + ".json.gz",
+                    plainName = "session_" + publisher.clientId + ".json"
+                )
             }
         }
     }
@@ -916,6 +923,40 @@ private fun TimeTravelBar(
             }
         }
     }
+}
+
+/**
+ * Downloads a session as a gzipped file, matching what a device writes.
+ *
+ * Session exports are gzipped everywhere else, and the import picker sniffs the magic number, so
+ * compressing here keeps a UI-exported session interchangeable with a device-exported one. Falls
+ * back to writing plain JSON where `CompressionStream` is unavailable, which the picker also reads.
+ */
+private fun downloadSession(json: String, gzName: String, plainName: String) {
+    js("""
+        (function(content, gzName, plainName) {
+            function save(blob, fileName) {
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            function savePlain() {
+                save(new Blob([content], { type: 'application/json' }), plainName);
+            }
+            if (typeof CompressionStream === 'undefined') {
+                savePlain();
+                return;
+            }
+            var stream = new Blob([content]).stream()
+                .pipeThrough(new CompressionStream('gzip'));
+            new Response(stream).blob().then(function(blob) {
+                save(new Blob([blob], { type: 'application/gzip' }), gzName);
+            }).catch(savePlain);
+        })(json, gzName, plainName)
+    """)
 }
 
 /**

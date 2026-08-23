@@ -26,10 +26,17 @@ public fun NavTransition.presentationAxis(): GestureAxis = when (this) {
     else -> GestureAxis.Neutral
 }
 
-internal fun Navigatable.gestureAxis(): GestureAxis {
-    val enterAxis = enterTransition.presentationAxis()
+/**
+ * The axis a surface moves along, read from whichever node presents it.
+ *
+ * Defined on the spec rather than on a screen so the same question can be asked of a graph. Backing
+ * out of the first screen of a presented graph leaves the graph, so the axis that matters is the
+ * graph's, not the screen's.
+ */
+internal fun TransitionSpec.gestureAxis(): GestureAxis {
+    val enterAxis = enterTransition?.presentationAxis() ?: GestureAxis.Neutral
     if (enterAxis != GestureAxis.Neutral) return enterAxis
-    return exitTransition.presentationAxis()
+    return exitTransition?.presentationAxis() ?: GestureAxis.Neutral
 }
 
 internal data class ScrubTransform(
@@ -46,8 +53,8 @@ private fun PopTransitionSpec.toScrub(screenWidth: Float, screenHeight: Float): 
     ScrubTransform(transition.resolve(screenWidth, screenHeight, isForward = reversedProgress), reversedProgress)
 
 internal fun computeBackGesturePlan(
-    top: Navigatable,
-    revealed: Navigatable,
+    top: TransitionSpec,
+    revealed: TransitionSpec,
     screenWidth: Float,
     screenHeight: Float
 ): BackGesturePlan {
@@ -68,9 +75,16 @@ internal fun computeBackGesturePlan(
 
 private const val VERTICAL_REVEAL_SCALE_DELTA = 0.06f
 
+/**
+ * Scrub transforms for dragging a surface away.
+ *
+ * [top] is whatever is being dismissed, which for a graph that presents itself is the graph rather
+ * than the screen showing inside it. Both are a [TransitionSpec], so this reads the same values
+ * the timed animation does and releasing a drag continues the motion it started.
+ */
 internal fun computeDismissGesturePlan(
-    top: Navigatable,
-    revealed: Navigatable?,
+    top: TransitionSpec,
+    revealed: TransitionSpec?,
     screenWidth: Float,
     screenHeight: Float
 ): BackGesturePlan {

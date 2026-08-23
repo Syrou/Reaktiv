@@ -303,7 +303,7 @@ public class NavigationLogic(
         if (!isSystemLayer) {
             bootstrapCompleted.await()
         }
-        return evaluateAndExecute(builder, targetRoute, targetResolution)
+        return evaluateAndExecute(builder, targetRoute, targetResolution, bypassLock = isSystemLayer)
     }
 
     private sealed class GuardEvaluation {
@@ -554,12 +554,18 @@ public class NavigationLogic(
      * suspends until the in-flight one completes, then executes. Re-entrant calls made
      * from inside an in-flight navigation (e.g. a guard navigating) execute inline.
      */
+    /**
+     * @param bypassLock Runs without waiting for the navigation lock, for navigations that must not
+     *   queue behind another. Guards and multi-step blocks still serialise through the store's own
+     *   ordered dispatch, so this only skips the evaluation lock, not state consistency.
+     */
     private suspend fun evaluateAndExecute(
         builder: NavigationBuilder,
         precomputedTargetRoute: String? = null,
-        precomputedTargetResolution: RouteResolution? = null
+        precomputedTargetResolution: RouteResolution? = null,
+        bypassLock: Boolean = false
     ): NavigationOutcome {
-        if (currentCoroutineContext()[NavigationLockKey] != null) {
+        if (bypassLock || currentCoroutineContext()[NavigationLockKey] != null) {
             return performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
         }
         navigationMutex.lock()

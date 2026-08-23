@@ -1,4 +1,5 @@
 import org.jetbrains.compose.ExperimentalComposeLibrary
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform")
@@ -29,6 +30,12 @@ kotlin {
     macosArm64()
     iosArm64()
     iosSimulatorArm64()
+
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+    }
+
     applyDefaultHierarchyTemplate()
     sourceSets {
         getByName("commonMain") {
@@ -52,6 +59,15 @@ kotlin {
                 implementation(compose.uiTest)
             }
         }
+        // Compose gesture tests drive touch input against a real composition and a live Store.
+        // A headless browser is a poor host for both: the viewport differs from every other target
+        // and a Store whose logic runs on Dispatchers.Default deadlocks under wasmJsBrowserTest.
+        // They stay on the targets that can actually run them.
+        val uiTest by creating {
+            dependsOn(getByName("commonTest"))
+        }
+        getByName("jvmTest").dependsOn(uiTest)
+        getByName("appleTest").dependsOn(uiTest)
         getByName("jvmMain") {
             dependencies {
                 implementation(compose.desktop.currentOs)

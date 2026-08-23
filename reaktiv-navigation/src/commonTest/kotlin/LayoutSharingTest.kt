@@ -85,7 +85,40 @@ class LayoutSharingTest {
         )
 
         assertFalse(decision.liftExiting)
-        assertEquals(setOf("wallet"), decision.sharedRoutes)
+        assertTrue(
+            decision.sharedRoutes.isEmpty(),
+            "the exiting screen never had 'wallet', so it cannot be shared chrome"
+        )
+    }
+
+    @Test
+    fun `a graph layout travels with a screen that animates up over a static screen`() {
+        val decision = decideLayoutSharing(
+            currentLayoutRoutes = listOf("checkout-sheet"),
+            previousLayoutRoutes = listOf("home"),
+            revealedLayoutRoutes = null,
+            restingBackLayoutRoutes = null,
+            shouldAnimateExit = false
+        )
+
+        assertTrue(
+            "checkout-sheet" !in decision.sharedRoutes,
+            "the arriving graph's layout must animate with its screen, not sit outside the " +
+                "transition, or the sheet slides up underneath its own chrome"
+        )
+    }
+
+    @Test
+    fun `entering a graph layout from a screen with no layout at all`() {
+        val decision = decideLayoutSharing(
+            currentLayoutRoutes = listOf("checkout-sheet"),
+            previousLayoutRoutes = emptyList(),
+            revealedLayoutRoutes = null,
+            restingBackLayoutRoutes = null,
+            shouldAnimateExit = false
+        )
+
+        assertTrue(decision.sharedRoutes.isEmpty())
     }
 
     @Test

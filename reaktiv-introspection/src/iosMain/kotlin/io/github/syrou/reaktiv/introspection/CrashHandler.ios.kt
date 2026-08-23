@@ -22,9 +22,11 @@ public actual class CrashHandler actual constructor(
                     val capture = State.sessionCapture ?: return@staticCFunction
                     val exporter = State.sessionFileExport ?: return@staticCFunction
                     val throwable = Exception(exception.reason ?: "Unknown NSException")
-                    val json = runBlocking { capture.exportCrashSession(throwable) }
+                    val bytes = runBlocking {
+                        gzipCompress(capture.exportCrashSession(throwable).encodeToByteArray())
+                    }
                     val fileName = capture.suggestFileName("crash")
-                    exporter.saveToDownloads(json, fileName)
+                    exporter.saveToDownloads(bytes, fileName)
                 } catch (_: Exception) {
                     // Best effort during crash
                 }

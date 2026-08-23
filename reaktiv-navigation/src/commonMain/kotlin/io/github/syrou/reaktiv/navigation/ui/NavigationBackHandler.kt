@@ -9,6 +9,9 @@ import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
 import io.github.syrou.reaktiv.navigation.util.canHandleBack
+import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
+import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
+import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
 import kotlinx.coroutines.flow.first
 
@@ -58,6 +61,7 @@ internal class PlatformBackCoordinator(
                 progressVelocity = 0f,
                 controller = controller,
                 store = store,
+                navModule = navModule,
                 top = top,
                 revealed = revealed
             )
@@ -77,10 +81,57 @@ internal class PlatformBackCoordinator(
                 progressVelocity = 0f,
                 controller = controller,
                 store = store,
+                navModule = navModule,
                 top = top,
                 revealed = revealed
             )
         }
+    }
+}
+
+/**
+ * Commits a gesture by unwinding to [revealed], the entry the gesture was already animating toward.
+ *
+ * The target decides what this means rather than the boundary being resolved again here. An edge
+ * swipe inside a presented graph reveals the previous step, so it pops one entry; a drag on the
+ * same screen reveals what sits beneath the whole graph, so it unwinds past every entry the graph
+ * owns. Deriving it a second time is what made a back swipe behave like a dismissal, because both
+ * gestures commit through this one function.
+ *
+ * The graph's own dismiss handler applies only when the gesture actually leaves the graph, since
+ * stepping backwards inside it is not the graph being discarded.
+ *
+ * @param expectedTopKey Guards against committing a stale pop
+ */
+internal suspend fun dismissSurface(
+    store: Store,
+    navModule: NavigationModule,
+    top: NavigationEntry,
+    revealed: NavigationEntry?,
+    expectedTopKey: String? = null
+) {
+    val boundary = dismissableBoundary(top, navModule)
+    val leavesGraph = boundary != null &&
+        revealed != null &&
+        dismissableBoundary(revealed, navModule) != boundary
+
+    val graphHandler = if (leavesGraph) {
+        navModule.getGraphDefinitions()[boundary]?.declaration?.onDismissRequest
+    } else {
+        null
+    }
+    val handler = graphHandler ?: top.navigatable.onDismissRequest
+    if (handler != null) {
+        handler.invoke(store)
+        return
+    }
+
+    if (leavesGraph && revealed != null) {
+        store.navigation {
+            popUpTo(revealed.path, inclusive = false)
+        }
+    } else {
+        store.navigateBack(expectedTopKey = expectedTopKey)
     }
 }
 

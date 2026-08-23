@@ -76,7 +76,9 @@ internal data class NetworkBodyLoad(
     val totalBytes: Int = 0,
     val loading: Boolean = false,
     val complete: Boolean = false,
-    val unavailable: Boolean = false
+    val unavailable: Boolean = false,
+    /** The body can never arrive, because the session is imported and has no device behind it. */
+    val capturedOnly: Boolean = false
 )
 
 internal fun networkBodyKey(requestId: String, part: NetworkBodyPart): String = "$requestId:${part.name}"
@@ -136,6 +138,7 @@ internal sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data class SelectCrash(val selected: Boolean) : DevToolsUiAction()
     data class SetRightPanelTab(val tab: RightPanelTab) : DevToolsUiAction()
     data class AddMarker(val marker: SessionMarker) : DevToolsUiAction()
+    data class ReplaceMarker(val marker: SessionMarker) : DevToolsUiAction()
     data class SetMarkers(val markers: List<SessionMarker>) : DevToolsUiAction()
     data class SetSearchQuery(val query: String) : DevToolsUiAction()
     data class AppendDeviceLogs(val logs: List<DeviceLogRow>) : DevToolsUiAction()
@@ -143,6 +146,11 @@ internal sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data class AppendNetworkEvents(val events: List<NetworkEventRow>) : DevToolsUiAction()
 
 
+
+    data class NetworkBodyNotFetchable(
+        val requestId: String,
+        val part: NetworkBodyPart
+    ) : DevToolsUiAction()
 
     data class NetworkBodyRequested(
         val requestId: String,

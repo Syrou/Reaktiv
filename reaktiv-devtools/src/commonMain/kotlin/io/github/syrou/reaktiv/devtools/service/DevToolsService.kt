@@ -30,6 +30,8 @@ import io.github.syrou.reaktiv.introspection.protocol.mergeCapturedDeltas
 import io.github.syrou.reaktiv.introspection.protocol.mergeFieldJson
 import io.github.syrou.reaktiv.introspection.network.NetworkEventListener
 import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
+import io.github.syrou.reaktiv.introspection.WireBudget
+import io.github.syrou.reaktiv.introspection.approximateWireBytes
 import io.github.syrou.reaktiv.introspection.network.NetworkTap
 import io.github.syrou.reaktiv.introspection.restoreRedactedModuleElement
 import io.github.syrou.reaktiv.introspection.tooling.ToolingServiceContext
@@ -208,7 +210,12 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         }
         networkListener = tapListener
         NetworkTap.addListener(tapListener)
-        scope.forwardBatched(networkBuffer, NETWORK_BATCH_LIMIT, "network") {
+        scope.forwardBatched(
+            networkBuffer,
+            NETWORK_BATCH_LIMIT,
+            "network",
+            weigh = { it.approximateWireBytes() }
+        ) {
             DevToolsMessage.NetworkBatch(clientId = clientId, events = it)
         }
         scope.launch {
@@ -242,18 +249,31 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private fun serviceLaunch(block: suspend CoroutineScope.() -> Unit): Job? =
         serviceScope?.launch(block = block)
 
+    /**
+     * Drains a buffer into periodic messages, cut by count and by estimated payload size.
+     *
+     * [weigh] lets a record type that varies by orders of magnitude, such as a network exchange
+     * carrying full bodies, close a batch early rather than relying on the count alone. A record
+     * heavier than the whole budget still goes out on its own, since splitting it here would break
+     * the message it belongs to.
+     */
     private fun <T> CoroutineScope.forwardBatched(
         buffer: Channel<T>,
         limit: Int,
         label: String,
+        weigh: (T) -> Int = { 0 },
         message: (List<T>) -> DevToolsMessage
     ): Job = launch {
         while (true) {
             delay(LOG_FLUSH_INTERVAL_MS)
             if (currentRole != ClientRole.PUBLISHER || !isConnected()) continue
             val batch = ArrayList<T>(limit)
+            var budget = WireBudget.MAX_PAYLOAD_BYTES
             while (batch.size < limit) {
-                batch.add(buffer.tryReceive().getOrNull() ?: break)
+                val next = buffer.tryReceive().getOrNull() ?: break
+                batch.add(next)
+                budget -= weigh(next)
+                if (budget <= 0) break
             }
             if (batch.isNotEmpty()) {
                 try {

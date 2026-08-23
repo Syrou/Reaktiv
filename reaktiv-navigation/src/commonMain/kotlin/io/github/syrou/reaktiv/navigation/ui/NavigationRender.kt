@@ -189,25 +189,16 @@ public fun NavigationRender(
                 )
             }
 
+            // The evaluation overlay is handed to the system layer rather than drawn beside it, so
+            // it competes with system entries on elevation. Drawn as a sibling it would cover them
+            // outright, because zIndex only orders siblings and theirs is applied a level deeper.
             UnifiedLayerRenderer(
                 layerType = RenderLayer.SYSTEM,
                 entries = navigationState.systemLayerEntries,
-                graphDefinitions = graphDefinitions
+                graphDefinitions = graphDefinitions,
+                evaluationOverlay = navModule.getLoadingModal()
+                    ?.takeIf { navigationState.isEvaluatingNavigation }
             )
-
-            val isEvaluating = navigationState.isEvaluatingNavigation
-            if (isEvaluating) {
-                val loadingModal = navModule.getLoadingModal()
-                if (loadingModal != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(NavigationZIndex.SYSTEM_BASE + loadingModal.elevation)
-                    ) {
-                        loadingModal.Content(Params.empty())
-                    }
-                }
-            }
         }
     }
 }

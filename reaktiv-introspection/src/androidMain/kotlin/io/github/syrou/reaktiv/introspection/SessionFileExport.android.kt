@@ -10,13 +10,13 @@ import java.io.FileOutputStream
 public actual class SessionFileExport actual constructor(private val platformContext: PlatformContext) {
 
     @Suppress("DEPRECATION")
-    public actual fun saveToDownloads(json: String, fileName: String): String {
+    public actual fun saveToDownloads(bytes: ByteArray, fileName: String): String {
         val context = platformContext.context
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val contentValues = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                put(MediaStore.Downloads.MIME_TYPE, mimeTypeFor(fileName))
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
 
@@ -25,7 +25,7 @@ public actual class SessionFileExport actual constructor(private val platformCon
                 ?: throw Exception("Failed to create MediaStore entry")
 
             resolver.openOutputStream(uri)?.use { outputStream ->
-                outputStream.write(json.toByteArray())
+                outputStream.write(bytes)
             } ?: throw Exception("Failed to open output stream")
 
             contentValues.clear()
@@ -38,9 +38,12 @@ public actual class SessionFileExport actual constructor(private val platformCon
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val file = File(downloadsDir, fileName)
             FileOutputStream(file).use { outputStream ->
-                outputStream.write(json.toByteArray())
+                outputStream.write(bytes)
             }
             return file.absolutePath
         }
     }
+
+    private fun mimeTypeFor(fileName: String): String =
+        if (fileName.endsWith(".gz")) "application/gzip" else "application/json"
 }

@@ -40,6 +40,7 @@ import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
 import io.github.syrou.reaktiv.navigation.util.canHandleBack
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
+import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -109,7 +110,7 @@ internal fun Modifier.backGestureRecognizer(controller: InteractiveTransitionCon
 
             scope.launch {
                 completeInteractiveDismiss(
-                    outcome.commit, outcome.progressVelocity, controller, store, top, revealed
+                    outcome.commit, outcome.progressVelocity, controller, store, navModule, top, revealed
                 )
             }
         }
@@ -161,7 +162,7 @@ internal fun Modifier.fullSurfaceBackGestureRecognizer(controller: InteractiveTr
 
             scope.launch {
                 completeInteractiveDismiss(
-                    outcome.commit, outcome.progressVelocity, controller, store, top, revealed
+                    outcome.commit, outcome.progressVelocity, controller, store, navModule, top, revealed
                 )
             }
         }
@@ -187,7 +188,7 @@ internal fun Modifier.dismissGestureRecognizer(controller: InteractiveTransition
             if (!canArmSwipeDismiss(state, navModule)) return@awaitEachGesture
             if (controller.contentTransitionActive) return@awaitEachGesture
             val top = state.currentEntry
-            val revealed = revealedEntryForBack(state) ?: return@awaitEachGesture
+            val revealed = revealedEntryForDismiss(state, navModule) ?: return@awaitEachGesture
 
             val slopChange = awaitVerticalTouchSlopOrCancellation(down.id) { change, overSlop ->
                 if (overSlop > 0f) {
@@ -210,7 +211,7 @@ internal fun Modifier.dismissGestureRecognizer(controller: InteractiveTransition
 
             scope.launch {
                 completeInteractiveDismiss(
-                    outcome.commit, outcome.progressVelocity, controller, store, top, revealed
+                    outcome.commit, outcome.progressVelocity, controller, store, navModule, top, revealed
                 )
             }
         }
@@ -252,7 +253,7 @@ internal fun Modifier.topEdgeDismissRecognizer(controller: InteractiveTransition
             if (!canArmSwipeDismiss(state, navModule)) return@awaitEachGesture
             if (controller.contentTransitionActive) return@awaitEachGesture
             val top = state.currentEntry
-            val revealed = revealedEntryForBack(state) ?: return@awaitEachGesture
+            val revealed = revealedEntryForDismiss(state, navModule) ?: return@awaitEachGesture
 
             var slopChange: PointerInputChange? = null
             while (slopChange == null) {
@@ -284,7 +285,7 @@ internal fun Modifier.topEdgeDismissRecognizer(controller: InteractiveTransition
 
             scope.launch {
                 completeInteractiveDismiss(
-                    outcome.commit, outcome.progressVelocity, controller, store, top, revealed
+                    outcome.commit, outcome.progressVelocity, controller, store, navModule, top, revealed
                 )
             }
         }
@@ -462,9 +463,9 @@ internal class GestureNestedScrollConnection(
         )
         val progressVelocity = axisVelocity / extent
         if (modal) {
-            completeInteractiveDismiss(commit, progressVelocity, controller, store, top, revealed = null)
+            completeInteractiveDismiss(commit, progressVelocity, controller, store, navModule, top, revealed = null)
         } else if (revealed != null) {
-            completeInteractiveDismiss(commit, progressVelocity, controller, store, top, revealed)
+            completeInteractiveDismiss(commit, progressVelocity, controller, store, navModule, top, revealed)
         } else {
             controller.reset()
         }
@@ -479,7 +480,7 @@ internal class GestureNestedScrollConnection(
             return InteractiveTransitionController.ScrubKind.ModalDismiss(state.currentEntry)
         }
         if (!canArmSwipeDismiss(state, navModule)) return null
-        val revealed = revealedEntryForBack(state) ?: return null
+        val revealed = revealedEntryForDismiss(state, navModule) ?: return null
         return InteractiveTransitionController.ScrubKind.ContentDismiss(state.currentEntry, revealed)
     }
 }

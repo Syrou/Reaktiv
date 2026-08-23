@@ -17,5 +17,5 @@ package io.github.syrou.reaktiv.introspection
  * @param platformContext The platform context for file access
  */
 public expect class SessionFileExport(platformContext: PlatformContext) {
-    public fun saveToDownloads(json: String, fileName: String): String
+    public fun saveToDownloads(bytes: ByteArray, fileName: String): String
 }

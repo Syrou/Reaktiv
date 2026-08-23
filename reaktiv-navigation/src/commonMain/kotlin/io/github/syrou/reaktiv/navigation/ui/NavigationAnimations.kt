@@ -207,6 +207,7 @@ public object NavigationAnimations {
                                         progressVelocity = downVelocity / height,
                                         controller = controller,
                                         store = store,
+                                        navModule = navModule,
                                         top = entry,
                                         revealed = null
                                     )
