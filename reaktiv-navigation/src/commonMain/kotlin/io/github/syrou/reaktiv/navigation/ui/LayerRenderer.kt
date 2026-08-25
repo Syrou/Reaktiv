@@ -283,11 +283,7 @@ private fun ContentLayerRenderer(
     val liftExiting = sharing.liftExiting
     val sharedLayouts = currentLayouts.filter { it.route in sharedRoutes }
     val currentUnique = currentLayouts.filter { it.route !in sharedRoutes }
-    val prevUnique = if (liftExiting) {
-        prevLayouts.orEmpty().filter { it.route !in sharedRoutes }
-    } else {
-        emptyList()
-    }
+    val prevUnique = prevLayouts.orEmpty().filter { it.route in sharing.exitingUniqueRoutes }
     val revealedUnique = revealedLayouts.orEmpty().filter { it.route !in sharedRoutes }
 
     val shouldExitBeOnTop = !liftExiting && (animationState.animationDecision?.let { decision ->

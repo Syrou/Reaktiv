@@ -4887,3 +4887,31 @@ Reaktiv deliberately ships no header. These are facts, not a design system, so t
 drive a Material app bar, an iOS styled one, or a native platform bar.
 
 ---
+### [BC-61] A screen on its way out keeps its own chrome
+
+**Type:** Behavioural
+
+**Grep:** `layout \{`
+**File glob:** `**/*.kt`
+
+**Notes:** The exiting slot is rendered for the whole of a transition, but the layouts belonging to
+it were only applied when the exit was being lifted, which happens only when the layout set changes
+and the exit animates. Everywhere else the outgoing screen rendered with no layouts at all while
+still visibly on screen.
+
+The visible defect: navigating between two sibling graphs that declare different layouts, where the
+screen being left does not animate out. Its header vanished the instant the navigation started, its
+height changed, and its content jumped up to fill the space for the length of the transition.
+
+An exiting screen now keeps whatever chrome it does not share with the screen replacing it,
+regardless of whether the exit animates. Lifting still decides where the exiting surface is ordered
+against the arriving one, it just no longer decides whether that surface is whole. The revealed slot
+used during a gesture already worked this way, so the two are now consistent.
+
+Nothing changes when both screens resolve to the same layouts, which is the common case of moving
+between screens inside one graph, because a shared layout renders once outside both slots and the
+exiting slot correctly adds nothing.
+
+`LayoutSharingDecision` gained `exitingUniqueRoutes`, which is where this is now decided.
+
+---

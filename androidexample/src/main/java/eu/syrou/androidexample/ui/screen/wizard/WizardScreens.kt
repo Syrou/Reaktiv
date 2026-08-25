@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
  * and is shared across the steps, so it stays put once the wizard itself has finished arriving.
  */
 @Composable
-private fun WizardStepBody(
+internal fun WizardStepBody(
     title: String,
     description: String,
     tag: String,
@@ -123,9 +123,9 @@ object WizardPaymentScreen : Screen {
             description = "Only this panel should have moved. The header and progress bar belong " +
                     "to the wizard graph and are shared by every step.",
             tag = "wizard-step-payment",
-            forwardLabel = "Review order"
+            forwardLabel = "Choose add-ons"
         ) {
-            store.navigation { navigateTo("wizard/confirm") }
+            store.navigation { navigateTo("wizard/addons") }
         }
     }
 }

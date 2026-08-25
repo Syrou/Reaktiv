@@ -134,4 +134,49 @@ class LayoutSharingTest {
         assertTrue(decision.liftExiting)
         assertEquals(setOf("wallet"), decision.sharedRoutes)
     }
+
+    @Test
+    fun `an exiting screen keeps its unshared chrome even when the exit does not animate`() {
+        val decision = decideLayoutSharing(
+            currentLayoutRoutes = listOf("second"),
+            previousLayoutRoutes = listOf("first"),
+            revealedLayoutRoutes = null,
+            restingBackLayoutRoutes = null,
+            shouldAnimateExit = false
+        )
+        assertEquals(
+            setOf("first"),
+            decision.exitingUniqueRoutes,
+            "the outgoing screen is still on screen, so stripping its header would change its " +
+                "height and shift its content for the length of the transition"
+        )
+    }
+
+    @Test
+    fun `an exiting screen keeps its unshared chrome when the exit does animate`() {
+        val decision = decideLayoutSharing(
+            currentLayoutRoutes = listOf("second"),
+            previousLayoutRoutes = listOf("first"),
+            revealedLayoutRoutes = null,
+            restingBackLayoutRoutes = null,
+            shouldAnimateExit = true
+        )
+        assertEquals(setOf("first"), decision.exitingUniqueRoutes)
+    }
+
+    @Test
+    fun `chrome shared with the arriving screen is not repeated around the exiting one`() {
+        val decision = decideLayoutSharing(
+            currentLayoutRoutes = listOf("main"),
+            previousLayoutRoutes = listOf("main"),
+            revealedLayoutRoutes = null,
+            restingBackLayoutRoutes = null,
+            shouldAnimateExit = true
+        )
+        assertEquals(
+            emptySet(),
+            decision.exitingUniqueRoutes,
+            "a shared layout renders once outside both slots, so the exiting slot must not add it"
+        )
+    }
 }

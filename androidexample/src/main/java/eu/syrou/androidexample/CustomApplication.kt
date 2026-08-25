@@ -24,6 +24,15 @@ import eu.syrou.androidexample.ui.screen.AuthLoadingScreen
 import eu.syrou.androidexample.ui.screen.CrashScreen
 import eu.syrou.androidexample.ui.screen.wizard.WizardConfirmScreen
 import eu.syrou.androidexample.ui.screen.wizard.WizardDetailsScreen
+import eu.syrou.androidexample.ui.screen.layouthandoff.HandoffAlphaGraph
+import eu.syrou.androidexample.ui.screen.layouthandoff.HandoffAlphaLayout
+import eu.syrou.androidexample.ui.screen.layouthandoff.HandoffAlphaScreen
+import eu.syrou.androidexample.ui.screen.layouthandoff.HandoffBetaGraph
+import eu.syrou.androidexample.ui.screen.layouthandoff.HandoffBetaLayout
+import eu.syrou.androidexample.ui.screen.layouthandoff.HandoffBetaScreen
+import eu.syrou.androidexample.ui.screen.wizard.WizardAddonsGraph
+import eu.syrou.androidexample.ui.screen.wizard.WizardAddonsScreen
+import eu.syrou.androidexample.ui.screen.wizard.WizardDeliveryScreen
 import eu.syrou.androidexample.ui.screen.wizard.WizardGraph
 import eu.syrou.androidexample.ui.screen.wizard.WizardLayout
 import eu.syrou.androidexample.ui.screen.wizard.WizardPaymentScreen
@@ -145,11 +154,33 @@ class CustomApplication : Application() {
             // wizard enters vertically over a screen that stays put, which is the case where an
             // arriving layout must travel with its screen rather than being treated as chrome that
             // was already on screen.
+            // Two sibling graphs with different layouts. The screen being left does not animate
+            // out, so it stays fully visible while the other slides over it, which makes any change
+            // to its own chrome obvious. The headers differ in height for exactly that reason.
+            graph(HandoffAlphaGraph) {
+                start(HandoffAlphaScreen)
+                screens(HandoffAlphaScreen)
+                layout { content -> HandoffAlphaLayout(content) }
+            }
+            graph(HandoffBetaGraph) {
+                start(HandoffBetaScreen)
+                screens(HandoffBetaScreen)
+                layout { content -> HandoffBetaLayout(content) }
+            }
+
             graph(WizardGraph) {
                 start(WizardDetailsScreen)
                 screens(WizardDetailsScreen, WizardPaymentScreen, WizardConfirmScreen)
                 layout { content ->
                     WizardLayout(content)
+                }
+
+                // Nested inside the wizard, so the wizard's layout is still in scope here. Entering
+                // this graph is movement deeper into the same surface, and the header and progress
+                // bar above must stay put rather than being rebuilt inside the arriving transition.
+                graph(WizardAddonsGraph) {
+                    start(WizardAddonsScreen)
+                    screens(WizardAddonsScreen, WizardDeliveryScreen)
                 }
             }
 

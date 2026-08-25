@@ -95,6 +95,20 @@ object NewsScreen : Screen {
                 ) {
                     Text("Checkout Wizard (graph layout + drag dismiss)")
                 }
+                Button(
+                    onClick = {
+                        store.launch {
+                            store.navigation {
+                                navigateTo("handoff-alpha")
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("open-layout-handoff")
+                ) {
+                    Text("Layout Handoff (sibling graphs, different chrome)")
+                }
             }
             item { NewsSection() }
             item { VideosSection() }

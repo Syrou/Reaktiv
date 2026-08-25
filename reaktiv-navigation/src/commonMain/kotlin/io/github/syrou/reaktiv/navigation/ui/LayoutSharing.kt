@@ -2,7 +2,8 @@ package io.github.syrou.reaktiv.navigation.ui
 
 internal data class LayoutSharingDecision(
     val sharedRoutes: Set<String>,
-    val liftExiting: Boolean
+    val liftExiting: Boolean,
+    val exitingUniqueRoutes: Set<String>
 )
 
 internal fun decideLayoutSharing(
@@ -32,5 +33,16 @@ internal fun decideLayoutSharing(
         sharedRoutes = sharedRoutes.intersect(restingBackLayoutRoutes.toSet())
     }
 
-    return LayoutSharingDecision(sharedRoutes = sharedRoutes, liftExiting = liftExiting)
+    // A screen on its way out is still on screen, so it keeps whatever chrome is not shared with
+    // the screen replacing it. This is independent of whether the exit animates: lifting only
+    // decides where the exiting surface is ordered, never whether it is whole. Dropping these when
+    // the exit was not animated left the outgoing screen rendering bare for the length of the
+    // transition, so its height changed and its content jumped to fill the space its header left.
+    val exitingUniqueRoutes = previousLayoutRoutes.orEmpty().toSet() - sharedRoutes
+
+    return LayoutSharingDecision(
+        sharedRoutes = sharedRoutes,
+        liftExiting = liftExiting,
+        exitingUniqueRoutes = exitingUniqueRoutes
+    )
 }
