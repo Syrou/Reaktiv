@@ -38,6 +38,7 @@ import io.github.syrou.reaktiv.navigation.util.StackSnapshot
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import io.github.syrou.reaktiv.navigation.util.traceEntrySelection
 import io.github.syrou.reaktiv.navigation.util.traceGuard
+import io.github.syrou.reaktiv.navigation.util.traceNavigation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -51,6 +52,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -564,22 +566,29 @@ public class NavigationLogic(
         precomputedTargetRoute: String? = null,
         precomputedTargetResolution: RouteResolution? = null,
         bypassLock: Boolean = false
-    ): NavigationOutcome {
+    ): NavigationOutcome = traceNavigation(
+        storeAccessor,
+        precomputedTargetRoute ?: builder.describeTarget()
+    ) {
         if (bypassLock || currentCoroutineContext()[NavigationLockKey] != null) {
-            return performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
+            return@traceNavigation performEvaluateAndExecute(
+                builder, precomputedTargetRoute, precomputedTargetResolution
+            )
         }
         navigationMutex.lock()
         var settleJob: Job? = null
         val outcome = try {
-            withContext(NavigationLockMarker()) {
+            withContext(NonCancellable + NavigationLockMarker()) {
                 performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
             }
         } finally {
             settleJob = transitionSettleJob
             navigationMutex.unlock()
         }
-        settleJob?.join()
-        return outcome
+        if (currentCoroutineContext().isActive) {
+            settleJob?.join()
+        }
+        outcome
     }
 
     private suspend fun performEvaluateAndExecute(
@@ -777,6 +786,24 @@ public class NavigationLogic(
      * @param inclusive If true, also removes the target route from backstack
      * @param fallback Optional fallback route if the target route is not found
      */
+    public suspend fun dismissModal() {
+        val state = getCurrentNavigationState()
+        val modal = state.backStack.lastOrNull { it.navigatable is Modal } ?: return
+
+        if (modal.stableKey == state.currentEntry.stableKey) {
+            navigateBack()
+            return
+        }
+
+        storeAccessor.dispatchAndAwait(
+            NavigationAction.PopUpTo(
+                route = modal.path,
+                inclusive = true,
+                entryToReAdd = state.currentEntry
+            )
+        )
+    }
+
     public suspend fun popUpTo(route: String, inclusive: Boolean = false, fallback: String? = null) {
         navigate {
             popUpTo(route, inclusive, fallback)
@@ -897,6 +924,9 @@ public class NavigationLogic(
                         val entryPath = resolution.targetNavigatable.fullPathOrRoute()
                         val entry = createNavigationEntry(step, resolution, entryPath, 0)
                         if (sim.backStack.isNotEmpty() && entry.stableKey == sim.currentEntry.stableKey) {
+                            ReaktivDebug.nav(
+                                "navigateTo(${entry.route}) skipped, already the current entry"
+                            )
                             continue
                         }
                         val isModal = entry.navigatable is Modal

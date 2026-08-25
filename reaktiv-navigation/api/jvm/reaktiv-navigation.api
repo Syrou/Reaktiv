@@ -318,6 +318,7 @@ public final class io/github/syrou/reaktiv/navigation/NavigationLogic : io/githu
 	public fun beforeReset (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun clearBackStack (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun clearBackStack$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun dismissModal (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getStoreAccessor ()Lio/github/syrou/reaktiv/core/StoreAccessor;
 	public final fun navigate (Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;ZLkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun navigate (Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

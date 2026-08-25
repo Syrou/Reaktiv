@@ -4915,3 +4915,88 @@ exiting slot correctly adds nothing.
 `LayoutSharingDecision` gained `exitingUniqueRoutes`, which is where this is now decided.
 
 ---
+### [BC-62] `dismissModal()` dismisses a modal instead of popping whatever is on top
+
+**Type:** Behavioural
+
+**Grep:** `dismissModal\(\)`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+public suspend fun StoreAccessor.dismissModal() {
+    navigateBack()
+}
+```
+
+**After:**
+```kotlin
+public suspend fun StoreAccessor.dismissModal() {
+    selectLogic<NavigationLogic>().dismissModal()
+}
+```
+
+**Notes:** `dismissModal()` was an alias for `navigateBack()` and had no notion of a modal, so it
+popped whatever was on top of the stack at the moment it ran.
+
+Each one-shot extension is its own transaction, so a dismiss written before a navigation can still be
+applied after it. When that happened the old behaviour was destructive rather than inert. With no
+modal present it popped a screen, so
+
+```kotlin
+store.dismissModal()
+store.navigate("subscription-upsell")
+```
+
+could land on the previous screen instead of the upsell. With the modal still beneath a newly pushed
+screen it popped that screen and left the modal on display. Either way one of the two calls appeared
+not to have happened.
+
+The call now names what it dismisses. It removes the topmost modal wherever that modal sits, does
+nothing at all when none is present, and when the modal is beneath entries that arrived after the
+dismiss was requested it removes the modal and keeps the current entry. The pair above reaches the
+same stack in either order.
+
+Callers that were using `dismissModal()` as a general back, including where no modal was involved,
+now get no movement. Use `navigateBack()` for that, which is what it always meant.
+
+`NavigationLogic.dismissModal()` is the new public method behind it.
+
+**Caveat:** when more than one entry sits above the modal, only the current entry is preserved.
+Anything between the modal and the current entry is dropped, since the dismiss is expressed as a
+`PopUpTo` with the current entry re-added.
+
+---
+### [AD-97] Every navigation attempt leaves a record
+
+**Type:** Addition
+
+**Grep:** `ReaktivDebug.enable|addSink`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+ReaktivDebug.enable()
+ReaktivDebug.addSink { level, category, message ->
+    println("$category $message")
+}
+```
+
+**Notes:** Guards and entry-selection lambdas were traced individually, but the navigation around
+them was not, so an attempt that never reached the screen left nothing behind. A caller could not
+tell a rejected, dropped or cancelled navigation from one that worked.
+
+Each navigation is now traced as a whole and logged under the `NAV` category with how it ended:
+`Success`, `Dropped`, `Rejected` or `Redirected(route)`. A navigation cancelled while it waited for
+the one in front of it is logged as cancelled rather than vanishing, since the transaction records
+the failure before rethrowing.
+
+Navigating to the screen you are already on is skipped by design, and that skip is now logged too.
+It previously returned `Success` with nothing applied and no record, which read as a navigation that
+had worked. The return value is unchanged, so nothing matching on `NavigationOutcome` has to be
+updated.
+
+Tooling sees these under the `Navigation` trace scope, alongside the existing `NavigationGuards`
+scope used by guard and entry evaluation.
+
+---

@@ -18,10 +18,6 @@ import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 
-/**
- * A layout belongs to the graph that declares it, so a graph nested inside that one is still
- * within its scope and the chrome has to stay on screen when you enter it.
- */
 @OptIn(ExperimentalTestApi::class)
 class NestedGraphLayoutUiTest {
 

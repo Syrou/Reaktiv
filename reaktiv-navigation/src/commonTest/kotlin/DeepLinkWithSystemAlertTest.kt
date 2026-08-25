@@ -22,14 +22,6 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/**
- * Deep link synthesis clears the backstack before rebuilding it, so it meets a raised system alert
- * the same way bootstrap does.
- *
- * Synthesis is what decides the whole history behind the linked route, which makes it the operation
- * most exposed to entries surviving a clear. These pin down that a raised alert neither disappears
- * nor leaks into the synthesized history.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeepLinkWithSystemAlertTest {
 

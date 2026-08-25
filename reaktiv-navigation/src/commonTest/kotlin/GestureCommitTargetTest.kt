@@ -25,10 +25,6 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/**
- * Both the edge swipe and the drag commit through the same function, so what they unwind to has to
- * come from the target each gesture was already animating toward rather than being derived again.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class GestureCommitTargetTest {
 
@@ -76,7 +72,6 @@ class GestureCommitTargetTest {
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
 
-            // The back gesture animates toward the previous step, so committing must land there.
             dismissSurface(
                 store = store,
                 navModule = navModule,

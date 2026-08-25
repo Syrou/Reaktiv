@@ -25,14 +25,6 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/**
- * A system-layer navigatable is meant to reach the screen above anything else, including while the
- * app is still deciding where to start.
- *
- * Bootstrap holds the navigation lock for the whole of its start-destination evaluation, so a slow
- * auth guard used to leave an alert raised during it waiting for the very thing it was supposed to
- * cover. Skipping the bootstrap await was not enough on its own.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SystemModalDuringBootstrapTest {
 
@@ -70,7 +62,6 @@ class SystemModalDuringBootstrapTest {
         }
     }
 
-    /** Covers the screen while the start destination is resolved, as a real app would. */
     private val loadingScreen = object : LoadingModal {
         override val route = "loading"
         override val enterTransition = NavTransition.None
@@ -82,7 +73,6 @@ class SystemModalDuringBootstrapTest {
         }
     }
 
-    /** Start resolution takes a while, standing in for an auth guard. */
     private fun slowModule() = createNavigationModule {
         loadingModal(loadingScreen)
         rootGraph {

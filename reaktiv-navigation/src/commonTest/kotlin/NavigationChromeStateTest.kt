@@ -20,10 +20,6 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/**
- * A graph that arrives as its own surface already carries its own header, so navigation reports
- * that no chrome is wanted inside it rather than each app remembering to special case it.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class NavigationChromeStateTest {
 

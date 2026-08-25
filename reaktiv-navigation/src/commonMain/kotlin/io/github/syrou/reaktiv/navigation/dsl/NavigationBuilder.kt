@@ -346,6 +346,11 @@ public class NavigationBuilder(
         return this
     }
 
+    internal fun describeTarget(): String =
+        operations.firstOrNull { it.target != null }?.let { step ->
+            runCatching { step.target.toString() }.getOrNull()
+        } ?: operations.joinToString(",") { it.operation.name }.ifEmpty { "empty" }
+
     public fun params(params: Params): NavigationBuilder {
         currentParams += params
         return this

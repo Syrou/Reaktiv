@@ -26,10 +26,6 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/**
- * A wizard presented as a sheet: it arrives vertically as one surface, its steps move horizontally
- * inside it, and dragging it away takes the whole graph rather than stepping back through it.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class GraphDismissBoundaryTest {
 
@@ -179,8 +175,6 @@ class GraphDismissBoundaryTest {
                 isExplicitBackNavigation = true
             )
 
-            // Popping reverses the arrival rather than playing a separate exit, so the sheet
-            // that slid up plays that same transition backwards and drops back down.
             assertEquals(
                 NavTransition.SlideUpBottom,
                 decision.exitTransition,

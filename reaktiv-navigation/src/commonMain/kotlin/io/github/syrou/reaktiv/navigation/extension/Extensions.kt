@@ -50,7 +50,7 @@ public suspend inline fun <reified T : Modal> StoreAccessor.presentModal(
 }
 
 public suspend fun StoreAccessor.dismissModal() {
-    navigateBack()
+    selectLogic<NavigationLogic>().dismissModal()
 }
 
 public inline fun Modifier.applyIf(condition: Boolean, modifier: Modifier.() -> Modifier): Modifier {

@@ -8,14 +8,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The system layer is documented as the absolute top, so anything placed there has to be able to
- * outrank the loading overlay shown while navigation is being evaluated.
- *
- * These assert the elevation contract the renderer relies on. The renderer orders the overlay
- * against system entries in one scope, which only produces the right result if a default modal
- * genuinely outranks a loading modal.
- */
 class SystemLayerOrderingTest {
 
     private object Loader : LoadingModal {

@@ -17,13 +17,6 @@ import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 
-/**
- * A screen on its way out is still on screen, so it has to keep the chrome it arrived with.
- *
- * Moving between two sibling graphs whose layouts differ is the case that exposes this: the
- * outgoing screen's layout is not shared with the arriving one, so if it is not rendered around the
- * exiting slot the screen loses its header mid transition and its content jumps to fill the space.
- */
 @OptIn(ExperimentalTestApi::class)
 class ExitingLayoutUiTest {
 
@@ -76,7 +69,6 @@ class ExitingLayoutUiTest {
         mainClock.autoAdvance = false
         store.launch { store.navigation { navigateTo("second") } }
 
-        // Part way through, both surfaces are on screen and both should be intact.
         repeat(6) { mainClock.advanceTimeBy(16) }
         onNodeWithText("From Body").assertExists()
         onNodeWithText("First Chrome").assertExists()

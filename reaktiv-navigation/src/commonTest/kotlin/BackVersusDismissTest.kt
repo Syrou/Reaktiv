@@ -20,12 +20,6 @@ import kotlin.test.assertEquals
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/**
- * Back and dismiss are different intents inside a presented graph.
- *
- * Stepping backwards through a wizard is not the same as throwing the wizard away, so a plain back
- * request walks the history one entry at a time while only the drag collapses the whole graph.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BackVersusDismissTest {
 

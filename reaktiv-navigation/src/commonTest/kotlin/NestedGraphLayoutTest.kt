@@ -22,10 +22,6 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/**
- * A layout belongs to the graph that declares it, so entering a graph nested inside that one is
- * still inside the layout and must not tear it down.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class NestedGraphLayoutTest {
 
@@ -174,7 +170,6 @@ class NestedGraphLayoutTest {
         override val enterTransition = NavTransition.SlideInRight
     }
 
-    /** Same wizard, but its members arrive through a group rather than one by one. */
     private fun groupModule() = createNavigationModule {
         rootGraph {
             start(home)
