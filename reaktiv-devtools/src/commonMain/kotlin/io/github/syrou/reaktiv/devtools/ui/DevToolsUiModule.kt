@@ -288,7 +288,9 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
             }
 
             is DevToolsUiAction.AppendNetworkEvents -> {
-                state.copy(networkEvents = (state.networkEvents + action.events).takeLast(2000))
+                state.copy(
+                    networkEvents = state.networkEvents.mergeNetworkEvents(action.events).takeLast(2000)
+                )
             }
 
             is DevToolsUiAction.SelectNetworkRequest -> {

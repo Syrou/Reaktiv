@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.network.ktor
 
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.introspection.network.NetworkBodyPart
 import io.github.syrou.reaktiv.introspection.network.NetworkBodyProvider
@@ -11,12 +12,14 @@ import io.ktor.client.plugins.api.ClientPlugin
 import io.ktor.client.plugins.api.Send
 import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.statement.HttpResponsePipeline
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.http.content.OutgoingContent
+import io.ktor.util.AttributeKey
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -40,6 +43,8 @@ public class ReaktivNetworkInspectionConfig {
 @OptIn(ExperimentalAtomicApi::class)
 private val requestCounter = AtomicLong(0L)
 
+internal val ReaktivRequestIdKey: AttributeKey<String> = AttributeKey("ReaktivNetworkRequestId")
+
 public val ReaktivNetworkInspection: ClientPlugin<ReaktivNetworkInspectionConfig> = createClientPlugin(
     "ReaktivNetworkInspection",
     ::ReaktivNetworkInspectionConfig
@@ -51,6 +56,15 @@ public val ReaktivNetworkInspection: ClientPlugin<ReaktivNetworkInspectionConfig
     on(Send) { request ->
         if (!NetworkTap.hasListeners) return@on proceed(request)
         captureExchange(config, retention, request) { proceed(request) }
+    }
+
+    client.responsePipeline.intercept(HttpResponsePipeline.Receive) { container ->
+        try {
+            proceedWith(container)
+        } catch (cause: Throwable) {
+            reportDecodeFailure(retention, context.request.attributes.getOrNull(ReaktivRequestIdKey), cause)
+            throw cause
+        }
     }
 
     client.coroutineContext[Job]?.invokeOnCompletion {
@@ -66,6 +80,7 @@ private suspend fun captureExchange(
     proceed: suspend () -> HttpClientCall
 ): HttpClientCall {
     val id = "net-${currentTimeMillis()}-${requestCounter.addAndFetch(1L)}"
+    request.attributes.put(ReaktivRequestIdKey, id)
     val startedAt = currentTimeMillis()
     val method = request.method.value
     val urlString = request.url.buildString()
@@ -157,23 +172,53 @@ private suspend fun captureExchange(
         ?: responseText?.length?.toLong()
         ?: -1L
 
-    NetworkTap.emit(
-        base.copy(
-            durationMs = currentTimeMillis() - startedAt,
-            responseStatus = response.status.value,
-            responseStatusText = response.status.description,
-            responseHeaders = response.headers.toCapturedMap(config.redactedHeaders),
-            responseContentType = responseContentType?.toString(),
-            responseBody = previewBody,
-            responseBodySize = measuredSize,
-            responseBodyTruncated = overHardLimit ||
-                (responseBytes?.size ?: 0) > config.maxBodyBytes,
-            waitMs = headersAt - startedAt,
-            downloadMs = if (shouldRead) bodyReadAt - headersAt else null
-        )
+    val completed = base.copy(
+        durationMs = currentTimeMillis() - startedAt,
+        responseStatus = response.status.value,
+        responseStatusText = response.status.description,
+        responseHeaders = response.headers.toCapturedMap(config.redactedHeaders),
+        responseContentType = responseContentType?.toString(),
+        responseBody = previewBody,
+        responseBodySize = measuredSize,
+        responseBodyTruncated = overHardLimit ||
+            (responseBytes?.size ?: 0) > config.maxBodyBytes,
+        waitMs = headersAt - startedAt,
+        downloadMs = if (shouldRead) bodyReadAt - headersAt else null
     )
+    retention.attachCapture(id, completed)
+    NetworkTap.emit(completed)
     return call
 }
+
+private fun reportDecodeFailure(
+    retention: BodyRetention,
+    requestId: String?,
+    cause: Throwable
+) {
+    if (requestId == null) return
+    val previous = retention.find(requestId)?.capture ?: return
+    if (previous.decodeError != null) return
+    val detail = describeDecodeFailure(cause)
+    val updated = previous.copy(decodeError = detail)
+    retention.attachCapture(requestId, updated)
+    NetworkTap.emit(updated)
+    ReaktivDebug.error(
+        "NETWORK",
+        "Failed to decode ${previous.method} ${previous.url}: $detail",
+        cause
+    )
+}
+
+internal fun describeDecodeFailure(cause: Throwable): String {
+    val root = generateSequence(cause) { current -> current.cause.takeIf { it !== current } }
+        .take(MAX_CAUSE_DEPTH)
+        .last()
+    val name = root::class.simpleName ?: "Throwable"
+    val message = root.message?.trim()?.takeIf { it.isNotEmpty() }
+    return if (message != null) "$name: $message" else name
+}
+
+private const val MAX_CAUSE_DEPTH = 8
 
 private fun installBodyProvider(retention: BodyRetention): NetworkBodyProvider {
     val provider = NetworkBodyProvider { requestId, part, offset, maxBytes ->
@@ -225,13 +270,17 @@ internal class RetainedExchange(
     val headers: Map<String, List<String>>,
     val bodyBytes: ByteArray?,
     val contentType: String?,
-    val responseBytes: ByteArray? = null
+    val responseBytes: ByteArray? = null,
+    val capture: NetworkRequestCapture? = null
 ) {
     val retainedBytes: Long
         get() = (bodyBytes?.size?.toLong() ?: 0L) + (responseBytes?.size?.toLong() ?: 0L)
 
     fun withResponse(bytes: ByteArray?): RetainedExchange =
-        RetainedExchange(id, method, url, headers, bodyBytes, contentType, bytes)
+        RetainedExchange(id, method, url, headers, bodyBytes, contentType, bytes, capture)
+
+    fun withCapture(capture: NetworkRequestCapture): RetainedExchange =
+        RetainedExchange(id, method, url, headers, bodyBytes, contentType, responseBytes, capture)
 }
 
 @OptIn(ExperimentalAtomicApi::class)
@@ -250,12 +299,20 @@ internal class BodyRetention(
 
     fun attachResponse(requestId: String, bytes: ByteArray?) {
         if (bytes == null) return
+        update(requestId) { it.withResponse(bytes) }
+    }
+
+    fun attachCapture(requestId: String, capture: NetworkRequestCapture) {
+        update(requestId) { it.withCapture(capture) }
+    }
+
+    private fun update(requestId: String, transform: (RetainedExchange) -> RetainedExchange) {
         while (true) {
             val current = retained.load()
             val index = current.indexOfLast { it.id == requestId }
             if (index < 0) return
             val updated = current.toMutableList()
-            updated[index] = updated[index].withResponse(bytes)
+            updated[index] = transform(updated[index])
             if (retained.compareAndSet(current, evict(updated))) return
         }
     }

@@ -56,10 +56,14 @@ public object ReaktivDebug {
     }
 
     public fun error(message: String, throwable: Throwable? = null) {
+        error("GENERAL", message, throwable)
+    }
+
+    public fun error(category: String, message: String, throwable: Throwable?) {
         val detail = throwable?.let { "$message: ${it.message}" } ?: message
-        emit("ERROR", "GENERAL", detail)
+        emit("ERROR", category, detail)
         if (isEnabled) {
-            println("[ERROR] $message")
+            println("[ERROR] [$category] $message")
             throwable?.printStackTrace()
         }
     }

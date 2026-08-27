@@ -121,4 +121,37 @@ class NetworkFilteringTest {
         assertEquals("/", networkPath("https://api.example.com"))
         assertEquals("/a/b", networkPath("https://api.example.com/a/b?q=1"))
     }
+
+    @Test
+    fun `merging an update replaces the row in place`() {
+        val updated = row("n2", method = "POST", url = "https://api.example.com/items", status = 500, durationMs = 90)
+            .let { it.copy(event = it.event.copy(decodeError = "MissingFieldException: name")) }
+
+        val merged = sample.mergeNetworkEvents(listOf(updated))
+
+        assertEquals(sample.size, merged.size)
+        assertEquals(sample.map { it.event.id }, merged.map { it.event.id })
+        assertEquals("MissingFieldException: name", merged[1].event.decodeError)
+    }
+
+    @Test
+    fun `merging an unseen exchange appends it`() {
+        val merged = sample.mergeNetworkEvents(listOf(row("n5")))
+
+        assertEquals(sample.size + 1, merged.size)
+        assertEquals("n5", merged.last().event.id)
+    }
+
+    @Test
+    fun `decode failures are matched by the filter query and the failure toggle`() {
+        val rows = sample + row("n5").let {
+            it.copy(event = it.event.copy(decodeError = "MissingFieldException: total"))
+        }
+
+        val byQuery = rows.applyNetworkFilter(NetworkFilter(query = "MissingField"))
+        assertEquals(listOf("n5"), byQuery.map { it.event.id })
+
+        val failures = rows.applyNetworkFilter(NetworkFilter(failuresOnly = true))
+        assertTrue(failures.any { it.event.id == "n5" })
+    }
 }

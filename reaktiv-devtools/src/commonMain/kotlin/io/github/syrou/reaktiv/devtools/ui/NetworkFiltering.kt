@@ -20,6 +20,28 @@ internal data class NetworkFilter(
         get() = query.isNotBlank() || failuresOnly || methods.isNotEmpty() || sort != NetworkSort.NEWEST
 }
 
+internal fun List<NetworkEventRow>.mergeNetworkEvents(
+    incoming: List<NetworkEventRow>
+): List<NetworkEventRow> {
+    if (incoming.isEmpty()) return this
+    val positionByKey = HashMap<Pair<String, String>, Int>(size + incoming.size)
+    forEachIndexed { index, row -> positionByKey[row.mergeKey] = index }
+    val merged = ArrayList(this)
+    incoming.forEach { row ->
+        val existing = positionByKey[row.mergeKey]
+        if (existing != null) {
+            merged[existing] = row
+        } else {
+            positionByKey[row.mergeKey] = merged.size
+            merged.add(row)
+        }
+    }
+    return merged
+}
+
+private val NetworkEventRow.mergeKey: Pair<String, String>
+    get() = clientId to event.id
+
 internal fun networkHost(url: String): String {
     val withoutScheme = url.substringAfter("://", url)
     return withoutScheme.substringBefore('/').substringBefore('?')
@@ -35,7 +57,8 @@ internal fun List<NetworkEventRow>.applyNetworkFilter(filter: NetworkFilter): Li
             event.url.contains(query, ignoreCase = true) ||
             event.method.contains(query, ignoreCase = true) ||
             event.responseStatus?.toString()?.contains(query) == true ||
-            event.error?.contains(query, ignoreCase = true) == true
+            event.error?.contains(query, ignoreCase = true) == true ||
+            event.decodeError?.contains(query, ignoreCase = true) == true
         methodOk && failureOk && queryOk
     }
     return when (filter.sort) {

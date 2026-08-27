@@ -39,6 +39,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
+import eu.syrou.androidexample.tooling.NetworkFailureProbe
+import kotlinx.coroutines.CancellationException
+import eu.syrou.androidexample.tooling.Subscriber
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.service.DevToolsCommands
 import io.github.syrou.reaktiv.introspection.tooling.ServiceState
@@ -67,6 +70,7 @@ object DevToolsScreen : Screen {
         var serverIp by remember { mutableStateOf("100.125.101.2") }
         var serverPort by remember { mutableStateOf("8080") }
         var selectedRole by remember { mutableStateOf(ClientRole.PUBLISHER) }
+        var lastProbeResult by remember { mutableStateOf<String?>(null) }
 
         Scaffold(
             topBar = {
@@ -183,10 +187,75 @@ object DevToolsScreen : Screen {
                         Text("Reconnect")
                     }
                 }
+
+                Text("Network probes", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Sends a request whose response cannot be decoded into its data class, so the " +
+                        "failure shows up in the DevTools network lane, the log lane and findings",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                lastProbeResult = runProbe {
+                                    NetworkFailureProbe.fetchSubscriberWithNullName()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Null field")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                lastProbeResult = runProbe {
+                                    NetworkFailureProbe.fetchIncompleteSubscriber()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Missing field")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                lastProbeResult = runProbe {
+                                    NetworkFailureProbe.fetchValidSubscriber()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Valid")
+                    }
+                }
+                lastProbeResult?.let { result ->
+                    Text(
+                        result,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
 }
+
+private suspend fun runProbe(block: suspend () -> Subscriber): String =
+    try {
+        "Decoded ${block().displayName}"
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Throwable) {
+        "${failure::class.simpleName}: ${failure.message}"
+    }
 
 @Composable
 private fun ServiceStatusCard(serviceName: String, status: ServiceStatus) {

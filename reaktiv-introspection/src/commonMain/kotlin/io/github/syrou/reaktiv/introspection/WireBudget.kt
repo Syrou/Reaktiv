@@ -50,6 +50,7 @@ public fun NetworkRequestCapture.approximateWireBytes(): Int {
     total += requestBody?.length ?: 0
     total += responseBody?.length ?: 0
     total += error?.length ?: 0
+    total += decodeError?.length ?: 0
     requestHeaders.forEach { (name, values) ->
         total += name.length + values.sumOf { it.length + HEADER_ENTRY_OVERHEAD }
     }

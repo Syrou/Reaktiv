@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.devtools.protocol
 
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 
 public enum class FindingSeverity { WARNING, CRITICAL }
 
@@ -36,7 +37,8 @@ public fun computeFindings(
     starts: List<LogicMethodStart>,
     completions: List<LogicMethodCompleted>,
     sizes: List<ModuleSizeStats> = emptyList(),
-    churn: List<ChurnEntry> = emptyList()
+    churn: List<ChurnEntry> = emptyList(),
+    network: List<NetworkRequestCapture> = emptyList()
 ): List<Finding> {
     val findings = mutableListOf<Finding>()
     val completionsByCallId = completions.associateBy { it.callId }
@@ -173,6 +175,23 @@ public fun computeFindings(
             )
         )
     }
+
+    network.filter { it.decodeError != null }
+        .groupBy { "${it.method} ${it.url}" to it.decodeError }
+        .forEach { (key, exchanges) ->
+            val (endpoint, decodeError) = key
+            val latest = exchanges.maxBy { it.startedAtMs }
+            val repeated = if (exchanges.size > 1) " (${exchanges.size} times)" else ""
+            findings.add(
+                Finding(
+                    severity = FindingSeverity.CRITICAL,
+                    category = "network-decode",
+                    title = "Response did not match the expected type$repeated",
+                    detail = "$endpoint responded ${latest.responseStatus ?: "?"} but decoding failed: $decodeError",
+                    timestampMs = latest.startedAtMs + latest.durationMs
+                )
+            )
+        }
 
     return findings.sortedWith(
         compareBy<Finding> { it.severity != FindingSeverity.CRITICAL }.thenByDescending { it.timestampMs ?: 0L }

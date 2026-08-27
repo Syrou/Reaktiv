@@ -120,6 +120,7 @@ dependencies {
     debugImplementation(project(":reaktiv-introspection"))
     debugImplementation(project(":reaktiv-devtools"))
     debugImplementation(project(":reaktiv-network-ktor"))
+    debugImplementation("io.ktor:ktor-client-mock:3.1.0")
 }
 val androidSdkDir: Provider<String> = providers.environmentVariable("ANDROID_HOME")
     .orElse(providers.environmentVariable("ANDROID_SDK_ROOT"))

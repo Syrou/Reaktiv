@@ -55,7 +55,10 @@ import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.ui.components.ActionStream
 import io.github.syrou.reaktiv.devtools.ui.components.ClientList
 import io.github.syrou.reaktiv.devtools.ui.components.ConnectionStatus
+import io.github.syrou.reaktiv.devtools.ui.components.FindingsBadge
 import io.github.syrou.reaktiv.devtools.ui.components.FindingsPanel
+import io.github.syrou.reaktiv.devtools.ui.components.rememberFindings
+import io.github.syrou.reaktiv.devtools.protocol.FindingSeverity
 import io.github.syrou.reaktiv.devtools.ui.components.GhostImportDialog
 import io.github.syrou.reaktiv.devtools.ui.components.CommandPalette
 import io.github.syrou.reaktiv.devtools.ui.components.HelpOverlay
@@ -511,6 +514,14 @@ private fun DevToolsContent(store: Store, serverUrl: String) {
                             .fillMaxHeight()
                             .weight(1f - splitFraction)
                     ) {
+                        val findings = rememberFindings(
+                            dataRevision = state.dataRevision,
+                            logicMethodEvents = state.logicMethodEvents,
+                            actionStateHistory = state.actionStateHistory,
+                            initialStateJson = state.initialStateJson,
+                            stateReads = state.stateReads,
+                            networkEvents = state.networkEvents.map { it.event }
+                        )
                         TabRow(selectedTabIndex = state.rightPanelTab.ordinal) {
                             Tab(
                                 selected = state.rightPanelTab == RightPanelTab.STATE,
@@ -525,7 +536,22 @@ private fun DevToolsContent(store: Store, serverUrl: String) {
                             Tab(
                                 selected = state.rightPanelTab == RightPanelTab.FINDINGS,
                                 onClick = { dispatch(DevToolsUiAction.SetRightPanelTab(RightPanelTab.FINDINGS)) },
-                                text = { Text("Findings") }
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text("Findings")
+                                        if (findings.isNotEmpty()) {
+                                            FindingsBadge(
+                                                count = findings.size,
+                                                hasCritical = findings.any {
+                                                    it.severity == FindingSeverity.CRITICAL
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             )
                             Tab(
                                 selected = state.rightPanelTab == RightPanelTab.NETWORK,
@@ -573,11 +599,7 @@ private fun DevToolsContent(store: Store, serverUrl: String) {
                             )
                         } else if (state.rightPanelTab == RightPanelTab.FINDINGS) {
                             FindingsPanel(
-                                dataRevision = state.dataRevision,
-                                logicMethodEvents = state.logicMethodEvents,
-                                actionStateHistory = state.actionStateHistory,
-                                initialStateJson = state.initialStateJson,
-                                stateReads = state.stateReads,
+                                findings = findings,
                                 onSeekTimestamp = { ts ->
                                     val index = state.actionStateHistory.withIndex().minByOrNull { (_, event) ->
                                         val distance = event.timestamp - ts

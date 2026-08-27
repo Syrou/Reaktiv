@@ -33,7 +33,7 @@ import kotlinx.datetime.toLocalDateTime
 /**
  * State viewer tab selection.
  */
-private enum class StateViewerTab { DELTA, STATE }
+private enum class StateViewerTab { ACTION, DELTA, STATE }
 
 @Composable
 internal fun StateViewer(
@@ -124,7 +124,7 @@ internal fun StateViewer(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            if (isActionSelected) {
+            if (isActionSelected && activeTab != StateViewerTab.ACTION) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -140,6 +140,20 @@ internal fun StateViewer(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                TextButton(
+                    onClick = { activeTab = StateViewerTab.ACTION },
+                    colors = if (activeTab == StateViewerTab.ACTION) {
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                ) {
+                    Text("Action")
+                }
                 TextButton(
                     onClick = { activeTab = StateViewerTab.DELTA },
                     colors = if (activeTab == StateViewerTab.DELTA) {
@@ -205,6 +219,9 @@ internal fun StateViewer(
                     .distinct()
                     .sorted()
                 when (activeTab) {
+                    StateViewerTab.ACTION -> {
+                        ActionPayloadView(event = selectedEvent)
+                    }
                     StateViewerTab.DELTA -> {
                         StateSnapshotView(
                             event = selectedEvent,
@@ -230,6 +247,73 @@ internal fun StateViewer(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionPayloadView(event: CapturedAction) {
+    val payload = event.actionData.trim()
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "Dispatched: ${event.actionType}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Timestamp: ${formatClockTime(event.timestamp)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (event.moduleName.isNotBlank()) {
+                    Text(
+                        text = "Module: ${event.moduleName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            if (payload.isEmpty()) {
+                Text(
+                    text = "This action carries no properties",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(12.dp)
+                )
+            } else {
+                KotlinObjectTreeViewer(
+                    text = payload,
+                    modifier = Modifier.padding(12.dp)
+                )
             }
         }
     }

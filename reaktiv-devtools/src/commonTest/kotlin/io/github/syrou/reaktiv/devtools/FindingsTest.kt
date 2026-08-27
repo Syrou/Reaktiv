@@ -7,6 +7,7 @@ import io.github.syrou.reaktiv.devtools.protocol.FindingSeverity
 import io.github.syrou.reaktiv.devtools.protocol.StateSizeTracker
 import io.github.syrou.reaktiv.devtools.protocol.aggregateChurn
 import io.github.syrou.reaktiv.devtools.protocol.computeFindings
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import kotlin.test.Test
@@ -184,5 +185,60 @@ class FindingsTest {
         val recomposition = findings.single { it.category == "recomposition" }
         assertTrue(recomposition.title.contains("FeedList"))
         assertTrue(recomposition.detail.contains("FeedState"))
+    }
+
+    private fun exchange(
+        id: String,
+        url: String = "https://api.example.com/user",
+        startedAtMs: Long = 1_000,
+        decodeError: String? = null
+    ) = NetworkRequestCapture(
+        id = id,
+        startedAtMs = startedAtMs,
+        durationMs = 25,
+        method = "GET",
+        url = url,
+        responseStatus = 200,
+        decodeError = decodeError
+    )
+
+    @Test
+    fun `decode failures surface as critical findings`() {
+        val network = listOf(
+            exchange("n1"),
+            exchange("n2", decodeError = "JsonDecodingException: Unexpected null for name")
+        )
+
+        val findings = computeFindings(emptyList(), emptyList(), network = network)
+
+        val decode = findings.single { it.category == "network-decode" }
+        assertEquals(FindingSeverity.CRITICAL, decode.severity)
+        assertTrue(decode.detail.contains("https://api.example.com/user"))
+        assertTrue(decode.detail.contains("Unexpected null for name"))
+        assertEquals(1_025L, decode.timestampMs)
+    }
+
+    @Test
+    fun `repeated decode failures on one endpoint collapse into a single finding`() {
+        val network = (1..4).map {
+            exchange("n$it", startedAtMs = it * 100L, decodeError = "MissingFieldException: name")
+        }
+
+        val findings = computeFindings(emptyList(), emptyList(), network = network)
+
+        val decode = findings.single { it.category == "network-decode" }
+        assertTrue(decode.title.contains("4 times"), decode.title)
+    }
+
+    @Test
+    fun `distinct decode failures stay separate findings`() {
+        val network = listOf(
+            exchange("n1", decodeError = "MissingFieldException: name"),
+            exchange("n2", url = "https://api.example.com/orders", decodeError = "MissingFieldException: total")
+        )
+
+        val findings = computeFindings(emptyList(), emptyList(), network = network)
+
+        assertEquals(2, findings.count { it.category == "network-decode" })
     }
 }

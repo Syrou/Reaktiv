@@ -5000,3 +5000,67 @@ Tooling sees these under the `Navigation` trace scope, alongside the existing `N
 scope used by guard and entry evaluation.
 
 ---
+
+### [AD-98] Failed response decoding is attributed to the request that caused it
+
+**Type:** Addition
+
+**Grep:** `decodeError`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val client = HttpClient(engine) {
+    install(ContentNegotiation) {
+        json()
+    }
+    install(ReaktivNetworkInspection)
+}
+
+val user: User = client.get("https://api.example.com/user").body()
+```
+
+**Notes:** `ReaktivNetworkInspection` previously wrapped only the send phase, so an exchange that
+returned 200 and then failed to deserialize was recorded as a success. Content negotiation converts
+at `HttpResponsePipeline.Transform`, which runs when the caller asks for `body<T>()`, long after the
+send phase has already emitted.
+
+The plugin now tags each request with its capture id and wraps the response pipeline at
+`HttpResponsePipeline.Receive`, so a conversion failure is caught, attributed to the exchange and
+rethrown untouched. Installing the plugin is the only wiring an application needs, and the failure
+is recorded even when the call site swallows the exception.
+
+`NetworkRequestCapture` gained `decodeError: String?`, carrying the deepest cause of the failure
+rather than the `JsonConvertException` wrapper, so the message names the offending field. It counts
+towards `isFailure`, so the failures-only filter and the endpoint stats include it. The exchange is
+re-emitted with the same `id`, which the DevTools UI merges in place rather than appending, keeping
+the captured response body next to the exception that the body caused.
+
+The failure is also logged through `ReaktivDebug` under a new `NETWORK` category at `ERROR` level,
+which puts it in the DevTools log lane, and it is reported as a `network-decode` finding. Repeated
+failures on one endpoint with the same message collapse into a single finding carrying the count.
+
+A capture is only taken while something is listening on `NetworkTap`, so this costs nothing when
+neither `DevToolsService` nor `SessionCapture` is running. Decoding performed by hand, such as
+`Json.decodeFromString(response.bodyAsText())`, happens outside the client pipeline and is not
+covered.
+
+---
+
+### [AD-99] `ReaktivDebug.error` accepts a category
+
+**Type:** Addition
+
+**Grep:** `ReaktivDebug.error(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+ReaktivDebug.error("NETWORK", "Failed to decode GET /user", cause)
+```
+
+**Notes:** The existing two-argument `error(message, throwable)` is unchanged and still reports
+under `GENERAL`. The three-argument overload lets a subsystem file its errors under its own
+category, which tooling uses to group and filter log lines. See AD-98 for the first caller.
+
+---

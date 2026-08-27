@@ -264,10 +264,14 @@ private fun NetworkListRow(row: NetworkEventRow, onSelectRequest: (String?) -> U
             modifier = Modifier.weight(1f)
         )
         Text(
-            text = event.error?.let { "failed" } ?: "${event.responseStatus ?: "?"}",
+            text = when {
+                event.error != null -> "failed"
+                event.decodeError != null -> "${event.responseStatus ?: "?"} decode"
+                else -> "${event.responseStatus ?: "?"}"
+            },
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
-            color = networkStatusColor(event.responseStatus, event.error)
+            color = networkStatusColor(event.responseStatus, event.error ?: event.decodeError)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
@@ -378,6 +382,30 @@ private fun TimingBar(waitMs: Long, downloadMs: Long, totalMs: Long) {
                 .background(DevToolsColors.success)
         )
         Box(modifier = Modifier.weight(restWeight).fillMaxHeight())
+    }
+}
+
+@Composable
+private fun NetworkFailureBlock(title: String, detail: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f))
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.error
+        )
+        Text(
+            text = detail,
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.error
+        )
     }
 }
 
@@ -533,26 +561,14 @@ private fun NetworkRequestDetail(
             }
 
             event.error?.let { error ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f))
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = "Request failed",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Text(
-                        text = error,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+                NetworkFailureBlock(title = "Request failed", detail = error)
+            }
+
+            event.decodeError?.let { decodeError ->
+                NetworkFailureBlock(
+                    title = "Response did not match the expected type",
+                    detail = decodeError
+                )
             }
 
             FlowRow(

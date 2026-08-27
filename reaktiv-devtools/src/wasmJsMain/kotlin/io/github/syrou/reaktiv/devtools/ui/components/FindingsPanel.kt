@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.devtools.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -29,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.core.tracing.StateRead
@@ -39,17 +42,18 @@ import io.github.syrou.reaktiv.devtools.protocol.aggregateChurn
 import io.github.syrou.reaktiv.devtools.protocol.asClipboardText
 import io.github.syrou.reaktiv.devtools.protocol.computeFindings
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 
 @Composable
-internal fun FindingsPanel(
+internal fun rememberFindings(
     dataRevision: Long,
     logicMethodEvents: List<LogicMethodEvent>,
     actionStateHistory: List<CapturedAction>,
     initialStateJson: String,
     stateReads: List<StateRead>,
-    onSeekTimestamp: (Long) -> Unit = {}
-) {
+    networkEvents: List<NetworkRequestCapture>
+): List<Finding> {
     val started = remember(dataRevision) {
         logicMethodEvents.filterIsInstance<LogicMethodEvent.Started>().map { it.event }
     }
@@ -65,10 +69,43 @@ internal fun FindingsPanel(
     val churn = remember(dataRevision) {
         aggregateChurn(actionStateHistory, stateReads)
     }
-    val findings = remember(dataRevision) {
-        computeFindings(started, completed, sizes, churn)
+    return remember(dataRevision) {
+        computeFindings(started, completed, sizes, churn, networkEvents)
     }
+}
 
+@Composable
+internal fun FindingsBadge(count: Int, hasCritical: Boolean) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (hasCritical) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.tertiary
+                }
+            )
+            .padding(horizontal = 6.dp, vertical = 1.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = if (count > 99) "99+" else count.toString(),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (hasCritical) {
+                MaterialTheme.colorScheme.onError
+            } else {
+                MaterialTheme.colorScheme.onTertiary
+            }
+        )
+    }
+}
+
+@Composable
+internal fun FindingsPanel(
+    findings: List<Finding>,
+    onSeekTimestamp: (Long) -> Unit = {}
+) {
     var severityFilter by remember { mutableStateOf<FindingSeverity?>(null) }
     val criticalCount = findings.count { it.severity == FindingSeverity.CRITICAL }
     val warningCount = findings.size - criticalCount
