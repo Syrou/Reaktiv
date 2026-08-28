@@ -243,6 +243,7 @@ public final class io/github/syrou/reaktiv/core/util/ReaktivDebug {
 	public final fun addSink (Lio/github/syrou/reaktiv/core/util/ReaktivLogSink;)V
 	public final fun disable ()V
 	public final fun enable ()V
+	public final fun error (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V
 	public final fun error (Ljava/lang/String;Ljava/lang/Throwable;)V
 	public static synthetic fun error$default (Lio/github/syrou/reaktiv/core/util/ReaktivDebug;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)V
 	public final fun general (Ljava/lang/String;)V

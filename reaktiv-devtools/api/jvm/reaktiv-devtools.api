@@ -1112,8 +1112,8 @@ public final class io/github/syrou/reaktiv/devtools/protocol/FindingsKt {
 	public static final field FINDING_STORM_EVENTS I
 	public static final field FINDING_STORM_WINDOW_MS J
 	public static final fun asClipboardText (Lio/github/syrou/reaktiv/devtools/protocol/Finding;)Ljava/lang/String;
-	public static final fun computeFindings (Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Ljava/util/List;
-	public static synthetic fun computeFindings$default (Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Ljava/util/List;
+	public static final fun computeFindings (Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Ljava/util/List;
+	public static synthetic fun computeFindings$default (Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Ljava/util/List;
 }
 
 public final class io/github/syrou/reaktiv/devtools/protocol/LogicTraceStatsKt {

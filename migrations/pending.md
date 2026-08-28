@@ -5045,6 +5045,11 @@ neither `DevToolsService` nor `SessionCapture` is running. Decoding performed by
 `Json.decodeFromString(response.bodyAsText())`, happens outside the client pipeline and is not
 covered.
 
+No source change is needed anywhere, since `decodeError` is the last parameter and defaults to
+null. The new field does move the generated constructor, `copy` and `component` signatures on
+`NetworkRequestCapture`, and the same applies to the added `computeFindings` parameter, so anything
+already compiled against the previous release has to be recompiled rather than swapped in.
+
 ---
 
 ### [AD-99] `ReaktivDebug.error` accepts a category

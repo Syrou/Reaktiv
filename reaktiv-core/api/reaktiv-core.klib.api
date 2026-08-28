@@ -261,6 +261,7 @@ final object io.github.syrou.reaktiv.core.util/ReaktivDebug { // io.github.syrou
     final fun addSink(io.github.syrou.reaktiv.core.util/ReaktivLogSink) // io.github.syrou.reaktiv.core.util/ReaktivDebug.addSink|addSink(io.github.syrou.reaktiv.core.util.ReaktivLogSink){}[0]
     final fun disable() // io.github.syrou.reaktiv.core.util/ReaktivDebug.disable|disable(){}[0]
     final fun enable() // io.github.syrou.reaktiv.core.util/ReaktivDebug.enable|enable(){}[0]
+    final fun error(kotlin/String, kotlin/String, kotlin/Throwable?) // io.github.syrou.reaktiv.core.util/ReaktivDebug.error|error(kotlin.String;kotlin.String;kotlin.Throwable?){}[0]
     final fun error(kotlin/String, kotlin/Throwable? = ...) // io.github.syrou.reaktiv.core.util/ReaktivDebug.error|error(kotlin.String;kotlin.Throwable?){}[0]
     final fun general(kotlin/String) // io.github.syrou.reaktiv.core.util/ReaktivDebug.general|general(kotlin.String){}[0]
     final fun nav(kotlin/String) // io.github.syrou.reaktiv.core.util/ReaktivDebug.nav|nav(kotlin.String){}[0]
