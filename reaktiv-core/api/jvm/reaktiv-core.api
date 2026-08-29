@@ -82,6 +82,10 @@ public abstract interface class io/github/syrou/reaktiv/core/InternalStoreOperat
 public abstract interface class io/github/syrou/reaktiv/core/Logic {
 }
 
+public abstract interface class io/github/syrou/reaktiv/core/Middleware {
+	public abstract fun invoke (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/jvm/functions/Function1;Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public abstract interface class io/github/syrou/reaktiv/core/Module {
 	public abstract fun getCreateLogic ()Lkotlin/jvm/functions/Function1;
 	public fun getCreateMiddleware ()Lkotlin/jvm/functions/Function0;
@@ -153,6 +157,7 @@ public final class io/github/syrou/reaktiv/core/Store : io/github/syrou/reaktiv/
 	public fun dispatchAndAwait (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun endExternalControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getActiveDispatchInstrumentation ()Lio/github/syrou/reaktiv/core/DispatchInstrumentation;
+	public fun getAllStates ()Ljava/util/Map;
 	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
 	public fun getDispatch ()Lkotlin/jvm/functions/Function1;
 	public final fun getInitialized ()Lkotlinx/coroutines/flow/StateFlow;
@@ -184,6 +189,7 @@ public abstract class io/github/syrou/reaktiv/core/StoreAccessor : kotlinx/corou
 	public abstract fun addCrashListener (Lio/github/syrou/reaktiv/core/CrashListener;)V
 	public final fun asInternalOperations ()Lio/github/syrou/reaktiv/core/InternalStoreOperations;
 	public abstract fun dispatchAndAwait (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getAllStates ()Ljava/util/Map;
 	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
 	public abstract fun getDispatch ()Lkotlin/jvm/functions/Function1;
 	public abstract fun getLogicForModule (Lio/github/syrou/reaktiv/core/Module;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -197,10 +203,26 @@ public abstract class io/github/syrou/reaktiv/core/StoreAccessor : kotlinx/corou
 	public abstract fun selectState (Lkotlin/reflect/KClass;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public abstract class io/github/syrou/reaktiv/core/StoreAction : io/github/syrou/reaktiv/core/ModuleAction, io/github/syrou/reaktiv/core/ExternalControlExempt, io/github/syrou/reaktiv/core/HighPriorityAction {
+}
+
+public final class io/github/syrou/reaktiv/core/StoreAction$Hydrate : io/github/syrou/reaktiv/core/StoreAction {
+	public fun <init> (Ljava/util/Map;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/util/Map;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/util/Map;Ljava/lang/String;)Lio/github/syrou/reaktiv/core/StoreAction$Hydrate;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/core/StoreAction$Hydrate;Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/core/StoreAction$Hydrate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOrigin ()Ljava/lang/String;
+	public final fun getStates ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/syrou/reaktiv/core/StoreDSL {
 	public fun <init> ()V
 	public final fun coroutineContext (Lkotlin/coroutines/CoroutineContext;)V
-	public final fun middlewares ([Lkotlin/jvm/functions/Function5;)V
+	public final fun middlewares ([Lio/github/syrou/reaktiv/core/Middleware;)V
 	public final fun module (Lkotlin/reflect/KClass;Lio/github/syrou/reaktiv/core/Module;)V
 	public final fun moduleErased (Lio/github/syrou/reaktiv/core/Module;)V
 	public final fun persistenceManager (Lio/github/syrou/reaktiv/core/persistance/PersistenceStrategy;)V

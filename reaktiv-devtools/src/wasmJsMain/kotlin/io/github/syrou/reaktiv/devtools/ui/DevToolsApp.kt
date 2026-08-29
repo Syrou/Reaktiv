@@ -563,6 +563,7 @@ private fun DevToolsContent(store: Store, serverUrl: String) {
                             PerformancePanel(
                                 dataRevision = state.dataRevision,
                                 logicMethodEvents = state.logicMethodEvents,
+                                findings = findings,
                                 actionStateHistory = state.actionStateHistory,
                                 initialStateJson = state.initialStateJson
                             )

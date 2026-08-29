@@ -1,7 +1,7 @@
 package io.github.syrou.reaktiv.devtools.service
 
 import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
-import io.github.syrou.reaktiv.core.Middleware
+import io.github.syrou.reaktiv.core.StoreAction
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
@@ -27,7 +27,7 @@ import io.github.syrou.reaktiv.introspection.capture.chunked
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import io.github.syrou.reaktiv.introspection.protocol.mergeCapturedDeltas
-import io.github.syrou.reaktiv.introspection.protocol.mergeFieldJson
+import io.github.syrou.reaktiv.introspection.protocol.mergeFields
 import io.github.syrou.reaktiv.introspection.network.NetworkEventListener
 import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import io.github.syrou.reaktiv.introspection.WireBudget
@@ -72,7 +72,6 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private var json: Json? = null
     private var logicObserver: DevToolsLogicObserver? = null
     private var clientId: String = ""
-    private var getAllStatesRef: (suspend () -> Map<String, ModuleState>)? = null
     private var manuallyDisconnected: Boolean = false
     private var pendingReconnect: Boolean = false
     private var pendingReconnectRole: ClientRole? = null
@@ -112,13 +111,6 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
      */
     override val startsExternallyDriven: Boolean
         get() = listenerStartPending
-
-    override fun createMiddleware(): Middleware = { action, getAllStates, _, updatedState ->
-        if (getAllStatesRef == null) {
-            getAllStatesRef = getAllStates
-        }
-        updatedState(action)
-    }
 
     override suspend fun onCommand(command: ToolingCommand, args: Map<String, String>) {
         if (command !is DevToolsCommand) return
@@ -692,7 +684,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private suspend fun SessionHistory.withBaseline(): SessionHistory {
         if (initialStateJson.isNotBlank() && initialStateJson != "{}") return this
         val json = json ?: return this
-        val states = getAllStatesRef?.invoke() ?: return this
+        val states = context?.storeAccessor?.getAllStates() ?: return this
         val mapSerializer = MapSerializer(String.serializer(), PolymorphicSerializer(ModuleState::class))
         return copy(initialStateJson = json.encodeToString(mapSerializer, states))
     }
@@ -702,7 +694,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         val json = json ?: return
         if (!isConnected()) return
         try {
-            val allStates = getAllStatesRef?.invoke() ?: return
+            val allStates = context.storeAccessor.getAllStates()
             send(
                 DevToolsMessage.StateSync(
                     fromClientId = clientId,
@@ -755,6 +747,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     }
 
     private companion object {
+        const val ORIGIN: String = "DevTools"
         const val DELTA_CONFLATION_WINDOW_MS: Long = 75L
         const val RECONNECT_INITIAL_DELAY_MS: Long = 1000L
         const val RECONNECT_MAX_DELAY_MS: Long = 30_000L
@@ -784,9 +777,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                     )
                     return
                 }
-                json.parseToJsonElement(
-                    mergeFieldJson(base.toString(), event.stateDeltaJson)
-                ).jsonObject
+                mergeFields(base, incoming)
             } else {
                 incoming
             }
@@ -795,7 +786,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 PolymorphicSerializer(ModuleState::class),
                 restoreRedactedModuleElement(json, merged).toString()
             )
-            context?.storeAccessor?.asInternalOperations()?.applyExternalStates(mapOf(event.moduleName to state))
+            context?.storeAccessor?.dispatchAndAwait(StoreAction.Hydrate(mapOf(event.moduleName to state), ORIGIN))
         } catch (e: Exception) {
             ReaktivDebug.warn("DevTools: Failed to apply action delta - ${e.message}")
             report(
@@ -859,13 +850,13 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                         PolymorphicSerializer(ModuleState::class), safe.toString()
                     )
                 )
-                storeAccessor.asInternalOperations()?.applyExternalStates(single)
+                storeAccessor.dispatchAndAwait(StoreAction.Hydrate(single, ORIGIN))
                 return
             }
 
             val decoded = decodeTreePerModule(json, sync.stateJson)
             if (decoded.applied.isNotEmpty()) {
-                storeAccessor.asInternalOperations()?.applyExternalStates(decoded.applied)
+                storeAccessor.dispatchAndAwait(StoreAction.Hydrate(decoded.applied, ORIGIN))
                 onFirstProjectionApplied(decoded.applied.keys)
             }
             if (decoded.failed.isNotEmpty()) {

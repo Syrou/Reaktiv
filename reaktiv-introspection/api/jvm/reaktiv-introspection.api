@@ -442,6 +442,7 @@ public final class io/github/syrou/reaktiv/introspection/protocol/CapturedAction
 public final class io/github/syrou/reaktiv/introspection/protocol/CapturedEventsKt {
 	public static final fun mergeCapturedDeltas (Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;)Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;
 	public static final fun mergeFieldJson (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public static final fun mergeFields (Lkotlinx/serialization/json/JsonObject;Lkotlinx/serialization/json/JsonObject;)Lkotlinx/serialization/json/JsonObject;
 }
 
 public final class io/github/syrou/reaktiv/introspection/protocol/CrashDiagnosis {
@@ -975,7 +976,7 @@ public final class io/github/syrou/reaktiv/introspection/tooling/ToolingModuleKt
 }
 
 public abstract interface class io/github/syrou/reaktiv/introspection/tooling/ToolingService {
-	public fun createMiddleware ()Lkotlin/jvm/functions/Function5;
+	public fun createMiddleware ()Lio/github/syrou/reaktiv/core/Middleware;
 	public abstract fun getName ()Ljava/lang/String;
 	public fun getStartsExternallyDriven ()Z
 	public fun onCommand (Lio/github/syrou/reaktiv/introspection/tooling/ToolingCommand;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -984,7 +985,7 @@ public abstract interface class io/github/syrou/reaktiv/introspection/tooling/To
 }
 
 public final class io/github/syrou/reaktiv/introspection/tooling/ToolingService$DefaultImpls {
-	public static fun createMiddleware (Lio/github/syrou/reaktiv/introspection/tooling/ToolingService;)Lkotlin/jvm/functions/Function5;
+	public static fun createMiddleware (Lio/github/syrou/reaktiv/introspection/tooling/ToolingService;)Lio/github/syrou/reaktiv/core/Middleware;
 	public static fun getStartsExternallyDriven (Lio/github/syrou/reaktiv/introspection/tooling/ToolingService;)Z
 	public static fun onCommand (Lio/github/syrou/reaktiv/introspection/tooling/ToolingService;Lio/github/syrou/reaktiv/introspection/tooling/ToolingCommand;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }

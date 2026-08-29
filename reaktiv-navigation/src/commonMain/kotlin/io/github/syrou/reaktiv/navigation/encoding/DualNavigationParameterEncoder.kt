@@ -70,6 +70,10 @@ public class DualNavigationParameterEncoder(
     }
 
     
+    @Deprecated(
+        "Never used by navigation. Parameters travel as Params rather than a query string.",
+        level = DeprecationLevel.WARNING
+    )
     public fun encodeSimpleQueryString(parameters: Map<String, Any>): String {
         if (parameters.isEmpty()) return ""
 
@@ -96,30 +100,35 @@ public class DualNavigationParameterEncoder(
     }
 
     
+    @Deprecated("Never used by navigation. Parameters travel as Params and are decoded on read, and the type-safe and mixed encoders were never wired into the navigation pipeline.", level = DeprecationLevel.WARNING)
     public fun <T> encodeTypeSafe(value: T, serializer: KSerializer<T>): String {
         val jsonString = json.encodeToString(serializer, value)
         return urlEncoder.encodeQuery(jsonString)
     }
 
     
+    @Deprecated("Never used by navigation. Parameters travel as Params and are decoded on read, and the type-safe and mixed encoders were never wired into the navigation pipeline.", level = DeprecationLevel.WARNING)
     public inline fun <reified T> encodeTypeSafe(value: T): String {
         val serializer = serializer<T>()
         return encodeTypeSafe(value, serializer)
     }
 
     
+    @Deprecated("Never used by navigation. Parameters travel as Params and are decoded on read, and the type-safe and mixed encoders were never wired into the navigation pipeline.", level = DeprecationLevel.WARNING)
     public fun <T> decodeTypeSafe(encoded: String, serializer: KSerializer<T>): T {
         val decoded = urlEncoder.decode(encoded)
         return json.decodeFromString(serializer, decoded)
     }
 
     
+    @Deprecated("Never used by navigation. Parameters travel as Params and are decoded on read, and the type-safe and mixed encoders were never wired into the navigation pipeline.", level = DeprecationLevel.WARNING)
     public inline fun <reified T> decodeTypeSafe(encoded: String): T {
         val serializer = serializer<T>()
         return decodeTypeSafe(encoded, serializer)
     }
 
     
+    @Deprecated("Never used by navigation. Parameters travel as Params and are decoded on read, and the type-safe and mixed encoders were never wired into the navigation pipeline.", level = DeprecationLevel.WARNING)
     public fun encodeTypeSafeQueryString(parameters: Map<String, TypedParam<*>>): String {
         if (parameters.isEmpty()) return ""
 
@@ -131,12 +140,13 @@ public class DualNavigationParameterEncoder(
     }
 
     
-    @Suppress("UNCHECKED_CAST")
+    @Suppress("UNCHECKED_CAST", "DEPRECATION")
     private fun encodeTypeSafeWildcard(typedParam: TypedParam<Any>): String {
         return encodeTypeSafe(typedParam.value, typedParam.serializer)
     }
 
     
+    @Deprecated("Never used by navigation. Parameters travel as Params and are decoded on read, and the type-safe and mixed encoders were never wired into the navigation pipeline.", level = DeprecationLevel.WARNING)
     public fun encodeMixed(value: Any): Any {
         return when (value) {
             is TypedParam<*> -> {
@@ -148,6 +158,7 @@ public class DualNavigationParameterEncoder(
     }
 
     
+    @Deprecated("Never used by navigation. Parameters travel as Params and are decoded on read, and the type-safe and mixed encoders were never wired into the navigation pipeline.", level = DeprecationLevel.WARNING)
     public fun encodeMixedQueryString(parameters: Map<String, Any>): String {
         if (parameters.isEmpty()) return ""
 
@@ -156,6 +167,7 @@ public class DualNavigationParameterEncoder(
         }
     }
     
+    @Deprecated("Never used by navigation. Parameters travel as Params and are decoded on read, and the type-safe and mixed encoders were never wired into the navigation pipeline.", level = DeprecationLevel.WARNING)
     public fun encodeStepParameters(stepParams: Map<String, Any>): Map<String, Any> {
         return stepParams.mapValues { (_, value) ->
             encodeMixed(value)

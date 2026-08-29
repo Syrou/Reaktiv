@@ -1,8 +1,6 @@
 package io.github.syrou.reaktiv.introspection.protocol
 
 import io.github.syrou.reaktiv.core.util.reaktivJson
-import kotlinx.serialization.json.Json
-import io.github.syrou.reaktiv.core.util.reaktivJson
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 

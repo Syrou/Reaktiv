@@ -152,7 +152,7 @@ public fun NavigationRender(
                 }
             }
             PlatformBackHandler(
-                enabled = canHandleBack(navigationState, navModule),
+                enabled = canHandleBack(navigationState),
                 coordinator = backCoordinator
             )
         }

@@ -45,7 +45,7 @@ import io.github.syrou.reaktiv.devtools.protocol.DispatchStats
 import io.github.syrou.reaktiv.devtools.protocol.MethodStats
 import io.github.syrou.reaktiv.devtools.protocol.SYNTHETIC_TRACE_CLASSES
 import io.github.syrou.reaktiv.devtools.protocol.asClipboardText
-import io.github.syrou.reaktiv.devtools.protocol.computeFindings
+import io.github.syrou.reaktiv.devtools.protocol.Finding
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
@@ -67,6 +67,7 @@ import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 internal fun PerformancePanel(
     dataRevision: Long,
     logicMethodEvents: List<LogicMethodEvent>,
+    findings: List<Finding>,
     actionStateHistory: List<CapturedAction> = emptyList(),
     initialStateJson: String = "{}",
 ) {
@@ -112,10 +113,6 @@ internal fun PerformancePanel(
     var methodFilter by remember { mutableStateOf("") }
     var warningsExpanded by remember { mutableStateOf(false) }
     var showPipeline by remember { mutableStateOf(false) }
-    val findings = remember(dataRevision) {
-        computeFindings(started, completed, sizeStats, emptyList())
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()

@@ -49,6 +49,11 @@ public class Params private constructor(
         /**
          * Create Params from URL-encoded query string
          */
+        @Deprecated(
+            "Never used by navigation. Build a Params from the resolved route instead.",
+            level = DeprecationLevel.WARNING
+        )
+        @Suppress("DEPRECATION")
         public fun fromUrl(encodedQuery: String): Params {
             val encoder = DualNavigationParameterEncoder()
             val decoded = encoder.decodeSimpleQueryString(encodedQuery)
@@ -181,12 +186,6 @@ public class Params private constructor(
     // Check if empty
     public fun isEmpty(): Boolean = values.isEmpty()
     public fun isNotEmpty(): Boolean = values.isNotEmpty()
-    
-    // For URL generation only
-    internal fun toQueryString(): String {
-        val encoder = DualNavigationParameterEncoder()
-        return encoder.encodeSimpleQueryString(values)
-    }
     
     // Raw parameter access (for testing and migration compatibility)
     public operator fun get(key: String): Any? = values[key]

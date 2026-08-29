@@ -35,11 +35,15 @@ public fun mergeCapturedDeltas(pending: CapturedAction, incoming: CapturedAction
     return incoming.copy(stateDeltaJson = mergeFieldJson(pending.stateDeltaJson, incoming.stateDeltaJson))
 }
 
+public fun mergeFields(base: JsonObject, overlay: JsonObject): JsonObject =
+    JsonObject(base + overlay)
+
 public fun mergeFieldJson(baseJson: String, overlayJson: String): String {
     return try {
-        val base = Json.parseToJsonElement(baseJson).jsonObject
-        val overlay = Json.parseToJsonElement(overlayJson).jsonObject
-        JsonObject(base + overlay).toString()
+        mergeFields(
+            Json.parseToJsonElement(baseJson).jsonObject,
+            Json.parseToJsonElement(overlayJson).jsonObject
+        ).toString()
     } catch (e: Exception) {
         overlayJson
     }

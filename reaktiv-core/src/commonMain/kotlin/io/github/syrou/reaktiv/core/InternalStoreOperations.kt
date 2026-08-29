@@ -16,24 +16,34 @@ package io.github.syrou.reaktiv.core
 @ExperimentalReaktivApi
 public interface InternalStoreOperations {
     /**
-     * Applies external state updates directly to the store, bypassing the
-     * action/reducer/logic pipeline.
+     * Replaces the state of the named modules without running their reducers.
      *
-     * This method updates the store's state without dispatching actions or
-     * executing reducers. The states are applied atomically within the store's
-     * internal mutex lock to ensure thread safety.
+     * Delegates to [StoreAction.Hydrate], which the store applies from its dispatch loop, so
+     * the update is ordered against every other dispatch rather than written alongside them.
+     *
+     * Each module's state is written to its own [kotlinx.coroutines.flow.MutableStateFlow],
+     * so a single module's update is atomic, but the map is not applied as one
+     * transaction: a collector of one module can observe its new value before another
+     * module in the same call has been written.
      *
      * Example usage:
      * ```kotlin
-     * val internalOps = storeAccessor.asInternalOperations()
-     * internalOps?.applyExternalStates(mapOf(
-     *     "com.example.CounterState" to CounterState(value = 42),
-     *     "com.example.UserState" to UserState(name = "Alice")
-     * ))
+     * storeAccessor.dispatchAndAwait(
+     *     StoreAction.Hydrate(
+     *         states = mapOf("com.example.CounterState" to CounterState(value = 42)),
+     *         origin = "DevTools"
+     *     )
+     * )
      * ```
      *
      * @param states Map of state class qualified names to new state instances
      */
+    @Deprecated(
+        "Dispatch StoreAction.Hydrate instead, so external state is ordered against every " +
+            "other dispatch rather than written alongside the pipeline.",
+        ReplaceWith("dispatchAndAwait(StoreAction.Hydrate(states, \"External\"))"),
+        DeprecationLevel.WARNING
+    )
     public suspend fun applyExternalStates(states: Map<String, ModuleState>)
 
     /**

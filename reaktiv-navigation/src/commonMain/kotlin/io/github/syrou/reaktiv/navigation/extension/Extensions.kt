@@ -62,7 +62,6 @@ public inline fun Modifier.applyIf(condition: Boolean, modifier: Modifier.() -> 
 }
 
 public suspend fun StoreAccessor.dismissModal(modalEntry: NavigationEntry) {
-    val navModule = getNavigationModule()
     if (modalEntry.navigatable is Modal) {
         selectLogic<NavigationLogic>().popUpTo(modalEntry.path, inclusive = true)
     }
@@ -80,7 +79,6 @@ public suspend fun StoreAccessor.navigateDeepLink(route: String, params: Params 
 
 public suspend fun StoreAccessor.clearAllModals() {
     val navigationState = selectState<NavigationState>().first()
-    val navModule = getNavigationModule()
     val lastScreen = navigationState.orderedBackStack.reversed().firstOrNull {
         it.navigatable is Screen
     }

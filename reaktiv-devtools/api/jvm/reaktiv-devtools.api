@@ -1120,6 +1120,9 @@ public final class io/github/syrou/reaktiv/devtools/protocol/LogicTraceStatsKt {
 	public static final field CONGESTION_PEAK_THRESHOLD I
 	public static final field DISPATCH_QUEUE_WAIT_WARN_MS J
 	public static final field DISPATCH_TRACE_CLASS Ljava/lang/String;
+	public static final field GUARD_TRACE_CLASS Ljava/lang/String;
+	public static final field PHASE_TRACE_CLASS Ljava/lang/String;
+	public static final field REDACTION_TRACE_CLASS Ljava/lang/String;
 	public static final field STALL_TRACE_CLASS Ljava/lang/String;
 	public static final fun aggregateDispatchStats (Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lio/github/syrou/reaktiv/devtools/protocol/DispatchStats;
 	public static final fun aggregateLogicStats (Ljava/util/List;Ljava/util/List;Ljava/util/List;)Ljava/util/List;
@@ -1397,12 +1400,13 @@ public final class io/github/syrou/reaktiv/devtools/service/DevToolsService : io
 	public static final field LOG_BATCH_LIMIT I
 	public static final field LOG_FLUSH_INTERVAL_MS J
 	public static final field NETWORK_BATCH_LIMIT I
+	public static final field ORIGIN Ljava/lang/String;
 	public static final field RECONNECT_INITIAL_DELAY_MS J
 	public static final field RECONNECT_MAX_DELAY_MS J
 	public fun <init> (Lio/github/syrou/reaktiv/devtools/middleware/DevToolsConfig;)V
 	public final fun connect (Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun connect$default (Lio/github/syrou/reaktiv/devtools/service/DevToolsService;Ljava/lang/String;Lio/github/syrou/reaktiv/devtools/protocol/ClientRole;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public fun createMiddleware ()Lkotlin/jvm/functions/Function5;
+	public fun createMiddleware ()Lio/github/syrou/reaktiv/core/Middleware;
 	public final fun disconnect (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun follow (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun follow$default (Lio/github/syrou/reaktiv/devtools/service/DevToolsService;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;

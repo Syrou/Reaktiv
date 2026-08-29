@@ -17,7 +17,12 @@ public data class Finding(
     val githubUrl: String? = null
 )
 
-public const val FINDING_QUEUE_WAIT_WARN_MS: Long = 100L
+@Deprecated(
+    "Duplicate of DISPATCH_QUEUE_WAIT_WARN_MS, which carries the same threshold.",
+    ReplaceWith("DISPATCH_QUEUE_WAIT_WARN_MS"),
+    DeprecationLevel.WARNING
+)
+public const val FINDING_QUEUE_WAIT_WARN_MS: Long = DISPATCH_QUEUE_WAIT_WARN_MS
 public const val FINDING_REDUCER_WARN_MS: Long = 8L
 public const val FINDING_CHURN_WARN_EVENTS: Int = 50
 public const val FINDING_STORM_EVENTS: Int = 20
@@ -44,14 +49,14 @@ public fun computeFindings(
     val completionsByCallId = completions.associateBy { it.callId }
 
     for (start in starts) {
-        if (start.logicClass != "MainThreadWatchdog" || start.methodName != "stall") continue
+        if (start.logicClass != STALL_TRACE_CLASS || start.methodName != "stall") continue
         val completion = completionsByCallId[start.callId] ?: continue
         val stallEnd = completion.timestampMs
         val stallStart = stallEnd - completion.durationMs
         val culprit = starts
             .filter { candidate ->
                 candidate.logicClass !in SYNTHETIC_TRACE_CLASSES &&
-                    candidate.thread?.contains("main", ignoreCase = true) == true &&
+                    candidate.thread?.let { isMainThread(it) } == true &&
                     candidate.timestampMs <= stallEnd &&
                     (completionsByCallId[candidate.callId]?.timestampMs ?: stallEnd) >= stallStart
             }
@@ -72,7 +77,7 @@ public fun computeFindings(
         )
     }
 
-    starts.filter { it.logicClass == "RedactionWatchdog" }.forEach { start ->
+    starts.filter { it.logicClass == REDACTION_TRACE_CLASS }.forEach { start ->
         findings.add(
             Finding(
                 severity = FindingSeverity.WARNING,
@@ -85,22 +90,22 @@ public fun computeFindings(
     }
 
     val slowWaits = starts.filter {
-        it.logicClass == "StoreDispatch" &&
-            (it.params["queueWaitMs"]?.toLongOrNull() ?: 0L) >= FINDING_QUEUE_WAIT_WARN_MS
+        it.logicClass == DISPATCH_TRACE_CLASS &&
+            (it.params["queueWaitMs"]?.toLongOrNull() ?: 0L) >= DISPATCH_QUEUE_WAIT_WARN_MS
     }
     slowWaits.maxByOrNull { it.params["queueWaitMs"]?.toLongOrNull() ?: 0L }?.let { worst ->
         findings.add(
             Finding(
                 severity = FindingSeverity.WARNING,
                 category = "dispatch-latency",
-                title = "${slowWaits.size} dispatches waited ${FINDING_QUEUE_WAIT_WARN_MS}ms or more",
+                title = "${slowWaits.size} dispatches waited ${DISPATCH_QUEUE_WAIT_WARN_MS}ms or more",
                 detail = "Worst: ${worst.methodName} waited ${worst.params["queueWaitMs"]}ms",
                 timestampMs = worst.timestampMs
             )
         )
     }
 
-    starts.filter { it.logicClass == "DispatchPhase" && it.methodName == "reducer" }
+    starts.filter { it.logicClass == PHASE_TRACE_CLASS && it.methodName == "reducer" }
         .let { reducerStarts ->
             val worst = reducerStarts.maxByOrNull {
                 completionsByCallId[it.callId]?.durationMs ?: 0L
@@ -119,7 +124,7 @@ public fun computeFindings(
             )
         }
 
-    starts.filter { it.logicClass == "StoreDispatch" }
+    starts.filter { it.logicClass == DISPATCH_TRACE_CLASS }
         .groupBy { it.methodName }
         .forEach { (actionType, dispatches) ->
             val sorted = dispatches.sortedBy { it.timestampMs }

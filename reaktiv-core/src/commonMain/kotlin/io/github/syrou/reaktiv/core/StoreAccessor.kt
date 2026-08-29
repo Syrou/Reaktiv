@@ -186,6 +186,15 @@ public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @param module The module whose state flow to retrieve
      * @return The [StateFlow] of the module's state, or null if not registered
      */
+    /**
+     * A snapshot of every registered module's current state, keyed by the state class's
+     * qualified name.
+     *
+     * Each module owns its own state flow, so the snapshot is a read of each in turn rather
+     * than a transactional view of the whole tree.
+     */
+    public abstract fun getAllStates(): Map<String, ModuleState>
+
     public abstract fun getStateFlowForModule(module: Module<*, *>): StateFlow<ModuleState>?
 
     /**

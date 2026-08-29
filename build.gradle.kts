@@ -27,12 +27,10 @@ buildscript {
     }
 
     val kotlinVersion = project.extra["kotlinVersion"] as String
-    val atomicFuVersion = project.extra["atomicFuVersion"] as String
 
     dependencies {
         classpath("org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-        classpath("org.jetbrains.kotlinx:atomicfu-gradle-plugin:$atomicFuVersion")
     }
 }
 

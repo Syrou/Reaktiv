@@ -235,7 +235,7 @@ public object DevToolsServer {
                 println("DevTools Server: Role assignment request - ${message.role} for ${message.targetClientId}")
 
                 // currentPublisher covers both real devices and ghost devices
-                val currentPublisher = clientManager.getCurrentPublisher()
+                val currentPublisher = clientManager.currentPublisher()
                 val senderRole = if (currentClientId != null) clientManager.getClient(currentClientId)?.role else null
                 val isFromOrchestrator = senderRole == ClientRole.ORCHESTRATOR
                 val effectiveRole: ClientRole

@@ -12,6 +12,10 @@ import kotlinx.coroutines.flow.first
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
+import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
+import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
+import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
 
 internal class ScrubAxis(
     private val extent: Float,
@@ -35,6 +39,44 @@ internal class ScrubAxis(
 }
 
 internal class ScrubOutcome(val commit: Boolean, val progressVelocity: Float)
+
+/**
+ * The entries a scrub would move, and the kind of scrub it is.
+ *
+ * Produced by [armContentBack] and [armContentDismiss] so that every gesture path asks the same
+ * question in the same order. Six call sites previously repeated this decision inline, which is
+ * how a rule change reaches five of them.
+ */
+internal class ScrubArming(
+    val top: NavigationEntry,
+    val revealed: NavigationEntry,
+    val kind: InteractiveTransitionController.ScrubKind
+)
+
+internal fun armContentBack(
+    state: NavigationState,
+    navModule: NavigationModule,
+    controller: InteractiveTransitionController
+): ScrubArming? {
+    if (!canArmInteractiveBackGesture(state, navModule)) return null
+    if (controller.contentTransitionActive) return null
+    val top = state.currentEntry
+    val revealed = revealedEntryForBack(state) ?: return null
+    return ScrubArming(top, revealed, InteractiveTransitionController.ScrubKind.ContentBack(top, revealed))
+}
+
+internal fun armContentDismiss(
+    state: NavigationState,
+    navModule: NavigationModule,
+    controller: InteractiveTransitionController
+): ScrubArming? {
+    if (!canArmSwipeDismiss(state, navModule)) return null
+    if (controller.contentTransitionActive) return null
+    val top = state.currentEntry
+    val revealed = revealedEntryForDismiss(state, navModule) ?: return null
+    return ScrubArming(top, revealed, InteractiveTransitionController.ScrubKind.ContentDismiss(top, revealed))
+}
+
 
 internal suspend fun AwaitPointerEventScope.trackScrub(
     controller: InteractiveTransitionController,

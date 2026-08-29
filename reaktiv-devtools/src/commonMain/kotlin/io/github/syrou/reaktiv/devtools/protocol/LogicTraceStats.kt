@@ -107,12 +107,18 @@ public fun aggregateDispatchStats(
 
 public const val STALL_TRACE_CLASS: String = "MainThreadWatchdog"
 
+public const val PHASE_TRACE_CLASS: String = "DispatchPhase"
+
+public const val REDACTION_TRACE_CLASS: String = "RedactionWatchdog"
+
+public const val GUARD_TRACE_CLASS: String = "NavigationGuards"
+
 public val SYNTHETIC_TRACE_CLASSES: Set<String> = setOf(
     DISPATCH_TRACE_CLASS,
     STALL_TRACE_CLASS,
-    "DispatchPhase",
-    "RedactionWatchdog",
-    "NavigationGuards"
+    PHASE_TRACE_CLASS,
+    REDACTION_TRACE_CLASS,
+    GUARD_TRACE_CLASS
 )
 
 public fun isMainThread(thread: String): Boolean {

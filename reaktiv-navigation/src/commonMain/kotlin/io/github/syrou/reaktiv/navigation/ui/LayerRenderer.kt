@@ -484,7 +484,6 @@ private fun EntryHost(slot: ContentSlot, screenWidth: Float, screenHeight: Float
 private fun OverlayLayerRenderer(
     entries: List<NavigationEntry>
 ) {
-    val navModule = LocalNavigationModule.current
     val modalStates = rememberModalAnimationState(entries)
     val activeStates = remember { mutableStateMapOf<String, ModalEntryState>() }
 
@@ -543,7 +542,6 @@ private fun SystemLayerRenderer(
     entries: List<NavigationEntry>,
     evaluationOverlay: LoadingModal? = null
 ) {
-    val navModule = LocalNavigationModule.current
     val windowInfo = LocalWindowInfo.current
     val screenWidth = windowInfo.containerSize.width.toFloat()
     val screenHeight = windowInfo.containerSize.height.toFloat()

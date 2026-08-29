@@ -1,6 +1,6 @@
 package io.github.syrou.reaktiv.navigation.util
 
-private val routeParamRegex = Regex("\\{([^}]+)\\}")
+internal val routeParamRegex = Regex("\\{([^}]+)\\}")
 
 /**
  * Extracts `{paramName}` placeholder names from a route template in declaration order.

@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.introspection
 
+import io.github.syrou.reaktiv.core.tracing.Obfuscation
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -28,7 +29,7 @@ public val DEFAULT_SENSITIVE_KEYS: Set<String> = setOf(
     "ssn"
 )
 
-public const val REDACTED_PLACEHOLDER: String = "[REDACTED]"
+public const val REDACTED_PLACEHOLDER: String = Obfuscation.REDACTED
 
 /**
  * The key kotlinx.serialization writes the concrete type into for polymorphic values.

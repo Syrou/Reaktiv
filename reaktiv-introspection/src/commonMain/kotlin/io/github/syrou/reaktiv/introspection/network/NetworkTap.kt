@@ -1,21 +1,19 @@
 package io.github.syrou.reaktiv.introspection.network
 
-import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import io.github.syrou.reaktiv.core.util.CopyOnWriteRegistry
 
 public fun interface NetworkEventListener {
     public fun onNetworkEvent(event: NetworkRequestCapture)
 }
 
-@OptIn(ExperimentalAtomicApi::class)
 public object NetworkTap {
-    private val listeners = AtomicReference<List<NetworkEventListener>>(emptyList())
-    private val bodyProviders = AtomicReference<List<NetworkBodyProvider>>(emptyList())
+    private val listeners = CopyOnWriteRegistry<NetworkEventListener>()
+    private val bodyProviders = CopyOnWriteRegistry<NetworkBodyProvider>()
 
-    public val hasListeners: Boolean get() = listeners.load().isNotEmpty()
+    public val hasListeners: Boolean get() = !listeners.isEmpty
 
     public fun emit(event: NetworkRequestCapture) {
-        listeners.load().forEach { listener ->
+        listeners.snapshot().forEach { listener ->
             try {
                 listener.onNetworkEvent(event)
             } catch (_: Exception) {
@@ -24,31 +22,19 @@ public object NetworkTap {
     }
 
     public fun addListener(listener: NetworkEventListener) {
-        while (true) {
-            val current = listeners.load()
-            if (listeners.compareAndSet(current, current + listener)) return
-        }
+        listeners.add(listener)
     }
 
     public fun removeListener(listener: NetworkEventListener) {
-        while (true) {
-            val current = listeners.load()
-            if (listeners.compareAndSet(current, current - listener)) return
-        }
+        listeners.remove(listener)
     }
 
     public fun addBodyProvider(provider: NetworkBodyProvider) {
-        while (true) {
-            val current = bodyProviders.load()
-            if (bodyProviders.compareAndSet(current, current + provider)) return
-        }
+        bodyProviders.add(provider)
     }
 
     public fun removeBodyProvider(provider: NetworkBodyProvider) {
-        while (true) {
-            val current = bodyProviders.load()
-            if (bodyProviders.compareAndSet(current, current - provider)) return
-        }
+        bodyProviders.remove(provider)
     }
 
     public fun bodySlice(
@@ -57,7 +43,7 @@ public object NetworkTap {
         offset: Int,
         maxBytes: Int
     ): NetworkBodySlice? {
-        bodyProviders.load().forEach { provider ->
+        bodyProviders.snapshot().forEach { provider ->
             val slice = try {
                 provider.slice(requestId, part, offset, maxBytes)
             } catch (_: Exception) {
@@ -69,7 +55,7 @@ public object NetworkTap {
     }
 
     public fun clear() {
-        listeners.store(emptyList())
-        bodyProviders.store(emptyList())
+        listeners.clear()
+        bodyProviders.clear()
     }
 }

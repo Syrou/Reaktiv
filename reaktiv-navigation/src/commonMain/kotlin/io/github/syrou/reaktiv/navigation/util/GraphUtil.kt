@@ -11,10 +11,10 @@ public fun findLayoutGraphsInHierarchy(
 }
 
 public fun buildGraphHierarchyPath(
-    targetGraphId: String,
+    graphId: String,
     graphDefinitions: Map<String, NavigationGraph>
 ): List<NavigationGraph> {
-    val targetGraph = graphDefinitions[targetGraphId] ?: return emptyList()
+    val targetGraph = graphDefinitions[graphId] ?: return emptyList()
 
     val path = mutableListOf<NavigationGraph>()
     var currentGraph: NavigationGraph? = targetGraph

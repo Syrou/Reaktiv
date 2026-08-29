@@ -77,11 +77,11 @@ public class NavigationParameterBuilder {
  * ```
  *
  * @param storeAccessor Accessor for the store to execute operations
- * @param encoder Parameter encoder for serialization
+ * @param encoder Ignored. Retained for source compatibility and removed in a later release.
  */
 public class NavigationBuilder(
     private val storeAccessor: StoreAccessor,
-    private val encoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
+    @Suppress("UNUSED_PARAMETER") encoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder()
 ) {
     @PublishedApi
     internal val operations: MutableList<NavigationStep> = mutableListOf()

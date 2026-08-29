@@ -7,12 +7,9 @@ import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
 import io.github.syrou.reaktiv.navigation.util.canHandleBack
 import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -34,15 +31,10 @@ internal class PlatformBackCoordinator(
     private var scrubRevealed: NavigationEntry? = null
 
     fun startScrub(): Boolean {
-        val state = stateProvider()
-        if (!canArmInteractiveBackGesture(state, navModule)) return false
-        if (controller.contentTransitionActive) return false
-        val top = state.currentEntry
-        val revealed = revealedEntryForBack(state) ?: return false
-        val kind = InteractiveTransitionController.ScrubKind.ContentBack(top, revealed)
-        if (!controller.beginScrub(kind)) return false
-        scrubTop = top
-        scrubRevealed = revealed
+        val arming = armContentBack(stateProvider(), navModule, controller) ?: return false
+        if (!controller.beginScrub(arming.kind)) return false
+        scrubTop = arming.top
+        scrubRevealed = arming.revealed
         return true
     }
 
@@ -137,7 +129,7 @@ internal suspend fun dismissSurface(
 
 internal suspend fun dispatchBackDismissal(store: Store, navModule: NavigationModule) {
     val state = store.selectState<NavigationState>().first()
-    if (!canHandleBack(state, navModule)) return
+    if (!canHandleBack(state)) return
     val handler = state.currentEntry.navigatable.onDismissRequest
     if (handler != null) {
         handler.invoke(store)

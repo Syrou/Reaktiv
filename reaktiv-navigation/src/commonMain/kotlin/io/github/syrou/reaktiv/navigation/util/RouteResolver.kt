@@ -26,19 +26,6 @@ public class RouteResolver private constructor(
 
     public companion object {
 
-        private fun findGraphForNavigatable(
-            navigatable: Navigatable?,
-            graphDefinitions: Map<String, NavigationGraph>
-        ): String? {
-            if (navigatable == null) return null
-            for ((graphId, graph) in graphDefinitions) {
-                if (graph.navigatables.contains(navigatable)) {
-                    return graphId
-                }
-            }
-            return null
-        }
-
         public fun create(
             graphDefinitions: Map<String, NavigationGraph>,
             routeToNavigatable: Map<String, Navigatable>,
@@ -78,7 +65,7 @@ public class RouteResolver private constructor(
                     } else {
                         fullPathToResolution[fullPath] = RouteResolution(
                             targetNavigatable = navigatable,
-                            targetGraphId = graphId,
+                            owningGraphId = graphId,
                             extractedParams = Params.empty(),
                             isGraphReference = false
                         )
@@ -89,9 +76,9 @@ public class RouteResolver private constructor(
                     graphToStartNavigatable[graphId] = startResolution
                     val graphRouteResolution = RouteResolution(
                         targetNavigatable = startResolution.navigatable,
-                        targetGraphId = startResolution.actualGraphId,
+                        owningGraphId = startResolution.actualGraphId,
                         extractedParams = Params.empty(),
-                        navigationGraphId = graphId,
+                        requestedGraphId = graphId,
                         isGraphReference = graph.startDestination is StartDestination.GraphReference
                     )
 
@@ -158,6 +145,19 @@ public class RouteResolver private constructor(
 
     public fun fullPathForGraph(graphId: String): String? = graphIdToFullPath[graphId]
 
+    /**
+     * Resolves a route or full path to a destination, or `null` when nothing matches.
+     *
+     * [availableNavigatables] is consulted only after every registry lookup has missed. Passing
+     * the registry's own root-navigatable map therefore has no effect, because a root
+     * navigatable's full path is its route, so `routeToNavigatable` already answers for it
+     * earlier in this function. Callers inside the module pass nothing.
+     *
+     * @param route A route or slash-separated full path.
+     * @param availableNavigatables Extra short-route destinations to fall back on. Deprecated in
+     *   effect and removed in a later release together with
+     *   `PrecomputedNavigationData.availableNavigatables`.
+     */
     public fun resolve(
         route: String,
         availableNavigatables: Map<String, Navigatable> = emptyMap()
@@ -175,7 +175,7 @@ public class RouteResolver private constructor(
             val graphId = findGraphForNavigatable(navigatable) ?: "root"
             return RouteResolution(
                 targetNavigatable = navigatable,
-                targetGraphId = graphId,
+                owningGraphId = graphId,
                 extractedParams = Params.empty(),
                 isGraphReference = false
             )
@@ -184,9 +184,9 @@ public class RouteResolver private constructor(
             ReaktivDebug.nav("Graph start destination found: $cleanRoute")
             return RouteResolution(
                 targetNavigatable = startResolution.navigatable,
-                targetGraphId = startResolution.actualGraphId,
+                owningGraphId = startResolution.actualGraphId,
                 extractedParams = Params.empty(),
-                navigationGraphId = cleanRoute,
+                requestedGraphId = cleanRoute,
                 isGraphReference = graphDefinitions[cleanRoute]?.startDestination is StartDestination.GraphReference
             )
         }
@@ -202,9 +202,9 @@ public class RouteResolver private constructor(
                 ReaktivDebug.nav("Redirecting to notFoundScreen for graph: $cleanRoute")
                 return RouteResolution(
                     targetNavigatable = screen,
-                    targetGraphId = "root",
+                    owningGraphId = "root",
                     extractedParams = Params.empty(),
-                    navigationGraphId = canonicalId,
+                    requestedGraphId = canonicalId,
                     isGraphReference = false
                 )
             }
@@ -214,7 +214,7 @@ public class RouteResolver private constructor(
             ReaktivDebug.nav("Root navigatable found in provided map: $cleanRoute")
             return RouteResolution(
                 targetNavigatable = navigatable,
-                targetGraphId = "root",
+                owningGraphId = "root",
                 extractedParams = Params.empty(),
                 isGraphReference = false
             )
@@ -238,17 +238,23 @@ public class RouteResolver private constructor(
         }
 
         ReaktivDebug.nav("Route not found: $cleanRoute")
+        return null
+    }
 
-        // Return notFoundScreen resolution if configured
-        return notFoundScreen?.let { screen ->
-            ReaktivDebug.nav("Redirecting to notFoundScreen for: $cleanRoute")
-            RouteResolution(
-                targetNavigatable = screen,
-                targetGraphId = "root",
-                extractedParams = Params.empty(),
-                isGraphReference = false
-            )
-        }
+    /**
+     * The resolution for the configured notFound screen, or `null` when none is configured.
+     *
+     * Call sites that want an unresolvable route to land somewhere rather than fail apply this
+     * themselves, so the fallback is visible where it is chosen rather than hidden inside
+     * [resolve].
+     */
+    public fun notFoundResolution(): RouteResolution? = notFoundScreen?.let { screen ->
+        RouteResolution(
+            targetNavigatable = screen,
+            owningGraphId = "root",
+            extractedParams = Params.empty(),
+            isGraphReference = false
+        )
     }
 
     /**
@@ -276,7 +282,7 @@ public class RouteResolver private constructor(
 
                 RouteResolution(
                     targetNavigatable = navigatable,
-                    targetGraphId = graphId,
+                    owningGraphId = graphId,
                     extractedParams = Params.empty(),
                     isGraphReference = false
                 )
@@ -327,7 +333,7 @@ public class RouteResolver private constructor(
 
                 return RouteResolution(
                     targetNavigatable = paramRoute.navigatable,
-                    targetGraphId = paramRoute.graphId,
+                    owningGraphId = paramRoute.graphId,
                     extractedParams = params,
                     isGraphReference = false
                 )
@@ -369,9 +375,8 @@ public class RouteResolver private constructor(
 
     private fun substituteRouteParameters(routeTemplate: String, params: Params): String {
         var resolvedRoute = routeTemplate
-        val paramRegex = Regex("\\{([^}]+)\\}")
 
-        for (match in paramRegex.findAll(routeTemplate)) {
+        for (match in routeParamRegex.findAll(routeTemplate)) {
             val placeholder = match.value
             val paramName = match.groupValues[1]
             val paramValue = params.getString(paramName)
@@ -410,10 +415,6 @@ public class RouteResolver private constructor(
         }
 
         val resolution = resolve(cleanPath)
-
-        if (resolution != null && notFoundScreen != null && resolution.targetNavigatable == notFoundScreen) {
-            return null
-        }
 
         return resolution
     }

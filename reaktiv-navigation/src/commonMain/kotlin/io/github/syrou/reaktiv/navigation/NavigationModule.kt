@@ -20,6 +20,7 @@ import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.NavigationProjection
 import io.github.syrou.reaktiv.navigation.model.NavigationEntrySerializer
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
@@ -78,7 +79,7 @@ public class NavigationModule internal constructor(
         builder.contextual(
             NavigationEntry::class,
             NavigationEntrySerializer { path ->
-                precomputedData.allNavigatables[path] ?: precomputedData.notFoundScreen
+                precomputedData.routeToNavigatable[path] ?: precomputedData.notFoundScreen
             }
         )
     }
@@ -135,9 +136,9 @@ public class NavigationModule internal constructor(
             is StartDestination.DirectScreen -> {
                 RouteResolution(
                     targetNavigatable = dest.screen,
-                    targetGraphId = rootGraph.route,
+                    owningGraphId = rootGraph.route,
                     extractedParams = Params.empty(),
-                    navigationGraphId = rootGraph.route
+                    requestedGraphId = rootGraph.route
                 )
             }
 
@@ -163,9 +164,9 @@ public class NavigationModule internal constructor(
                             }
                         RouteResolution(
                             targetNavigatable = fallback,
-                            targetGraphId = rootGraph.route,
+                            owningGraphId = rootGraph.route,
                             extractedParams = Params.empty(),
-                            navigationGraphId = rootGraph.route
+                            requestedGraphId = rootGraph.route
                         )
                     }
             }
@@ -189,9 +190,9 @@ public class NavigationModule internal constructor(
                     }
                 RouteResolution(
                     targetNavigatable = fallbackNavigatable,
-                    targetGraphId = rootGraph.route,
+                    owningGraphId = rootGraph.route,
                     extractedParams = Params.empty(),
-                    navigationGraphId = rootGraph.route
+                    requestedGraphId = rootGraph.route
                 )
             }
         }
@@ -215,20 +216,7 @@ public class NavigationModule internal constructor(
             backStack = initialBackStack,
             lastNavigationAction = null,
             screenRetentionDuration = screenRetentionDuration,
-            visibleLayers = computedState.visibleLayers,
-            currentFullPath = computedState.currentFullPath,
-            currentGraphHierarchy = computedState.currentGraphHierarchy,
-            breadcrumbs = computedState.breadcrumbs,
-            isCurrentModal = computedState.isCurrentModal,
-            isCurrentScreen = computedState.isCurrentScreen,
-            hasModalsInStack = computedState.hasModalsInStack,
-            contentLayerEntries = computedState.contentLayerEntries,
-            globalOverlayEntries = computedState.globalOverlayEntries,
-            systemLayerEntries = computedState.systemLayerEntries,
-            underlyingScreen = computedState.underlyingScreen,
-            modalsInStack = computedState.modalsInStack,
-            underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
-            showsNavigationChrome = computedState.showsNavigationChrome,
+            derived = computedState,
             activeModalContexts = emptyMap(),
             pendingNavigation = null
         )
@@ -265,20 +253,7 @@ public class NavigationModule internal constructor(
             backStack = newBackStack,
             lastNavigationAction = navigationAction,
             screenRetentionDuration = state.screenRetentionDuration,
-            visibleLayers = computedState.visibleLayers,
-            currentFullPath = computedState.currentFullPath,
-            currentGraphHierarchy = computedState.currentGraphHierarchy,
-            breadcrumbs = computedState.breadcrumbs,
-            isCurrentModal = computedState.isCurrentModal,
-            isCurrentScreen = computedState.isCurrentScreen,
-            hasModalsInStack = computedState.hasModalsInStack,
-            contentLayerEntries = computedState.contentLayerEntries,
-            globalOverlayEntries = computedState.globalOverlayEntries,
-            systemLayerEntries = computedState.systemLayerEntries,
-            underlyingScreen = computedState.underlyingScreen,
-            modalsInStack = computedState.modalsInStack,
-            underlyingScreenGraphHierarchy = computedState.underlyingScreenGraphHierarchy,
-            showsNavigationChrome = computedState.showsNavigationChrome,
+            derived = computedState,
             activeModalContexts = newModalContexts,
             pendingNavigation = newPendingNavigation,
             isEvaluatingNavigation = state.isEvaluatingNavigation
@@ -396,18 +371,26 @@ public data class PrecomputedNavigationData(
     val routeResolver: RouteResolver,
     val availableNavigatables: Map<String, Navigatable>,
     val graphDefinitions: Map<String, NavigationGraph>,
-    val allNavigatables: Map<String, Navigatable>,
     val graphHierarchies: Map<String, List<String>>,
     val navigatableToGraph: Map<Navigatable, String>,
     val routeToNavigatable: Map<String, Navigatable>,
     val navigatableToFullPath: Map<Navigatable, String>,
     val notFoundScreen: Screen? = null,
     val crashScreen: Screen? = null,
-    val interceptedRoutes: Map<String, InterceptDefinition> = emptyMap(),
+    val interceptsByGraphId: Map<String, InterceptDefinition> = emptyMap(),
+    val interceptsByPath: Map<String, InterceptDefinition> = emptyMap(),
     val graphEntries: Map<String, EntryDefinition> = emptyMap(),
     val deepLinkAliases: List<DeepLinkAlias> = emptyList(),
     val loadingModal: LoadingModal? = null
 ) {
+
+    @Deprecated(
+        "Identical to routeToNavigatable, which is also keyed by full path.",
+        ReplaceWith("routeToNavigatable"),
+        DeprecationLevel.WARNING
+    )
+    val allNavigatables: Map<String, Navigatable> get() = routeToNavigatable
+
     public companion object {
         public fun create(
             rootGraph: NavigationGraph,
@@ -418,11 +401,11 @@ public data class PrecomputedNavigationData(
         ): PrecomputedNavigationData {
             val graphDefinitions = mutableMapOf<String, NavigationGraph>()
             val availableNavigatables = mutableMapOf<String, Navigatable>()
-            val allNavigatables = mutableMapOf<String, Navigatable>()
             val navigatableToGraph = mutableMapOf<Navigatable, String>()
             val routeToNavigatable = mutableMapOf<String, Navigatable>()
             val navigatableToFullPath = mutableMapOf<Navigatable, String>()
-            val interceptedRoutes = mutableMapOf<String, InterceptDefinition>()
+            val interceptsByGraphId = mutableMapOf<String, InterceptDefinition>()
+            val interceptsByPath = mutableMapOf<String, InterceptDefinition>()
             val graphEntries = mutableMapOf<String, EntryDefinition>()
 
             val parentGraphLookup = mutableMapOf<String, String>()
@@ -443,7 +426,7 @@ public data class PrecomputedNavigationData(
                 }
 
                 if (effectiveIntercept != null) {
-                    interceptedRoutes[graph.route] = effectiveIntercept
+                    interceptsByGraphId[graph.route] = effectiveIntercept
                 }
 
                 graph.nestedGraphs.forEach { nestedGraph ->
@@ -473,20 +456,19 @@ public data class PrecomputedNavigationData(
                     }
                     navigatableToFullPath[navigatable] = fullPath
                     routeToNavigatable[fullPath] = navigatable
-                    allNavigatables[fullPath] = navigatable
 
                     if (graph.route == "root") {
                         availableNavigatables[navigatable.route] = navigatable
                     }
 
                     if (effectiveIntercept != null) {
-                        interceptedRoutes[fullPath] = effectiveIntercept
+                        interceptsByPath[fullPath] = effectiveIntercept
                     }
                 }
 
                 graph.navigatableIntercepts.forEach { (navigatable, interceptDef) ->
                     val fullPath = navigatableToFullPath[navigatable] ?: return@forEach
-                    interceptedRoutes[fullPath] = interceptDef
+                    interceptsByPath[fullPath] = interceptDef
                 }
 
                 graph.nestedGraphs.forEach { collectGraphs(it, effectiveIntercept) }
@@ -507,6 +489,13 @@ public data class PrecomputedNavigationData(
                 graphHierarchies[graphId] = hierarchy
             }
 
+            // Register special navigatables not discovered via graph traversal, before the
+            // resolver is built from these maps.
+            listOfNotNull(notFoundScreen, crashScreen, loadingModal).forEach { navigatable ->
+                val path = navigatableToFullPath.getOrPut(navigatable) { navigatable.route }
+                routeToNavigatable.getOrPut(path) { navigatable }
+            }
+
             val routeResolver = RouteResolver.create(
                 graphDefinitions = graphDefinitions,
                 routeToNavigatable = routeToNavigatable.toMap(),
@@ -515,32 +504,18 @@ public data class PrecomputedNavigationData(
                 notFoundScreen = notFoundScreen
             )
 
-            // Register special navigatables not discovered via graph traversal
-            notFoundScreen?.let { screen: Screen ->
-                val path = navigatableToFullPath.getOrPut(screen) { screen.route }
-                allNavigatables.getOrPut(path) { screen }
-            }
-            crashScreen?.let { screen: Screen ->
-                val path = navigatableToFullPath.getOrPut(screen) { screen.route }
-                allNavigatables.getOrPut(path) { screen }
-            }
-            loadingModal?.let { modal: LoadingModal ->
-                val path = navigatableToFullPath.getOrPut(modal) { modal.route }
-                allNavigatables.getOrPut(path) { modal }
-            }
-
             return PrecomputedNavigationData(
                 routeResolver = routeResolver,
                 availableNavigatables = availableNavigatables,
                 graphDefinitions = graphDefinitions.toMap(),
-                allNavigatables = allNavigatables.toMap(),
                 graphHierarchies = graphHierarchies.toMap(),
                 navigatableToGraph = navigatableToGraph.toMap(),
                 routeToNavigatable = routeToNavigatable.toMap(),
                 navigatableToFullPath = navigatableToFullPath.toMap(),
                 notFoundScreen = notFoundScreen,
                 crashScreen = crashScreen,
-                interceptedRoutes = interceptedRoutes,
+                interceptsByGraphId = interceptsByGraphId,
+                interceptsByPath = interceptsByPath,
                 graphEntries = graphEntries,
                 deepLinkAliases = deepLinkAliases,
                 loadingModal = loadingModal
@@ -563,31 +538,13 @@ public data class PrecomputedNavigationData(
     }
 }
 
-// Internal data class for computed navigation state
-private data class ComputedNavigationState(
-    val visibleLayers: List<NavigationEntry>,
-    val currentFullPath: String,
-    val currentGraphHierarchy: List<String>,
-    val breadcrumbs: List<NavigationBreadcrumb>,
-    val isCurrentModal: Boolean,
-    val isCurrentScreen: Boolean,
-    val hasModalsInStack: Boolean,
-    val contentLayerEntries: List<NavigationEntry>,
-    val globalOverlayEntries: List<NavigationEntry>,
-    val systemLayerEntries: List<NavigationEntry>,
-    val underlyingScreen: NavigationEntry?,
-    val modalsInStack: List<NavigationEntry>,
-    val underlyingScreenGraphHierarchy: List<String>?,
-    val showsNavigationChrome: Boolean
-)
-
 // Internal computation function
 private fun computeNavigationDerivedState(
     currentEntry: NavigationEntry,
     backStack: List<NavigationEntry>,
     precomputedData: PrecomputedNavigationData,
     existingModalContexts: Map<String, ModalContext> = emptyMap()
-): ComputedNavigationState {
+): NavigationProjection {
     val orderedBackStack = backStack.mapIndexed { index, entry ->
         entry.copy(stackPosition = index)
     }
@@ -627,7 +584,7 @@ private fun computeNavigationDerivedState(
         precomputedData.graphDefinitions[graphId]?.declaration?.showsNavigationChrome == false
     }
 
-    return ComputedNavigationState(
+    return NavigationProjection(
         visibleLayers = visibleLayers,
         currentFullPath = currentFullPath,
         currentGraphHierarchy = currentGraphHierarchy,
@@ -689,7 +646,7 @@ private fun buildBreadcrumbs(
     return breadcrumbs
 }
 
-private fun findOriginalUnderlyingScreenForModal(
+internal fun findOriginalUnderlyingScreenForModal(
     modalEntry: NavigationEntry,
     backStack: List<NavigationEntry>,
     modalContexts: Map<String, ModalContext> = emptyMap()

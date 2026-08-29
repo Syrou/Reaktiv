@@ -28,7 +28,7 @@ public class ModuleShadow(initialStateJson: String? = null) {
             DeltaKind.FULL -> delta
             DeltaKind.FIELDS -> {
                 val base = modules[action.moduleName] ?: return null
-                JsonObject(base + delta)
+                mergeFields(base, delta)
             }
         }
         modules[action.moduleName] = merged

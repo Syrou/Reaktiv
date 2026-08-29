@@ -62,10 +62,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.protocol.DISPATCH_TRACE_CLASS
+import io.github.syrou.reaktiv.devtools.protocol.PHASE_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
 import io.github.syrou.reaktiv.devtools.ui.DeviceLogRow
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import io.github.syrou.reaktiv.devtools.ui.NetworkEventRow
+import io.github.syrou.reaktiv.devtools.ui.logicCallDepths
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.SessionMarker
 
@@ -124,18 +126,8 @@ private fun buildLogicCalls(
     val completedByCallId = events.filterIsInstance<LogicMethodEvent.Completed>().associateBy { it.callId }
     val failedByCallId = events.filterIsInstance<LogicMethodEvent.Failed>().associateBy { it.callId }
 
-    val depthCache = mutableMapOf<String, Int>()
-    fun depthOf(callId: String, guard: MutableSet<String>): Int {
-        depthCache[callId]?.let { return it }
-        if (!guard.add(callId)) return 0
-        val parent = startsByCallId[callId]?.event?.parentCallId
-        val parentVisible = parent != null && parent in startsByCallId &&
-            startsByCallId[parent]?.let {
-                it.logicClass != DISPATCH_TRACE_CLASS && it.logicClass != "DispatchPhase"
-            } == true
-        val depth = if (parentVisible && parent != null) depthOf(parent, guard) + 1 else 0
-        depthCache[callId] = depth
-        return depth
+    val depthOf = logicCallDepths(events) { parent ->
+        parent.logicClass != DISPATCH_TRACE_CLASS && parent.logicClass != PHASE_TRACE_CLASS
     }
 
     val callIds = startsByCallId.keys + completedByCallId.keys + failedByCallId.keys
@@ -157,7 +149,7 @@ private fun buildLogicCalls(
             timestampMs = start?.timestamp ?: completion?.timestamp ?: failure?.timestamp ?: 0L,
             durationMs = completion?.durationMs ?: failure?.durationMs,
             failed = failure != null,
-            depth = depthOf(callId, mutableSetOf()).coerceAtMost(3),
+            depth = depthOf(callId).coerceAtMost(3),
             searchable = buildString {
                 append(methodId ?: "")
                 start?.params?.values?.forEach { append(' ').append(it) }

@@ -193,6 +193,633 @@ is explicit. See AD-13.
 
 ---
 
+### [BC-63] `FINDING_QUEUE_WAIT_WARN_MS` deprecated
+
+**Type:** Deprecation
+
+**Grep:** `FINDING_QUEUE_WAIT_WARN_MS`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+if (waitMs >= FINDING_QUEUE_WAIT_WARN_MS) { }
+```
+
+**After:**
+```kotlin
+if (waitMs >= DISPATCH_QUEUE_WAIT_WARN_MS) { }
+```
+
+**Notes:** The two constants always carried the same 100ms threshold under two names, so a
+change to one silently disagreed with the other. `FINDING_QUEUE_WAIT_WARN_MS` now delegates to
+`DISPATCH_QUEUE_WAIT_WARN_MS` and warns. It is removed in a later release. See AD-100 for the
+related trace-class constants.
+
+---
+
+### [BC-64] `ClientManager.getCurrentPublisher()` deprecated
+
+**Type:** Deprecation
+
+**Grep:** `getCurrentPublisher()`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val publisherId = clientManager.getCurrentPublisher()
+```
+
+**After:**
+```kotlin
+val publisherId = clientManager.currentPublisher()
+```
+
+**Notes:** Both were the same one-line body. `getCurrentPublisher()` now delegates to
+`currentPublisher()` and warns. It is removed in a later release.
+
+---
+
+### [BC-65] The screen underneath a modal resolves through one lookup
+
+**Type:** Behavioural
+
+**Grep:** `originalUnderlyingScreenEntry`
+**File glob:** `**/*.kt`
+
+**Notes:** Two implementations answered "which screen is underneath this modal". The reducer
+matched a modal context by path and fell back to scanning the back stack, while the logic layer
+took whichever modal context happened to be first and compared entries by full data-class
+equality (so a differing `stackPosition` missed a match). Both now use the reducer's rule.
+
+The visible difference is confined to one case: with more than one active modal context, the
+context belonging to the modal being asked about is used instead of an arbitrary one. No source
+change is required.
+
+---
+
+### [BC-66] The unused parameter-encoding surface is deprecated
+
+**Type:** Deprecation
+
+**Grep:** `encodeTypeSafe|decodeTypeSafe|encodeMixed|encodeStepParameters|encodeSimpleQueryString|encodeTypeSafeQueryString|Params.fromUrl|toQueryString`
+**File glob:** `**/*.kt`
+
+**Notes:** Only one path through `DualNavigationParameterEncoder` was ever reached in
+production: `Params.getString` decodes a value through `decodeSimple`. Nothing encoded through
+this class, so nine public methods on it are now deprecated and warn:
+`encodeSimpleQueryString`, `encodeTypeSafe` (both overloads), `decodeTypeSafe` (both overloads),
+`encodeTypeSafeQueryString`, `encodeMixed`, `encodeMixedQueryString` and `encodeStepParameters`.
+`Params.fromUrl` is deprecated for the same reason.
+
+`Params.toQueryString` was `internal` with no callers and is removed outright, so no consumer
+code can refer to it.
+
+The `encoder` parameter on the `NavigationBuilder` constructor and the `parameterEncoder`
+parameter on the `NavigationLogic` constructor were never read. Both keep their signatures and
+default values, so no call site changes, but the arguments are ignored and both parameters are
+removed in a later release. `NavigationLogic` no longer forwards an encoder into the six
+`NavigationBuilder` instances it creates.
+
+---
+
+### [BC-67] Redundant navigation accessors deprecated
+
+**Type:** Deprecation
+
+**Grep:** `renderableEntries|effectiveDepth|navigatableRoute|getEffectiveGraphId`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val entries = navState.renderableEntries
+val depth = navState.effectiveDepth
+val route = entry.navigatableRoute
+```
+
+**After:**
+```kotlin
+val entries = navState.visibleLayers
+val depth = navState.backStack.size
+val route = entry.route
+```
+
+**Notes:** All four had no callers anywhere in the repository. `renderableEntries` was an alias
+of `visibleLayers`, `effectiveDepth` read `backStack.size`, and `navigatableRoute` was an alias
+of `route`. `RouteResolution.getEffectiveGraphId()` is deprecated without a direct replacement:
+it existed to reconcile `targetGraphId` and `navigationGraphId`, which is the identity problem
+being removed rather than a value worth computing. Read whichever of the two the call site
+actually means.
+
+---
+
+### [BC-68] `PersistenceManager.copy()` deprecated
+
+**Type:** Deprecation
+
+**Grep:** `PersistenceManager(...).copy(`
+**File glob:** `**/*.kt`
+
+**Notes:** No callers. Construct a `PersistenceManager` directly instead. Removed in a later
+release.
+
+---
+
+### [BC-69] `NavigationState` derived values grouped into `NavigationProjection`
+
+**Type:** Breaking
+
+**Grep:** `NavigationState(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+NavigationState(
+    currentEntry = entry,
+    backStack = stack,
+    lastNavigationAction = null,
+    screenRetentionDuration = duration,
+    visibleLayers = layers,
+    currentFullPath = path,
+    currentGraphHierarchy = hierarchy,
+    breadcrumbs = crumbs,
+    isCurrentModal = false,
+    isCurrentScreen = true,
+    hasModalsInStack = false,
+    contentLayerEntries = content,
+    globalOverlayEntries = overlays,
+    systemLayerEntries = system,
+    underlyingScreen = null,
+    modalsInStack = emptyList(),
+    activeModalContexts = emptyMap()
+)
+```
+
+**After:**
+```kotlin
+NavigationState(
+    currentEntry = entry,
+    backStack = stack,
+    screenRetentionDuration = duration,
+    derived = NavigationProjection(
+        visibleLayers = layers,
+        currentFullPath = path,
+        currentGraphHierarchy = hierarchy,
+        breadcrumbs = crumbs,
+        isCurrentModal = false,
+        isCurrentScreen = true,
+        hasModalsInStack = false,
+        contentLayerEntries = content,
+        globalOverlayEntries = overlays,
+        systemLayerEntries = system,
+        underlyingScreen = null,
+        modalsInStack = emptyList()
+    ),
+    activeModalContexts = emptyMap()
+)
+```
+
+**Notes:** **Reading is unchanged.** `navState.visibleLayers`, `navState.breadcrumbs`,
+`navState.isCurrentModal` and the other eleven still resolve, now as accessors over
+[AD-101] `NavigationProjection`. Only construction moves, and the old parameter list survives
+as a deprecated secondary constructor that builds the projection for you, so existing code
+compiles with a warning.
+
+Fourteen values that are pure functions of the back stack were previously declared in four
+places each: the state class, an internal holder, and two construction sites that listed all
+fourteen by hand. Adding one meant editing four places and was a standing source of state that
+drifted from the stack it described. They now have one declaration site.
+
+The fourteen are now properties with getters rather than stored fields, so they cannot be
+smart cast. This affects only code compiled together with `reaktiv-navigation`, because Kotlin
+already refuses to smart cast a `val` declared in another module. Use `?.` or bind a local:
+
+```kotlin
+val underlying = navState.underlyingScreen ?: return
+underlying.route
+```
+
+The serialized shape changes: the fourteen fields move under a `derived` object. Nothing in the
+repository reads them by JSON key, and `NavigationStatePatch` only touches `isBootstrapping`
+and `isEvaluatingNavigation`, which are still top level. Session exports written by an older
+release will not deserialize into this shape.
+
+---
+
+### [BC-70] Special navigatables are registered before the route resolver is built
+
+**Type:** Behavioural
+
+**Grep:** `notFoundScreen|crashScreen|loadingModal`
+**File glob:** `**/*.kt`
+
+**Notes:** The notFound screen, crash screen and loading modal are not discovered by walking the
+graph tree, so they were registered separately. That registration ran *after*
+`RouteResolver.create` had already been handed a snapshot of the lookup maps, so the resolver
+never knew about any of the three, while `PrecomputedNavigationData` (snapshotted afterwards)
+did. Two copies of the same relation disagreed depending on which one a call site happened to
+read.
+
+They are now registered before the resolver is built, so `routeResolver.resolve(...)` finds
+them. Resolving a crash screen or loading modal by route previously fell through to the
+notFound screen and now returns the screen asked for. Registration uses `getOrPut`, so a screen
+also declared inside a graph keeps its graph-derived path and does not trip the route-collision
+check.
+
+---
+
+### [BC-71] `PrecomputedNavigationData.allNavigatables` deprecated
+
+**Type:** Deprecation
+
+**Grep:** `allNavigatables`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val navigatable = precomputedData.allNavigatables[fullPath]
+```
+
+**After:**
+```kotlin
+val navigatable = precomputedData.routeToNavigatable[fullPath]
+```
+
+**Notes:** Both maps are keyed by full path and, since BC-70, hold exactly the same entries.
+`allNavigatables` is now an accessor returning `routeToNavigatable` and warns. It is no longer a
+constructor parameter, so code that built a `PrecomputedNavigationData` by hand rather than
+through `PrecomputedNavigationData.create` drops that argument. Removed in a later release.
+
+Note that `routeToNavigatable` is keyed by full path rather than by route, despite its name.
+That naming is corrected when the lookup maps are consolidated into one registry.
+
+---
+
+### [BC-72] External state arrives as a dispatched action
+
+**Type:** Breaking | Behavioural
+
+**Grep:** `applyExternalStates`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+storeAccessor.asInternalOperations()?.applyExternalStates(
+    mapOf("com.example.CounterState" to CounterState(value = 42))
+)
+```
+
+**After:**
+```kotlin
+storeAccessor.dispatchAndAwait(
+    StoreAction.Hydrate(
+        states = mapOf("com.example.CounterState" to CounterState(value = 42)),
+        origin = "DevTools"
+    )
+)
+```
+
+**Notes:** `applyExternalStates` wrote `MutableStateFlow.value` directly from whichever coroutine
+called it. The store's dispatch loop is a single ordered consumer, so those writes raced it: a
+follower receiving a projection while an exempt action was mid-reduce had no ordering guarantee
+between the two. It also meant state could change without the pipeline, and therefore without
+instrumentation, ever seeing it.
+
+External state is now a dispatched action, so it is serialised against every other dispatch and
+is visible to instrumentation. `applyExternalStates` still works, now delegating to the action,
+and warns. It is removed in a later release. See AD-102.
+
+`Store.loadState()` restores persisted state through the same action, so persistence and
+replication no longer have separate write paths.
+
+**This is not action replay.** The action carries state, not intent, so no module logic runs and
+no side effect is repeated. Re-dispatching the original actions would do both, which is why
+replication projects state.
+
+---
+
+### [BC-73] A top-level entry no longer reports itself as its own enclosing graph
+
+**Type:** Behavioural
+
+**Grep:** `graphChain`
+**File glob:** `**/*.kt`
+
+**Notes:** The internal `NavigationEntry.graphChain()` derived the enclosing graphs by stripping
+the route off the end of the path. For a top-level entry the path *is* the route, so
+`removeSuffix("/route")` matched nothing and the entry reported its own route as an enclosing
+graph.
+
+Both callers hid it by looking the result up in `graphDefinitions` and getting null, so it was
+invisible until a top-level screen shared a name with a graph. Navigating from a root screen
+`auth` into a graph also called `auth`, `presentationSourceFor` computed
+`firstOrNull { it !in from.graphChain() }`, saw `"auth"` in both chains, and returned null, so
+the graph's presentation transition was skipped and the screen's own transition ran instead.
+
+A top-level entry now reports an empty chain. If a root screen and a graph share a name, entering
+that graph animates as the graph rather than the screen.
+
+---
+
+### [BC-74] `RouteResolver.resolve` returns null when a route does not resolve
+
+**Type:** Breaking | Behavioural
+
+**Grep:** `routeResolver.resolve(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val resolution = routeResolver.resolve(route)
+```
+
+**After:**
+```kotlin
+val resolution = routeResolver.resolve(route)
+    ?: routeResolver.notFoundResolution()
+```
+
+**Notes:** `resolve` used to answer an unresolvable route with a resolution pointing at the
+configured notFound screen, so it was effectively non-null whenever a notFound screen existed.
+Callers could not tell "resolved" from "did not resolve", and the codebase worked around that in
+both directions: `resolveForBackstackSynthesis` compared the result against the notFound screen
+to undo it, while `?: throw RouteNotFoundException` and `?: return null` branches elsewhere were
+unreachable.
+
+`resolve` now returns null when nothing matches. Where an unresolvable route must still land
+somewhere, apply [AD-104] `notFoundResolution()` explicitly, which is what the navigation entry
+sites now do, so the behaviour a user sees is unchanged.
+
+Two branches that were previously unreachable now run. `resolveForBackstackSynthesis` no longer
+needs its undo, and the `?: run { }` fallback in `NavigationModule`'s handling of a
+`StartDestination.GraphReference` (which covers a referenced graph with a dynamic entry) becomes
+live rather than dead.
+
+---
+
+### [BC-75] `Middleware` is a functional interface rather than a typealias
+
+**Type:** Breaking
+
+**Grep:** `: Middleware`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+public typealias Middleware = suspend (ModuleAction, ..., suspend (ModuleAction) -> ModuleState) -> Unit
+```
+
+**After:**
+```kotlin
+public fun interface Middleware {
+    public suspend operator fun invoke(
+        action: ModuleAction,
+        getAllStates: suspend () -> Map<String, ModuleState>,
+        storeAccessor: StoreAccessor,
+        updatedState: suspend (ModuleAction) -> ModuleState,
+    )
+}
+```
+
+**Notes:** Source compatible in both directions. A lambda assigned to something declared
+`: Middleware` converts through SAM, and the abstract method is `operator fun invoke`, so
+`middleware(action, getAllStates, accessor, updatedState)` still reads the same. Recompile
+against this release rather than swapping the artifact, since the type changed.
+
+A typealias for a function type cannot be named or implemented. Every middleware was therefore an
+anonymous lambda class, and the dispatch tracer, which labels phases with
+`middleware::class.simpleName`, could only ever produce `middleware[0]`, `middleware[1]` and so
+on. A middleware declared as a named object or class now reports its own name in traces and
+findings.
+
+It also makes `Middleware` an extension point that can be documented and implemented like the
+rest of the framework rather than a bare function shape. See the Framework Invariants section in
+`CLAUDE.md`, rule I6.
+
+---
+
+### [BC-76] `interceptedRoutes` split into `interceptsByPath` and `interceptsByGraphId`
+
+**Type:** Breaking
+
+**Grep:** `interceptedRoutes`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val def = precomputedData.interceptedRoutes[someKey]
+```
+
+**After:**
+```kotlin
+val def = precomputedData.interceptsByPath[fullPath]
+    ?: precomputedData.interceptsByGraphId[graphId]
+```
+
+**Notes:** One map held two kinds of key. A graph's intercept went in under the graph id, while a
+navigatable's went in under its full path. A caller holding a string could not know which space
+it belonged to, so the guard lookup guessed:
+
+```kotlin
+val zoneKey = listOfNotNull(targetRoute, canonicalGraphId, navigationGraphId, targetGraphId)
+    .firstOrNull { interceptedRoutes.containsKey(it) }
+```
+
+Four candidates tried in order until one hit, with no way to tell whether a hit meant "this exact
+destination is intercepted" or "some graph with a colliding name is". A navigatable whose full
+path equalled a graph id would have resolved to the wrong intercept.
+
+The maps are now named for their key space, and the guard resolves a path intercept first, then a
+graph intercept, which states the precedence that the ordering of the old chain only implied.
+`isAlreadyInZone` reads `interceptsByPath` directly, since a back stack entry always carries a
+full path.
+
+Three names for "which graph" remain in the graph branch (`canonicalGraphId`,
+`navigationGraphId`, `targetGraphId`). Collapsing those is the remaining half of this rule, and
+it needs `RouteResolution` to carry one graph identity rather than two. See the Framework
+Invariants section in `CLAUDE.md`, rule I1.
+
+---
+
+### [BC-77] `RouteResolution` graph IDs renamed to say which is which
+
+**Type:** Breaking
+
+**Grep:** `targetGraphId|navigationGraphId|isGraphReference`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+RouteResolution(
+    targetNavigatable = screen,
+    targetGraphId = "addons",
+    extractedParams = Params.empty(),
+    navigationGraphId = "wizard"
+)
+```
+
+**After:**
+```kotlin
+RouteResolution(
+    targetNavigatable = screen,
+    owningGraphId = "addons",
+    extractedParams = Params.empty(),
+    requestedGraphId = "wizard"
+)
+```
+
+**Notes:** Reads keep working. `targetGraphId` and `navigationGraphId` survive as deprecated
+accessors that warn. Construction moves to the new names.
+
+The two answer different questions and the old names did not say so, which is why a
+`getEffectiveGraphId()` existed to reconcile them and why the guard lookup tried both plus a
+third derived id. `requestedGraphId` is the graph the caller named. `owningGraphId` is the graph
+that turned out to own the destination. They differ whenever a graph's start destination is
+itself a graph reference: asking for `wizard` whose start is `wizard/addons` whose start is
+`addons/review` resolves to `review`, owned by `addons`, requested as `wizard`. A guard declared
+on `wizard` must fire for that navigation, so both are load-bearing and neither can be dropped.
+
+`isGraphReference` is set at nine sites and read only by the deprecated, zero-caller
+`getEffectiveGraphId()`. It is documented as unused and removed in a later release together with
+that function.
+
+---
+
+### [BC-78] A guard rejecting the start destination no longer falls through to it
+
+**Type:** Breaking | Behavioural
+
+**Grep:** `GuardResult.Reject`
+**File glob:** `**/*.kt`
+
+**Before:** during bootstrap, a guard returning `Reject` for the root graph's start destination
+navigated to the notFound screen when one was configured, and **to the rejected destination
+itself** when one was not.
+
+**After:** the notFound screen is still used when configured. Without one, bootstrap fails with
+
+```
+A guard rejected the start destination '<path>' and no notFoundScreen is configured, so there
+is nowhere to land. Configure notFoundScreen(), or have the guard return RedirectTo or
+PendAndRedirectTo instead of Reject.
+```
+
+**Notes:** Normal navigation answers `Reject` with `NavigationOutcome.Rejected` and goes nowhere.
+Bootstrap re-implemented the same decision inline and its `Reject` arm disagreed, so the same
+guard result meant "denied" during navigation and "allowed" during startup. A guard silently
+becoming a no-op is worse than a startup failure, so the misconfiguration is now impossible to
+ship unnoticed.
+
+This path had no test coverage: `ProtectedRoutesTest` guards a nested graph, never the root
+graph's start destination. Two tests now cover it, with and without a configured notFound screen.
+
+If an app relies on the old fall-through, configure a `notFoundScreen`, or return `RedirectTo`
+or `PendAndRedirectTo` from the guard, which express "send them somewhere else" directly.
+
+---
+
+### [BC-79] Findings uses the shared main-thread predicate
+
+**Type:** Behavioural
+
+**Grep:** `isMainThread`
+**File glob:** `**/*.kt`
+
+**Notes:** Two rules for "is this the main thread" existed and disagreed. `isMainThread` in
+`LogicTraceStats` normalises and matches `main`, a `main ` prefix, or `main thread`, while
+`computeFindings` inlined `thread.contains("main", ignoreCase = true)`. A thread named
+`domain-worker` or `MainlineExecutor` matched the second and not the first, so the Findings panel
+could name a background thread as the culprit for a main-thread stall while the Performance lens
+excluded it.
+
+Findings now calls `isMainThread`. Stall culprits are attributed consistently across both lenses.
+
+---
+
+### [BC-80] `RouteResolver.resolve` no longer needs `availableNavigatables`
+
+**Type:** Deprecation
+
+**Grep:** `resolve\(.*availableNavigatables`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+routeResolver.resolve(route, precomputedData.availableNavigatables)
+```
+
+**After:**
+```kotlin
+routeResolver.resolve(route)
+```
+
+**Notes:** The parameter cannot change the answer. `availableNavigatables` holds root-graph
+destinations keyed by short route, and a root destination's full path *is* its route, so
+`routeToNavigatable` holds the same key and value. `resolve` consults `routeToNavigatable` near
+the top and `availableNavigatables` only after every other lookup has missed, so the branch is
+unreachable for any caller passing the registry's own map.
+
+Eight internal call sites passed it and five did not, which read as two behaviours and was in
+fact one behaviour plus a no-op argument. All thirteen now call the single-argument form.
+
+The parameter and `PrecomputedNavigationData.availableNavigatables` are removed in a later
+release. An external caller supplying its own map of routes not present in the registry still
+gets the old fallback until then.
+
+---
+
+### [BC-81] `StoreAccessor.getAllStates()`
+
+**Type:** Breaking | Addition
+
+**Grep:** `getAllStates`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val snapshot = storeAccessor.getAllStates()
+```
+
+**Notes:** `Store.getAllStates()` was private, and the only way to reach a full state snapshot
+from outside was the closure handed to a `Middleware`. `DevToolsService` therefore installed a
+middleware that intercepted nothing, captured that closure into a field, and invoked it later
+from `sendFullStateSync` and the session baseline, long after the dispatch it belonged to had
+returned.
+
+The snapshot is now a normal read on `StoreAccessor`, alongside `getRegisteredModules` and
+`getStateFlowForModule`, and that middleware is deleted.
+
+`StoreAccessor` gains an abstract member, so anything subclassing it must implement
+`getAllStates()`. `Store` is the only implementation in this repository, and subclassing
+`StoreAccessor` is not an intended extension point.
+
+Each module owns its own state flow, so the snapshot reads each in turn rather than giving a
+transactional view of the whole tree. That was equally true of the closure it replaces.
+
+---
+
+### [BC-82] The Performance and Findings tabs report the same warnings
+
+**Type:** Behavioural
+
+**Grep:** `PerformancePanel\(`
+**File glob:** `**/*.kt`
+
+**Notes:** Both tabs derived warnings from `computeFindings`, but with different inputs.
+`FindingsPanel` passed state-size stats, churn and network events. `PerformancePanel` passed
+sizes and then `emptyList()` for churn, leaving network to its default. The two therefore
+disagreed for the same session: the Performance tab's "Warnings N" chip could show fewer
+warnings than the Findings tab's badge, and neither was wrong on its own terms.
+
+`PerformancePanel` now takes the findings as a parameter, and `DevToolsApp` passes the single
+`rememberFindings` result it already computes for the Findings tab. One computation, one answer.
+
+`PerformancePanel` keeps its own state-size stats, which it still renders. They are fed
+incrementally there and rebuilt from scratch inside `rememberFindings`, which produces the same
+snapshot by a different route. Collapsing that remaining duplication needs the size tracker to
+have one owner, which is a larger change.
+
+---
+
 ## Additions
 
 <!-- Append AD-NN entries below, incrementing from the last AD ID in this section -->
@@ -5069,3 +5696,175 @@ under `GENERAL`. The three-argument overload lets a subsystem file its errors un
 category, which tooling uses to group and filter log lines. See AD-98 for the first caller.
 
 ---
+
+### [AD-100] Named constants for every synthetic trace class
+
+**Type:** Addition
+
+**Grep:** `PHASE_TRACE_CLASS|REDACTION_TRACE_CLASS|GUARD_TRACE_CLASS`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val appEvents = started.filter { it.logicClass !in SYNTHETIC_TRACE_CLASSES }
+val phases = started.filter { it.logicClass == PHASE_TRACE_CLASS }
+```
+
+**Notes:** `SYNTHETIC_TRACE_CLASSES` already existed, but the individual names were retyped as
+string literals at the sites that filtered on one of them, so a rename would have been missed in
+some of them. `DISPATCH_TRACE_CLASS` and `STALL_TRACE_CLASS` were already named, and
+`PHASE_TRACE_CLASS`, `REDACTION_TRACE_CLASS` and `GUARD_TRACE_CLASS` complete the set.
+`SYNTHETIC_TRACE_CLASSES` is now built from the five constants.
+
+---
+
+### [AD-101] `NavigationProjection`
+
+**Type:** Addition
+
+**Grep:** `NavigationProjection`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val navState by selectState<NavigationState>().collectAsState()
+
+navState.visibleLayers
+navState.showsNavigationChrome
+
+navState.derived.visibleLayers
+```
+
+**Notes:** Groups the fourteen values that the reducer derives from the back stack, the active
+modal contexts and the registered graphs. Read them through `NavigationState` as before. The
+`derived` property is there because the reducer has to hand the computed projection to the
+state, and because a future release can make it non-serialized once graph hierarchy is read
+from the entry path rather than a lookup table. See BC-69.
+
+---
+
+### [AD-102] `StoreAction`, actions the store reduces itself
+
+**Type:** Addition | Replaces-deprecated
+
+**Grep:** `StoreAction.Hydrate`
+**File glob:** `**/*.kt`
+
+**Replaces:** `InternalStoreOperations.applyExternalStates`, which wrote state outside the
+dispatch pipeline.
+
+**Example:**
+```kotlin
+store.dispatchAndAwait(
+    StoreAction.Hydrate(
+        states = mapOf("com.example.CounterState" to CounterState(value = 42)),
+        origin = "DevTools"
+    )
+)
+```
+
+**Notes:** A module action names the module that handles it. A `StoreAction` operates on the
+whole state tree, so the store applies it directly instead of routing by module tag.
+
+Store actions travel the ordered dispatch channel like everything else, and they are
+`HighPriorityAction` and `ExternalControlExempt`, so a projection is not dropped by the
+external-control gate and does not queue behind local work.
+
+They do **not** pass through the middleware chain. `Middleware` is defined in terms of one
+module's resulting state (`updatedState` returns a non-null `ModuleState` for the action's
+module), and a store action has no single module, so admitting it would mean weakening that
+contract for every middleware. A useful consequence is that a projection triggers no
+middleware-driven work, which is what keeps navigation lifecycle hooks from firing on a
+follower. That rule previously held only because projections bypassed the pipeline entirely.
+
+Entries naming an unregistered module, or carrying a state of the wrong type, are skipped with a
+warning rather than failing the dispatch, matching the previous behaviour.
+
+**Write ordering.** The store applies the states synchronously inside the dispatch, and completes
+the awaiting caller afterwards, so once `dispatchAndAwait` returns, `selectState().first()`
+observes the new state. Collectors are notified asynchronously, exactly as for any other action.
+
+**Two consequences of being a real dispatch.**
+
+Hydrating from inside the dispatch pipeline deadlocks. The pipeline is a single consumer, so a
+middleware or reducer that awaits a hydration waits for a consumer that is busy waiting for it.
+Hydrate from a receive loop, a service callback or logic, never from a middleware or reducer.
+The direct write this replaces had no such constraint.
+
+A hydration that arrives during `reset()` is applied after the reset completes, because the
+consumer waits for the store to re-initialise. Previously it raced `reset()` and could land on
+either side of it, so this is the same situation made deterministic rather than a new one.
+
+---
+
+### [AD-103] `NavigationEntry.graphChain`
+
+**Type:** Addition
+
+**Grep:** `\.graphChain`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val entry = navState.currentEntry
+entry.graphChain
+entry.graphId
+```
+
+**Notes:** The graph IDs enclosing an entry, outermost first, read from the entry's own path
+rather than a lookup table, so it works for nested graphs without the caller holding the
+hierarchy. Empty for a top-level entry.
+
+`NavigationEntry.graphId` is now defined as `graphChain.lastOrNull() ?: "root"` rather than
+repeating the path arithmetic, which is what made BC-73 possible to find: the two had computed
+the same prefix by different means and disagreed about the top-level case.
+
+---
+
+### [AD-104] `RouteResolver.notFoundResolution()`
+
+**Type:** Addition | Replaces-deprecated
+
+**Grep:** `notFoundResolution\(\)`
+**File glob:** `**/*.kt`
+
+**Replaces:** the implicit notFound fallback that used to live inside `resolve`, see BC-74.
+
+**Example:**
+```kotlin
+val resolution = routeResolver.resolve(route, availableNavigatables)
+    ?: routeResolver.notFoundResolution()
+    ?: throw RouteNotFoundException("Route not found: $route")
+```
+
+**Notes:** Returns the resolution for the configured notFound screen, or null when none is
+configured. The fallback is now applied where it is chosen rather than hidden inside resolution,
+so a call site can distinguish a route that resolved from one that did not.
+
+---
+
+### [AD-105] `mergeFields` for JSON field deltas
+
+**Type:** Addition
+
+**Grep:** `mergeFields\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val merged = mergeFields(baseObject, deltaObject)
+```
+
+**Notes:** Field-delta merging existed three times: `mergeFieldJson`, an inline
+`JsonObject(base + delta)` in `ModuleShadow`, and a call in `DevToolsService` that invoked
+`mergeFieldJson` on a `JsonObject` it already held and then parsed the result back.
+
+`mergeFields` is the one rule, expressed on `JsonObject`, which is what callers actually hold.
+`mergeFieldJson` remains for the genuinely string-to-string cases (delta conflation and
+reconstruction) and now delegates to it.
+
+The follower path benefits most: applying one action delta went from serialise, parse, merge,
+serialise, parse to a single map union, on the per-action hot path.
+
+---
+

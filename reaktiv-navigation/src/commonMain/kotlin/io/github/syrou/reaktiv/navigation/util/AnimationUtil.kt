@@ -130,7 +130,8 @@ internal fun presentationSourceFor(
     navigatable: Navigatable,
     navModule: NavigationModule
 ): TransitionSpec {
-    val crossed = to.graphChain().firstOrNull { it !in from.graphChain() }
+    val fromChain = from.graphChain
+    val crossed = to.graphChain.firstOrNull { it !in fromChain }
         ?.let { navModule.getGraphDefinitions()[it]?.declaration }
     return crossed?.takeIf { it.presentsItself } ?: navigatable
 }

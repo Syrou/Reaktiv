@@ -29,6 +29,10 @@ abstract fun interface io.github.syrou.reaktiv.core/DispatchStepDecorator { // i
     abstract fun decorate(kotlin/String, kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/ModuleAction, kotlin/Unit>): kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/ModuleAction, kotlin/Unit> // io.github.syrou.reaktiv.core/DispatchStepDecorator.decorate|decorate(kotlin.String;kotlin.coroutines.SuspendFunction1<io.github.syrou.reaktiv.core.ModuleAction,kotlin.Unit>){}[0]
 }
 
+abstract fun interface io.github.syrou.reaktiv.core/Middleware { // io.github.syrou.reaktiv.core/Middleware|null[0]
+    abstract suspend fun invoke(io.github.syrou.reaktiv.core/ModuleAction, kotlin.coroutines/SuspendFunction0<kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>>, io.github.syrou.reaktiv.core/StoreAccessor, kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/ModuleAction, io.github.syrou.reaktiv.core/ModuleState>) // io.github.syrou.reaktiv.core/Middleware.invoke|invoke(io.github.syrou.reaktiv.core.ModuleAction;kotlin.coroutines.SuspendFunction0<kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>>;io.github.syrou.reaktiv.core.StoreAccessor;kotlin.coroutines.SuspendFunction1<io.github.syrou.reaktiv.core.ModuleAction,io.github.syrou.reaktiv.core.ModuleState>){}[0]
+}
+
 abstract interface <#A: io.github.syrou.reaktiv.core/ModuleState, #B: io.github.syrou.reaktiv.core/ModuleAction, #C: io.github.syrou.reaktiv.core/ModuleLogic> io.github.syrou.reaktiv.core/ModuleWithLogic : io.github.syrou.reaktiv.core/Module<#A, #B> { // io.github.syrou.reaktiv.core/ModuleWithLogic|null[0]
     abstract val createLogic // io.github.syrou.reaktiv.core/ModuleWithLogic.createLogic|{}createLogic[0]
         abstract fun <get-createLogic>(): kotlin/Function1<io.github.syrou.reaktiv.core/StoreAccessor, #C> // io.github.syrou.reaktiv.core/ModuleWithLogic.createLogic.<get-createLogic>|<get-createLogic>(){}[0]
@@ -44,7 +48,7 @@ abstract interface <#A: io.github.syrou.reaktiv.core/ModuleState, #B: io.github.
     abstract val reducer // io.github.syrou.reaktiv.core/Module.reducer|{}reducer[0]
         abstract fun <get-reducer>(): kotlin/Function2<#A, #B, #A> // io.github.syrou.reaktiv.core/Module.reducer.<get-reducer>|<get-reducer>(){}[0]
     open val createMiddleware // io.github.syrou.reaktiv.core/Module.createMiddleware|{}createMiddleware[0]
-        open fun <get-createMiddleware>(): kotlin/Function0<kotlin.coroutines/SuspendFunction4<io.github.syrou.reaktiv.core/ModuleAction, kotlin.coroutines/SuspendFunction0<kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>>, io.github.syrou.reaktiv.core/StoreAccessor, kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/ModuleAction, io.github.syrou.reaktiv.core/ModuleState>, kotlin/Unit>>? // io.github.syrou.reaktiv.core/Module.createMiddleware.<get-createMiddleware>|<get-createMiddleware>(){}[0]
+        open fun <get-createMiddleware>(): kotlin/Function0<io.github.syrou.reaktiv.core/Middleware>? // io.github.syrou.reaktiv.core/Module.createMiddleware.<get-createMiddleware>|<get-createMiddleware>(){}[0]
 
     open fun selectStateFlowNonSuspend(io.github.syrou.reaktiv.core/StoreAccessor): kotlinx.coroutines.flow/StateFlow<#A> // io.github.syrou.reaktiv.core/Module.selectStateFlowNonSuspend|selectStateFlowNonSuspend(io.github.syrou.reaktiv.core.StoreAccessor){}[0]
     open suspend fun selectLogic(io.github.syrou.reaktiv.core/StoreAccessor): io.github.syrou.reaktiv.core/ModuleLogic // io.github.syrou.reaktiv.core/Module.selectLogic|selectLogic(io.github.syrou.reaktiv.core.StoreAccessor){}[0]
@@ -114,6 +118,7 @@ abstract class io.github.syrou.reaktiv.core/StoreAccessor : kotlinx.coroutines/C
 
     abstract fun <#A1: kotlin/Any> getModule(kotlin.reflect/KClass<#A1>): #A1? // io.github.syrou.reaktiv.core/StoreAccessor.getModule|getModule(kotlin.reflect.KClass<0:0>){0§<kotlin.Any>}[0]
     abstract fun addCrashListener(io.github.syrou.reaktiv.core/CrashListener) // io.github.syrou.reaktiv.core/StoreAccessor.addCrashListener|addCrashListener(io.github.syrou.reaktiv.core.CrashListener){}[0]
+    abstract fun getAllStates(): kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState> // io.github.syrou.reaktiv.core/StoreAccessor.getAllStates|getAllStates(){}[0]
     abstract fun getRegisteredModules(): kotlin.collections/List<io.github.syrou.reaktiv.core/Module<*, *>> // io.github.syrou.reaktiv.core/StoreAccessor.getRegisteredModules|getRegisteredModules(){}[0]
     abstract fun getStateFlowForModule(io.github.syrou.reaktiv.core/Module<*, *>): kotlinx.coroutines.flow/StateFlow<io.github.syrou.reaktiv.core/ModuleState>? // io.github.syrou.reaktiv.core/StoreAccessor.getStateFlowForModule|getStateFlowForModule(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
     abstract fun removeCrashListener(io.github.syrou.reaktiv.core/CrashListener) // io.github.syrou.reaktiv.core/StoreAccessor.removeCrashListener|removeCrashListener(io.github.syrou.reaktiv.core.CrashListener){}[0]
@@ -162,6 +167,7 @@ final class io.github.syrou.reaktiv.core/Store : io.github.syrou.reaktiv.core/In
     final fun <#A1: kotlin/Any> getModule(kotlin.reflect/KClass<#A1>): #A1? // io.github.syrou.reaktiv.core/Store.getModule|getModule(kotlin.reflect.KClass<0:0>){0§<kotlin.Any>}[0]
     final fun addCrashListener(io.github.syrou.reaktiv.core/CrashListener) // io.github.syrou.reaktiv.core/Store.addCrashListener|addCrashListener(io.github.syrou.reaktiv.core.CrashListener){}[0]
     final fun cleanup() // io.github.syrou.reaktiv.core/Store.cleanup|cleanup(){}[0]
+    final fun getAllStates(): kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState> // io.github.syrou.reaktiv.core/Store.getAllStates|getAllStates(){}[0]
     final fun getRegisteredModules(): kotlin.collections/List<io.github.syrou.reaktiv.core/Module<*, *>> // io.github.syrou.reaktiv.core/Store.getRegisteredModules|getRegisteredModules(){}[0]
     final fun getStateFlowForModule(io.github.syrou.reaktiv.core/Module<*, *>): kotlinx.coroutines.flow/StateFlow<io.github.syrou.reaktiv.core/ModuleState>? // io.github.syrou.reaktiv.core/Store.getStateFlowForModule|getStateFlowForModule(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
     final fun markExternallyDriven() // io.github.syrou.reaktiv.core/Store.markExternallyDriven|markExternallyDriven(){}[0]
@@ -191,7 +197,7 @@ final class io.github.syrou.reaktiv.core/StoreDSL { // io.github.syrou.reaktiv.c
 
     final fun <#A1: io.github.syrou.reaktiv.core/ModuleState, #B1: io.github.syrou.reaktiv.core/ModuleAction> module(kotlin.reflect/KClass<#A1>, io.github.syrou.reaktiv.core/Module<#A1, #B1>) // io.github.syrou.reaktiv.core/StoreDSL.module|module(kotlin.reflect.KClass<0:0>;io.github.syrou.reaktiv.core.Module<0:0,0:1>){0§<io.github.syrou.reaktiv.core.ModuleState>;1§<io.github.syrou.reaktiv.core.ModuleAction>}[0]
     final fun coroutineContext(kotlin.coroutines/CoroutineContext) // io.github.syrou.reaktiv.core/StoreDSL.coroutineContext|coroutineContext(kotlin.coroutines.CoroutineContext){}[0]
-    final fun middlewares(kotlin/Array<out kotlin.coroutines/SuspendFunction4<io.github.syrou.reaktiv.core/ModuleAction, kotlin.coroutines/SuspendFunction0<kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>>, io.github.syrou.reaktiv.core/StoreAccessor, kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/ModuleAction, io.github.syrou.reaktiv.core/ModuleState>, kotlin/Unit>>...) // io.github.syrou.reaktiv.core/StoreDSL.middlewares|middlewares(kotlin.Array<out|kotlin.coroutines.SuspendFunction4<io.github.syrou.reaktiv.core.ModuleAction,kotlin.coroutines.SuspendFunction0<kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>>,io.github.syrou.reaktiv.core.StoreAccessor,kotlin.coroutines.SuspendFunction1<io.github.syrou.reaktiv.core.ModuleAction,io.github.syrou.reaktiv.core.ModuleState>,kotlin.Unit>>...){}[0]
+    final fun middlewares(kotlin/Array<out io.github.syrou.reaktiv.core/Middleware>...) // io.github.syrou.reaktiv.core/StoreDSL.middlewares|middlewares(kotlin.Array<out|io.github.syrou.reaktiv.core.Middleware>...){}[0]
     final fun module(io.github.syrou.reaktiv.core/Module<*, *>) // io.github.syrou.reaktiv.core/StoreDSL.module|module(io.github.syrou.reaktiv.core.Module<*,*>){}[0]
     final fun persistenceManager(io.github.syrou.reaktiv.core.persistance/PersistenceStrategy) // io.github.syrou.reaktiv.core/StoreDSL.persistenceManager|persistenceManager(io.github.syrou.reaktiv.core.persistance.PersistenceStrategy){}[0]
     final inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleState, #B1: io.github.syrou.reaktiv.core/ModuleAction> module(io.github.syrou.reaktiv.core/Module<#A1, #B1>) // io.github.syrou.reaktiv.core/StoreDSL.module|module(io.github.syrou.reaktiv.core.Module<0:0,0:1>){0§<io.github.syrou.reaktiv.core.ModuleState>;1§<io.github.syrou.reaktiv.core.ModuleAction>}[0]
@@ -243,6 +249,24 @@ sealed class io.github.syrou.reaktiv.core/DispatchResult { // io.github.syrou.re
         final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core/DispatchResult.Processed.equals|equals(kotlin.Any?){}[0]
         final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core/DispatchResult.Processed.hashCode|hashCode(){}[0]
         final fun toString(): kotlin/String // io.github.syrou.reaktiv.core/DispatchResult.Processed.toString|toString(){}[0]
+    }
+}
+
+sealed class io.github.syrou.reaktiv.core/StoreAction : io.github.syrou.reaktiv.core/ExternalControlExempt, io.github.syrou.reaktiv.core/HighPriorityAction, io.github.syrou.reaktiv.core/ModuleAction { // io.github.syrou.reaktiv.core/StoreAction|null[0]
+    final class Hydrate : io.github.syrou.reaktiv.core/StoreAction { // io.github.syrou.reaktiv.core/StoreAction.Hydrate|null[0]
+        constructor <init>(kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>, kotlin/String) // io.github.syrou.reaktiv.core/StoreAction.Hydrate.<init>|<init>(kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>;kotlin.String){}[0]
+
+        final val origin // io.github.syrou.reaktiv.core/StoreAction.Hydrate.origin|{}origin[0]
+            final fun <get-origin>(): kotlin/String // io.github.syrou.reaktiv.core/StoreAction.Hydrate.origin.<get-origin>|<get-origin>(){}[0]
+        final val states // io.github.syrou.reaktiv.core/StoreAction.Hydrate.states|{}states[0]
+            final fun <get-states>(): kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState> // io.github.syrou.reaktiv.core/StoreAction.Hydrate.states.<get-states>|<get-states>(){}[0]
+
+        final fun component1(): kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState> // io.github.syrou.reaktiv.core/StoreAction.Hydrate.component1|component1(){}[0]
+        final fun component2(): kotlin/String // io.github.syrou.reaktiv.core/StoreAction.Hydrate.component2|component2(){}[0]
+        final fun copy(kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState> = ..., kotlin/String = ...): io.github.syrou.reaktiv.core/StoreAction.Hydrate // io.github.syrou.reaktiv.core/StoreAction.Hydrate.copy|copy(kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>;kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core/StoreAction.Hydrate.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core/StoreAction.Hydrate.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.core/StoreAction.Hydrate.toString|toString(){}[0]
     }
 }
 

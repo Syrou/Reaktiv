@@ -119,6 +119,17 @@ public class SessionCapture(
     private val markerStorage: CaptureStorage = createCaptureStorage("$storageId-markers")
     private val networkStorage: CaptureStorage = createCaptureStorage("$storageId-network")
 
+    private val allStorages: List<CaptureStorage> = listOf(
+        actionsStorage,
+        logicStartedStorage,
+        logicCompletedStorage,
+        logicFailedStorage,
+        crashStorage,
+        stateReadStorage,
+        markerStorage,
+        networkStorage,
+    )
+
     private var sessionStartTime: Long = 0
     private var clientId: String = ""
     private var clientName: String = ""
@@ -221,14 +232,7 @@ public class SessionCapture(
         this.capturedCrash = null
         droppedCount.store(0L)
 
-        actionsStorage.clear()
-        logicStartedStorage.clear()
-        logicCompletedStorage.clear()
-        logicFailedStorage.clear()
-        crashStorage.clear()
-        stateReadStorage.clear()
-        markerStorage.clear()
-        networkStorage.clear()
+        allStorages.forEach { it.clear() }
 
         attachNetworkListener()
 
@@ -570,14 +574,7 @@ public class SessionCapture(
      */
     public suspend fun clear() {
         flush()
-        actionsStorage.clear()
-        logicStartedStorage.clear()
-        logicCompletedStorage.clear()
-        logicFailedStorage.clear()
-        crashStorage.clear()
-        stateReadStorage.clear()
-        markerStorage.clear()
-        networkStorage.clear()
+        allStorages.forEach { it.clear() }
         capturedCrash = null
         enqueue(ResetWorkerState)
         flush()
@@ -592,14 +589,7 @@ public class SessionCapture(
         detachNetworkListener()
         flush()
         stopWorker()
-        actionsStorage.delete()
-        logicStartedStorage.delete()
-        logicCompletedStorage.delete()
-        logicFailedStorage.delete()
-        crashStorage.delete()
-        stateReadStorage.delete()
-        markerStorage.delete()
-        networkStorage.delete()
+        allStorages.forEach { it.delete() }
     }
 
     private fun stopWorker() {

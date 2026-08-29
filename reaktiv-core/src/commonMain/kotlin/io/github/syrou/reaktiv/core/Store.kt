@@ -112,8 +112,7 @@ public class Store private constructor(
         externallyDriven.store(true)
     }
 
-    override val coroutineContext: CoroutineContext
-        get() = baseContext + storeJob
+    override val coroutineContext: CoroutineContext = baseContext + storeJob
 
     @ExperimentalReaktivApi
     override fun addCrashListener(listener: CrashListener) {
@@ -293,6 +292,10 @@ public class Store private constructor(
         action: ModuleAction,
         instrumentation: DispatchInstrumentation?
     ): Boolean {
+        if (action is StoreAction) {
+            applyStoreAction(action)
+            return true
+        }
         var wasApplied = false
         val chain = createMiddlewareChain(instrumentation?.newDispatchDecorator()) { wasApplied = true }
         chain(action)
@@ -354,6 +357,13 @@ public class Store private constructor(
         return recovery
     }
 
+    private fun applyStoreAction(action: StoreAction) {
+        when (action) {
+            is StoreAction.Hydrate ->
+                action.states.forEach { (name, state) -> applyState(name, state, action.origin) }
+        }
+    }
+
     private fun applyState(stateClassName: String, newState: ModuleState, source: String) {
         val info = info(stateClassName)
         when {
@@ -370,12 +380,18 @@ public class Store private constructor(
         }
     }
 
-    private fun getAllStates(): Map<String, ModuleState> =
+    override fun getAllStates(): Map<String, ModuleState> =
         moduleInfos.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
 
+    @Deprecated(
+        "Wrote state outside the dispatch pipeline, so it raced ordered dispatches. " +
+            "Dispatch StoreAction.Hydrate instead.",
+        ReplaceWith("dispatchAndAwait(StoreAction.Hydrate(states, \"DevTools\"))"),
+        DeprecationLevel.WARNING
+    )
     @ExperimentalReaktivApi
     override suspend fun applyExternalStates(states: Map<String, ModuleState>) {
-        states.forEach { (stateClassName, newState) -> applyState(stateClassName, newState, "DevTools") }
+        dispatchAndAwait(StoreAction.Hydrate(states, "DevTools"))
     }
 
     @ExperimentalReaktivApi
@@ -473,8 +489,8 @@ public class Store private constructor(
         if (restoredState == null) {
             ReaktivDebug.warn("No persistence strategy set when using loadState")
         }
-        restoredState?.forEach { (key, state) ->
-            applyState(key, state, "Persistence")
+        if (restoredState != null) {
+            dispatchAndAwait(StoreAction.Hydrate(restoredState, "Persistence"))
         }
     }
 

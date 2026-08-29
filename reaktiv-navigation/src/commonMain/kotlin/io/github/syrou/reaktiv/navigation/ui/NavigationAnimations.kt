@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -33,6 +32,8 @@ import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationModule
+import androidx.compose.runtime.rememberUpdatedState
+import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
@@ -97,6 +98,8 @@ public object NavigationAnimations {
         val scope = rememberCoroutineScope()
         val store = rememberStore()
         val controller = LocalInteractiveTransitionController.current
+        val navigationState by composeState<NavigationState>()
+        val latestState = rememberUpdatedState(navigationState)
 
         val transition = when {
             isEntering -> navigatable.popEnterTransition ?: navigatable.enterTransition
@@ -182,29 +185,20 @@ public object NavigationAnimations {
                                 val kind = InteractiveTransitionController.ScrubKind.ModalDismiss(entry)
                                 if (!controller.beginScrub(kind)) return@awaitEachGesture
 
-                                val velocityTracker = VelocityTracker()
-                                velocityTracker.addPosition(down.uptimeMillis, down.position)
-                                velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
+                                val outcome = trackScrub(
+                                    controller = controller,
+                                    latestState = latestState,
+                                    top = entry,
+                                    down = down,
+                                    slopChange = slopChange,
+                                    axis = ScrubAxis.vertical(down, height),
+                                    velocityThresholdPx = velocityThresholdPx
+                                ) { onDrag -> verticalDrag(down.id, onDrag) }
 
-                                fun progressOf(y: Float): Float = (y - down.position.y) / height
-
-                                controller.scrubTo(progressOf(slopChange.position.y))
-                                verticalDrag(down.id) { change ->
-                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
-                                    controller.scrubTo(progressOf(change.position.y))
-                                    change.consume()
-                                }
-
-                                val downVelocity = velocityTracker.calculateVelocity().y
-                                val commit = InteractiveTransitionController.shouldCommit(
-                                    progress = controller.progress,
-                                    velocity = downVelocity,
-                                    velocityThreshold = velocityThresholdPx
-                                )
                                 scope.launch {
                                     completeInteractiveDismiss(
-                                        commit = commit,
-                                        progressVelocity = downVelocity / height,
+                                        commit = outcome.commit,
+                                        progressVelocity = outcome.progressVelocity,
                                         controller = controller,
                                         store = store,
                                         navModule = navModule,

@@ -56,8 +56,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
+import io.github.syrou.reaktiv.devtools.protocol.PHASE_TRACE_CLASS
+import io.github.syrou.reaktiv.devtools.protocol.DISPATCH_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import io.github.syrou.reaktiv.devtools.ui.NetworkEventRow
+import io.github.syrou.reaktiv.devtools.ui.logicCallDepths
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.introspection.protocol.SessionMarker
@@ -104,19 +107,7 @@ private fun buildFlameSpans(events: List<LogicMethodEvent>): List<FlameSpan> {
         .filterIsInstance<LogicMethodEvent.Started>()
         .associateBy { it.callId }
 
-    val depthCache = mutableMapOf<String, Int>()
-    fun depthOf(callId: String, guard: MutableSet<String>): Int {
-        depthCache[callId]?.let { return it }
-        if (!guard.add(callId)) return 0
-        val parentId = startsByCallId[callId]?.event?.parentCallId
-        val depth = if (parentId == null || parentId !in startsByCallId) {
-            0
-        } else {
-            depthOf(parentId, guard) + 1
-        }
-        depthCache[callId] = depth
-        return depth
-    }
+    val depthOf = logicCallDepths(events)
 
     val durations = mutableMapOf<String, Long>()
     val failures = mutableSetOf<String>()
@@ -143,12 +134,12 @@ private fun buildFlameSpans(events: List<LogicMethodEvent>): List<FlameSpan> {
             fullName = "${start.logicClass}.${start.methodName}",
             startMs = start.timestamp,
             endMs = start.timestamp + durationMs,
-            depth = depthOf(callId, mutableSetOf()).coerceAtMost(MAX_DEPTH),
+            depth = depthOf(callId).coerceAtMost(MAX_DEPTH),
             selfMs = (durationMs - (childDurations[callId] ?: 0L)).coerceAtLeast(0L),
             failed = callId in failures,
             stall = start.logicClass == "MainThreadWatchdog",
-            phase = start.logicClass == "DispatchPhase",
-            dispatch = start.logicClass == "StoreDispatch"
+            phase = start.logicClass == PHASE_TRACE_CLASS,
+            dispatch = start.logicClass == DISPATCH_TRACE_CLASS
         )
     }
 }

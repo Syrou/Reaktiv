@@ -349,10 +349,12 @@ public class ClientManager {
         broadcastClientList()
     }
 
-    /**
-     * Gets the current publisher ID.
-     */
-    public suspend fun getCurrentPublisher(): String? = mutex.withLock { currentPublisherId }
+    @Deprecated(
+        "Duplicate of currentPublisher().",
+        ReplaceWith("currentPublisher()"),
+        DeprecationLevel.WARNING
+    )
+    public suspend fun getCurrentPublisher(): String? = currentPublisher()
 
     private fun allClientInfos(): List<ClientInfo> {
         val ghosts = ghostDevices.values.map { ghost ->

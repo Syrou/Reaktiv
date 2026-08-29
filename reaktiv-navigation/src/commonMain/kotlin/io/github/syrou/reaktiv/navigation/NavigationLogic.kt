@@ -96,7 +96,7 @@ private class NavigationLockMarker : AbstractCoroutineContextElement(NavigationL
 public class NavigationLogic(
     public val storeAccessor: StoreAccessor,
     private val precomputedData: PrecomputedNavigationData,
-    private val parameterEncoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder(),
+    @Suppress("UNUSED_PARAMETER") parameterEncoder: DualNavigationParameterEncoder = DualNavigationParameterEncoder(),
     private val onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null
 ) : ModuleLogic() {
 
@@ -159,7 +159,7 @@ public class NavigationLogic(
                 }
 
                 if (!deepLinkStartedBeforeBootstrap.value) {
-                    val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                    val routeBuilder = NavigationBuilder(storeAccessor)
                     routeBuilder.clearBackStack()
                     val resolvedBootstrapNode = resolveEntryChain(selectedNode, bootstrapGraphId ?: "root")
 
@@ -179,7 +179,12 @@ public class NavigationLogic(
                         is GuardEvaluation.Reject -> {
                             val fallback = precomputedData.notFoundScreen
                             if (fallback != null) routeBuilder.navigateTo(fallback)
-                            else routeBuilder.navigateToNode(resolvedBootstrapNode)
+                            else throw IllegalStateException(
+                                "A guard rejected the start destination '$resolvedPath' and no " +
+                                    "notFoundScreen is configured, so there is nowhere to land. " +
+                                    "Configure notFoundScreen(), or have the guard return " +
+                                    "RedirectTo or PendAndRedirectTo instead of Reject."
+                            )
                         }
                         is GuardEvaluation.Allow, null -> routeBuilder.navigateToNode(resolvedBootstrapNode)
                     }
@@ -289,7 +294,7 @@ public class NavigationLogic(
      */
     public suspend fun navigate(block: suspend NavigationBuilder.() -> Unit): NavigationOutcome {
         if (isExternallyDriven()) return NavigationOutcome.Dropped
-        val builder = NavigationBuilder(storeAccessor, parameterEncoder)
+        val builder = NavigationBuilder(storeAccessor)
         builder.apply { block() }
         builder.validate()
         val primaryStep = builder.operations.firstOrNull {
@@ -299,7 +304,7 @@ public class NavigationLogic(
             try { it.target?.resolve(precomputedData) } catch (e: Exception) { null }
         }
         val targetResolution = targetRoute?.let {
-            precomputedData.routeResolver.resolve(it, precomputedData.availableNavigatables)
+            precomputedData.routeResolver.resolve(it)
         }
         val isSystemLayer = targetResolution?.targetNavigatable?.renderLayer == RenderLayer.SYSTEM
         if (!isSystemLayer) {
@@ -326,13 +331,17 @@ public class NavigationLogic(
         currentState: NavigationState
     ): GuardEvaluation? {
         if (isExternallyDriven()) return GuardEvaluation.Allow
-        val targetGraphId = targetResolution?.navigationGraphId
-        val targetActualGraphId = targetResolution?.targetGraphId
-        val targetCanonicalGraphId = precomputedData.routeResolver.canonicalGraphId(targetRoute)
-        val zoneKey = listOfNotNull(targetRoute, targetCanonicalGraphId, targetGraphId, targetActualGraphId)
-            .firstOrNull { precomputedData.interceptedRoutes.containsKey(it) }
+        val pathIntercept = precomputedData.interceptsByPath[targetRoute]
+        val graphZoneId = if (pathIntercept != null) null else listOfNotNull(
+            precomputedData.routeResolver.canonicalGraphId(targetRoute),
+            targetResolution?.requestedGraphId,
+            targetResolution?.owningGraphId
+        ).firstOrNull { precomputedData.interceptsByGraphId.containsKey(it) }
+
+        val interceptDef = pathIntercept
+            ?: graphZoneId?.let { precomputedData.interceptsByGraphId.getValue(it) }
             ?: return null
-        val interceptDef = precomputedData.interceptedRoutes.getValue(zoneKey)
+        val zoneKey = graphZoneId ?: targetRoute
 
         fun GuardResult.toGuardEvaluation(): GuardEvaluation = when (this) {
             is GuardResult.Allow -> GuardEvaluation.Allow
@@ -345,9 +354,7 @@ public class NavigationLogic(
                     metadata = metadata,
                     displayHint = displayHint
                 )
-                val redirectResolution = precomputedData.routeResolver.resolve(
-                    route, precomputedData.availableNavigatables
-                )
+                val redirectResolution = precomputedData.routeResolver.resolve(route)
                 val redirectPath = redirectResolution?.targetNavigatable?.let {
                     precomputedData.navigatableToFullPath[it]
                 }
@@ -360,7 +367,7 @@ public class NavigationLogic(
         }
 
         val isAlreadyInZone = currentState.backStack.any { entry ->
-            precomputedData.interceptedRoutes[entry.path] === interceptDef
+            precomputedData.interceptsByPath[entry.path] === interceptDef
         }
         if (isAlreadyInZone) return GuardEvaluation.Allow
 
@@ -488,7 +495,7 @@ public class NavigationLogic(
     }
 
     private suspend fun navigateDirect(route: String) {
-        val builder = NavigationBuilder(storeAccessor, parameterEncoder)
+        val builder = NavigationBuilder(storeAccessor)
         builder.navigateTo(route)
         builder.validate()
         executeNavigation(builder)
@@ -511,7 +518,7 @@ public class NavigationLogic(
         is GuardEvaluation.PendAndRedirect -> {
             storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
             if (!guard.alreadyAtRedirect) {
-                val redirectBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                val redirectBuilder = NavigationBuilder(storeAccessor)
                 redirectBuilder.clearBackStack()
                 redirectBuilder.navigateTo(guard.redirectRoute)
                 redirectBuilder.validate()
@@ -626,12 +633,12 @@ public class NavigationLogic(
                     val initialGuard = evaluateGuard(targetRoute, targetResolution, primaryStep, currentState)
                     guardOutcome(initialGuard)?.let { return@withContext it }
 
-                    val targetGraphId = precomputedData.routeResolver.canonicalGraphId(targetRoute)
-                    val isDynamicGraphTarget = targetGraphId != null &&
-                            precomputedData.graphEntries[targetGraphId]?.route != null
+                    val owningGraphId = precomputedData.routeResolver.canonicalGraphId(targetRoute)
+                    val isDynamicGraphTarget = owningGraphId != null &&
+                            precomputedData.graphEntries[owningGraphId]?.route != null
                     val entryNode: NavigationNode? = if (isDynamicGraphTarget) {
                         val existingEntry = currentState.backStack.firstOrNull { entry ->
-                            precomputedData.navigatableToGraph[entry.navigatable] == targetGraphId
+                            precomputedData.navigatableToGraph[entry.navigatable] == owningGraphId
                         }
                         if (existingEntry != null) {
                             existingEntry.navigatable
@@ -643,18 +650,16 @@ public class NavigationLogic(
                     }
                     if (entryNode != null) {
                         val entryMemo = mutableMapOf<String, NavigationNode>()
-                        targetGraphId?.let { entryMemo[it] = entryNode }
+                        owningGraphId?.let { entryMemo[it] = entryNode }
                         val resolvedNode = resolveEntryChain(entryNode, targetRoute, entryMemo)
                         val resolvedResolution = if (resolvedNode is Navigatable) {
                             RouteResolution(
                                 targetNavigatable = resolvedNode,
-                                targetGraphId = precomputedData.navigatableToGraph[resolvedNode] ?: "root",
+                                owningGraphId = precomputedData.navigatableToGraph[resolvedNode] ?: "root",
                                 extractedParams = Params.empty()
                             )
                         } else {
-                            precomputedData.routeResolver.resolve(
-                                resolvedNode.route, precomputedData.availableNavigatables
-                            )
+                            precomputedData.routeResolver.resolve(resolvedNode.route)
                         }
 
                         if (initialGuard == null) {
@@ -664,7 +669,7 @@ public class NavigationLogic(
                             guardOutcome(resolvedGuard)?.let { return@withContext it }
                         }
 
-                        val routeBuilder = NavigationBuilder(storeAccessor, parameterEncoder)
+                        val routeBuilder = NavigationBuilder(storeAccessor)
                         val primaryStepIndex = builder.operations.indexOf(primaryStep)
                         builder.operations.subList(0, primaryStepIndex)
                             .forEach { routeBuilder.operations.add(it) }
@@ -841,7 +846,7 @@ public class NavigationLogic(
             bootstrapCompleted.await()
         }
 
-        val builder = NavigationBuilder(storeAccessor, parameterEncoder)
+        val builder = NavigationBuilder(storeAccessor)
         builder.clearBackStack()
         builder.params(targetParams)
         builder.navigateTo(targetRoute, synthesizeBackstack = true)
@@ -901,9 +906,9 @@ public class NavigationLogic(
                         primaryResolutionConsumed = true
                         primaryResolution
                     } else {
-                        precomputedData.routeResolver.resolve(
-                            resolvedRoute, precomputedData.availableNavigatables
-                        ) ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
+                        precomputedData.routeResolver.resolve(resolvedRoute)
+                            ?: precomputedData.routeResolver.notFoundResolution()
+                            ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
                     }
 
                     if (step.synthesizeBackstack) {
@@ -946,9 +951,9 @@ public class NavigationLogic(
                         primaryResolutionConsumed = true
                         primaryResolution
                     } else {
-                        precomputedData.routeResolver.resolve(
-                            resolvedRoute, precomputedData.availableNavigatables
-                        ) ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
+                        precomputedData.routeResolver.resolve(resolvedRoute)
+                            ?: precomputedData.routeResolver.notFoundResolution()
+                            ?: throw RouteNotFoundException("Route not found: $resolvedRoute")
                     }
                     val entryPath = resolution.targetNavigatable.fullPathOrRoute()
                     val entry = createNavigationEntry(step, resolution, entryPath, sim.backStack.size)
@@ -975,9 +980,7 @@ public class NavigationLogic(
 
                     var pendingRoute = pending.route
                     val pendingEntryMemo = mutableMapOf<String, NavigationNode>()
-                    var pendingResolution = precomputedData.routeResolver.resolve(
-                        pendingRoute, precomputedData.availableNavigatables
-                    )
+                    var pendingResolution = precomputedData.routeResolver.resolve(pendingRoute)
                     if (pendingResolution == null) {
                         val pendingEntryNode = resolveEntryNavigatable(pendingRoute) ?: continue
                         precomputedData.routeResolver.canonicalGraphId(pendingRoute)?.let {
@@ -988,13 +991,11 @@ public class NavigationLogic(
                         pendingResolution = if (resolvedNode is Navigatable) {
                             RouteResolution(
                                 targetNavigatable = resolvedNode,
-                                targetGraphId = precomputedData.navigatableToGraph[resolvedNode] ?: "root",
+                                owningGraphId = precomputedData.navigatableToGraph[resolvedNode] ?: "root",
                                 extractedParams = Params.empty()
                             )
                         } else {
-                            precomputedData.routeResolver.resolve(
-                                resolvedNode.route, precomputedData.availableNavigatables
-                            )
+                            precomputedData.routeResolver.resolve(resolvedNode.route)
                         }
                     }
                     if (pendingResolution == null) continue
@@ -1032,9 +1033,7 @@ public class NavigationLogic(
                     if (targetIndex < 0) {
                         if (step.popUpToFallback != null) {
                             val fallbackRoute = step.popUpToFallback.resolve(precomputedData)
-                            val resolution = precomputedData.routeResolver.resolve(
-                                fallbackRoute, precomputedData.availableNavigatables
-                            ) ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
+                            val resolution = precomputedData.routeResolver.resolve(fallbackRoute) ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
                             val fallbackPath = resolution.targetNavigatable.fullPathOrRoute()
                             val newEntry = createNavigationEntry(
                                 step.copy(target = step.popUpToFallback),
@@ -1167,26 +1166,13 @@ public class NavigationLogic(
         activeModalContexts: Map<String, ModalContext>
     ): ModalContext? {
         val underlying = if (currentEntry.navigatable is Modal)
-            activeModalContexts.values.firstOrNull()?.originalUnderlyingScreenEntry
-                ?: findUnderlyingScreenForModal(currentEntry, backStack)
+            findOriginalUnderlyingScreenForModal(currentEntry, backStack, activeModalContexts)
         else currentEntry
         return underlying?.let {
             ModalContext(
                 modalEntry = entry,
                 originalUnderlyingScreenEntry = it
             )
-        }
-    }
-
-    private fun findUnderlyingScreenForModal(
-        modalEntry: NavigationEntry,
-        backStack: List<NavigationEntry>
-    ): NavigationEntry? {
-        val modalIndex = backStack.indexOf(modalEntry)
-        if (modalIndex <= 0) return null
-
-        return backStack.subList(0, modalIndex).lastOrNull {
-            it.navigatable is Screen
         }
     }
 

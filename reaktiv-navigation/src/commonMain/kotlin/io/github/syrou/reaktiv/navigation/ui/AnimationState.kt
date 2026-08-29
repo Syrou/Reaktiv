@@ -179,7 +179,6 @@ public fun rememberModalAnimationState(
         previousEntries.value = currentEntryIds
     }
 
-    val navModule = LocalNavigationModule.current
     return entryStates.value.values
         .sortedBy { it.entry.navigatable.elevation }
 }

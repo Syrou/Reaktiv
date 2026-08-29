@@ -5,6 +5,7 @@ import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationAction
@@ -130,6 +131,64 @@ class ProtectedRoutesTest {
         override val createLogic: (StoreAccessor) -> ModuleLogic =
             { object : ModuleLogic() {} }
     }
+
+    private val notFoundScreenDefinition = screen("notfound")
+    private val bootstrapCrashScreen = screen("crashed")
+
+    private fun moduleWithRejectedStart(configureNotFound: Boolean) = createNavigationModule {
+        if (configureNotFound) {
+            notFoundScreen(notFoundScreenDefinition)
+        }
+        loadingModal(loadingModal)
+        crashScreen(bootstrapCrashScreen) { _, _ -> CrashRecovery.NAVIGATE_TO_CRASH_SCREEN }
+        rootGraph {
+            start(route = { _ -> homeScreen })
+            screens(startScreen, loginScreen)
+            intercept(
+                guard = { GuardResult.Reject }
+            ) {
+                graph("workspace") {
+                    start(homeScreen)
+                    screens(homeScreen)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `guard rejecting the start destination lands on notFoundScreen when configured`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithRejectedStart(configureNotFound = true))
+                coroutineContext(dispatcher)
+            }
+
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("notfound", state.currentEntry.route)
+        }
+
+    @Test
+    fun `guard rejecting the start destination never lands on it without a notFoundScreen`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithRejectedStart(configureNotFound = false))
+                coroutineContext(dispatcher)
+            }
+
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertFalse(
+                state.currentEntry.route == "home",
+                "A rejected start destination must not be navigated to"
+            )
+        }
 
     private fun moduleWithReject() = createNavigationModule {
         rootGraph {

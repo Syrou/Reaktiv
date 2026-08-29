@@ -125,6 +125,127 @@ These are separate Gradle builds and must be built/tested/published with `-p`:
 **rememberDispatcher()**: Accesses dispatch function in Composables
 **NavigationRender**: Renders current screen with transitions
 
+## Framework Invariants
+
+These are the rules the codebase is built on. Each one exists because breaking it produced a
+real defect, named below. Before adding an API, check the change against this list.
+
+Enforcement is marked **[type]** when the compiler rejects a violation, **[runtime]** when it
+fails fast, and **[review]** when only a reader will catch it. Prefer moving a rule up that
+ladder over documenting it harder.
+
+### I1. One representation per concept
+
+A concept gets one type and one name. Normalise at the boundary, then carry the type rather
+than re-deriving or re-checking it.
+
+**Symptom that this was broken:** a fallback chain that guesses which of several names applies.
+
+```kotlin
+// Wrong. Four candidate keys tried in order until one hits.
+val zoneKey = listOfNotNull(targetRoute, canonicalGraphId, targetGraphId, actualGraphId)
+    .firstOrNull { interceptedRoutes.containsKey(it) }
+```
+
+**Defects this caused:** five names for a graph id that had to be reconciled at every use.
+Two maps of the same relation (`routeToNavigatable`, `allNavigatables`) that silently diverged
+because one was snapshotted before a registration step and one after, so the resolver could not
+resolve the screens it was meant to fall back to. Two path computations (`graphId`,
+`graphChain`) that disagreed about top-level entries and silently dropped a graph transition.
+
+**Enforcement:** [review], moving to [type]. A route and a full path are both `String` today,
+so nothing stops one being passed where the other is meant.
+
+### I2. Derived state is derived, never stored, passed, or set
+
+If a value is a function of other state, compute it in one place. Do not add it as a field, a
+constructor parameter, or something a caller supplies.
+
+**Defect this caused:** fourteen values declared in four places each, hand-copied into two
+construction sites. `stackPosition` assigned under three different conventions in three files,
+two of which were dead writes that still polluted equality and serialization.
+
+**Enforcement:** [type]. `NavigationProjection` has an `internal` constructor and
+`@ConsistentCopyVisibility`, so nothing outside the navigation module can fabricate derived
+state or `copy()` a field of it into disagreement with the stack it describes.
+
+### I3. State changes only inside a reducer, reached only by dispatch
+
+There is no second write path. Anything that needs to set state from outside dispatches an
+action, including replication and persistence restore.
+
+**Defect this caused:** `applyExternalStates` wrote `MutableStateFlow.value` from whatever
+coroutine called it. The dispatch loop is a single ordered consumer, so those writes raced it,
+and state changed without instrumentation ever seeing it.
+
+**Enforcement:** [type]. `applyState` is private, `ModuleInfo.state` is internal, and
+`StoreAction.Hydrate` is the only way in. Note that hydrating from inside the pipeline
+deadlocks, because the single consumer would be waiting on itself.
+
+### I4. A function reports what happened
+
+Do not invent a fallback the caller did not ask for. Return a nullable or a sealed result, and
+let the caller choose what to do with failure.
+
+**Defect this caused:** `RouteResolver.resolve` answered an unresolvable route with the notFound
+screen, so callers could not tell "resolved" from "did not resolve". One caller compared the
+result against the notFound screen to undo it, while three other branches, including two
+`?: throw` sites, were unreachable.
+
+The replacement pattern:
+
+```kotlin
+val resolution = resolver.resolve(route)
+    ?: resolver.notFoundResolution()
+    ?: throw RouteNotFoundException(route)
+```
+
+**Enforcement:** [review].
+
+### I5. Behaviour is selected by data, not by booleans threaded through call chains
+
+A flag passed down several frames to change what a callee does is a sign the callee should have
+been given a different value, or split.
+
+**Defect this caused:** `bypassLock`, `hasNavigationOperations`, `primaryResolutionConsumed`,
+`wrapActions`, `includeRoot` and `entryMemo` threaded through navigation execution, with one
+parameter accidentally shadowed by a local of the same name.
+
+**Enforcement:** [review].
+
+### I6. One seam per concern
+
+Before adding an interception point, a cache, a shadow copy or a registry, find the existing
+one. Two mechanisms for one job will drift, and the drift is what ships.
+
+**Defect this caused:** four independent "shadow copy of module state" implementations and three
+implementations of the same JSON field merge, one of which called another and re-parsed the
+result it already had. `CopyOnWriteRegistry` existed while four other sites hand-rolled the same
+compare-and-set loop.
+
+**Enforcement:** [review].
+
+### I7. Side effects trigger from dispatched actions, never from state observation
+
+State-flow collectors must be render-pure. Lifecycle and side-effect systems hang off the
+dispatch pipeline, normally as module middleware. Do not pass state into a Logic constructor,
+and prefer the pipeline handing a Logic its input as method arguments over the Logic fetching
+state itself.
+
+**Enforcement:** [review].
+
+### I8. The UI owns no state
+
+The Store is the only state owner. State worth keeping across recomposition is modelled in
+module state, not held in `remember`. Correctness must never depend on an app-side opt-in that
+someone can forget, though app policy wiring such as drawers is fine.
+
+**Defect this caused:** the navigation UI kept a second map of modal entry state alongside the
+one it was given and mutated that, so modal exit lifecycle lived in two places. "What is the
+current entry" resolved through a three-source fallback chain.
+
+**Enforcement:** [review].
+
 ## Development Patterns
 
 ### Module Structure
@@ -416,7 +537,6 @@ pluginManagement {
 - **Gradle**: 9.6.1 (runs on JDK 17-26; the system-default JDK 25 works)
 - **Compose Multiplatform**: 1.11.1
 - **Android Gradle Plugin**: 9.3.0 (KMP modules use `com.android.kotlin.multiplatform.library` with the android target configured inside `kotlin { android { } }`; androidexample uses AGP built-in Kotlin — no `kotlin("android")` plugin)
-- **AtomicFU**: 0.33.0
 - **kotlinx**: coroutines 1.11.0, serialization 1.11.0, datetime 0.8.0
 - Target platforms: JVM, Android, iOS/macOS, wasmJs (module-dependent)
 

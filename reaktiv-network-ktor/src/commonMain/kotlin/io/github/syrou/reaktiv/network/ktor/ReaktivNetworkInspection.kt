@@ -242,14 +242,8 @@ private fun Headers.toCapturedMap(redacted: Set<String>): Map<String, List<Strin
         }
     }
 
-private fun decodeBounded(bytes: ByteArray, maxBytes: Int): String {
-    if (bytes.size <= maxBytes) return bytes.decodeToString()
-    var end = maxBytes
-    while (end > 0 && (bytes[end].toInt() and 0xC0) == 0x80) {
-        end--
-    }
-    return bytes.copyOfRange(0, end).decodeToString()
-}
+private fun decodeBounded(bytes: ByteArray, maxBytes: Int): String =
+    bytes.sliceOnCharBoundary(offset = 0, maxBytes = maxBytes).content
 
 internal fun isTextualContent(contentType: ContentType?): Boolean {
     if (contentType == null) return false

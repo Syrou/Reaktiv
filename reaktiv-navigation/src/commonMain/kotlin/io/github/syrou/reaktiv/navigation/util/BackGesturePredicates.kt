@@ -8,7 +8,7 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
 import io.github.syrou.reaktiv.navigation.transition.gestureAxis
 
-internal fun canHandleBack(state: NavigationState, navModule: NavigationModule): Boolean {
+internal fun canHandleBack(state: NavigationState): Boolean {
     if (state.isBootstrapping) return false
     if (state.isEvaluatingNavigation) return false
     if (!state.canGoBack) return false
@@ -22,17 +22,6 @@ internal fun revealedEntryForBack(state: NavigationState): NavigationEntry? {
 }
 
 /**
- * The chain of graph ids enclosing [entry], outermost first.
- *
- * Read from the entry's own path rather than a lookup table, so it works for nested graphs
- * without the caller knowing the hierarchy.
- */
-internal fun NavigationEntry.graphChain(): List<String> =
-    path.removeSuffix("/${navigatable.route}")
-        .split('/')
-        .filter { it.isNotEmpty() }
-
-/**
  * The innermost graph containing [entry] that presents itself as a draggable surface.
  *
  * Innermost wins: with a sheet presented inside another sheet, the gesture takes away the one
@@ -41,7 +30,7 @@ internal fun NavigationEntry.graphChain(): List<String> =
 internal fun dismissableBoundary(
     entry: NavigationEntry,
     navModule: NavigationModule
-): String? = entry.graphChain().lastOrNull { graphId ->
+): String? = entry.graphChain.lastOrNull { graphId ->
     navModule.getGraphDefinitions()[graphId]?.declaration?.swipeToDismiss == true
 }
 
@@ -64,7 +53,7 @@ internal fun revealedEntryForDismiss(
 }
 
 internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: NavigationModule): Boolean {
-    if (!canHandleBack(state, navModule)) return false
+    if (!canHandleBack(state)) return false
     val top = state.currentEntry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.backGestureEnabled) return false
@@ -81,11 +70,11 @@ internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: Nav
         navModule = navModule
     )
     if (departing.gestureAxis() == GestureAxis.Vertical) return false
-    return revealedContentEntryAvailable(state, navModule)
+    return revealedContentEntryAvailable(state)
 }
 
 internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationModule): Boolean {
-    if (!canHandleBack(state, navModule)) return false
+    if (!canHandleBack(state)) return false
     val top = state.currentEntry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     // Inside a dismissable graph the surface, not the screen, decides. A step that navigates
@@ -97,7 +86,7 @@ internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationMod
     return state.activeModalContexts[revealed.path] == null
 }
 
-private fun revealedContentEntryAvailable(state: NavigationState, navModule: NavigationModule): Boolean {
+private fun revealedContentEntryAvailable(state: NavigationState): Boolean {
     val revealed = revealedEntryForBack(state) ?: return false
     val revealedNavigatable = revealed.navigatable
     if (revealedNavigatable.renderLayer != RenderLayer.CONTENT) return false

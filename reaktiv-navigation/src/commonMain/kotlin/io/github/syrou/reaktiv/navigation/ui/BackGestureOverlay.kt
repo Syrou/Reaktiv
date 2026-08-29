@@ -36,10 +36,8 @@ import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
 import io.github.syrou.reaktiv.navigation.util.canHandleBack
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -73,11 +71,10 @@ internal fun Modifier.backGestureRecognizer(controller: InteractiveTransitionCon
                 down.position.x >= width - edgePx
             }
             if (!inEdge) return@awaitEachGesture
-            val state = latestState.value
-            if (!canArmInteractiveBackGesture(state, navModule)) return@awaitEachGesture
-            if (controller.contentTransitionActive) return@awaitEachGesture
-            val top = state.currentEntry
-            val revealed = revealedEntryForBack(state) ?: return@awaitEachGesture
+            val arming = armContentBack(latestState.value, navModule, controller)
+                ?: return@awaitEachGesture
+            val top = arming.top
+            val revealed = arming.revealed
 
             var slopChange: PointerInputChange? = null
             while (slopChange == null) {
@@ -94,8 +91,7 @@ internal fun Modifier.backGestureRecognizer(controller: InteractiveTransitionCon
                 }
             }
 
-            val kind = InteractiveTransitionController.ScrubKind.ContentBack(top, revealed)
-            if (!controller.beginScrub(kind)) return@awaitEachGesture
+            if (!controller.beginScrub(arming.kind)) return@awaitEachGesture
             slopChange.consume()
 
             val outcome = trackScrub(
@@ -134,11 +130,10 @@ internal fun Modifier.fullSurfaceBackGestureRecognizer(controller: InteractiveTr
             val width = size.width.toFloat()
             if (width <= 0f) return@awaitEachGesture
             val isLtr = layoutDirection == LayoutDirection.Ltr
-            val state = latestState.value
-            if (!canArmInteractiveBackGesture(state, navModule)) return@awaitEachGesture
-            if (controller.contentTransitionActive) return@awaitEachGesture
-            val top = state.currentEntry
-            val revealed = revealedEntryForBack(state) ?: return@awaitEachGesture
+            val arming = armContentBack(latestState.value, navModule, controller)
+                ?: return@awaitEachGesture
+            val top = arming.top
+            val revealed = arming.revealed
 
             val slopChange = awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
                 val towardsBack = if (isLtr) overSlop > 0f else overSlop < 0f
@@ -147,8 +142,7 @@ internal fun Modifier.fullSurfaceBackGestureRecognizer(controller: InteractiveTr
                 }
             } ?: return@awaitEachGesture
 
-            val kind = InteractiveTransitionController.ScrubKind.ContentBack(top, revealed)
-            if (!controller.beginScrub(kind)) return@awaitEachGesture
+            if (!controller.beginScrub(arming.kind)) return@awaitEachGesture
 
             val outcome = trackScrub(
                 controller = controller,
@@ -184,11 +178,10 @@ internal fun Modifier.dismissGestureRecognizer(controller: InteractiveTransition
             val down = awaitFirstDown(requireUnconsumed = false)
             val height = size.height.toFloat()
             if (height <= 0f) return@awaitEachGesture
-            val state = latestState.value
-            if (!canArmSwipeDismiss(state, navModule)) return@awaitEachGesture
-            if (controller.contentTransitionActive) return@awaitEachGesture
-            val top = state.currentEntry
-            val revealed = revealedEntryForDismiss(state, navModule) ?: return@awaitEachGesture
+            val arming = armContentDismiss(latestState.value, navModule, controller)
+                ?: return@awaitEachGesture
+            val top = arming.top
+            val revealed = arming.revealed
 
             val slopChange = awaitVerticalTouchSlopOrCancellation(down.id) { change, overSlop ->
                 if (overSlop > 0f) {
@@ -196,8 +189,7 @@ internal fun Modifier.dismissGestureRecognizer(controller: InteractiveTransition
                 }
             } ?: return@awaitEachGesture
 
-            val kind = InteractiveTransitionController.ScrubKind.ContentDismiss(top, revealed)
-            if (!controller.beginScrub(kind)) return@awaitEachGesture
+            if (!controller.beginScrub(arming.kind)) return@awaitEachGesture
 
             val outcome = trackScrub(
                 controller = controller,
@@ -249,11 +241,10 @@ internal fun Modifier.topEdgeDismissRecognizer(controller: InteractiveTransition
                 zoneBottom = zoneTop + edgePx
             }
             if (down.position.y < zoneTop || down.position.y > zoneBottom) return@awaitEachGesture
-            val state = latestState.value
-            if (!canArmSwipeDismiss(state, navModule)) return@awaitEachGesture
-            if (controller.contentTransitionActive) return@awaitEachGesture
-            val top = state.currentEntry
-            val revealed = revealedEntryForDismiss(state, navModule) ?: return@awaitEachGesture
+            val arming = armContentDismiss(latestState.value, navModule, controller)
+                ?: return@awaitEachGesture
+            val top = arming.top
+            val revealed = arming.revealed
 
             var slopChange: PointerInputChange? = null
             while (slopChange == null) {
@@ -269,8 +260,7 @@ internal fun Modifier.topEdgeDismissRecognizer(controller: InteractiveTransition
                 }
             }
 
-            val kind = InteractiveTransitionController.ScrubKind.ContentDismiss(top, revealed)
-            if (!controller.beginScrub(kind)) return@awaitEachGesture
+            if (!controller.beginScrub(arming.kind)) return@awaitEachGesture
             slopChange.consume()
 
             val outcome = trackScrub(
@@ -417,11 +407,10 @@ internal class GestureNestedScrollConnection(
 
         val backDelta = if (isLtr()) available.x else -available.x
         if (backDelta > 0f && containerWidthPx > 0f) {
-            if (!canArmInteractiveBackGesture(state, navModule)) return Offset.Zero
-            val top = state.currentEntry
-            val revealed = revealedEntryForBack(state) ?: return Offset.Zero
-            val kind = InteractiveTransitionController.ScrubKind.ContentBack(top, revealed)
-            if (!controller.beginScrub(kind)) return Offset.Zero
+            val arming = armContentBack(state, navModule, controller) ?: return Offset.Zero
+            val top = arming.top
+            val revealed = arming.revealed
+            if (!controller.beginScrub(arming.kind)) return Offset.Zero
             scrubbing = true
             scrubAxis = ScrubAxis.Horizontal
             scrubTop = top
@@ -476,7 +465,7 @@ internal class GestureNestedScrollConnection(
         val navigatable = state.currentEntry.navigatable
         if (navigatable is Modal) {
             if (!navigatable.swipeToDismiss) return null
-            if (!canHandleBack(state, navModule)) return null
+            if (!canHandleBack(state)) return null
             return InteractiveTransitionController.ScrubKind.ModalDismiss(state.currentEntry)
         }
         if (!canArmSwipeDismiss(state, navModule)) return null

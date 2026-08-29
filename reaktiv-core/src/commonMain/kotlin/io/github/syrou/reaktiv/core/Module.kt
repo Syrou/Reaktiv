@@ -73,7 +73,7 @@ public open class ModuleLogic : Logic {
      * Called when the store enters or leaves external control.
      *
      * While a store is externally driven its state is authored by a remote publisher through
-     * [InternalStoreOperations.applyExternalStates], and every locally dispatched action that
+     * [StoreAction.Hydrate], and every locally dispatched action that
      * is not [ExternalControlExempt] is dropped. Override this to quiesce work that would
      * otherwise compete with the incoming projection, such as start-up resolution or
      * long-running observation.

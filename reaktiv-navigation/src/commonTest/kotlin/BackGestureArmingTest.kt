@@ -100,7 +100,7 @@ class BackGestureArmingTest {
             }
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
-            assertFalse(canHandleBack(state, navModule))
+            assertFalse(canHandleBack(state))
             assertFalse(canArmInteractiveBackGesture(state, navModule))
         }
 
@@ -115,7 +115,7 @@ class BackGestureArmingTest {
             store.navigation { navigateTo("profile") }
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
-            assertTrue(canHandleBack(state, navModule))
+            assertTrue(canHandleBack(state))
             assertTrue(canArmInteractiveBackGesture(state, navModule))
         }
 
@@ -130,7 +130,7 @@ class BackGestureArmingTest {
             store.navigation { navigateTo("test-modal") }
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
-            assertTrue(canHandleBack(state, navModule))
+            assertTrue(canHandleBack(state))
             assertFalse(canArmInteractiveBackGesture(state, navModule))
         }
 
@@ -145,7 +145,7 @@ class BackGestureArmingTest {
             store.navigation { navigateTo("locked") }
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
-            assertTrue(canHandleBack(state, navModule))
+            assertTrue(canHandleBack(state))
             assertFalse(canArmInteractiveBackGesture(state, navModule))
         }
 
@@ -162,7 +162,7 @@ class BackGestureArmingTest {
             store.dispatch(NavigationAction.SetEvaluating(true))
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
-            assertFalse(canHandleBack(state, navModule))
+            assertFalse(canHandleBack(state))
             assertFalse(canArmInteractiveBackGesture(state, navModule))
         }
 
@@ -177,7 +177,7 @@ class BackGestureArmingTest {
             store.navigation { navigateTo("profile") }
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first().copy(isBootstrapping = true)
-            assertFalse(canHandleBack(state, navModule))
+            assertFalse(canHandleBack(state))
             assertFalse(canArmInteractiveBackGesture(state, navModule))
         }
 
@@ -192,7 +192,7 @@ class BackGestureArmingTest {
             store.navigation { navigateTo("sheet") }
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
-            assertTrue(canHandleBack(state, navModule))
+            assertTrue(canHandleBack(state))
             assertFalse(canArmInteractiveBackGesture(state, navModule))
             assertTrue(canArmSwipeDismiss(state, navModule))
         }

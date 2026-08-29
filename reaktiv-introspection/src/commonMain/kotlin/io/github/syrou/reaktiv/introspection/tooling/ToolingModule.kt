@@ -97,8 +97,15 @@ public class ToolingModule internal constructor(
     }
 }
 
-internal fun commandRoutingMiddleware(services: List<ToolingService>): Middleware =
-    { action, _, storeAccessor, updatedState ->
+internal class CommandRoutingMiddleware(
+    private val services: List<ToolingService>
+) : Middleware {
+    override suspend fun invoke(
+        action: ModuleAction,
+        getAllStates: suspend () -> Map<String, ModuleState>,
+        storeAccessor: StoreAccessor,
+        updatedState: suspend (ModuleAction) -> ModuleState,
+    ) {
         if (action is ToolingAction.ServiceCommand) {
             services.firstOrNull { it.name == action.service }?.let { service ->
                 storeAccessor.launch {
@@ -108,14 +115,27 @@ internal fun commandRoutingMiddleware(services: List<ToolingService>): Middlewar
         }
         updatedState(action)
     }
+}
 
-internal fun captureMiddleware(config: IntrospectionConfig, capture: SessionCapture): Middleware {
-    var initialized = false
-    var initialStateCaptured = false
-    return middleware@{ action, getAllStates, storeAccessor, updatedState ->
+internal fun commandRoutingMiddleware(services: List<ToolingService>): Middleware =
+    CommandRoutingMiddleware(services)
+
+internal class CaptureMiddleware(
+    private val config: IntrospectionConfig,
+    private val capture: SessionCapture
+) : Middleware {
+    private var initialized = false
+    private var initialStateCaptured = false
+
+    override suspend fun invoke(
+        action: ModuleAction,
+        getAllStates: suspend () -> Map<String, ModuleState>,
+        storeAccessor: StoreAccessor,
+        updatedState: suspend (ModuleAction) -> ModuleState,
+    ) {
         if (!config.enabled) {
             updatedState(action)
-            return@middleware
+            return
         }
         if (!initialized) {
             initialized = true
@@ -134,13 +154,22 @@ internal fun captureMiddleware(config: IntrospectionConfig, capture: SessionCapt
     }
 }
 
-internal fun composeMiddlewares(middlewares: List<Middleware>): Middleware {
-    if (middlewares.size == 1) return middlewares.first()
-    return { action, getAllStates, storeAccessor, updatedState ->
-        var invoke: suspend (ModuleAction) -> ModuleState? = { a -> updatedState(a) }
+internal fun captureMiddleware(config: IntrospectionConfig, capture: SessionCapture): Middleware =
+    CaptureMiddleware(config, capture)
+
+internal class ComposedMiddleware(
+    private val middlewares: List<Middleware>
+) : Middleware {
+    override suspend fun invoke(
+        action: ModuleAction,
+        getAllStates: suspend () -> Map<String, ModuleState>,
+        storeAccessor: StoreAccessor,
+        updatedState: suspend (ModuleAction) -> ModuleState,
+    ) {
+        var chain: suspend (ModuleAction) -> ModuleState? = { a -> updatedState(a) }
         for (middleware in middlewares.asReversed()) {
-            val next = invoke
-            invoke = { a ->
+            val next = chain
+            chain = { a ->
                 var result: ModuleState? = null
                 middleware(a, getAllStates, storeAccessor) { inner ->
                     val produced = checkNotNull(next(inner)) {
@@ -152,9 +181,12 @@ internal fun composeMiddlewares(middlewares: List<Middleware>): Middleware {
                 result
             }
         }
-        invoke(action)
+        chain(action)
     }
 }
+
+internal fun composeMiddlewares(middlewares: List<Middleware>): Middleware =
+    if (middlewares.size == 1) middlewares.first() else ComposedMiddleware(middlewares)
 
 public suspend fun StoreAccessor.toolingService(name: String): ToolingService? =
     selectLogic<ToolingLogic>().service(name)

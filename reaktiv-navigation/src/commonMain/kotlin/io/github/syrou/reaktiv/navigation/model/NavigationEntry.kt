@@ -40,7 +40,7 @@ public data class NavigationEntry(
     /** The short route of the [navigatable] (the last segment of [path]). */
     val route: String get() = navigatable.route
 
-    /** Alias for [route]. */
+    @Deprecated("Alias for route.", ReplaceWith("route"), DeprecationLevel.WARNING)
     val navigatableRoute: String get() = navigatable.route
 
     /** The [navigatable]'s title resource, directly invokable in composition. */
@@ -56,14 +56,23 @@ public data class NavigationEntry(
     val stableKey: String get() = "${path}_${params.hashCode()}"
 
     /**
+     * The graph IDs enclosing this entry, outermost first, derived from [path].
+     *
+     * Empty for a top-level navigatable that lives outside a named graph. Read from the path
+     * rather than a lookup table, so it works for nested graphs without the caller knowing the
+     * hierarchy.
+     */
+    val graphChain: List<String> get() {
+        val prefix = path.removeSuffix("/${navigatable.route}")
+        if (prefix == path || prefix.isEmpty()) return emptyList()
+        return prefix.split('/').filter { it.isNotEmpty() }
+    }
+
+    /**
      * The ID of the [NavigationGraph] that directly owns this entry, derived from [path].
      * Returns `"root"` for top-level navigatables that live outside a named graph.
      */
-    val graphId: String get() {
-        val prefix = path.removeSuffix("/${navigatable.route}")
-        return if (prefix == path || prefix.isEmpty()) "root"
-        else prefix.substringAfterLast("/")
-    }
+    val graphId: String get() = graphChain.lastOrNull() ?: "root"
 }
 
 /**
@@ -114,29 +123,54 @@ public class NavigationEntrySerializer(
 /**
  * The result of resolving a route string to a concrete [Navigatable] within the graph hierarchy.
  *
+ * Two graph IDs appear here and they answer different questions. [requestedGraphId] is the graph
+ * the caller named, and [owningGraphId] is the graph that turned out to own the destination. They
+ * differ whenever a graph's start destination is itself a graph reference: asking for `wizard`
+ * whose start is `wizard/addons` whose start is `addons/review` resolves to `review`, owned by
+ * `addons`, requested as `wizard`. A guard declared on `wizard` has to fire for that navigation,
+ * which is why both are kept.
+ *
  * @property targetNavigatable The resolved destination.
- * @property targetGraphId The graph that directly owns [targetNavigatable].
+ * @property owningGraphId The graph that directly owns [targetNavigatable].
  * @property extractedParams Path parameters extracted from the route pattern (e.g. `{id}`).
- * @property navigationGraphId The graph referenced when this was a graph-reference resolution.
- * @property isGraphReference `true` when this resolution was triggered by a graph route rather
- *   than a direct screen route.
+ * @property requestedGraphId The graph the caller named, when resolution started from a graph
+ *   route rather than a destination path. Null when a destination was named directly.
+ * @property isGraphReference Unused. Removed in a later release.
  */
 public data class RouteResolution(
     val targetNavigatable: Navigatable,
-    val targetGraphId: String,
+    val owningGraphId: String,
     val extractedParams: Params,
-    val navigationGraphId: String? = null,
+    val requestedGraphId: String? = null,
     val isGraphReference: Boolean = false
 ) {
+    @Deprecated(
+        "Renamed to owningGraphId, which says which of the two graph ids this is.",
+        ReplaceWith("owningGraphId"),
+        DeprecationLevel.WARNING
+    )
+    val targetGraphId: String get() = owningGraphId
+
+    @Deprecated(
+        "Renamed to requestedGraphId, which says which of the two graph ids this is.",
+        ReplaceWith("requestedGraphId"),
+        DeprecationLevel.WARNING
+    )
+    val navigationGraphId: String? get() = requestedGraphId
+
     /**
      * Returns the graph ID that should be used for path building and hierarchy computation.
-     * Prefers [navigationGraphId] when present, otherwise falls back to [targetGraphId].
+     * Prefers [requestedGraphId] when present, otherwise falls back to [owningGraphId].
      */
+    @Deprecated(
+        "Unused, and it reconciles two graph ids that should be one. Read owningGraphId or requestedGraphId directly.",
+        level = DeprecationLevel.WARNING
+    )
     public fun getEffectiveGraphId(): String {
         return when {
-            isGraphReference -> targetGraphId
-            navigationGraphId != null -> navigationGraphId
-            else -> targetGraphId
+            isGraphReference -> owningGraphId
+            requestedGraphId != null -> requestedGraphId
+            else -> owningGraphId
         }
     }
 }

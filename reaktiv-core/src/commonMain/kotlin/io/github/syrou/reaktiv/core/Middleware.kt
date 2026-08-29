@@ -25,9 +25,11 @@ package io.github.syrou.reaktiv.core
  * @param storeAccessor Access to dispatch, state selection, and logic selection
  * @param updatedState Function to continue processing the action and get the resulting state
  */
-public typealias Middleware = suspend (
-    action: ModuleAction,
-    getAllStates: suspend () -> Map<String, ModuleState>,
-    storeAccessor: StoreAccessor,
-    updatedState: suspend (ModuleAction) -> ModuleState,
-) -> Unit
+public fun interface Middleware {
+    public suspend operator fun invoke(
+        action: ModuleAction,
+        getAllStates: suspend () -> Map<String, ModuleState>,
+        storeAccessor: StoreAccessor,
+        updatedState: suspend (ModuleAction) -> ModuleState,
+    )
+}

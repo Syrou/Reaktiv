@@ -23,6 +23,7 @@ internal class PersistenceManager(
         return persistenceStrategy.hasPersistedState()
     }
 
+    @Deprecated("Unused. Construct a PersistenceManager directly.", level = DeprecationLevel.WARNING)
     fun copy(json: Json = this.json): PersistenceManager {
         return PersistenceManager(persistenceStrategy, json)
     }
