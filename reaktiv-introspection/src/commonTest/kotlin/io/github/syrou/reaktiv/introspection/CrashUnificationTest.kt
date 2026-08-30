@@ -152,7 +152,7 @@ class CrashUnificationTest {
         assertNull(export.crash, "A composable leaving the composition is not a crash")
         assertEquals(
             1,
-            export.logicFailedEvents.count { it.callId == "call-9" },
+            export.session.logicFailedEvents.count { it.callId == "call-9" },
             "It is still captured so the stream can show the scope went away"
         )
         capture.stop()
