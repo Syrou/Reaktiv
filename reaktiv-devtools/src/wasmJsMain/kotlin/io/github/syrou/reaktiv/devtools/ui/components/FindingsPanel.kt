@@ -14,14 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.devtools.protocol.Finding
@@ -142,22 +139,23 @@ internal fun FindingsPanel(
                 onClick = { severityFilter = FindingSeverity.WARNING },
                 label = { Text("Warnings $warningCount", style = MaterialTheme.typography.labelSmall) }
             )
-            IconButton(
-                onClick = {
-                    copyTextToClipboard(visible.joinToString(separator = "\n") { it.asClipboardText() })
-                },
-                enabled = visible.isNotEmpty(),
-                modifier = Modifier.size(26.dp)
-            ) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = "Copy all findings",
-                    modifier = Modifier.size(15.dp)
-                )
-            }
+            CopyControl(
+                actions = listOf(
+                    CopyAction("all findings") {
+                        visible.joinToString(separator = "\n") { it.asClipboardText() }
+                    }
+                ),
+                enabled = visible.isNotEmpty()
+            )
         }
 
-        if (visible.isEmpty()) {
+        if (visible.isEmpty() && findings.isNotEmpty()) {
+            FilteredEmptyState(
+                query = "",
+                hiddenCount = findings.size,
+                onClearFilters = { severityFilter = null }
+            )
+        } else if (visible.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -169,7 +167,7 @@ internal fun FindingsPanel(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = if (findings.isEmpty()) "No findings in this session" else "Nothing at this severity",
+                        text = "No findings in this session",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 8.dp)
                     )
@@ -243,16 +241,10 @@ private fun FindingCard(finding: Finding, onSeekTimestamp: (Long) -> Unit) {
                     )
                 }
             }
-            IconButton(
-                onClick = { copyTextToClipboard(finding.asClipboardText()) },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = "Copy finding",
-                    modifier = Modifier.size(14.dp)
-                )
-            }
+            CopyControl(
+                actions = listOf(CopyAction("finding") { finding.asClipboardText() }),
+                dense = true
+            )
         }
     }
 }

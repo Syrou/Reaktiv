@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation.util
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
+import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
 import io.github.syrou.reaktiv.navigation.transition.presentsItself
@@ -34,6 +35,15 @@ public fun determineAnimationDecision(
     currentEntry: NavigationEntry,
     navModule: NavigationModule,
     isExplicitBackNavigation: Boolean = false
+): AnimationDecision = determineAnimationDecision(
+    previousEntry, currentEntry, navModule.getGraphDefinitions(), isExplicitBackNavigation
+)
+
+public fun determineAnimationDecision(
+    previousEntry: NavigationEntry,
+    currentEntry: NavigationEntry,
+    graphDefinitions: Map<String, NavigationGraph>,
+    isExplicitBackNavigation: Boolean = false
 ): AnimationDecision {
     val previousId = "${previousEntry.path}@${previousEntry.stackPosition}"
     val currentId = "${currentEntry.path}@${currentEntry.stackPosition}"
@@ -56,8 +66,8 @@ public fun determineAnimationDecision(
     // resolves to the graph, everything else to the screen, and a graph declaring nothing resolves
     // back to the screen anyway. Both the timed path here and the interactive scrub read the same
     // source, so a drag cannot disagree with the animation it continues.
-    val enteringSource = presentationSourceFor(previousEntry, currentEntry, currNavigatable, navModule)
-    val exitingSource = presentationSourceFor(currentEntry, previousEntry, prevNavigatable, navModule)
+    val enteringSource = presentationSourceFor(previousEntry, currentEntry, currNavigatable, graphDefinitions)
+    val exitingSource = presentationSourceFor(currentEntry, previousEntry, prevNavigatable, graphDefinitions)
 
     val enterSpec = if (!isForward) popEnterSpec(exitingSource, enteringSource) else null
     val exitSpec = if (isForward) {
@@ -129,9 +139,16 @@ internal fun presentationSourceFor(
     to: NavigationEntry,
     navigatable: Navigatable,
     navModule: NavigationModule
+): TransitionSpec = presentationSourceFor(from, to, navigatable, navModule.getGraphDefinitions())
+
+internal fun presentationSourceFor(
+    from: NavigationEntry,
+    to: NavigationEntry,
+    navigatable: Navigatable,
+    graphDefinitions: Map<String, NavigationGraph>
 ): TransitionSpec {
     val fromChain = from.graphChain
     val crossed = to.graphChain.firstOrNull { it !in fromChain }
-        ?.let { navModule.getGraphDefinitions()[it]?.declaration }
+        ?.let { graphDefinitions[it]?.declaration }
     return crossed?.takeIf { it.presentsItself } ?: navigatable
 }

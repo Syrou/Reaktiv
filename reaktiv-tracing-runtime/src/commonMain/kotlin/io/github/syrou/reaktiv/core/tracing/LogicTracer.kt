@@ -7,6 +7,7 @@ import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.ContinuationInterceptor
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.Job
 
@@ -181,13 +182,19 @@ public object LogicTracer {
     ) {
         popCall(callId)
         if (!active) return
+        val exceptionType = exception::class.simpleName ?: "Unknown"
         val event = LogicMethodFailed(
             callId = callId,
-            exceptionType = exception::class.simpleName ?: "Unknown",
+            exceptionType = exceptionType,
             exceptionMessage = exception.message,
             stackTrace = exception.stackTraceToString(),
             durationMs = durationMs,
-            timestampMs = currentTimeMillis()
+            timestampMs = currentTimeMillis(),
+            kind = when {
+                exception !is CancellationException -> LogicFailureKind.THROWN
+                exceptionType in SCOPE_DISPOSAL_CANCELLATIONS -> LogicFailureKind.SCOPE_DISPOSED
+                else -> LogicFailureKind.CANCELLED
+            }
         )
         notifyObservers { it.onMethodFailed(event) }
     }

@@ -1963,7 +1963,9 @@ public final class io/github/syrou/reaktiv/navigation/util/AnimationDecision {
 
 public final class io/github/syrou/reaktiv/navigation/util/AnimationUtilKt {
 	public static final fun determineAnimationDecision (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/NavigationModule;Z)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public static final fun determineAnimationDecision (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/Map;Z)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
 	public static synthetic fun determineAnimationDecision$default (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/NavigationModule;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
+	public static synthetic fun determineAnimationDecision$default (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/Map;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
 	public static final fun determineContentAnimationDecision (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/NavigationModule;Z)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
 	public static synthetic fun determineContentAnimationDecision$default (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/NavigationModule;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;
 }

@@ -1215,6 +1215,77 @@ public final class io/github/syrou/reaktiv/devtools/protocol/ModuleSizeStats {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/syrou/reaktiv/devtools/protocol/NavigationAttempt {
+	public static final field $stable I
+	public fun <init> (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Z)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun component6 ()Z
+	public final fun copy (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Z)Lio/github/syrou/reaktiv/devtools/protocol/NavigationAttempt;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/NavigationAttempt;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ZILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/NavigationAttempt;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiverted ()Z
+	public final fun getDurationMs ()Ljava/lang/Long;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getOutcome ()Ljava/lang/String;
+	public final fun getTarget ()Ljava/lang/String;
+	public final fun getTimestampMs ()J
+	public fun hashCode ()I
+	public final fun isGuard ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/NavigationEntrySnapshot {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Ljava/util/Map;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/util/Map;)Lio/github/syrou/reaktiv/devtools/protocol/NavigationEntrySnapshot;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/NavigationEntrySnapshot;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/NavigationEntrySnapshot;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGraphChain ()Ljava/util/List;
+	public final fun getParams ()Ljava/util/Map;
+	public final fun getPath ()Ljava/lang/String;
+	public final fun getRoute ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/NavigationLensKt {
+	public static final field NAVIGATION_TRACE_CLASS Ljava/lang/String;
+	public static final fun buildNavigationLog (Ljava/util/List;Ljava/util/List;)Ljava/util/List;
+	public static final fun parseNavigationState (Ljava/lang/String;)Lio/github/syrou/reaktiv/devtools/protocol/NavigationSnapshot;
+}
+
+public final class io/github/syrou/reaktiv/devtools/protocol/NavigationSnapshot {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZZZLjava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Z
+	public final fun component6 ()Z
+	public final fun component7 ()Z
+	public final fun component8 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZZZLjava/util/List;)Lio/github/syrou/reaktiv/devtools/protocol/NavigationSnapshot;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/NavigationSnapshot;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZZZLjava/util/List;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/NavigationSnapshot;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBackStack ()Ljava/util/List;
+	public final fun getCurrentPath ()Ljava/lang/String;
+	public final fun getGraphChain ()Ljava/util/List;
+	public final fun getModalContextPaths ()Ljava/util/List;
+	public final fun getModuleKey ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isBootstrapping ()Z
+	public final fun isCurrentModal ()Z
+	public final fun isEvaluating ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/syrou/reaktiv/devtools/protocol/StallGroup {
 	public static final field $stable I
 	public fun <init> (Ljava/lang/String;IJ)V

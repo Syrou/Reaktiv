@@ -56,6 +56,7 @@ public data class LogicMethodCompleted(
  * @param stackTrace Full stack trace string (may be null on some platforms)
  * @param durationMs Time in milliseconds from method start to failure
  * @param timestampMs Epoch milliseconds when the method failed
+ * @param kind How the method ended: thrown, cancelled, or unwound with a disposed scope
  */
 @Serializable
 public data class LogicMethodFailed(
@@ -64,5 +65,18 @@ public data class LogicMethodFailed(
     val exceptionMessage: String?,
     val stackTrace: String?,
     val durationMs: Long,
-    val timestampMs: Long = 0L
+    val timestampMs: Long = 0L,
+    val kind: LogicFailureKind = LogicFailureKind.THROWN
+)
+
+@Serializable
+public enum class LogicFailureKind {
+    THROWN,
+    CANCELLED,
+    SCOPE_DISPOSED
+}
+
+public val SCOPE_DISPOSAL_CANCELLATIONS: Set<String> = setOf(
+    "ForgottenCoroutineScopeException",
+    "LeftCompositionCancellationException"
 )

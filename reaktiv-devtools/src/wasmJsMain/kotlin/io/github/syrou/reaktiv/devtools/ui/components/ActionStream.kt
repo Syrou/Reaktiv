@@ -23,12 +23,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.FilterChip
@@ -47,20 +47,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.syrou.reaktiv.core.tracing.LogicFailureKind
 import io.github.syrou.reaktiv.devtools.protocol.DISPATCH_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.protocol.PHASE_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.ui.CrashEventInfo
@@ -78,10 +70,11 @@ private class LogicCall(
     val timestampMs: Long,
     val durationMs: Long?,
     val failed: Boolean,
+    val kind: LogicFailureKind?,
     val depth: Int,
     val searchable: String
 ) {
-    val running: Boolean get() = durationMs == null && !failed
+    val running: Boolean get() = durationMs == null && kind == null
 }
 
 private sealed class StreamRow {
@@ -148,7 +141,8 @@ private fun buildLogicCalls(
             methodId = methodId,
             timestampMs = start?.timestamp ?: completion?.timestamp ?: failure?.timestamp ?: 0L,
             durationMs = completion?.durationMs ?: failure?.durationMs,
-            failed = failure != null,
+            failed = failure?.kind == LogicFailureKind.THROWN,
+            kind = failure?.kind,
             depth = depthOf(callId).coerceAtMost(3),
             searchable = buildString {
                 append(methodId ?: "")
@@ -175,31 +169,28 @@ internal fun ActionStream(
     selectedLogicMethodCallId: String? = null,
     selectedNetworkRequestId: String? = null,
     crashSelected: Boolean = false,
-    autoSelectLatest: Boolean = true,
+    followLatest: Boolean = true,
+    newEventsWhilePaused: Int = 0,
     excludedActionTypes: Set<String>,
     excludedLogicMethods: Set<String> = emptySet(),
     callIdToMethodIdentifier: Map<String, String> = emptyMap(),
-    timeTravelEnabled: Boolean = false,
     showActions: Boolean = true,
     showLogicMethods: Boolean = true,
     showLogs: Boolean = false,
     showNetwork: Boolean = true,
     searchQuery: String = "",
-    onSearchQueryChange: (String) -> Unit = {},
-    searchFocusRequester: FocusRequester? = null,
-    onSearchFocusChanged: (Boolean) -> Unit = {},
+    onClearSearch: () -> Unit = {},
     onSelectAction: (Int?) -> Unit = {},
     onSelectLogicMethod: (String?) -> Unit = {},
     onSelectNetworkRequest: (String?) -> Unit = {},
     onSelectCrash: (Boolean) -> Unit = {},
     onMarkerClick: (SessionMarker) -> Unit = {},
-    onToggleAutoSelect: () -> Unit = {},
+    onFollowLatest: () -> Unit = {},
     onAddExclusion: (String) -> Unit = {},
     onRemoveExclusion: (String) -> Unit = {},
     onSetExclusions: (Set<String>) -> Unit = {},
     onAddLogicMethodExclusion: (String) -> Unit = {},
     onRemoveLogicMethodExclusion: (String) -> Unit = {},
-    onToggleTimeTravel: () -> Unit = {},
     onToggleShowActions: () -> Unit = {},
     onToggleShowLogicMethods: () -> Unit = {},
     onToggleShowLogs: () -> Unit = {},
@@ -207,7 +198,6 @@ internal fun ActionStream(
     onClear: () -> Unit
 ) {
     val listState = rememberLazyListState()
-    val focusManager = LocalFocusManager.current
     var showFilters by remember { mutableStateOf(false) }
     var exclusionInput by remember { mutableStateOf("") }
 
@@ -268,8 +258,8 @@ internal fun ActionStream(
         }.sortedByDescending { it.timestampMs }
     }
 
-    LaunchedEffect(rows.size, autoSelectLatest) {
-        if (autoSelectLatest && rows.isNotEmpty()) {
+    LaunchedEffect(rows.size, followLatest) {
+        if (followLatest && rows.isNotEmpty()) {
             listState.animateScrollToItem(0)
         }
     }
@@ -284,7 +274,7 @@ internal fun ActionStream(
         if (index >= 0) listState.animateScrollToItem(index)
     }
     LaunchedEffect(selectedIndex) {
-        if (autoSelectLatest) return@LaunchedEffect
+        if (followLatest) return@LaunchedEffect
         val target = selectedIndex ?: return@LaunchedEffect
         val index = rows.indexOfFirst { it is StreamRow.ActionRow && it.originalIndex == target }
         if (index >= 0) listState.animateScrollToItem(index)
@@ -312,39 +302,12 @@ internal fun ActionStream(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .let { base -> searchFocusRequester?.let { base.focusRequester(it) } ?: base }
-                    .onFocusChanged { onSearchFocusChanged(it.isFocused) }
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
-                            onSearchQueryChange("")
-                            focusManager.clearFocus()
-                            true
-                        } else {
-                            false
-                        }
-                    },
-                placeholder = { Text("Search  ( / )", style = MaterialTheme.typography.bodySmall) },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall
+            Spacer(modifier = Modifier.weight(1f))
+            FollowChip(
+                following = followLatest,
+                newEvents = newEventsWhilePaused,
+                onFollow = onFollowLatest
             )
-            if (actions.isNotEmpty()) {
-                IconButton(onClick = onToggleTimeTravel) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = if (timeTravelEnabled) "Exit time travel" else "Time travel",
-                        tint = if (timeTravelEnabled) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-            TextButton(onClick = onToggleAutoSelect) {
-                Text(if (autoSelectLatest) "Auto" else "Manual", style = MaterialTheme.typography.labelSmall)
-            }
             Box {
                 IconButton(onClick = { showFilters = true }) {
                     Icon(
@@ -431,54 +394,116 @@ internal fun ActionStream(
 
         StreamHeader()
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                itemsIndexed(rows) { _, row ->
-                    when (row) {
-                        is StreamRow.ActionRow -> ActionRowView(
-                            row = row,
-                            sessionStart = sessionStart,
-                            selected = row.originalIndex == selectedIndex,
-                            onClick = { onSelectAction(row.originalIndex) },
-                            onExclude = { onAddExclusion(row.event.actionType) }
-                        )
-                        is StreamRow.CallRow -> CallRowView(
-                            call = row.call,
-                            sessionStart = sessionStart,
-                            selected = row.call.callId == selectedLogicMethodCallId,
-                            onClick = { onSelectLogicMethod(row.call.callId) },
-                            onExclude = { row.call.methodId?.let(onAddLogicMethodExclusion) }
-                        )
-                        is StreamRow.CrashRow -> CrashRowView(
-                            info = row.info,
-                            sessionStart = sessionStart,
-                            selected = crashSelected,
-                            onClick = { onSelectCrash(true) }
-                        )
-                        is StreamRow.MarkerRow -> MarkerRowView(
-                            marker = row.marker,
-                            sessionStart = sessionStart,
-                            onClick = { onMarkerClick(row.marker) }
-                        )
-                        is StreamRow.LogRow -> LogRowView(row.log, sessionStart)
-                        is StreamRow.NetworkRow -> NetworkRowView(
-                            row = row.row,
-                            sessionStart = sessionStart,
-                            selected = row.row.event.id == selectedNetworkRequestId,
-                            onClick = { onSelectNetworkRequest(row.row.event.id) }
-                        )
+        val capturedCount = actions.size + logicMethodEvents.size + deviceLogs.size +
+            networkEvents.size + (if (crashEvent != null) 1 else 0)
+
+        if (rows.isEmpty()) {
+            if (capturedCount == 0) {
+                EmptyState(
+                    title = "No actions yet",
+                    detail = "The device is connected and publishing. Interact with the app and " +
+                        "everything it dispatches arrives here."
+                )
+            } else {
+                FilteredEmptyState(
+                    query = searchQuery,
+                    hiddenCount = capturedCount,
+                    onClearFilters = {
+                        onClearSearch()
+                        onSetExclusions(emptySet())
+                        excludedLogicMethods.forEach(onRemoveLogicMethodExclusion)
+                        if (!showActions) onToggleShowActions()
+                        if (!showLogicMethods) onToggleShowLogicMethods()
+                        if (!showNetwork) onToggleShowNetwork()
+                    }
+                )
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    itemsIndexed(rows) { _, row ->
+                        when (row) {
+                            is StreamRow.ActionRow -> ActionRowView(
+                                row = row,
+                                sessionStart = sessionStart,
+                                selected = row.originalIndex == selectedIndex,
+                                onClick = { onSelectAction(row.originalIndex) },
+                                onExclude = { onAddExclusion(row.event.actionType) }
+                            )
+                            is StreamRow.CallRow -> CallRowView(
+                                call = row.call,
+                                sessionStart = sessionStart,
+                                selected = row.call.callId == selectedLogicMethodCallId,
+                                onClick = { onSelectLogicMethod(row.call.callId) },
+                                onExclude = { row.call.methodId?.let(onAddLogicMethodExclusion) }
+                            )
+                            is StreamRow.CrashRow -> CrashRowView(
+                                info = row.info,
+                                sessionStart = sessionStart,
+                                selected = crashSelected,
+                                onClick = { onSelectCrash(true) }
+                            )
+                            is StreamRow.MarkerRow -> MarkerRowView(
+                                marker = row.marker,
+                                sessionStart = sessionStart,
+                                onClick = { onMarkerClick(row.marker) }
+                            )
+                            is StreamRow.LogRow -> LogRowView(row.log, sessionStart)
+                            is StreamRow.NetworkRow -> NetworkRowView(
+                                row = row.row,
+                                sessionStart = sessionStart,
+                                selected = row.row.event.id == selectedNetworkRequestId,
+                                onClick = { onSelectNetworkRequest(row.row.event.id) }
+                            )
+                        }
                     }
                 }
+                VerticalScrollbar(
+                    adapter = rememberScrollbarAdapter(listState),
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                )
             }
-            VerticalScrollbar(
-                adapter = rememberScrollbarAdapter(listState),
-                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
-            )
         }
+    }
+}
+
+@Composable
+private fun FollowChip(following: Boolean, newEvents: Int, onFollow: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val label = when {
+        following -> "Following"
+        newEvents == 1 -> "1 new"
+        newEvents > 1 -> "$newEvents new"
+        else -> "Follow"
+    }
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (following) colors.surfaceVariant.copy(alpha = 0.5f) else colors.primaryContainer
+            )
+            .let { base -> if (following) base else base.clickable(onClick = onFollow) }
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(if (following) colors.primary else colors.onPrimaryContainer)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (following) colors.onSurfaceVariant else colors.onPrimaryContainer,
+            maxLines = 1
+        )
     }
 }
 
@@ -665,10 +690,15 @@ private fun CallRowView(
     onClick: () -> Unit,
     onExclude: () -> Unit
 ) {
-    val color = when {
-        call.failed -> MaterialTheme.colorScheme.error
-        call.running -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.secondary
+    val color = when (call.kind) {
+        LogicFailureKind.THROWN -> MaterialTheme.colorScheme.error
+        LogicFailureKind.CANCELLED -> MaterialTheme.colorScheme.tertiary
+        LogicFailureKind.SCOPE_DISPOSED -> MaterialTheme.colorScheme.outline
+        null -> if (call.running) {
+            MaterialTheme.colorScheme.tertiary
+        } else {
+            MaterialTheme.colorScheme.secondary
+        }
     }
     RowShell(color, selected, indent = call.depth, onClick = onClick) { hovered ->
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -681,12 +711,18 @@ private fun CallRowView(
             Spacer(modifier = Modifier.weight(1f))
             RowTail(
                 offsetMs = call.timestampMs - sessionStart,
-                statusText = when {
-                    call.failed -> "failed"
-                    call.running -> "running"
-                    else -> null
+                statusText = when (call.kind) {
+                    LogicFailureKind.THROWN -> "failed"
+                    LogicFailureKind.CANCELLED -> "cancelled"
+                    LogicFailureKind.SCOPE_DISPOSED -> "scope gone"
+                    null -> if (call.running) "running" else null
                 },
-                statusColor = if (call.failed) MaterialTheme.colorScheme.error else null,
+                statusColor = when (call.kind) {
+                    LogicFailureKind.THROWN -> MaterialTheme.colorScheme.error
+                    LogicFailureKind.CANCELLED -> MaterialTheme.colorScheme.tertiary
+                    LogicFailureKind.SCOPE_DISPOSED -> MaterialTheme.colorScheme.outline
+                    null -> null
+                },
                 durationText = if (call.failed || call.running) null else formatDuration(call.durationMs ?: 0L),
                 hovered = hovered,
                 onExclude = onExclude

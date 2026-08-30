@@ -12,6 +12,8 @@ import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.util.canHandleBack
+import io.github.syrou.reaktiv.navigation.util.determineAnimationDecision
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationNode
@@ -765,10 +767,12 @@ public class NavigationLogic(
     /**
      * Navigate back in the navigation stack.
      *
-     * No-op while [NavigationState.isEvaluatingNavigation] is true or a [LoadingModal] is
-     * the current entry, because back navigation during async guard/entry evaluation would
-     * corrupt state: this call bypasses the navigation mutex and the in-flight evaluation
-     * has already captured a state snapshot it is about to commit against.
+     * No-op unless the state can currently accept a back, which is the same question the
+     * gesture and platform-back paths ask through `canHandleBack`. Back navigation is refused
+     * while bootstrap is unresolved, while an async guard or entry evaluation is in flight, and
+     * while a [LoadingModal] is the current entry, because this call bypasses the navigation
+     * mutex and an in-flight evaluation has already captured a state snapshot it is about to
+     * commit against.
      *
      * Dispatches [NavigationAction.Back] directly, bypassing the navigation mutex.
      * This is intentional: a back/dismiss requires no guard evaluation, and the mutex
@@ -778,9 +782,7 @@ public class NavigationLogic(
      */
     public suspend fun navigateBack(expectedTopKey: String? = null) {
         val currentState = getCurrentNavigationState()
-        if (!currentState.canGoBack) return
-        if (currentState.isEvaluatingNavigation) return
-        if (currentState.currentEntry.navigatable is LoadingModal) return
+        if (!canHandleBack(currentState)) return
         storeAccessor.dispatchAndAwait(NavigationAction.Back(expectedTopKey))
     }
 
@@ -1085,12 +1087,18 @@ public class NavigationLogic(
             else -> storeAccessor.dispatchAndAwait(NavigationAction.AtomicBatch(allActions))
         }
 
-        val lastNavigatedNavEntry = batchedActions
-            .filterIsInstance<NavigationAction.Navigate>()
-            .lastOrNull()?.entry
-        val lastNavigatedNavigatable = lastNavigatedNavEntry?.navigatable
-        val enterMs = lastNavigatedNavigatable?.enterTransition?.durationMillis?.toLong() ?: 0L
-        val exitMs = navigationStartEntry.navigatable.exitTransition.durationMillis.toLong()
+        val decision = determineAnimationDecision(
+            previousEntry = navigationStartEntry,
+            currentEntry = sim.currentEntry,
+            graphDefinitions = precomputedData.graphDefinitions,
+            isExplicitBackNavigation = batchedActions.any { it is NavigationAction.Back }
+        )
+        val enterMs = if (decision.shouldAnimateEnter) {
+            decision.enterTransition.durationMillis.toLong()
+        } else 0L
+        val exitMs = if (decision.shouldAnimateExit) {
+            decision.exitTransition.durationMillis.toLong()
+        } else 0L
         val animMs = maxOf(enterMs, exitMs)
         if (animMs > 0L) {
             transitionSettleJob?.cancel()

@@ -58,15 +58,15 @@ class NetworkFilteringTest {
     fun `query matches url, method and status`() {
         assertEquals(
             listOf("n3"),
-            sample.applyNetworkFilter(NetworkFilter(query = "cdn")).map { it.event.id }
+            sample.applyNetworkFilter(NetworkFilter(), "cdn").map { it.event.id }
         )
         assertEquals(
             listOf("n2"),
-            sample.applyNetworkFilter(NetworkFilter(query = "500")).map { it.event.id }
+            sample.applyNetworkFilter(NetworkFilter(), "500").map { it.event.id }
         )
         assertEquals(
             listOf("n4"),
-            sample.applyNetworkFilter(NetworkFilter(query = "timeout")).map { it.event.id }
+            sample.applyNetworkFilter(NetworkFilter(), "timeout").map { it.event.id }
         )
     }
 
@@ -148,7 +148,7 @@ class NetworkFilteringTest {
             it.copy(event = it.event.copy(decodeError = "MissingFieldException: total"))
         }
 
-        val byQuery = rows.applyNetworkFilter(NetworkFilter(query = "MissingField"))
+        val byQuery = rows.applyNetworkFilter(NetworkFilter(), "MissingField")
         assertEquals(listOf("n5"), byQuery.map { it.event.id })
 
         val failures = rows.applyNetworkFilter(NetworkFilter(failuresOnly = true))

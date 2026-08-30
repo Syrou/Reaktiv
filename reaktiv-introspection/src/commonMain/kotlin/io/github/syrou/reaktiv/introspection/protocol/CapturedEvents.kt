@@ -9,6 +9,23 @@ import kotlinx.serialization.json.jsonObject
 public enum class DeltaKind { FULL, FIELDS }
 
 /**
+ * A log line emitted through [io.github.syrou.reaktiv.core.util.ReaktivDebug] while a session
+ * was being captured.
+ *
+ * @property level Severity as reported by the emitter, for example `DEBUG`, `WARN` or `ERROR`.
+ * @property category The subsystem the line was filed under, for example `NAV` or `STORE`.
+ * @property message The line itself.
+ * @property timestampMs When the line was emitted.
+ */
+@Serializable
+public data class CapturedLog(
+    val level: String,
+    val category: String,
+    val message: String,
+    val timestampMs: Long
+)
+
+/**
  * Represents a captured action dispatch event.
  */
 @Serializable

@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.introspection.tracing
 
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
+import io.github.syrou.reaktiv.core.tracing.LogicFailureKind
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.tracing.LogicObserver
@@ -37,6 +38,7 @@ public class IntrospectionLogicObserver(
     override fun onMethodFailed(event: LogicMethodFailed) {
         val method = inFlight.remove(event.callId)
         sessionCapture.captureLogicFailed(event)
+        if (event.kind == LogicFailureKind.SCOPE_DISPOSED) return
         sessionCapture.reportCrash(
             event.toCrashInfo().copy(
                 logicClass = method?.first,

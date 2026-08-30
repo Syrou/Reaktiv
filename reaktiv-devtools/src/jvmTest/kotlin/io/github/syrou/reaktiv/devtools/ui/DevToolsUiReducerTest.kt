@@ -45,8 +45,8 @@ class DevToolsUiReducerTest {
         val withData = reduce(DevToolsUiState(), DevToolsUiAction.AddActionStateEvent(action(1)))
 
         val toggled = reduce(withData, DevToolsUiAction.ToggleStateViewMode)
-        val tabbed = reduce(toggled, DevToolsUiAction.SetRightPanelTab(RightPanelTab.NETWORK))
-        val searched = reduce(tabbed, DevToolsUiAction.SetSearchQuery("boom"))
+        val moded = reduce(toggled, DevToolsUiAction.SetMode(DevToolsMode.NETWORK))
+        val searched = reduce(moded, DevToolsUiAction.SetSearchQuery("boom"))
 
         assertEquals(withData.dataRevision, searched.dataRevision)
     }
@@ -77,6 +77,53 @@ class DevToolsUiReducerTest {
 
         assertTrue(cleared.dataRevision > withData.dataRevision)
         assertTrue(cleared.actionStateHistory.isEmpty())
+    }
+
+    @Test
+    fun `the stream follows the head until you scrub away from it`() {
+        var state = DevToolsUiState()
+        repeat(3) { state = reduce(state, DevToolsUiAction.AddActionStateEvent(action(it))) }
+
+        assertTrue(state.followLatest, "A fresh session follows the head")
+        assertEquals(2, state.selectedActionIndex, "The newest action is selected")
+
+        state = reduce(state, DevToolsUiAction.SelectAction(0))
+        assertFalse(state.followLatest, "Selecting an older action stops following")
+
+        state = reduce(state, DevToolsUiAction.AddActionStateEvent(action(3)))
+        assertEquals(0, state.selectedActionIndex, "A new action does not steal the selection")
+        assertEquals(3, state.newEventsWhilePaused, "The gap to the head is offered as a count")
+    }
+
+    @Test
+    fun `going back to the newest action re-arms following`() {
+        var state = DevToolsUiState()
+        repeat(3) { state = reduce(state, DevToolsUiAction.AddActionStateEvent(action(it))) }
+        state = reduce(state, DevToolsUiAction.SelectAction(0))
+        assertFalse(state.followLatest)
+
+        state = reduce(state, DevToolsUiAction.SelectAction(state.latestSelectableIndex))
+        assertTrue(state.followLatest, "Landing on the head follows again, with no separate toggle")
+
+        state = reduce(state, DevToolsUiAction.AddActionStateEvent(action(3)))
+        assertEquals(3, state.selectedActionIndex, "Following moves the selection to the new head")
+        assertEquals(0, state.newEventsWhilePaused)
+    }
+
+    @Test
+    fun `time travel and changing mode both stop the stream following`() {
+        var state = DevToolsUiState()
+        repeat(3) { state = reduce(state, DevToolsUiAction.AddActionStateEvent(action(it))) }
+
+        val travelling = reduce(state, DevToolsUiAction.SetTimeTravelPosition(1))
+        assertFalse(travelling.followLatest, "Scrubbing time travel is an explicit look at the past")
+
+        val moded = reduce(state, DevToolsUiAction.SetMode(DevToolsMode.NETWORK))
+        assertFalse(moded.followLatest, "Changing mode closes the inspector and stops following")
+        assertEquals(Selection.None, moded.selection)
+
+        val afterEvent = reduce(moded, DevToolsUiAction.AddActionStateEvent(action(3)))
+        assertEquals(Selection.None, afterEvent.selection, "The inspector stays closed")
     }
 
     @Test

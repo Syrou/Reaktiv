@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.introspection
 
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.core.tracing.LogicFailureKind
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.util.reaktivJson
@@ -118,6 +119,74 @@ class CrashUnificationTest {
         assertEquals("fetchUser", crash.methodName)
         assertEquals("call-7", crash.callId)
         assertEquals("IllegalStateException", crash.exception.exceptionType)
+        capture.stop()
+    }
+
+    @Test
+    fun `a composition unwind is captured but is not a crash`() = runTest {
+        val capture = startedCapture()
+        val observer = IntrospectionLogicObserver(capture)
+
+        observer.onMethodStart(
+            LogicMethodStart(
+                logicClass = "NavigationLogic",
+                methodName = "navigate",
+                params = emptyMap(),
+                callId = "call-9",
+                timestampMs = 2000L
+            )
+        )
+        observer.onMethodFailed(
+            LogicMethodFailed(
+                callId = "call-9",
+                exceptionType = "ForgottenCoroutineScopeException",
+                exceptionMessage = "rememberCoroutineScope left the composition",
+                stackTrace = "stack",
+                durationMs = 4L,
+                timestampMs = 2004L,
+                kind = LogicFailureKind.SCOPE_DISPOSED
+            )
+        )
+
+        val export = decodeExport(capture)
+        assertNull(export.crash, "A composable leaving the composition is not a crash")
+        assertEquals(
+            1,
+            export.logicFailedEvents.count { it.callId == "call-9" },
+            "It is still captured so the stream can show the scope went away"
+        )
+        capture.stop()
+    }
+
+    @Test
+    fun `an ordinary cancellation is still reported as a crash`() = runTest {
+        val capture = startedCapture()
+        val observer = IntrospectionLogicObserver(capture)
+
+        observer.onMethodStart(
+            LogicMethodStart(
+                logicClass = "UploadLogic",
+                methodName = "upload",
+                params = emptyMap(),
+                callId = "call-11",
+                timestampMs = 3000L
+            )
+        )
+        observer.onMethodFailed(
+            LogicMethodFailed(
+                callId = "call-11",
+                exceptionType = "JobCancellationException",
+                exceptionMessage = "Job was cancelled",
+                stackTrace = "stack",
+                durationMs = 8L,
+                timestampMs = 3008L,
+                kind = LogicFailureKind.CANCELLED
+            )
+        )
+
+        val crash = decodeExport(capture).crash
+        assertNotNull(crash, "Work that was aborted is worth knowing about")
+        assertEquals("UploadLogic", crash.logicClass)
         capture.stop()
     }
 

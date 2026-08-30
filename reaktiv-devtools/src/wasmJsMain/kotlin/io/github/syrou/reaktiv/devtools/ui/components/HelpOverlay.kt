@@ -22,12 +22,12 @@ import androidx.compose.ui.window.Dialog
 
 private val SHORTCUTS = listOf(
     "Ctrl+K" to "Command palette",
-    "/" to "Search the event stream",
+    "/" to "Search this mode",
     "t" to "Toggle time travel",
     "Space" to "Play or pause playback",
     "j / Left" to "Step to previous action",
     "k / Right" to "Step to next action",
-    "1 / 2 / 3" to "State, Performance, Findings tab",
+    "1 - 3" to "Debug, Performance, Network mode",
     "m" to "Drop a marker on the publisher",
     "g" to "Import a ghost session",
     "e" to "Export the current session",

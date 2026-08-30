@@ -34,6 +34,13 @@ import kotlinx.serialization.json.Json
 /**
  * Reaktiv module for DevTools UI state management.
  */
+private fun DevToolsUiState.followHead(before: DevToolsUiState): DevToolsUiState {
+    if (!before.followLatest || timeTravelEnabled) return this
+    val head = latestSelectableIndex
+    if (head < 0) return this
+    return copy(selection = Selection.Action(head))
+}
+
 internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAction, DevToolsUiLogic> {
     override val initialState: DevToolsUiState = DevToolsUiState()
 
@@ -49,6 +56,7 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
 
             is DevToolsUiAction.AddActionStateEvent -> {
                 state.copy(actionStateHistory = state.actionStateHistory + action.event)
+                    .followHead(state)
             }
 
             is DevToolsUiAction.SelectPublisher -> {
@@ -64,17 +72,19 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
             }
 
             is DevToolsUiAction.SelectAction -> {
-                state.copy(
-                    selection = action.index?.let { Selection.Action(it) } ?: Selection.None
-                )
+                val index = action.index
+                if (index == null) {
+                    state.copy(selection = Selection.None, followLatest = false)
+                } else {
+                    state.copy(
+                        selection = Selection.Action(index),
+                        followLatest = index >= state.latestSelectableIndex
+                    )
+                }
             }
 
             is DevToolsUiAction.ToggleDevicePanel -> {
                 state.copy(devicePanelExpanded = !state.devicePanelExpanded)
-            }
-
-            is DevToolsUiAction.ToggleAutoSelectLatest -> {
-                state.copy(autoSelectLatest = !state.autoSelectLatest)
             }
 
             is DevToolsUiAction.ClearHistory -> {
@@ -82,6 +92,7 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                     actionStateHistory = emptyList(),
                     logicMethodEvents = emptyList(),
                     selection = Selection.None,
+                    followLatest = true,
                                         crashEvent = null,
                                         stateReads = emptyList(),
                     logicEventKeys = emptySet()
@@ -94,12 +105,14 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                         actionStateHistory = emptyList(),
                         logicMethodEvents = emptyList(),
                         selection = Selection.None,
-                                                logicEventKeys = emptySet()
+                        followLatest = true,
+                        logicEventKeys = emptySet()
                     )
                 } else {
                     state.copy(
                         actionStateHistory = emptyList(),
-                        selection = Selection.None
+                        selection = Selection.None,
+                        followLatest = true
                     )
                 }
             }
@@ -121,14 +134,16 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                 state.copy(
                     timeTravelEnabled = newEnabled,
                     timeTravelPosition = if (newEnabled) state.actionStateHistory.size - 1 else 0,
-                    selection = if (newEnabled) Selection.Action(state.actionStateHistory.size - 1) else state.selection
+                    selection = if (newEnabled) Selection.Action(state.actionStateHistory.size - 1) else state.selection,
+                    autoPlaying = false
                 )
             }
 
             is DevToolsUiAction.SetTimeTravelPosition -> {
                 state.copy(
                     timeTravelPosition = action.position,
-                    selection = Selection.Action(action.position)
+                    selection = Selection.Action(action.position),
+                    followLatest = false
                 )
             }
 
@@ -161,7 +176,8 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
 
             is DevToolsUiAction.SelectLogicMethodEvent -> {
                 state.copy(
-                    selection = action.callId?.let { Selection.LogicCall(it) } ?: Selection.None
+                    selection = action.callId?.let { Selection.LogicCall(it) } ?: Selection.None,
+                    followLatest = false
                 )
             }
 
@@ -199,7 +215,10 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
             }
 
             is DevToolsUiAction.SelectCrash -> {
-                state.copy(selection = if (action.selected) Selection.Crash else Selection.None)
+                state.copy(
+                    selection = if (action.selected) Selection.Crash else Selection.None,
+                    followLatest = false
+                )
             }
 
             is DevToolsUiAction.SetActiveGhostId -> {
@@ -215,7 +234,8 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                         Selection.Action(state.actionStateHistory.size - 1)
                     } else {
                         Selection.None
-                    }
+                    },
+                    followLatest = false
                 )
             }
 
@@ -229,6 +249,7 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
 
             is DevToolsUiAction.BulkAddActionStateEvents -> {
                 state.copy(actionStateHistory = state.actionStateHistory + action.events)
+                    .followHead(state)
             }
 
             is DevToolsUiAction.BulkAddLogicMethodEvents -> {
@@ -248,8 +269,49 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                 state.copy(clientStatuses = state.clientStatuses + (action.clientId to action.status))
             }
 
-            is DevToolsUiAction.SetRightPanelTab -> {
-                state.copy(rightPanelTab = action.tab)
+            is DevToolsUiAction.ClearSelection -> {
+                state.copy(selection = Selection.None, followLatest = false)
+            }
+
+            is DevToolsUiAction.SetMode -> {
+                if (action.mode == state.mode) {
+                    state
+                } else {
+                    state.copy(
+                        mode = action.mode,
+                        selection = Selection.None,
+                        followLatest = false
+                    )
+                }
+            }
+
+            is DevToolsUiAction.SetPerformanceView -> {
+                state.copy(performanceView = action.view)
+            }
+
+            is DevToolsUiAction.SetInspectorTab -> {
+                state.copy(inspectorTab = action.tab)
+            }
+
+            is DevToolsUiAction.SetPlaybackSpeed -> {
+                state.copy(playbackSpeed = action.speed)
+            }
+
+            is DevToolsUiAction.SetAutoPlaying -> {
+                when {
+                    !action.playing -> state.copy(autoPlaying = false)
+                    state.actionStateHistory.isEmpty() -> state
+                    state.timeTravelEnabled -> state.copy(autoPlaying = true)
+                    else -> {
+                        val from = (state.selection as? Selection.Action)?.index ?: 0
+                        state.copy(
+                            autoPlaying = true,
+                            timeTravelEnabled = true,
+                            timeTravelPosition = from,
+                            selection = Selection.Action(from)
+                        )
+                    }
+                }
             }
 
             is DevToolsUiAction.AddMarker -> {
@@ -295,11 +357,11 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
 
             is DevToolsUiAction.SelectNetworkRequest -> {
                 if (action.requestId == null) {
-                    state.copy(selection = Selection.None)
+                    state.copy(selection = Selection.None, followLatest = false)
                 } else {
                     state.copy(
                         selection = Selection.NetworkRequest(action.requestId),
-                        rightPanelTab = RightPanelTab.NETWORK
+                        followLatest = false
                     )
                 }
             }
@@ -581,6 +643,11 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
                 )
             )
         }
+        if (history.logs.isNotEmpty()) {
+            storeAccessor.dispatch(
+                DevToolsUiAction.AppendDeviceLogs(history.logs.map { it.toRow(clientId) })
+            )
+        }
         val logicEvents = buildList<LogicMethodEvent> {
             history.logicStarted.forEach { add(LogicMethodEvent.Started(clientId, it)) }
             history.logicCompleted.forEach { add(LogicMethodEvent.Completed(clientId, it)) }
@@ -740,6 +807,12 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
             )
         }
 
+        if (export.session.logs.isNotEmpty()) {
+            storeAccessor.dispatch(
+                DevToolsUiAction.AppendDeviceLogs(export.session.logs.map { it.toRow(ghostClientId) })
+            )
+        }
+
         if (export.session.markers.isNotEmpty()) {
             storeAccessor.dispatch(DevToolsUiAction.SetMarkers(export.session.markers))
         }
@@ -819,7 +892,7 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
                 requestMissingGhostSessions(message.clients, state.activeGhostId)
                 val publisher = message.clients.find { it.role == ClientRole.PUBLISHER && !it.isGhost }
                 val listener = message.clients.find {
-                    it.role == ClientRole.LISTENER && it.clientId != "devtools-ui"
+                    it.role == ClientRole.LISTENER && it.clientId != DEVTOOLS_UI_CLIENT_ID
                 }
 
                 if (publisher != null && state.selectedPublisher != publisher.clientId) {
@@ -889,7 +962,7 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
                     storeAccessor.dispatch(DevToolsUiAction.SetPublisherSessionStart(currentTimeMillis()))
                     storeAccessor.dispatch(DevToolsUiAction.SetCanExportSession(true))
                     // Auto-assign WASM UI as orchestrator for the new publisher
-                    assignRole("devtools-ui", ClientRole.ORCHESTRATOR, message.newPublisherId)
+                    assignRole(DEVTOOLS_UI_CLIENT_ID, ClientRole.ORCHESTRATOR, message.newPublisherId)
                     println("DevTools UI: Auto-assigned as orchestrator for ${message.newPublisherId}")
                 } else {
                     storeAccessor.dispatch(DevToolsUiAction.SelectPublisher(null))
@@ -961,15 +1034,7 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
             is DevToolsMessage.LogBatch -> {
                 storeAccessor.dispatch(
                     DevToolsUiAction.AppendDeviceLogs(
-                        message.entries.map {
-                            DeviceLogRow(
-                                clientId = message.clientId,
-                                level = it.level,
-                                category = it.category,
-                                message = it.message,
-                                timestampMs = it.timestampMs
-                            )
-                        }
+                        message.entries.map { it.toRow(message.clientId) }
                     )
                 )
             }

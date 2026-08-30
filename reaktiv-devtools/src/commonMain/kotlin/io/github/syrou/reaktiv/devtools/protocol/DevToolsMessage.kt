@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.introspection.protocol.CapturedLog
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted as CoreLogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed as CoreLogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart as CoreLogicMethodStart
@@ -220,7 +221,7 @@ public sealed class DevToolsMessage {
     @Serializable
     public data class LogBatch(
         override val clientId: String,
-        val entries: List<DeviceLogEntry>
+        val entries: List<CapturedLog>
     ) : DevToolsMessage(), ObservabilityOnly
 
     @Serializable
@@ -297,6 +298,11 @@ public sealed class DevToolsMessage {
 }
 
 @Serializable
+@Deprecated(
+    "The log wire and the captured session now share CapturedLog, so a session keeps its logs.",
+    ReplaceWith("CapturedLog", "io.github.syrou.reaktiv.introspection.protocol.CapturedLog"),
+    DeprecationLevel.WARNING
+)
 public data class DeviceLogEntry(
     val level: String,
     val category: String,

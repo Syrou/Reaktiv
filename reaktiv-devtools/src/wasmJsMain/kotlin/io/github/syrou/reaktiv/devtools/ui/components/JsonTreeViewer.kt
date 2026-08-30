@@ -2,15 +2,14 @@ package io.github.syrou.reaktiv.devtools.ui.components
 
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
@@ -38,7 +37,8 @@ internal fun JsonTreeViewer(
     previousJsonString: String? = null,
     searchQuery: String = "",
     showDiff: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    header: (LazyListScope.() -> Unit)? = null
 ) {
     val jsonElement = remember(jsonString) {
         try {
@@ -59,27 +59,58 @@ internal fun JsonTreeViewer(
     }
 
     val expandedPaths = remember { mutableStateMapOf<String, Boolean>() }
+    var expandAll by remember { mutableStateOf<Boolean?>(null) }
     val listState = rememberLazyListState()
+
+    val nodes = buildTreeNodes(
+        element = jsonElement,
+        path = "",
+        expandedPaths = expandedPaths,
+        expandAll = expandAll,
+        searchQuery = searchQuery,
+        previousElement = if (showDiff) previousJsonElement else null,
+        showDiffOnly = showDiff
+    )
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize().padding(end = 12.dp),
-            contentPadding = PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            modifier = Modifier.fillMaxSize().padding(end = 12.dp)
         ) {
-            items(buildTreeNodes(
-                element = jsonElement,
-                path = "",
-                expandedPaths = expandedPaths,
-                searchQuery = searchQuery,
-                previousElement = if (showDiff) previousJsonElement else null,
-                showDiffOnly = showDiff
-            )) { node ->
+            header?.invoke(this)
+
+            item(key = "tree-toolbar") {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Caption("${nodes.size} rows", modifier = Modifier.weight(1f))
+                    TextButton(
+                        onClick = {
+                            expandedPaths.clear()
+                            expandAll = true
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("Expand all", style = MaterialTheme.typography.labelSmall)
+                    }
+                    TextButton(
+                        onClick = {
+                            expandedPaths.clear()
+                            expandAll = false
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("Collapse all", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+
+            items(nodes) { node ->
                 JsonTreeNode(
                     node = node,
                     onToggleExpand = { path ->
-                        expandedPaths[path] = !(expandedPaths[path] ?: false)
+                        expandedPaths[path] = !node.isExpanded
                     }
                 )
             }
@@ -95,6 +126,7 @@ internal fun JsonTreeViewer(
 private data class TreeNode(
     val path: String,
     val key: String?,
+    val isArrayElement: Boolean = false,
     val value: JsonElement,
     val previousValue: JsonElement? = null,
     val depth: Int,
@@ -110,20 +142,56 @@ private enum class DiffStatus {
     REMOVED
 }
 
+private val prettyJson = Json { prettyPrint = true }
+
+private fun TreeNode.copyablePath(): String? = path.ifEmpty { null }
+
+private const val PREVIEW_ENTRIES = 3
+private const val PREVIEW_VALUE_CHARS = 18
+
+private fun previewOf(element: JsonElement): String {
+    val parts = when (element) {
+        is JsonObject -> element.entries.take(PREVIEW_ENTRIES).map { (k, v) -> "$k: ${previewValue(v)}" }
+        is JsonArray -> element.take(PREVIEW_ENTRIES).map { previewValue(it) }
+        else -> return ""
+    }
+    val size = if (element is JsonArray) element.size else (element as JsonObject).size
+    if (size == 0) return ""
+    val shown = parts.joinToString(", ")
+    return if (size > PREVIEW_ENTRIES) " $shown, +${size - PREVIEW_ENTRIES} " else " $shown "
+}
+
+private fun previewValue(element: JsonElement): String = when (element) {
+    is JsonObject -> if (element.isEmpty()) "{}" else "{…}"
+    is JsonArray -> if (element.isEmpty()) "[]" else "[${element.size}]"
+    is JsonPrimitive -> {
+        val raw = if (element.isString) "\"${element.content}\"" else element.content
+        if (raw.length > PREVIEW_VALUE_CHARS) raw.take(PREVIEW_VALUE_CHARS - 1) + "…" else raw
+    }
+    else -> element.toString()
+}
+
 private fun buildTreeNodes(
     element: JsonElement,
     path: String,
     expandedPaths: Map<String, Boolean>,
+    expandAll: Boolean?,
     searchQuery: String,
     key: String? = null,
+    isArrayElement: Boolean = false,
     depth: Int = 0,
     parentMatches: Boolean = false,
     previousElement: JsonElement? = null,
     showDiffOnly: Boolean = false
 ): List<TreeNode> {
     val nodes = mutableListOf<TreeNode>()
-    val currentPath = if (key != null) "$path.$key" else path
-    val isExpanded = expandedPaths[currentPath] ?: (depth < 2)
+    val currentPath = when {
+        key == null -> path
+        isArrayElement -> "$path[$key]"
+        path.isEmpty() -> key
+        else -> "$path.$key"
+    }
+    val isExpanded = expandedPaths[currentPath] ?: expandAll ?: (depth < 2)
     val matchesSearch = searchQuery.isEmpty() ||
         key?.contains(searchQuery, ignoreCase = true) == true ||
         (element is JsonPrimitive && element.content.contains(searchQuery, ignoreCase = true))
@@ -151,8 +219,10 @@ private fun buildTreeNodes(
                             childValue,
                             currentPath,
                             expandedPaths,
+                            expandAll,
                             searchQuery,
                             childKey,
+                            false,
                             depth + 1,
                             matchesSearch || parentMatches,
                             prevChildValue,
@@ -164,7 +234,7 @@ private fun buildTreeNodes(
 
             val hasMatchingDescendants = childNodes.isNotEmpty()
             if ((shouldInclude || hasMatchingDescendants) && shouldIncludeInDiff) {
-                nodes.add(TreeNode(currentPath, key, element, previousElement, depth, isExpanded, matchesSearch, diffStatus))
+                nodes.add(TreeNode(currentPath, key, isArrayElement, element, previousElement, depth, isExpanded, matchesSearch, diffStatus))
                 nodes.addAll(childNodes)
             }
         }
@@ -179,8 +249,10 @@ private fun buildTreeNodes(
                             childValue,
                             currentPath,
                             expandedPaths,
+                            expandAll,
                             searchQuery,
-                            "[$index]",
+                            index.toString(),
+                            true,
                             depth + 1,
                             matchesSearch || parentMatches,
                             prevChildValue,
@@ -192,13 +264,13 @@ private fun buildTreeNodes(
 
             val hasMatchingDescendants = childNodes.isNotEmpty()
             if ((shouldInclude || hasMatchingDescendants) && shouldIncludeInDiff) {
-                nodes.add(TreeNode(currentPath, key, element, previousElement, depth, isExpanded, matchesSearch, diffStatus))
+                nodes.add(TreeNode(currentPath, key, isArrayElement, element, previousElement, depth, isExpanded, matchesSearch, diffStatus))
                 nodes.addAll(childNodes)
             }
         }
         else -> {
             if (shouldInclude && shouldIncludeInDiff) {
-                nodes.add(TreeNode(currentPath, key, element, previousElement, depth, false, matchesSearch, diffStatus))
+                nodes.add(TreeNode(currentPath, key, isArrayElement, element, previousElement, depth, false, matchesSearch, diffStatus))
             }
         }
     }
@@ -214,9 +286,6 @@ private fun JsonTreeNode(
     val colors = MaterialTheme.colorScheme
     val diffColors = LocalDiffColors.current
     val syntaxColors = LocalSyntaxColors.current
-    val indentPadding = (node.depth * 16).dp
-    var showCopyMenu by remember { mutableStateOf(false) }
-
     val backgroundColor = when (node.diffStatus) {
         DiffStatus.ADDED -> diffColors.addedContainer.copy(alpha = 0.6f)
         DiffStatus.MODIFIED -> diffColors.modifiedContainer.copy(alpha = 0.6f)
@@ -241,186 +310,143 @@ private fun JsonTreeNode(
     }
 
     val isPrimitive = node.value is JsonPrimitive
-    val hasCopyableContent = node.key != null || isPrimitive
 
     val valueString = when (val v = node.value) {
         is JsonPrimitive -> if (v.isString) v.content else v.content
         else -> null
     }
 
-    Box {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(backgroundColor)
-                .clickable(enabled = node.value is JsonObject || node.value is JsonArray) {
-                    onToggleExpand(node.path)
-                }
-                .padding(start = indentPadding, top = 2.dp, bottom = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            when (node.value) {
-                is JsonObject -> {
-                    Icon(
-                        imageVector = if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
-                        contentDescription = if (node.isExpanded) "Collapse" else "Expand",
-                        modifier = Modifier.size(16.dp),
-                        tint = colors.onSurface
-                    )
-                }
-                is JsonArray -> {
-                    Icon(
-                        imageVector = if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
-                        contentDescription = if (node.isExpanded) "Collapse" else "Expand",
-                        modifier = Modifier.size(16.dp),
-                        tint = colors.onSurface
-                    )
-                }
-                else -> {
-                    Spacer(modifier = Modifier.width(16.dp))
-                }
+    val expandable = node.value is JsonObject || node.value is JsonArray
+
+    TreeRowShell(
+        depth = node.depth,
+        background = backgroundColor,
+        onClick = if (expandable) ({ onToggleExpand(node.path) }) else null,
+        copyActions = treeRowCopyActions(
+            path = node.copyablePath(),
+            key = node.key,
+            value = valueString,
+            subtreeJson = if (isPrimitive) null else {
+                { prettyJson.encodeToString(JsonElement.serializer(), node.value) }
             }
-
-            if (node.diffStatus == DiffStatus.MODIFIED && node.value is JsonPrimitive && node.previousValue is JsonPrimitive) {
-                Text(
-                    text = buildAnnotatedString {
-                        if (diffIndicator.isNotEmpty()) {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
-                                append(diffIndicator)
-                            }
-                        }
-
-                        if (node.key != null) {
-                            withStyle(SpanStyle(color = keyColor, fontWeight = FontWeight.Bold)) {
-                                append("\"${node.key}\"")
-                            }
-                            withStyle(SpanStyle(color = colors.onSurface)) {
-                                append(": ")
-                            }
-                        }
-
-                        withStyle(SpanStyle(color = oldValueColor)) {
-                            renderPrimitiveValue(node.previousValue, stringColor, booleanColor, numberColor, nullColor)
-                        }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace
-                )
-
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = "changed to",
-                    modifier = Modifier.size(12.dp).padding(horizontal = 4.dp),
-                    tint = colors.onSurface
-                )
-
-                Text(
-                    text = buildAnnotatedString {
-                        renderPrimitiveValue(node.value, stringColor, booleanColor, numberColor, nullColor)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace
-                )
-            } else {
-                Text(
-                    text = buildAnnotatedString {
-                        if (diffIndicator.isNotEmpty()) {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
-                                append(diffIndicator)
-                            }
-                        }
-
-                        if (node.key != null) {
-                            withStyle(SpanStyle(color = keyColor, fontWeight = FontWeight.Bold)) {
-                                append("\"${node.key}\"")
-                            }
-                            withStyle(SpanStyle(color = colors.onSurface)) {
-                                append(": ")
-                            }
-                        }
-
-                        when (val value = node.value) {
-                            is JsonObject -> {
-                                withStyle(SpanStyle(color = bracketColor)) {
-                                    append("{ ")
-                                    if (!node.isExpanded) {
-                                        append("${value.size} ${if (value.size == 1) "property" else "properties"}")
-                                    }
-                                    append(" }")
-                                }
-                            }
-                            is JsonArray -> {
-                                withStyle(SpanStyle(color = bracketColor)) {
-                                    append("[ ")
-                                    if (!node.isExpanded) {
-                                        append("${value.size} ${if (value.size == 1) "item" else "items"}")
-                                    }
-                                    append(" ]")
-                                }
-                            }
-                            is JsonPrimitive -> {
-                                renderPrimitiveValue(value, stringColor, booleanColor, numberColor, nullColor)
-                            }
-                            else -> {
-                                withStyle(SpanStyle(color = colors.onSurface)) {
-                                    append(value.toString())
-                                }
-                            }
-                        }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            if (hasCopyableContent) {
-                IconButton(
-                    onClick = { showCopyMenu = true },
-                    modifier = Modifier.size(16.dp).padding(start = 4.dp)
-                ) {
-                    Icon(
-                        Icons.Default.ContentCopy,
-                        contentDescription = "Copy",
-                        modifier = Modifier.size(12.dp),
-                        tint = colors.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                }
-            }
+        )
+    ) {
+        if (expandable) {
+            Icon(
+                imageVector = if (node.isExpanded) {
+                    Icons.Default.KeyboardArrowDown
+                } else {
+                    Icons.Default.KeyboardArrowRight
+                },
+                contentDescription = if (node.isExpanded) "Collapse" else "Expand",
+                modifier = Modifier.size(14.dp),
+                tint = colors.onSurfaceVariant
+            )
+        } else {
+            Spacer(modifier = Modifier.width(14.dp))
         }
 
-        if (showCopyMenu) {
-            DropdownMenu(
-                expanded = true,
-                onDismissRequest = { showCopyMenu = false }
-            ) {
-                if (node.key != null) {
-                    DropdownMenuItem(
-                        text = { Text("Copy key") },
-                        onClick = {
-                            copyTextToClipboard(node.key)
-                            showCopyMenu = false
+        if (node.diffStatus == DiffStatus.MODIFIED && node.value is JsonPrimitive && node.previousValue is JsonPrimitive) {
+            Text(
+                text = buildAnnotatedString {
+                    if (diffIndicator.isNotEmpty()) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
+                            append(diffIndicator)
                         }
-                    )
-                }
-                if (valueString != null) {
-                    DropdownMenuItem(
-                        text = { Text("Copy value") },
-                        onClick = {
-                            copyTextToClipboard(valueString)
-                            showCopyMenu = false
+                    }
+
+                    if (node.key != null) {
+                        withStyle(
+                            SpanStyle(
+                                color = if (node.isArrayElement) colors.onSurfaceVariant else keyColor,
+                                fontWeight = if (node.isArrayElement) FontWeight.Normal else FontWeight.Medium
+                            )
+                        ) {
+                            append(node.key)
                         }
-                    )
-                }
-                if (node.key != null && valueString != null) {
-                    DropdownMenuItem(
-                        text = { Text("Copy both") },
-                        onClick = {
-                            copyTextToClipboard("${node.key}: $valueString")
-                            showCopyMenu = false
+                        withStyle(SpanStyle(color = colors.onSurfaceVariant)) {
+                            append(": ")
                         }
-                    )
-                }
-            }
+                    }
+
+                    withStyle(SpanStyle(color = oldValueColor)) {
+                        renderPrimitiveValue(node.previousValue, stringColor, booleanColor, numberColor, nullColor)
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace
+            )
+
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = "changed to",
+                modifier = Modifier.size(12.dp).padding(horizontal = 4.dp),
+                tint = colors.onSurface
+            )
+
+            Text(
+                text = buildAnnotatedString {
+                    renderPrimitiveValue(node.value, stringColor, booleanColor, numberColor, nullColor)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace
+            )
+        } else {
+            Text(
+                text = buildAnnotatedString {
+                    if (diffIndicator.isNotEmpty()) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.onSurface)) {
+                            append(diffIndicator)
+                        }
+                    }
+
+                    if (node.key != null) {
+                        withStyle(
+                            SpanStyle(
+                                color = if (node.isArrayElement) colors.onSurfaceVariant else keyColor,
+                                fontWeight = if (node.isArrayElement) FontWeight.Normal else FontWeight.Medium
+                            )
+                        ) {
+                            append(node.key)
+                        }
+                        withStyle(SpanStyle(color = colors.onSurfaceVariant)) {
+                            append(": ")
+                        }
+                    }
+
+                    when (val value = node.value) {
+                        is JsonObject, is JsonArray -> {
+                            val array = value is JsonArray
+                            val size = if (array) (value as JsonArray).size else (value as JsonObject).size
+                            withStyle(SpanStyle(color = bracketColor)) {
+                                append(if (array) "[" else "{")
+                            }
+                            if (node.isExpanded) {
+                                withStyle(SpanStyle(color = colors.onSurfaceVariant)) {
+                                    append("  $size")
+                                }
+                            } else {
+                                withStyle(SpanStyle(color = colors.onSurfaceVariant)) {
+                                    append(previewOf(value))
+                                }
+                                withStyle(SpanStyle(color = bracketColor)) {
+                                    append(if (array) "]" else "}")
+                                }
+                            }
+                        }
+                        is JsonPrimitive -> {
+                            renderPrimitiveValue(value, stringColor, booleanColor, numberColor, nullColor)
+                        }
+                        else -> {
+                            withStyle(SpanStyle(color = colors.onSurface)) {
+                                append(value.toString())
+                            }
+                        }
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace
+            )
         }
     }
 }

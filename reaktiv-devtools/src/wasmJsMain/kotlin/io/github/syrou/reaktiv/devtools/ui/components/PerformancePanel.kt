@@ -13,16 +13,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,11 +45,7 @@ import io.github.syrou.reaktiv.devtools.protocol.MethodStats
 import io.github.syrou.reaktiv.devtools.protocol.SYNTHETIC_TRACE_CLASSES
 import io.github.syrou.reaktiv.devtools.protocol.asClipboardText
 import io.github.syrou.reaktiv.devtools.protocol.Finding
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.Icons
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.foundation.layout.size
+import io.github.syrou.reaktiv.devtools.protocol.GUARD_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.protocol.ModuleSizeStats
 import io.github.syrou.reaktiv.devtools.protocol.STALL_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.protocol.StallGroup
@@ -62,12 +57,20 @@ import io.github.syrou.reaktiv.devtools.protocol.aggregateStalls
 import io.github.syrou.reaktiv.devtools.protocol.aggregateThreadStats
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.hoverable
 
 @Composable
 internal fun PerformancePanel(
     dataRevision: Long,
     logicMethodEvents: List<LogicMethodEvent>,
     findings: List<Finding>,
+    searchQuery: String = "",
     actionStateHistory: List<CapturedAction> = emptyList(),
     initialStateJson: String = "{}",
 ) {
@@ -110,9 +113,19 @@ internal fun PerformancePanel(
     val suspiciousModules = sizeStats.filter { it.isSuspicious }
 
     var sortBy by remember { mutableStateOf(MethodSort.TOTAL) }
-    var methodFilter by remember { mutableStateOf("") }
     var warningsExpanded by remember { mutableStateOf(false) }
     var showPipeline by remember { mutableStateOf(false) }
+
+    if (logicMethodEvents.isEmpty()) {
+        EmptyState(
+            title = "No timings captured",
+            detail = "Method timings come from the tracing compiler plugin. Set " +
+                "reaktivTracing.enabled for this build and reconnect, and the methods your " +
+                "logic runs appear here with their durations."
+        )
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -144,21 +157,14 @@ internal fun PerformancePanel(
                         Text("Warnings ${findings.size}", style = MaterialTheme.typography.labelSmall)
                     }
                 )
-                IconButton(
-                    onClick = {
-                        copyTextToClipboard(
+                CopyControl(
+                    actions = listOf(
+                        CopyAction("all warnings") {
                             findings.joinToString(separator = "\n") { it.asClipboardText() }
-                        )
-                    },
-                    enabled = findings.isNotEmpty(),
-                    modifier = Modifier.size(26.dp)
-                ) {
-                    Icon(
-                        Icons.Default.ContentCopy,
-                        contentDescription = "Copy all warnings",
-                        modifier = Modifier.size(15.dp)
-                    )
-                }
+                        }
+                    ),
+                    enabled = findings.isNotEmpty()
+                )
             }
         }
 
@@ -169,47 +175,21 @@ internal fun PerformancePanel(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
-                value = methodFilter,
-                onValueChange = { methodFilter = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Filter methods", style = MaterialTheme.typography.labelSmall) },
-                singleLine = true
-            )
-            listOf(
-                MethodSort.TOTAL to "Total",
-                MethodSort.MAX to "Max",
-                MethodSort.AVG to "Avg",
-                MethodSort.CALLS to "Calls"
-            ).forEach { (sort, label) ->
-                FilterChip(
-                    selected = sortBy == sort,
-                    onClick = { sortBy = sort },
-                    label = { Text(label, style = MaterialTheme.typography.labelSmall) }
-                )
-            }
             FilterChip(
                 selected = showPipeline,
                 onClick = { showPipeline = !showPipeline },
                 label = { Text("Pipeline", style = MaterialTheme.typography.labelSmall) }
             )
-            IconButton(
-                onClick = {
-                    copyTextToClipboard(
+            CopyControl(
+                actions = listOf(
+                    CopyAction("method stats") {
                         displayedStatsText(
-                            stats.filter { methodFilter.isBlank() || it.methodIdentifier.contains(methodFilter, ignoreCase = true) }
+                            stats.filter { searchQuery.isBlank() || it.methodIdentifier.contains(searchQuery, ignoreCase = true) }
                                 .filter { showPipeline || it.logicClass !in SYNTHETIC_TRACE_CLASSES }
                         )
-                    )
-                },
-                modifier = Modifier.size(26.dp)
-            ) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = "Copy method stats",
-                    modifier = Modifier.size(15.dp)
+                    }
                 )
-            }
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -224,7 +204,7 @@ internal fun PerformancePanel(
         val visibleThreadStats = threadStats
         val showDispatch = dispatchStats != null
         val displayedStats = visibleStats
-            .filter { methodFilter.isBlank() || it.methodIdentifier.contains(methodFilter, ignoreCase = true) }
+            .filter { searchQuery.isBlank() || it.methodIdentifier.contains(searchQuery, ignoreCase = true) }
             .filter { showPipeline || it.logicClass !in SYNTHETIC_TRACE_CLASSES }
             .let { list ->
                 when (sortBy) {
@@ -239,12 +219,11 @@ internal fun PerformancePanel(
             val listState = rememberLazyListState()
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
                 if (showWarnings && hasAnyWarning) {
                     item(key = "warning-banner") {
-                        WarningBanner(
+                        SummarySlot { WarningBanner(
                             congestedMethods = congestedMethods,
                             congestedThreads = congestedThreads,
                             dispatchStats = dispatchStats?.takeIf { it.isCongested },
@@ -252,22 +231,22 @@ internal fun PerformancePanel(
                             stallStats = stallStats,
                             stallGroups = stallGroups,
                             methodStats = stats
-                        )
+                        ) }
                     }
                 }
                 if (showDispatch && dispatchStats != null) {
                     item(key = "dispatch-summary") {
-                        DispatchSummary(dispatchStats)
+                        SummarySlot { DispatchSummary(dispatchStats) }
                     }
                 }
                 if (visibleThreadStats.isNotEmpty()) {
                     item(key = "thread-summary") {
-                        ThreadSummary(visibleThreadStats)
+                        SummarySlot { ThreadSummary(visibleThreadStats) }
                     }
                 }
                 if (visibleSizeStats.isNotEmpty()) {
                     item(key = "state-size-summary") {
-                        StateSizeSummary(visibleSizeStats, suppressWarnings = false)
+                        SummarySlot { StateSizeSummary(visibleSizeStats, suppressWarnings = false) }
                     }
                 }
                 if (displayedStats.isEmpty()) {
@@ -284,12 +263,11 @@ internal fun PerformancePanel(
                         }
                     }
                 } else {
+                    item(key = "method-header") {
+                        MethodTableHeader(sortBy = sortBy, onSort = { sortBy = it })
+                    }
                     items(displayedStats, key = { it.methodIdentifier }) { stat ->
-                        MethodStatsCard(
-                            stat = stat,
-                            maxTotal = maxTotal,
-                            suppressWarnings = false
-                        )
+                        MethodStatsRow(stat = stat, maxTotal = maxTotal)
                     }
                 }
             }
@@ -756,169 +734,211 @@ private fun ThreadSummary(threadStats: List<ThreadStats>) {
     }
 }
 
-@Composable
-private fun MethodStatsCard(stat: MethodStats, maxTotal: Long, suppressWarnings: Boolean = false) {
-    val isGuard = stat.logicClass == "NavigationGuards"
-    val hasFailures = stat.failures > 0
-    val hasWarning = !suppressWarnings && stat.isCongested
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when {
-                hasFailures || hasWarning -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                else -> MaterialTheme.colorScheme.surfaceVariant
-            }
-        )
+@Composable
+private fun SummarySlot(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) { content() }
+}
+
+private val CALLS_COLUMN = 52.dp
+private val TIME_COLUMN = 62.dp
+
+@Composable
+private fun MethodTableHeader(sortBy: MethodSort, onSort: (MethodSort) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) {
+        Caption("method", uppercase = true, modifier = Modifier.weight(1f))
+        SortableColumn("calls", MethodSort.CALLS, sortBy, CALLS_COLUMN, onSort)
+        SortableColumn("total", MethodSort.TOTAL, sortBy, TIME_COLUMN, onSort)
+        SortableColumn("avg", MethodSort.AVG, sortBy, TIME_COLUMN, onSort)
+        SortableColumn("max", MethodSort.MAX, sortBy, TIME_COLUMN, onSort)
+    }
+}
+
+@Composable
+private fun SortableColumn(
+    label: String,
+    sort: MethodSort,
+    active: MethodSort,
+    width: Dp,
+    onSort: (MethodSort) -> Unit
+) {
+    val selected = sort == active
+    Box(
+        modifier = Modifier.width(width).clickable { onSort(sort) },
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        Text(
+            text = if (selected) "$label ▾" else label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun MethodStatsRow(stat: MethodStats, maxTotal: Long) {
+    var expanded by remember(stat.methodIdentifier) { mutableStateOf(false) }
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    val colors = MaterialTheme.colorScheme
+
+    val hasFailures = stat.failures > 0
+    val accent = when {
+        hasFailures -> colors.error
+        stat.isCongested -> colors.tertiary
+        stat.logicClass == GUARD_TRACE_CLASS -> colors.secondary
+        else -> Color.Transparent
+    }
+    val fraction = if (maxTotal > 0) (stat.totalMs.toFloat() / maxTotal).coerceIn(0f, 1f) else 0f
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .hoverable(interaction)
+            .clickable { expanded = !expanded }
+            .background(if (hovered) colors.surfaceVariant.copy(alpha = 0.4f) else Color.Transparent)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(modifier = Modifier.matchParentSize()) {
+                if (fraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .weight(fraction)
+                            .fillMaxHeight()
+                            .background(
+                                if (hasFailures) {
+                                    colors.error.copy(alpha = 0.14f)
+                                } else {
+                                    colors.primary.copy(alpha = 0.13f)
+                                }
+                            )
+                    )
+                }
+                if (fraction < 1f) Spacer(modifier = Modifier.weight(1f - fraction))
+            }
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 3.dp, bottom = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = stat.methodIdentifier,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1
-                        )
-                        if (isGuard) {
-                            Text(
-                                text = "guard",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                        }
-                    }
-                    stat.location?.let { location ->
-                        val url = stat.githubSourceUrl
-                        if (url != null) {
-                            Text(
-                                text = location,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                textDecoration = TextDecoration.Underline,
-                                maxLines = 1,
-                                modifier = Modifier.clickable { openInBrowser(url) }
-                            )
-                        } else {
-                            Text(
-                                text = location,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-                Text(
-                    text = "total ${formatDuration(stat.totalMs)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .height(13.dp)
+                        .background(accent)
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stat.methodIdentifier,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                NumberCell(stat.calls.toString(), CALLS_COLUMN)
+                NumberCell(formatDuration(stat.totalMs), TIME_COLUMN, emphasis = true)
+                NumberCell(formatDuration(stat.avgMs), TIME_COLUMN)
+                NumberCell(formatDuration(stat.maxMs), TIME_COLUMN)
             }
+        }
 
-            Spacer(modifier = Modifier.height(4.dp))
+        if (expanded) {
+            MethodStatsDetail(stat)
+        }
+    }
+}
 
-            if (maxTotal > 0) {
-                Row(modifier = Modifier.fillMaxWidth().height(4.dp)) {
-                    val fraction = (stat.totalMs.toFloat() / maxTotal).coerceIn(0f, 1f)
-                    if (fraction > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .weight(fraction)
-                                .fillMaxHeight()
-                                .background(
-                                    color = if (hasFailures || hasWarning) {
-                                        MaterialTheme.colorScheme.error
-                                    } else {
-                                        MaterialTheme.colorScheme.primary
-                                    },
-                                    shape = RoundedCornerShape(2.dp)
-                                )
-                        )
-                    }
-                    if (fraction < 1f) {
-                        Spacer(modifier = Modifier.weight(1f - fraction))
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+@Composable
+private fun NumberCell(value: String, width: Dp, emphasis: Boolean = false) {
+    Text(
+        text = value,
+        style = MaterialTheme.typography.labelSmall,
+        fontFamily = FontFamily.Monospace,
+        color = if (emphasis) {
+            MaterialTheme.colorScheme.onSurface
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        maxLines = 1,
+        textAlign = TextAlign.End,
+        modifier = Modifier.width(width)
+    )
+}
+
+@Composable
+private fun MethodStatsDetail(stat: MethodStats) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        stat.location?.let { location ->
+            val url = stat.githubSourceUrl
+            if (url != null) {
+                Text(
+                    text = location,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    textDecoration = TextDecoration.Underline,
+                    maxLines = 1,
+                    modifier = Modifier.clickable { openInBrowser(url) }
+                )
+            } else {
+                Caption(location, singleLine = true)
             }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatLabel("calls", stat.calls.toString())
-                StatLabel("avg", formatDuration(stat.avgMs))
-                StatLabel("max", formatDuration(stat.maxMs))
-                if (stat.failures > 0) {
-                    Text(
-                        text = "${stat.failures} failed",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                if (stat.inFlight > 0) {
-                    Text(
-                        text = "${stat.inFlight} running",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-            }
-
-            if (stat.threads.isNotEmpty() || stat.dispatchers.isNotEmpty() || hasWarning) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (stat.threads.isNotEmpty()) {
-                        Text(
-                            text = "entered on ${stat.threads.joinToString(", ")}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                    if (stat.dispatchers.isNotEmpty()) {
-                        Text(
-                            text = "via ${stat.dispatchers.joinToString(", ")}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                    if (stat.isCongested) {
-                        Text(
-                            text = "peak x${stat.maxConcurrent}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-
-            stat.failureSummary?.let { summary ->
-                Spacer(modifier = Modifier.height(2.dp))
-                SelectionContainer {
-                    Text(
-                        text = "Failed with $summary",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+        }
+        if (stat.logicClass == GUARD_TRACE_CLASS) {
+            Caption("navigation guard", singleLine = true)
+        }
+        if (stat.threads.isNotEmpty()) {
+            Caption("entered on ${stat.threads.joinToString(", ")}", singleLine = true)
+        }
+        if (stat.dispatchers.isNotEmpty()) {
+            Caption("via ${stat.dispatchers.joinToString(", ")}", singleLine = true)
+        }
+        if (stat.isCongested) {
+            Text(
+                text = "peak x${stat.maxConcurrent} concurrent",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        if (stat.inFlight > 0) {
+            Text(
+                text = "${stat.inFlight} still running",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+        }
+        if (stat.failures > 0) {
+            Text(
+                text = "${stat.failures} failed",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        stat.failureSummary?.let { summary ->
+            SelectionContainer {
+                Text(
+                    text = "Failed with $summary",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

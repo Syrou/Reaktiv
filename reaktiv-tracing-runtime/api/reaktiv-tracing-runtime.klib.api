@@ -17,6 +17,23 @@ open annotation class io.github.syrou.reaktiv.core.serialization/RedactedAs : ko
         final fun <get-replacement>(): kotlin/String // io.github.syrou.reaktiv.core.serialization/RedactedAs.replacement.<get-replacement>|<get-replacement>(){}[0]
 }
 
+final enum class io.github.syrou.reaktiv.core.tracing/LogicFailureKind : kotlin/Enum<io.github.syrou.reaktiv.core.tracing/LogicFailureKind> { // io.github.syrou.reaktiv.core.tracing/LogicFailureKind|null[0]
+    enum entry CANCELLED // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.CANCELLED|null[0]
+    enum entry SCOPE_DISPOSED // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.SCOPE_DISPOSED|null[0]
+    enum entry THROWN // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.THROWN|null[0]
+
+    final val entries // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.syrou.reaktiv.core.tracing/LogicFailureKind> // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.syrou.reaktiv.core.tracing/LogicFailureKind // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.syrou.reaktiv.core.tracing/LogicFailureKind> // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.values|values#static(){}[0]
+
+    final object Companion : kotlinx.serialization.internal/SerializerFactory { // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.Companion|null[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.core.tracing/LogicFailureKind> // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.Companion.serializer|serializer(){}[0]
+        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // io.github.syrou.reaktiv.core.tracing/LogicFailureKind.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
+    }
+}
+
 abstract interface io.github.syrou.reaktiv.core.tracing/LogicObserver { // io.github.syrou.reaktiv.core.tracing/LogicObserver|null[0]
     abstract fun onMethodCompleted(io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted) // io.github.syrou.reaktiv.core.tracing/LogicObserver.onMethodCompleted|onMethodCompleted(io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted){}[0]
     abstract fun onMethodFailed(io.github.syrou.reaktiv.core.tracing/LogicMethodFailed) // io.github.syrou.reaktiv.core.tracing/LogicObserver.onMethodFailed|onMethodFailed(io.github.syrou.reaktiv.core.tracing.LogicMethodFailed){}[0]
@@ -62,7 +79,7 @@ final class io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted { // io.gi
 }
 
 final class io.github.syrou.reaktiv.core.tracing/LogicMethodFailed { // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed|null[0]
-    constructor <init>(kotlin/String, kotlin/String, kotlin/String?, kotlin/String?, kotlin/Long, kotlin/Long = ...) // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.<init>|<init>(kotlin.String;kotlin.String;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Long){}[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String?, kotlin/String?, kotlin/Long, kotlin/Long = ..., io.github.syrou.reaktiv.core.tracing/LogicFailureKind = ...) // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.<init>|<init>(kotlin.String;kotlin.String;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Long;io.github.syrou.reaktiv.core.tracing.LogicFailureKind){}[0]
 
     final val callId // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.callId|{}callId[0]
         final fun <get-callId>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.callId.<get-callId>|<get-callId>(){}[0]
@@ -72,6 +89,8 @@ final class io.github.syrou.reaktiv.core.tracing/LogicMethodFailed { // io.githu
         final fun <get-exceptionMessage>(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.exceptionMessage.<get-exceptionMessage>|<get-exceptionMessage>(){}[0]
     final val exceptionType // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.exceptionType|{}exceptionType[0]
         final fun <get-exceptionType>(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.exceptionType.<get-exceptionType>|<get-exceptionType>(){}[0]
+    final val kind // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.kind|{}kind[0]
+        final fun <get-kind>(): io.github.syrou.reaktiv.core.tracing/LogicFailureKind // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.kind.<get-kind>|<get-kind>(){}[0]
     final val stackTrace // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.stackTrace|{}stackTrace[0]
         final fun <get-stackTrace>(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.stackTrace.<get-stackTrace>|<get-stackTrace>(){}[0]
     final val timestampMs // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.timestampMs|{}timestampMs[0]
@@ -83,7 +102,8 @@ final class io.github.syrou.reaktiv.core.tracing/LogicMethodFailed { // io.githu
     final fun component4(): kotlin/String? // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component4|component4(){}[0]
     final fun component5(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component5|component5(){}[0]
     final fun component6(): kotlin/Long // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component6|component6(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Long = ...): io.github.syrou.reaktiv.core.tracing/LogicMethodFailed // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.copy|copy(kotlin.String;kotlin.String;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Long){}[0]
+    final fun component7(): io.github.syrou.reaktiv.core.tracing/LogicFailureKind // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.component7|component7(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Long = ..., io.github.syrou.reaktiv.core.tracing/LogicFailureKind = ...): io.github.syrou.reaktiv.core.tracing/LogicMethodFailed // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.copy|copy(kotlin.String;kotlin.String;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Long;io.github.syrou.reaktiv.core.tracing.LogicFailureKind){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.toString|toString(){}[0]
@@ -98,6 +118,8 @@ final class io.github.syrou.reaktiv.core.tracing/LogicMethodFailed { // io.githu
     }
 
     final object Companion { // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.Companion|null[0]
+        final val $childSerializers // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.Companion.$childSerializers|{}$childSerializers[0]
+
         final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed> // io.github.syrou.reaktiv.core.tracing/LogicMethodFailed.Companion.serializer|serializer(){}[0]
     }
 }
@@ -228,3 +250,6 @@ final object io.github.syrou.reaktiv.core.tracing/StateReadTracker { // io.githu
     final fun reset() // io.github.syrou.reaktiv.core.tracing/StateReadTracker.reset|reset(){}[0]
     final fun snapshot(): kotlin.collections/Set<io.github.syrou.reaktiv.core.tracing/StateRead> // io.github.syrou.reaktiv.core.tracing/StateReadTracker.snapshot|snapshot(){}[0]
 }
+
+final val io.github.syrou.reaktiv.core.tracing/SCOPE_DISPOSAL_CANCELLATIONS // io.github.syrou.reaktiv.core.tracing/SCOPE_DISPOSAL_CANCELLATIONS|{}SCOPE_DISPOSAL_CANCELLATIONS[0]
+    final fun <get-SCOPE_DISPOSAL_CANCELLATIONS>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.core.tracing/SCOPE_DISPOSAL_CANCELLATIONS.<get-SCOPE_DISPOSAL_CANCELLATIONS>|<get-SCOPE_DISPOSAL_CANCELLATIONS>(){}[0]

@@ -41,7 +41,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.devtools.protocol.CurlFormatter
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.text.style.TextAlign
 import io.github.syrou.reaktiv.devtools.ui.DevToolsColors
 import io.github.syrou.reaktiv.devtools.ui.EndpointStats
@@ -55,67 +54,37 @@ import io.github.syrou.reaktiv.devtools.ui.NetworkBodyLoad
 import io.github.syrou.reaktiv.devtools.ui.NetworkEventRow
 import io.github.syrou.reaktiv.devtools.ui.networkBodyKey
 import io.github.syrou.reaktiv.introspection.network.NetworkBodyPart
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 
 private val BODY_PANE_HEIGHT = 380.dp
 
 private val prettyJson = Json { prettyPrint = true }
 
-internal fun prettyPrintIfJson(body: String): String =
-    runCatching {
-        val trimmed = body.trim()
-        if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return body
+internal fun prettyPrintIfJson(body: String): String {
+    if (!looksLikeJson(body)) return body
+    return runCatching {
         prettyJson.encodeToString(
             kotlinx.serialization.json.JsonElement.serializer(),
-            Json.parseToJsonElement(trimmed)
+            Json.parseToJsonElement(body.trim())
         )
     }.getOrDefault(body)
-
-@Composable
-internal fun NetworkDetailPanel(
-    networkEvents: List<NetworkEventRow>,
-    selectedRequestId: String?,
-    bodies: Map<String, NetworkBodyLoad>,
-    filter: NetworkFilter,
-    showStats: Boolean,
-    onSelectRequest: (String?) -> Unit,
-    onFetchBody: (String, NetworkBodyPart) -> Unit,
-    onFilterChange: (NetworkFilter) -> Unit,
-    onToggleStats: () -> Unit,
-    onExportHar: () -> Unit
-) {
-    val selected = networkEvents.lastOrNull { it.event.id == selectedRequestId }
-    if (selected == null) {
-        NetworkOverviewList(
-            networkEvents = networkEvents,
-            filter = filter,
-            showStats = showStats,
-            onSelectRequest = onSelectRequest,
-            onFilterChange = onFilterChange,
-            onToggleStats = onToggleStats,
-            onExportHar = onExportHar
-        )
-    } else {
-        NetworkRequestDetail(
-            row = selected,
-            bodies = bodies,
-            onSelectRequest = onSelectRequest,
-            onFetchBody = onFetchBody
-        )
-    }
 }
 
 @Composable
-private fun NetworkOverviewList(
+internal fun NetworkOverviewList(
     networkEvents: List<NetworkEventRow>,
     filter: NetworkFilter,
+    searchQuery: String,
     showStats: Boolean,
     onSelectRequest: (String?) -> Unit,
     onFilterChange: (NetworkFilter) -> Unit,
     onToggleStats: () -> Unit,
     onExportHar: () -> Unit
 ) {
-    val visible = remember(networkEvents, filter) { networkEvents.applyNetworkFilter(filter) }
+    val visible = remember(networkEvents, filter, searchQuery) {
+        networkEvents.applyNetworkFilter(filter, searchQuery)
+    }
     val methods = remember(networkEvents) {
         networkEvents.map { it.event.method.uppercase() }.distinct().sorted()
     }
@@ -142,28 +111,16 @@ private fun NetworkOverviewList(
         }
 
         if (networkEvents.isEmpty()) {
-            Text(
-                text = "No requests captured yet." +
-                    "\n\n1. Add reaktiv-network-ktor to the app" +
-                    "\n2. install(ReaktivNetworkInspection) on the HttpClient making the calls" +
-                    "\n3. Check the device shows as a publisher in the client list" +
-                    "\n\nCapture only runs while this UI is attached, so requests made before " +
-                    "connecting do not appear.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            EmptyState(
+                title = "No requests captured",
+                detail = "Requests appear once reaktiv-network-ktor is on the app and " +
+                    "install(ReaktivNetworkInspection) is applied to the HttpClient making the " +
+                    "calls. Capture runs only while this UI is attached, so requests made before " +
+                    "connecting do not appear."
             )
             return@Column
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
-        OutlinedTextField(
-            value = filter.query,
-            onValueChange = { onFilterChange(filter.copy(query = it)) },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Filter by url, method or status", style = MaterialTheme.typography.bodySmall) },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodySmall
-        )
         Spacer(modifier = Modifier.height(6.dp))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -208,6 +165,17 @@ private fun NetworkOverviewList(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(4.dp))
+
+        if (visible.isEmpty()) {
+            FilteredEmptyState(
+                query = searchQuery,
+                hiddenCount = networkEvents.size,
+                onClearFilters = {
+                    onFilterChange(NetworkFilter())
+                }
+            )
+            return@Column
+        }
 
         val listState = rememberLazyListState()
         Box(modifier = Modifier.fillMaxSize()) {
@@ -423,14 +391,13 @@ private val NetworkBodyPart.label: String
     get() = if (this == NetworkBodyPart.REQUEST) "Request" else "Response"
 
 @Composable
-private fun NetworkRequestDetail(
+internal fun NetworkRequestDetail(
     row: NetworkEventRow,
     bodies: Map<String, NetworkBodyLoad>,
     onSelectRequest: (String?) -> Unit,
     onFetchBody: (String, NetworkBodyPart) -> Unit,
 ) {
     val event = row.event
-    var copied by remember(event.id) { mutableStateOf<String?>(null) }
     var part by remember(event.id) { mutableStateOf(NetworkBodyPart.RESPONSE) }
     var headersExpanded by remember(event.id) { mutableStateOf(false) }
     var editingReplay by remember(event.id) { mutableStateOf(false) }
@@ -441,12 +408,7 @@ private fun NetworkRequestDetail(
     var editHeaders by remember(event.id) { mutableStateOf(originalHeaderText) }
     val metaScroll = rememberScrollState()
 
-    fun copy(label: String, text: String) {
-        copyTextToClipboard(text)
-        copied = label
-    }
-
-    val headers = if (part == NetworkBodyPart.REQUEST) event.requestHeaders else event.responseHeaders
+    val headers =if (part == NetworkBodyPart.REQUEST) event.requestHeaders else event.responseHeaders
     val preview = if (part == NetworkBodyPart.REQUEST) event.requestBody else event.responseBody
     val truncated =
         if (part == NetworkBodyPart.REQUEST) event.requestBodyTruncated else event.responseBodyTruncated
@@ -519,8 +481,8 @@ private fun NetworkRequestDetail(
                     .padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                SummaryRow("Started", formatClockTime(event.startedAtMs))
-                SummaryRow(
+                FieldRow("Started", formatClockTime(event.startedAtMs), mono = true)
+                FieldRow(
                     "Duration",
                     buildString {
                         append("${event.durationMs}ms")
@@ -531,7 +493,8 @@ private fun NetworkRequestDetail(
                             if (download != null) append(", downloaded ${download}ms")
                             append(")")
                         }
-                    }
+                    },
+                    mono = true
                 )
                 val waited = event.waitMs
                 if (waited != null && event.durationMs > 0) {
@@ -541,22 +504,24 @@ private fun NetworkRequestDetail(
                         totalMs = event.durationMs
                     )
                 }
-                SummaryRow(
+                FieldRow(
                     "Sent",
                     buildString {
                         append(if (event.requestBodySize > 0) formatBytes(event.requestBodySize) else "no body")
                         event.requestContentType?.let { append("  $it") }
-                    }
+                    },
+                    mono = true
                 )
-                SummaryRow(
+                FieldRow(
                     "Received",
                     buildString {
                         append(if (event.responseBodySize >= 0) formatBytes(event.responseBodySize) else "unknown")
                         event.responseContentType?.let { append("  $it") }
-                    }
+                    },
+                    mono = true
                 )
                 if (row.clientId.isNotBlank()) {
-                    SummaryRow("Device", row.clientId)
+                    FieldRow("Device", row.clientId, mono = true)
                 }
             }
 
@@ -571,29 +536,45 @@ private fun NetworkRequestDetail(
                 )
             }
 
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                var curlCopied by remember(event.id) { mutableStateOf(false) }
+                LaunchedEffect(curlCopied) {
+                    if (curlCopied) {
+                        delay(2000)
+                        curlCopied = false
+                    }
+                }
                 AssistChip(
-                    onClick = { copy("curl", CurlFormatter.toCurl(event)) },
+                    onClick = {
+                        copyTextToClipboard(CurlFormatter.toCurl(event))
+                        curlCopied = true
+                    },
                     label = {
                         Text(
-                            if (copied == "curl") "Copied" else "Copy cURL",
+                            text = if (curlCopied) "Copied cURL" else "Copy as cURL",
                             style = MaterialTheme.typography.labelSmall,
                             maxLines = 1
                         )
                     }
                 )
-                AssistChip(
-                    onClick = { copy("url", event.url) },
-                    label = {
-                        Text(
-                            if (copied == "url") "Copied" else "Copy URL",
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1
-                        )
-                    }
+                Caption("replays this request, headers and auth included", singleLine = true)
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                CopyControl(
+                    actions = buildList {
+                        add(CopyAction("URL") { event.url })
+                        if (event.requestHeaders.isNotEmpty()) {
+                            add(CopyAction("request headers") { renderHeaderLines(event.requestHeaders) })
+                        }
+                        if (event.responseHeaders.isNotEmpty()) {
+                            add(CopyAction("response headers") { renderHeaderLines(event.responseHeaders) })
+                        }
+                    },
+                    showLabel = true
                 )
             }
 
@@ -659,8 +640,6 @@ private fun NetworkRequestDetail(
                     event.responseBodySize
                 },
                 load = load,
-                copiedLabel = copied,
-                onCopy = ::copy,
                 onRetry = { onFetchBody(event.id, part) },
                 modifier = Modifier.fillMaxWidth().height(BODY_PANE_HEIGHT)
             )
@@ -668,23 +647,6 @@ private fun NetworkRequestDetail(
     }
 }
 
-@Composable
-private fun SummaryRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(80.dp)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
 
 private fun bodyAbsenceReason(contentType: String?, size: Long): String = when {
     contentType == null && size <= 0 -> "No body"
@@ -701,8 +663,6 @@ private fun BodyPane(
     truncated: Boolean,
     declaredSize: Long,
     load: NetworkBodyLoad?,
-    copiedLabel: String?,
-    onCopy: (String, String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier
 ) {
@@ -748,14 +708,9 @@ private fun BodyPane(
                 Spacer(modifier = Modifier.width(6.dp))
             }
             if (body != null) {
-                AssistChip(
-                    onClick = { onCopy("body", body) },
-                    label = {
-                        Text(
-                            if (copiedLabel == "body") "Copied" else "Copy",
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
+                CopyControl(
+                    actions = listOf(CopyAction("body") { body }),
+                    showLabel = true
                 )
             }
         }

@@ -1,6 +1,10 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.introspection.capture.SessionCapture
+import io.github.syrou.reaktiv.introspection.StallWatchdog
+import io.github.syrou.reaktiv.introspection.DispatchTracingInstrumentation
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
+import io.github.syrou.reaktiv.core.tracing.LogicFailureKind
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 
@@ -55,7 +59,7 @@ public data class MethodStats(
 
 public const val CONGESTION_PEAK_THRESHOLD: Int = 3
 
-public const val DISPATCH_TRACE_CLASS: String = "StoreDispatch"
+public const val DISPATCH_TRACE_CLASS: String = DispatchTracingInstrumentation.DISPATCH_TRACE_CLASS
 
 public const val DISPATCH_QUEUE_WAIT_WARN_MS: Long = 100L
 
@@ -105,12 +109,19 @@ public fun aggregateDispatchStats(
     )
 }
 
-public const val STALL_TRACE_CLASS: String = "MainThreadWatchdog"
+public const val STALL_TRACE_CLASS: String = StallWatchdog.TRACE_CLASS
 
-public const val PHASE_TRACE_CLASS: String = "DispatchPhase"
+public const val PHASE_TRACE_CLASS: String = DispatchTracingInstrumentation.PHASE_TRACE_CLASS
 
-public const val REDACTION_TRACE_CLASS: String = "RedactionWatchdog"
+public const val REDACTION_TRACE_CLASS: String = SessionCapture.REDACTION_TRACE_CLASS
 
+/**
+ * Mirrors the value `reaktiv-navigation` emits for guard spans.
+ *
+ * Unlike the other synthetic classes this cannot reference its producer: navigation deliberately
+ * does not depend on the tracing runtime (BC-52), so it declares its own constant with the same
+ * value. The two are a string contract, and changing one means changing the other.
+ */
 public const val GUARD_TRACE_CLASS: String = "NavigationGuards"
 
 public val SYNTHETIC_TRACE_CLASSES: Set<String> = setOf(
@@ -276,10 +287,11 @@ public fun aggregateLogicStats(
     }
 
     for (completion in uniqueCompleted) record(completion.callId, completion.durationMs, isFailure = false)
-    for (failure in uniqueFailed) record(failure.callId, failure.durationMs, isFailure = true)
+    for (failure in uniqueFailed) record(failure.callId, failure.durationMs, isFailure = failure.kind != LogicFailureKind.SCOPE_DISPOSED)
 
     val failureByKey = HashMap<Pair<String, String>, LogicMethodFailed>()
     for (failure in uniqueFailed) {
+        if (failure.kind == LogicFailureKind.SCOPE_DISPOSED) continue
         val start = startByCallId[failure.callId] ?: continue
         failureByKey[start.logicClass to start.methodName] = failure
     }

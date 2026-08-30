@@ -16,7 +16,7 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
         queueWaitMs: Long,
         queueDepth: Long
     ): String = LogicTracer.notifyMethodStart(
-        logicClass = "StoreDispatch",
+        logicClass = DISPATCH_TRACE_CLASS,
         methodName = action::class.simpleName ?: "Action",
         params = buildMap {
             put("queueWaitMs", queueWaitMs.toString())
@@ -109,7 +109,7 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
                 LogicTracer.notifyMethodCompleted(
                     callId = callId,
                     result = "took ${selfMs}ms",
-                    resultType = "DispatchPhase",
+                    resultType = PHASE_TRACE_CLASS,
                     durationMs = selfMs
                 )
             }
@@ -118,7 +118,7 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
 
     override suspend fun onDispatchDropped(action: ModuleAction) {
         val callId = LogicTracer.notifyMethodStart(
-            logicClass = "StoreDispatch",
+            logicClass = DISPATCH_TRACE_CLASS,
             methodName = action::class.simpleName ?: "Action",
             params = mapOf("externalControl" to "dropped")
         )
@@ -129,7 +129,7 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
 
     override suspend fun onExternalControlChanged(enabled: Boolean) {
         val callId = LogicTracer.notifyMethodStart(
-            logicClass = "StoreDispatch",
+            logicClass = DISPATCH_TRACE_CLASS,
             methodName = if (enabled) "beginExternalControl" else "endExternalControl",
             params = emptyMap()
         )
@@ -139,6 +139,7 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
     }
 
     public companion object {
+        public const val DISPATCH_TRACE_CLASS: String = "StoreDispatch"
         public const val PHASE_TRACE_CLASS: String = "DispatchPhase"
         public const val PHASE_TRACE_THRESHOLD_MS: Long = 4L
     }

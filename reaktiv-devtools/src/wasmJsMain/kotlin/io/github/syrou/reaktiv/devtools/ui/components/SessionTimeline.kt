@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
+import io.github.syrou.reaktiv.devtools.protocol.STALL_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.protocol.PHASE_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.protocol.DISPATCH_TRACE_CLASS
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
@@ -64,6 +65,18 @@ import io.github.syrou.reaktiv.devtools.ui.logicCallDepths
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.introspection.protocol.SessionMarker
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.LastPage
+import androidx.compose.material.icons.filled.FirstPage
 
 private const val RULER_DP = 16f
 private const val TICK_LANE_DP = 18f
@@ -71,6 +84,7 @@ private const val NETWORK_LANE_DP = 12f
 private const val MARKER_LANE_DP = 12f
 private const val TIMELINE_EDGE_PADDING_MS = 250L
 private const val MAX_FLAME_AREA_DP = 126f
+private const val COMPACT_FLAME_ROWS = 3
 private const val PREFERRED_ROW_DP = 14f
 private const val MIN_ROW_DP = 6f
 private const val MAX_DEPTH = 12
@@ -137,7 +151,7 @@ private fun buildFlameSpans(events: List<LogicMethodEvent>): List<FlameSpan> {
             depth = depthOf(callId).coerceAtMost(MAX_DEPTH),
             selfMs = (durationMs - (childDurations[callId] ?: 0L)).coerceAtLeast(0L),
             failed = callId in failures,
-            stall = start.logicClass == "MainThreadWatchdog",
+            stall = start.logicClass == STALL_TRACE_CLASS,
             phase = start.logicClass == PHASE_TRACE_CLASS,
             dispatch = start.logicClass == DISPATCH_TRACE_CLASS
         )
@@ -175,13 +189,32 @@ internal fun SessionTimeline(
     onSelectNetwork: (String) -> Unit = {},
     canDropMarker: Boolean = false,
     onDropMarker: () -> Unit = {},
+    timeTravelEnabled: Boolean = false,
+    autoPlaying: Boolean = false,
+    playbackSpeed: Float = 1f,
+    onAutoPlayingChange: (Boolean) -> Unit = {},
+    onPlaybackSpeedChange: (Float) -> Unit = {},
+    compact: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     if (actions.isEmpty()) return
 
+    val playhead = selectedActionIndex ?: 0
+
+    LaunchedEffect(autoPlaying, playhead, playbackSpeed) {
+        if (!autoPlaying) return@LaunchedEffect
+        if (playhead >= actions.size - 1) {
+            onAutoPlayingChange(false)
+            return@LaunchedEffect
+        }
+        delay((1000 / playbackSpeed).toLong())
+        onSeek(playhead + 1)
+    }
+
     val spans = remember(dataRevision) { buildFlameSpans(logicMethodEvents) }
-    val flameRows = remember(dataRevision) {
-        ((spans.maxOfOrNull { it.depth } ?: 0) + 1).coerceAtMost(MAX_DEPTH + 1)
+    val flameRows = remember(dataRevision, compact) {
+        val deepest = ((spans.maxOfOrNull { it.depth } ?: 0) + 1).coerceAtMost(MAX_DEPTH + 1)
+        if (compact) deepest.coerceAtMost(COMPACT_FLAME_ROWS) else deepest
     }
     val rowDp = remember(flameRows) {
         (MAX_FLAME_AREA_DP / flameRows).coerceIn(MIN_ROW_DP, PREFERRED_ROW_DP)
@@ -267,6 +300,17 @@ internal fun SessionTimeline(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            TransportControls(
+                position = playhead,
+                total = actions.size,
+                autoPlaying = autoPlaying,
+                playbackSpeed = playbackSpeed,
+                timeTravelEnabled = timeTravelEnabled,
+                onSeek = onSeek,
+                onAutoPlayingChange = onAutoPlayingChange,
+                onPlaybackSpeedChange = onPlaybackSpeedChange
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             IconButton(onClick = { zoomAt((visibleStart + visibleEnd) / 2, 0.6f) }, modifier = Modifier.size(26.dp)) {
                 Icon(Icons.Default.ZoomIn, contentDescription = "Zoom in", modifier = Modifier.size(16.dp))
             }
@@ -516,6 +560,7 @@ internal fun SessionTimeline(
             }
 
             snapshot.spans.forEach { span ->
+                if (span.depth >= snapshot.flameRows) return@forEach
                 if (span.endMs < visStart || span.startMs > snapshot.visibleEnd) return@forEach
                 val left = xFor(span.startMs)
                 val width = (xFor(span.endMs) - left).coerceAtLeast(2f)
@@ -684,6 +729,116 @@ internal fun SessionTimeline(
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+@Composable
+private fun TransportControls(
+    position: Int,
+    total: Int,
+    autoPlaying: Boolean,
+    playbackSpeed: Float,
+    timeTravelEnabled: Boolean,
+    onSeek: (Int) -> Unit,
+    onAutoPlayingChange: (Boolean) -> Unit,
+    onPlaybackSpeedChange: (Float) -> Unit
+) {
+    var showSpeedMenu by remember { mutableStateOf(false) }
+    val tint = if (timeTravelEnabled) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+            onClick = { onSeek(0) },
+            enabled = position > 0,
+            modifier = Modifier.size(26.dp)
+        ) {
+            Icon(
+                Icons.Default.FirstPage,
+                contentDescription = "Jump to the start of the session",
+                tint = tint,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        IconButton(
+            onClick = { onSeek(position - 1) },
+            enabled = position > 0,
+            modifier = Modifier.size(26.dp)
+        ) {
+            Icon(
+                Icons.Default.KeyboardArrowLeft,
+                contentDescription = "Step back one action",
+                tint = tint,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        IconButton(
+            onClick = { onAutoPlayingChange(!autoPlaying) },
+            enabled = total > 1,
+            modifier = Modifier.size(26.dp)
+        ) {
+            Icon(
+                if (autoPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (autoPlaying) "Pause" else "Play the session",
+                tint = tint,
+                modifier = Modifier.size(17.dp)
+            )
+        }
+        IconButton(
+            onClick = { onSeek(position + 1) },
+            enabled = position < total - 1,
+            modifier = Modifier.size(26.dp)
+        ) {
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                contentDescription = "Step forward one action",
+                tint = tint,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        IconButton(
+            onClick = { onSeek(total - 1) },
+            enabled = position < total - 1,
+            modifier = Modifier.size(26.dp)
+        ) {
+            Icon(
+                Icons.Default.LastPage,
+                contentDescription = "Jump to the end of the session",
+                tint = tint,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        Box {
+            TextButton(
+                onClick = { showSpeedMenu = true },
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    text = "${playbackSpeed}x",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = tint
+                )
+            }
+            DropdownMenu(expanded = showSpeedMenu, onDismissRequest = { showSpeedMenu = false }) {
+                listOf(0.5f, 1f, 2f, 5f, 10f).forEach { speed ->
+                    DropdownMenuItem(
+                        text = { Text("${speed}x") },
+                        onClick = {
+                            onPlaybackSpeedChange(speed)
+                            showSpeedMenu = false
+                        }
+                    )
+                }
+            }
+        }
+        Text(
+            text = "${position + 1} / $total",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
  * JSON export format version for captured sessions.
  */
 public object SessionExportFormat {
-    public const val VERSION: String = "3.6"
+    public const val VERSION: String = "3.7"
 }
 
 @Serializable
@@ -111,7 +111,8 @@ public data class SessionData(
     val logicFailedEvents: List<LogicMethodFailed>,
     val stateReads: List<StateRead> = emptyList(),
     val markers: List<SessionMarker> = emptyList(),
-    val network: List<NetworkRequestCapture> = emptyList()
+    val network: List<NetworkRequestCapture> = emptyList(),
+    val logs: List<CapturedLog> = emptyList()
 )
 
 /**

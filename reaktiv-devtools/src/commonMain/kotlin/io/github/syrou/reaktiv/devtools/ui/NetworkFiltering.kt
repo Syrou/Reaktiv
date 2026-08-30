@@ -11,13 +11,12 @@ internal enum class NetworkSort(val label: String) {
 
 @Serializable
 internal data class NetworkFilter(
-    val query: String = "",
     val failuresOnly: Boolean = false,
     val methods: Set<String> = emptySet(),
     val sort: NetworkSort = NetworkSort.NEWEST
 ) {
     val isActive: Boolean
-        get() = query.isNotBlank() || failuresOnly || methods.isNotEmpty() || sort != NetworkSort.NEWEST
+        get() = failuresOnly || methods.isNotEmpty() || sort != NetworkSort.NEWEST
 }
 
 internal fun List<NetworkEventRow>.mergeNetworkEvents(
@@ -47,8 +46,11 @@ internal fun networkHost(url: String): String {
     return withoutScheme.substringBefore('/').substringBefore('?')
 }
 
-internal fun List<NetworkEventRow>.applyNetworkFilter(filter: NetworkFilter): List<NetworkEventRow> {
-    val query = filter.query.trim()
+internal fun List<NetworkEventRow>.applyNetworkFilter(
+    filter: NetworkFilter,
+    searchQuery: String = ""
+): List<NetworkEventRow> {
+    val query = searchQuery.trim()
     val matched = filter { row ->
         val event = row.event
         val methodOk = filter.methods.isEmpty() || event.method.uppercase() in filter.methods

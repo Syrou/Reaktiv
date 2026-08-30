@@ -7,7 +7,7 @@ import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.ReaktivLogSink
-import io.github.syrou.reaktiv.devtools.protocol.DeviceLogEntry
+import io.github.syrou.reaktiv.introspection.protocol.CapturedLog
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
@@ -79,7 +79,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
     private var listenerHandshake: Job? = null
     private var firstProjection: CompletableDeferred<Unit>? = null
     private var logSink: ReaktivLogSink? = null
-    private val logBuffer = Channel<DeviceLogEntry>(
+    private val logBuffer = Channel<CapturedLog>(
         capacity = 512,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
@@ -189,7 +189,7 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
         }
         val sink = ReaktivLogSink { level, category, message ->
             logBuffer.trySend(
-                DeviceLogEntry(level, category, message, currentTimeMillis())
+                CapturedLog(level, category, message, currentTimeMillis())
             )
         }
         logSink = sink

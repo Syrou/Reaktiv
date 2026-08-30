@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.ReaktivLogSink
 import io.github.syrou.reaktiv.introspection.ClientMetadata
 import io.github.syrou.reaktiv.introspection.DEFAULT_SENSITIVE_KEYS
 import io.github.syrou.reaktiv.introspection.StateRedactor
@@ -31,6 +32,7 @@ import kotlinx.serialization.json.put
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
+import io.github.syrou.reaktiv.introspection.protocol.CapturedLog
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import io.github.syrou.reaktiv.introspection.protocol.buildCrashDiagnosis
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
@@ -105,6 +107,7 @@ import kotlin.uuid.Uuid
 public class SessionCapture(
     private val maxActions: Int? = null,
     private val maxLogicEvents: Int? = null,
+    private val maxLogs: Int? = null,
     private val redactor: StateRedactor? = null,
     private val redactSensitiveKeys: Boolean = true
 ) {
@@ -118,6 +121,7 @@ public class SessionCapture(
     private val stateReadStorage: CaptureStorage = createCaptureStorage("$storageId-state_reads")
     private val markerStorage: CaptureStorage = createCaptureStorage("$storageId-markers")
     private val networkStorage: CaptureStorage = createCaptureStorage("$storageId-network")
+    private val logStorage: CaptureStorage = createCaptureStorage("$storageId-logs")
 
     private val allStorages: List<CaptureStorage> = listOf(
         actionsStorage,
@@ -128,6 +132,7 @@ public class SessionCapture(
         stateReadStorage,
         markerStorage,
         networkStorage,
+        logStorage,
     )
 
     private var sessionStartTime: Long = 0
@@ -144,6 +149,7 @@ public class SessionCapture(
     private var stateJson: Json = reaktivJson()
 
     private var networkListener: NetworkEventListener? = null
+    private var logSink: ReaktivLogSink? = null
     private var networkBodyProvider: NetworkBodyProvider? = null
     private val materialisingId = AtomicReference<String?>(null)
     private val cachedBody = AtomicReference<CachedBody?>(null)
@@ -200,6 +206,7 @@ public class SessionCapture(
     private class StateReadRecord(val read: StateRead) : Record
     private class MarkerRecord(val marker: SessionMarker, val historical: Boolean) : Record
     private class NetworkRecord(val capture: NetworkRequestCapture) : Record
+    private class LogRecord(val log: CapturedLog) : Record
 
     private class CachedBody(
         val requestId: String,
@@ -235,6 +242,7 @@ public class SessionCapture(
         allStorages.forEach { it.clear() }
 
         attachNetworkListener()
+        attachLogSink()
 
         val newChannel = Channel<Record>(capacity = Channel.UNLIMITED)
         val newScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -332,8 +340,28 @@ public class SessionCapture(
         }
     }
 
+    public fun captureLog(level: String, category: String, message: String) {
+        if (category == SELF_LOG_CATEGORY) return
+        enqueue(LogRecord(CapturedLog(level, category, message, currentTimeMillis())))
+    }
+
+    private fun attachLogSink() {
+        detachLogSink()
+        val sink = ReaktivLogSink { level, category, message ->
+            captureLog(level, category, message)
+        }
+        logSink = sink
+        ReaktivDebug.addSink(sink)
+    }
+
+    private fun detachLogSink() {
+        logSink?.let { ReaktivDebug.removeSink(it) }
+        logSink = null
+    }
+
     private fun attachNetworkListener() {
         detachNetworkListener()
+        detachLogSink()
         val listener = NetworkEventListener { event -> recordNetworkExchange(event) }
         networkListener = listener
         NetworkTap.addListener(listener)
@@ -506,7 +534,8 @@ public class SessionCapture(
             logicFailed = readLogicFailed(),
             stateReads = readStateReads(),
             markers = readMarkers(),
-            network = readNetwork()
+            network = readNetwork(),
+            logs = readLogs()
         )
     }
 
@@ -552,7 +581,8 @@ public class SessionCapture(
                 logicFailedEvents = logicFailedList,
                 stateReads = stateReadsList,
                 markers = readMarkers(),
-                network = readNetwork()
+                network = readNetwork(),
+                logs = readLogs()
             ),
             droppedRecords = droppedCount.load(),
             diagnosis = diagnosis
@@ -573,9 +603,11 @@ public class SessionCapture(
      * Clears all captured data but keeps the session active.
      */
     public suspend fun clear() {
-        flush()
-        allStorages.forEach { it.clear() }
-        capturedCrash = null
+        if (!started) {
+            allStorages.forEach { it.clear() }
+            capturedCrash = null
+            return
+        }
         enqueue(ResetWorkerState)
         flush()
     }
@@ -587,6 +619,7 @@ public class SessionCapture(
     public suspend fun stop() {
         started = false
         detachNetworkListener()
+        detachLogSink()
         flush()
         stopWorker()
         allStorages.forEach { it.delete() }
@@ -624,7 +657,7 @@ public class SessionCapture(
             try {
                 process(batch)
             } catch (e: Throwable) {
-                ReaktivDebug.warn("SessionCapture worker failed to process batch: ${e.message}")
+                ReaktivDebug.error(SELF_LOG_CATEGORY, "Worker failed to process batch: ${e.message}", e)
             } finally {
                 processedCount.update { it + batch.size.toLong() }
             }
@@ -683,7 +716,7 @@ public class SessionCapture(
         val issues = pendingRedactionIssues.toList()
         pendingRedactionIssues.clear()
         for (issue in issues) {
-            ReaktivDebug.error("RedactionWatchdog: $issue")
+            ReaktivDebug.error(SELF_LOG_CATEGORY, "RedactionWatchdog: $issue", null)
             val callId = LogicTracer.notifyMethodStart(
                 logicClass = REDACTION_TRACE_CLASS,
                 methodName = "unsafeCapture",
@@ -726,6 +759,7 @@ public class SessionCapture(
         val stateReadLines = ArrayList<String>()
         val markerLines = ArrayList<String>()
         val networkLines = ArrayList<String>()
+        val logLines = ArrayList<String>()
 
         for (record in batch) {
             try {
@@ -779,6 +813,20 @@ public class SessionCapture(
                         actionCount = 0
                         reportedRedactionIssues.clear()
                         pendingRedactionIssues.clear()
+                        capturedCrash = null
+                        actionLines.clear()
+                        startedLines.clear()
+                        completedLines.clear()
+                        failedLines.clear()
+                        crashLines.clear()
+                        stateReadLines.clear()
+                        markerLines.clear()
+                        networkLines.clear()
+                        logLines.clear()
+                        allStorages.forEach { it.clear() }
+                    }
+                    is LogRecord -> {
+                        logLines.add(json.encodeToString(record.log))
                     }
                     is MarkerRecord -> {
                         val enriched = record.marker.copy(
@@ -808,7 +856,7 @@ public class SessionCapture(
                     }
                 }
             } catch (e: Exception) {
-                ReaktivDebug.warn("SessionCapture failed to encode record: ${e.message}")
+                ReaktivDebug.error(SELF_LOG_CATEGORY, "Failed to encode record: ${e.message}", e)
             }
         }
 
@@ -826,6 +874,13 @@ public class SessionCapture(
         if (stateReadLines.isNotEmpty()) stateReadStorage.appendLines(stateReadLines)
         if (markerLines.isNotEmpty()) markerStorage.appendLines(markerLines)
         if (networkLines.isNotEmpty()) networkStorage.appendLines(networkLines)
+        if (logLines.isNotEmpty()) {
+            logStorage.appendLines(logLines)
+            val cap = maxLogs
+            if (cap != null && logStorage.lineCount() > cap + cap / 4) {
+                logStorage.trimTo(cap)
+            }
+        }
         trimLogicEvents()
         reportRedactionIssues()
     }
@@ -869,16 +924,36 @@ public class SessionCapture(
     private fun readStateReads(): List<StateRead> =
         stateReadStorage.readLines().map { json.decodeFromString(it) }
 
+    private fun readLogs(): List<CapturedLog> =
+        logStorage.readLines().map { json.decodeFromString(it) }
+
     private fun readMarkers(): List<SessionMarker> =
         markerStorage.readLines().map { json.decodeFromString(it) }
 
-    private companion object {
-        const val BODY_SLICE_BYTES: Int = 256 * 1024
-        const val HIGH_WATER_MARK: Long = 50_000L
-        const val VERIFY_SAMPLE_INTERVAL: Int = 100
-        const val REDACTION_TRACE_CLASS: String = "RedactionWatchdog"
+    public companion object {
+        /**
+         * The `logicClass` this capture emits for redaction watchdog spans.
+         *
+         * Public because tooling downstream filters synthetic spans out of the narrative event
+         * stream by name, so the name is part of this module's contract rather than an internal
+         * detail.
+         */
+        public const val REDACTION_TRACE_CLASS: String = "RedactionWatchdog"
+
+        /**
+         * The log category this capture files its own diagnostics under.
+         *
+         * [captureLog] drops lines in this category, so a capture never records its own failure
+         * reports. Without that, a failure to encode a record would log, be captured, and be
+         * encoded again, which is the one path where the log lane could amplify itself.
+         */
+        public const val SELF_LOG_CATEGORY: String = "SessionCapture"
     }
 }
+
+private const val BODY_SLICE_BYTES: Int = 256 * 1024
+private const val HIGH_WATER_MARK: Long = 50_000L
+private const val VERIFY_SAMPLE_INTERVAL: Int = 100
 
 /**
  * Represents the current session history.
@@ -893,7 +968,8 @@ public data class SessionHistory(
     val logicFailed: List<LogicMethodFailed>,
     val stateReads: List<StateRead> = emptyList(),
     val markers: List<SessionMarker> = emptyList(),
-    val network: List<NetworkRequestCapture> = emptyList()
+    val network: List<NetworkRequestCapture> = emptyList(),
+    val logs: List<CapturedLog> = emptyList()
 )
 
 /**

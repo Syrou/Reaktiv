@@ -93,11 +93,16 @@ class StoreResetMemorySafetyTest {
         store.reset()
 
         // Check session state immediately after reset, before advanceUntilIdle().
-        // sessionCapture.clear() flushes the capture worker and purges storage during
-        // reset(), before any new coroutines have had a chance to dispatch actions.
+        // reset() purges the capture through sessionCapture.clear(), so everything recorded
+        // above is gone. Re-initialising the modules is itself instrumented work, so the capture
+        // legitimately holds events emitted after the purge. Assert on what was cleared rather
+        // than on the lane being empty, which was always a race against the capture worker.
         val postResetHistory = sessionCapture.getSessionHistory()
         assertTrue(postResetHistory.actions.isEmpty(), "Session capture actions should be cleared after reset")
-        assertTrue(postResetHistory.logicStarted.isEmpty(), "Session capture logic events should be cleared after reset")
+        assertTrue(
+            postResetHistory.logicStarted.none { it.methodName == "doWork" || it.methodName == "doMoreWork" },
+            "Logic events captured before reset should be purged"
+        )
         assertEquals(1, LogicTracer.observerCount(), "Observer should still be registered after reset")
         assertTrue(sessionCapture.isStarted(), "Session capture should still be active after reset")
 

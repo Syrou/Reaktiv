@@ -8,8 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,9 +21,6 @@ import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import io.github.syrou.reaktiv.introspection.protocol.StateReconstructor
-import kotlin.time.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 /**
  * Displays state snapshot for the selected action or logic method data.
@@ -107,9 +102,9 @@ internal fun StateViewer(
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -255,68 +250,41 @@ internal fun StateViewer(
 @Composable
 private fun ActionPayloadView(event: CapturedAction) {
     val payload = event.actionData.trim()
-    Column(
+
+    if (payload.isEmpty()) {
+        EmptyState(
+            title = "No properties",
+            detail = "${event.actionType} carries no data, so there is nothing to inspect here. " +
+                "The Delta and State tabs still show what it changed."
+        )
+        return
+    }
+
+    StructuredValueViewer(
+        text = payload,
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp)
-            ) {
-                Text(
-                    text = "Dispatched: ${event.actionType}",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Timestamp: ${formatClockTime(event.timestamp)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (event.moduleName.isNotBlank()) {
+        header = {
+            item(key = "payload-meta") {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
                     Text(
-                        text = "Module: ${event.moduleName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = event.actionType,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Caption(
+                        buildString {
+                            append(formatClockTime(event.timestamp))
+                            if (event.moduleName.isNotBlank()) append("  ").append(event.moduleName)
+                        },
+                        singleLine = true
                     )
                 }
             }
         }
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            if (payload.isEmpty()) {
-                Text(
-                    text = "This action carries no properties",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(12.dp)
-                )
-            } else {
-                KotlinObjectTreeViewer(
-                    text = payload,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-        }
-    }
+    )
 }
 
 @Composable
@@ -330,114 +298,58 @@ private fun StateSnapshotView(
     label: String = "State Data",
     observingComposables: List<String> = emptyList()
 ) {
-    Column(
+    StructuredValueViewer(
+        text = stateJson,
+        previousText = previousStateJson,
+        searchQuery = searchQuery,
+        showDiff = showAsDiff && previousStateJson != null,
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp)
-            ) {
-                Text(
-                    text = "For Action: ${event.actionType}",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Timestamp: ${formatClockTime(event.timestamp)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = "Client: ${event.clientId}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (event.moduleName.isNotBlank()) {
-                    Text(
-                        text = "Module: ${event.moduleName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Text(
-                    text = "Size: ${stateJson.length} bytes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (observingComposables.isNotEmpty()) {
-                    Text(
-                        text = "Recomposes: ${observingComposables.joinToString(", ")}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-            }
-        }
-
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Filter properties...") },
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-            )
-        )
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp)
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxSize()
+        header = {
+            item(key = "snapshot-meta") {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
-                    JsonTreeViewer(
-                        jsonString = stateJson,
-                        previousJsonString = previousStateJson,
-                        searchQuery = searchQuery,
-                        showDiff = showAsDiff && previousStateJson != null,
-                        modifier = Modifier.padding(8.dp)
+                    Text(
+                        text = event.actionType,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
+                    Caption(
+                        buildString {
+                            append(formatClockTime(event.timestamp))
+                            if (event.moduleName.isNotBlank()) append("  ").append(event.moduleName)
+                            append("  ").append(event.clientId)
+                            append("  ").append(stateJson.length).append(" bytes")
+                        },
+                        singleLine = true
+                    )
+                    if (observingComposables.isNotEmpty()) {
+                        Text(
+                            text = "Recomposes: ${observingComposables.joinToString(", ")}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                 }
             }
+            item(key = "snapshot-search") {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text("Filter properties", style = MaterialTheme.typography.bodySmall)
+                    },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodySmall
+                )
+            }
+            item(key = "snapshot-label") {
+                Caption(label, uppercase = true, modifier = Modifier.padding(top = 8.dp))
+            }
         }
-    }
+    )
 }
 
 @Composable
@@ -472,23 +384,11 @@ private fun LogicMethodDataView(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = "Call ID: ${startedEvent.callId}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Caption("Call ID: ${startedEvent.callId}")
 
-                    Text(
-                        text = "Started: ${formatClockTime(startedEvent.timestamp)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Caption("Started: ${formatClockTime(startedEvent.timestamp)}")
 
-                    Text(
-                        text = "Client: ${startedEvent.clientId}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Caption("Client: ${startedEvent.clientId}")
 
                     if (startedEvent.sourceFile != null && startedEvent.lineNumber != null) {
                         Spacer(modifier = Modifier.height(4.dp))
@@ -542,20 +442,14 @@ private fun LogicMethodDataView(
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        IconButton(
-                            onClick = {
-                                val text = startedEvent.params.entries.joinToString("\n") { "${it.key} = ${it.value}" }
-                                copyTextToClipboard(text)
-                            },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.ContentCopy,
-                                contentDescription = "Copy parameters",
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        CopyControl(
+                            actions = listOf(
+                                CopyAction("parameters") {
+                                    startedEvent.params.entries.joinToString("\n") { "${it.key} = ${it.value}" }
+                                }
+                            ),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -577,7 +471,7 @@ private fun LogicMethodDataView(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    KotlinObjectTreeViewer(
+                                    StructuredValueViewer(
                                         text = value,
                                         modifier = Modifier.padding(start = 8.dp)
                                     )
@@ -616,20 +510,12 @@ private fun LogicMethodDataView(
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
-                        Text(
-                            text = "${completedEvent.durationMs}ms",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Caption("${completedEvent.durationMs}ms")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        text = "Return Type: ${completedEvent.resultType}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Caption("Return Type: ${completedEvent.resultType}")
 
                     completedEvent.result?.let { result ->
                         Spacer(modifier = Modifier.height(8.dp))
@@ -644,17 +530,10 @@ private fun LogicMethodDataView(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            IconButton(
-                                onClick = { copyTextToClipboard(result) },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.ContentCopy,
-                                    contentDescription = "Copy result",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            CopyControl(
+                                actions = listOf(CopyAction("result") { result }),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -664,7 +543,7 @@ private fun LogicMethodDataView(
                             shape = MaterialTheme.shapes.small,
                             modifier = Modifier.heightIn(max = 200.dp)
                         ) {
-                            KotlinObjectTreeViewer(
+                            StructuredValueViewer(
                                 text = result,
                                 modifier = Modifier.padding(8.dp)
                             )
@@ -754,17 +633,10 @@ private fun LogicMethodDataView(
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.error
                                 )
-                                IconButton(
-                                    onClick = { copyTextToClipboard(trace) },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.ContentCopy,
-                                        contentDescription = "Copy stack trace",
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                CopyControl(
+                                    actions = listOf(CopyAction("stack trace") { trace }),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -919,9 +791,10 @@ private fun CrashDataView(
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        TextButton(onClick = { copyTextToClipboard(diagnosis.text) }) {
-                            Text("Copy")
-                        }
+                        CopyControl(
+                            actions = listOf(CopyAction("diagnosis") { diagnosis.text }),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -972,11 +845,8 @@ private fun CrashDataView(
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        JsonTreeViewer(
-                            jsonString = reconstructedStateJson,
-                            previousJsonString = null,
-                            searchQuery = "",
-                            showDiff = false,
+                        StructuredValueViewer(
+                            text = reconstructedStateJson,
                             modifier = Modifier.padding(8.dp)
                         )
                     }
@@ -1052,11 +922,7 @@ private fun CausedByView(exception: CrashException) {
 
         val message = exception.message
         if (message != null) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Caption(message)
         }
 
         Spacer(modifier = Modifier.height(4.dp))

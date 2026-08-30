@@ -820,6 +820,105 @@ have one owner, which is a larger change.
 
 ---
 
+### [BC-83] `navigateBack()` refuses while bootstrap is unresolved
+
+**Type:** Behavioural
+
+**Grep:** `navigateBack\(`
+**File glob:** `**/*.kt`
+
+**Notes:** "Can this state accept a back" was answered in two places that disagreed.
+`canHandleBack`, which the gesture recognisers and platform back handler use, refuses when
+`isBootstrapping`, when `isEvaluatingNavigation`, when the stack cannot go back, and when a
+`LoadingModal` is current. `NavigationLogic.navigateBack` re-implemented three of those four and
+omitted `isBootstrapping`.
+
+So a programmatic `navigateBack()` was permitted during bootstrap while the user's back gesture
+and the platform back button were ignored, which is reachable once bootstrap has synthesised more
+than one entry.
+
+`navigateBack` now asks `canHandleBack`, so every back path answers the same question. An app
+calling `navigateBack()` before bootstrap resolves now gets a no-op rather than popping a
+half-built stack.
+
+---
+
+### [BC-84] The transition settle gate measures the transition that actually runs
+
+**Type:** Behavioural
+
+**Grep:** `determineAnimationDecision`
+**File glob:** `**/*.kt`
+
+**Notes:** After executing a navigation, `NavigationLogic` starts a timer that the next
+navigation joins, so a queued navigation does not begin mid-animation. That timer read
+`startEntry.navigatable.exitTransition` and `arrivingEntry.navigatable.enterTransition` directly,
+which is not what the renderer animates. It disagreed in three ways:
+
+- On a back navigation the renderer uses `popExitSpec`, which is the departing entry's
+  **`enterTransition` played in reverse**, falling back to `exitTransition`. The timer always
+  read `exitTransition`.
+- On a forward navigation the renderer prefers the arriving entry's `popExitTransition` through
+  `pushExitSpec`. The timer only ever read the covered entry's `exitTransition`.
+- When a graph presents itself the renderer resolves through `presentationSourceFor` and animates
+  the graph's transition. The timer read the screen's.
+
+Whenever those durations differed, the gate expired early or late, so the next navigation could
+begin while the previous transition was still on screen.
+
+The gate now derives its duration from `determineAnimationDecision`, the same resolution the
+renderer uses, and treats a non-animating side as zero rather than timing a transition that will
+not play.
+
+The duration is unchanged for the common case where a destination declares matching enter and
+exit transitions and no graph presents itself.
+
+---
+
+### [BC-85] `DevToolsMessage.LogBatch` carries `CapturedLog`
+
+**Type:** Breaking
+
+**Grep:** `DeviceLogEntry`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+DevToolsMessage.LogBatch(clientId = id, entries = listOf(DeviceLogEntry(level, category, message, ts)))
+```
+
+**After:**
+```kotlin
+DevToolsMessage.LogBatch(clientId = id, entries = listOf(CapturedLog(level, category, message, ts)))
+```
+
+**Notes:** The log wire and the captured session now share one type, so a log line that streams to
+a connected UI is the same shape as one read back from an export. `DeviceLogEntry` is deprecated
+and removed in a later release. See AD-108.
+
+---
+
+### [BC-86] `SessionCapture.clear()` is ordered against the capture worker
+
+**Type:** Behavioural
+
+**Grep:** `SessionCapture(...).clear\(\)|capture.clear\(\)`
+**File glob:** `**/*.kt`
+
+**Notes:** `clear()` used to flush, then wipe storage from the calling thread while the worker was
+still free to write to it. Anything enqueued between the wipe and the following flush was written
+after the wipe and survived a clear it should not have.
+
+Clearing is now a record the worker applies in order. On seeing it the worker drops the lines it
+has buffered for the current batch, wipes storage and resets its own state, so everything enqueued
+before a clear is discarded and everything after is kept. A clear on a capture that is not started
+still wipes directly, since there is no worker to order against.
+
+Nothing changes for callers. The window this closes was narrow, but the log lane added by AD-108
+made it far easier to hit, because every `ReaktivDebug` emission is now a record.
+
+---
+
 ## Additions
 
 <!-- Append AD-NN entries below, incrementing from the last AD ID in this section -->
@@ -5868,3 +5967,204 @@ serialise, parse to a single map union, on the per-action hot path.
 
 ---
 
+### [AD-106] Animation resolution accepts graph definitions
+
+**Type:** Addition
+
+**Grep:** `determineAnimationDecision\(|presentationSourceFor\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val decision = determineAnimationDecision(
+    previousEntry = from,
+    currentEntry = to,
+    graphDefinitions = precomputedData.graphDefinitions,
+    isExplicitBackNavigation = isBack
+)
+```
+
+**Notes:** `determineAnimationDecision` and `presentationSourceFor` only ever needed
+`NavigationModule` to reach `getGraphDefinitions()`. They now also accept that map directly, so a
+caller holding precomputed navigation data can resolve a transition without the module. The
+existing `NavigationModule` overloads are unchanged and delegate to the new ones.
+
+This is what lets the settle gate in BC-84 share the renderer's resolution rather than
+approximating it.
+
+---
+
+### [AD-107] Synthetic trace-class names live with what emits them
+
+**Type:** Addition
+
+**Grep:** `DISPATCH_TRACE_CLASS|REDACTION_TRACE_CLASS|SYNTHETIC_TRACE_CLASSES`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val appEvents = started.filter { it.logicClass !in SYNTHETIC_TRACE_CLASSES }
+```
+
+**Notes:** Several subsystems emit spans through `LogicTracer` under a synthetic `logicClass`, and
+tooling filters them out of the narrative event stream by name. Those names are a contract between
+the module that emits them and the module that reads them, and they were previously respelled on
+both sides.
+
+Each name now has one declaration, on its producer:
+
+| Name | Declared on |
+|---|---|
+| `StoreDispatch` | `DispatchTracingInstrumentation.DISPATCH_TRACE_CLASS` (new) |
+| `DispatchPhase` | `DispatchTracingInstrumentation.PHASE_TRACE_CLASS` |
+| `MainThreadWatchdog` | `StallWatchdog.TRACE_CLASS` |
+| `RedactionWatchdog` | `SessionCapture.REDACTION_TRACE_CLASS` |
+
+`SessionCapture`'s companion was private, so its constant could not be read from another module.
+It is now public and holds only that name. The three tuning constants that shared it
+(`BODY_SLICE_BYTES`, `HIGH_WATER_MARK`, `VERIFY_SAMPLE_INTERVAL`) moved to private top-level
+declarations, so making the vocabulary reachable did not also expose internal thresholds.
+
+The devtools constants of the same names are unchanged in value and visibility, and now reference
+the producer instead of repeating the string.
+
+`GUARD_TRACE_CLASS` is the exception and stays duplicated on purpose. `reaktiv-navigation` emits
+it and deliberately does not depend on the tracing runtime (BC-52), so it declares its own
+constant. Both sides are documented as a string contract: changing one means changing the other.
+
+---
+
+### [AD-108] Device logs are part of the session
+
+**Type:** Addition
+
+**Grep:** `CapturedLog|SessionData.logs|SessionHistory.logs`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val capture = SessionCapture(maxLogs = 5_000)
+capture.start()
+
+val export = Json.decodeFromString<SessionExport>(exported)
+export.session.logs.forEach { println("[${it.category}] ${it.message}") }
+```
+
+**Notes:** Every other lane persisted. Logs did not. They streamed to a connected UI and were gone:
+absent from every export, absent from every ghost, and invisible to a listener attaching
+mid-session. A crash export showed the actions around the failure but none of the log lines the
+developer had been reading.
+
+`SessionCapture` now owns a log lane like markers and network. It installs a `ReaktivLogSink` on
+start and removes it on stop, and `SessionHistory.logs` and `SessionData.logs` carry the result, so
+logs replicate to a follower and survive into a ghost. Export format moves to **3.7**. Both fields
+default to empty, so a 3.6 file still reads.
+
+`maxLogs` on the `SessionCapture` constructor bounds the lane, defaulting to unbounded like the
+other lanes. Logs are higher volume than actions, so setting it is worth considering.
+
+**The self-capture loop.** A capture that logs while capturing logs can amplify: a failure to
+encode a record would log, be captured, and be encoded again. Rather than a suppression flag,
+which would drop unrelated lines emitted by other threads during the window, `SessionCapture`
+files its own diagnostics under `SessionCapture.SELF_LOG_CATEGORY` and `captureLog` drops that
+category. Its three internal reports moved from `warn` to `error` with that category, which also
+reflects that they are failures rather than warnings.
+
+One consequence worth knowing: AD-97 records every navigation attempt through `ReaktivDebug`, so
+those records now survive into exports too, having previously been live-only.
+
+---
+
+### [AD-109] Navigation lens in the DevTools
+
+**Type:** Addition
+
+**Grep:** `parseNavigationState|buildNavigationLog|NAVIGATION_TRACE_CLASS`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val snapshot = parseNavigationState(reconstructedStateJson)
+snapshot?.backStack?.forEach { println("${it.route}  ${it.path}") }
+
+val log = buildNavigationLog(starts, completions)
+log.filter { it.diverted }.forEach { println("${it.target} -> ${it.outcome}") }
+```
+
+**Notes:** The DevTools had no navigation view at all. Navigation state appeared only as raw JSON
+in the state tree, and guards surfaced as a badge in a method list, despite navigation being the
+library's headline feature.
+
+`parseNavigationState` reads the back stack, current path, graph chain, modal contexts and the
+bootstrapping and evaluating flags out of a captured state tree. It works on JSON rather than the
+real types, because the DevTools inspects arbitrary stores and does not depend on
+`reaktiv-navigation`. A store with no navigation module yields null rather than failing.
+
+`buildNavigationLog` pairs the spans `reaktiv-navigation` already emits with their verdicts:
+`Navigation` spans for each navigate call and `NavigationGuards` spans for guard and entry
+evaluation. An attempt still in flight appears with a null outcome rather than being omitted, so a
+guard that never returns is visible instead of silently absent.
+
+Both live in `commonMain` and are covered by `NavigationLensTest`, so the analysis is JVM-testable
+the same way findings and trace stats are. The wasm UI adds a Navigation tab over them, reachable
+by `5`, the command palette and the help overlay.
+
+`NAVIGATION_TRACE_CLASS` mirrors what navigation emits and, like `GUARD_TRACE_CLASS`, cannot
+reference its producer because of BC-52. See AD-107.
+
+---
+
+### [BC-87] Composition unwinds are no longer reported as crashes
+
+**Type:** Behavioural
+
+**Grep:** `onMethodFailed`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Every throwable out of a traced method became a crash. A navigation started from a
+// composable whose rememberCoroutineScope left the composition surfaced as:
+//   Crash: ForgottenCoroutineScopeException
+//   Where: Navigation.navigate, route wizard/confirm
+```
+
+**After:**
+```kotlin
+// Only LogicFailureKind.SCOPE_DISPOSED is suppressed: the scope that launched the call
+// went away, which is ordinary lifecycle and never actionable. Thrown exceptions and
+// ordinary cancellations are still reported as crashes, unchanged.
+```
+
+**Notes:** The suppressed set is `SCOPE_DISPOSAL_CANCELLATIONS`, currently
+`ForgottenCoroutineScopeException` and `LeftCompositionCancellationException`. It is matched
+by name because both are internal to the Compose runtime and cannot be referenced by type.
+A suppressed call is still captured and still appears in the stream, marked "scope gone",
+and is excluded from `MethodStats.failures`. See AD-110.
+
+---
+
+### [AD-110] LogicMethodFailed.kind and LogicFailureKind
+
+**Type:** Addition
+
+**Grep:** `LogicMethodFailed`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+override fun onMethodFailed(event: LogicMethodFailed) {
+    when (event.kind) {
+        LogicFailureKind.THROWN -> reportToCrashReporter(event)
+        LogicFailureKind.CANCELLED -> reportToCrashReporter(event)
+        LogicFailureKind.SCOPE_DISPOSED -> Unit
+    }
+}
+```
+
+**Notes:** Defaults to `THROWN`, so existing serialized sessions and custom `LogicObserver`
+implementations keep working. Classified once in `LogicTracer.notifyMethodFailed`, where the
+throwable is still in hand, and carried on the event so no consumer has to re-derive it from
+an exception name. See BC-87.
+
+---

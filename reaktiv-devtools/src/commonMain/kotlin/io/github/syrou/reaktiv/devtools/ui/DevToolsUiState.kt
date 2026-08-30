@@ -1,8 +1,10 @@
 package io.github.syrou.reaktiv.devtools.ui
 
+import io.github.syrou.reaktiv.introspection.protocol.CapturedLog
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
+import io.github.syrou.reaktiv.core.tracing.LogicFailureKind
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.devtools.client.ConnectionState
@@ -31,7 +33,7 @@ internal data class DevToolsUiState(
     val selectedListener: String? = null,
     val showStateAsDiff: Boolean = false,
     val devicePanelExpanded: Boolean = false,
-    val autoSelectLatest: Boolean = true,
+    val followLatest: Boolean = true,
     val excludedActionTypes: Set<String> = emptySet(),
     val timeTravelEnabled: Boolean = false,
     val timeTravelPosition: Int = 0,
@@ -41,7 +43,9 @@ internal data class DevToolsUiState(
     val callIdToMethodIdentifier: Map<String, String> = emptyMap(),
     val showImportGhostDialog: Boolean = false,
     val crashEvent: CrashEventInfo? = null,
-    val rightPanelTab: RightPanelTab = RightPanelTab.STATE,
+    val mode: DevToolsMode = DevToolsMode.DEBUG,
+    val performanceView: PerformanceView = PerformanceView.METHODS,
+    val inspectorTab: InspectorTab = InspectorTab.DETAILS,
     val stateReads: List<StateRead> = emptyList(),
     val logicEventKeys: Set<String> = emptySet(),
     val publisherSessionStart: Long? = null,
@@ -60,7 +64,9 @@ internal data class DevToolsUiState(
     val dataRevision: Long = 0L,
     val selection: Selection = Selection.None,
     val networkFilter: NetworkFilter = NetworkFilter(),
-    val showNetworkStats: Boolean = false
+    val showNetworkStats: Boolean = false,
+    val playbackSpeed: Float = 1f,
+    val autoPlaying: Boolean = false
 ) : ModuleState
 
 @Serializable
@@ -82,6 +88,14 @@ internal data class NetworkBodyLoad(
 )
 
 internal fun networkBodyKey(requestId: String, part: NetworkBodyPart): String = "$requestId:${part.name}"
+
+internal fun CapturedLog.toRow(clientId: String): DeviceLogRow = DeviceLogRow(
+    clientId = clientId,
+    level = level,
+    category = category,
+    message = message,
+    timestampMs = timestampMs
+)
 
 @Serializable
 internal data class DeviceLogRow(
@@ -118,7 +132,6 @@ internal sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data object ToggleStateViewMode : DevToolsUiAction()
     data class SelectAction(val index: Int?) : DevToolsUiAction()
     data object ToggleDevicePanel : DevToolsUiAction()
-    data object ToggleAutoSelectLatest : DevToolsUiAction()
     data object ClearHistory : DevToolsUiAction()
     data class AddActionExclusion(val actionType: String) : DevToolsUiAction()
     data class RemoveActionExclusion(val actionType: String) : DevToolsUiAction()
@@ -136,7 +149,12 @@ internal sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data object HideImportGhostDialog : DevToolsUiAction()
     data class SetCrashEvent(val crashEvent: CrashEventInfo?) : DevToolsUiAction()
     data class SelectCrash(val selected: Boolean) : DevToolsUiAction()
-    data class SetRightPanelTab(val tab: RightPanelTab) : DevToolsUiAction()
+    data object ClearSelection : DevToolsUiAction()
+    data class SetMode(val mode: DevToolsMode) : DevToolsUiAction()
+    data class SetPerformanceView(val view: PerformanceView) : DevToolsUiAction()
+    data class SetInspectorTab(val tab: InspectorTab) : DevToolsUiAction()
+    data class SetPlaybackSpeed(val speed: Float) : DevToolsUiAction()
+    data class SetAutoPlaying(val playing: Boolean) : DevToolsUiAction()
     data class AddMarker(val marker: SessionMarker) : DevToolsUiAction()
     data class ReplaceMarker(val marker: SessionMarker) : DevToolsUiAction()
     data class SetMarkers(val markers: List<SessionMarker>) : DevToolsUiAction()
@@ -187,11 +205,28 @@ internal sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
 }
 
 @Serializable
-internal enum class RightPanelTab {
-    STATE,
-    PERFORMANCE,
-    FINDINGS,
-    NETWORK
+/**
+ * The client id the DevTools UI registers under.
+ *
+ * It appears in the client roster like any other client, so several places filter it out of
+ * device lists and role assignment. Naming it once keeps those filters from drifting apart.
+ */
+internal const val DEVTOOLS_UI_CLIENT_ID: String = "devtools-ui"
+
+internal enum class DevToolsMode(val label: String) {
+    DEBUG("Debug"),
+    PERFORMANCE("Performance"),
+    NETWORK("Network")
+}
+
+internal enum class InspectorTab(val label: String) {
+    DETAILS("Details"),
+    NAVIGATION("Navigation")
+}
+
+internal enum class PerformanceView(val label: String) {
+    METHODS("Methods"),
+    FINDINGS("Findings")
 }
 
 internal fun logicEventKey(event: LogicMethodEvent): String = when (event) {
@@ -248,6 +283,7 @@ internal sealed class LogicMethodEvent {
         val exceptionMessage: String? get() = event.exceptionMessage
         val stackTrace: String? get() = event.stackTrace
         val durationMs: Long get() = event.durationMs
+        val kind: LogicFailureKind get() = event.kind
     }
 }
 
@@ -280,3 +316,14 @@ internal val DevToolsUiState.selectedNetworkRequestId: String?
 
 internal val DevToolsUiState.crashSelected: Boolean
     get() = selection is Selection.Crash
+
+internal val DevToolsUiState.latestSelectableIndex: Int
+    get() = actionStateHistory.indexOfLast { it.actionType !in excludedActionTypes }
+
+internal val DevToolsUiState.newEventsWhilePaused: Int
+    get() {
+        if (followLatest) return 0
+        val head = latestSelectableIndex
+        val at = (selection as? Selection.Action)?.index ?: return 0
+        return (head - at).coerceAtLeast(0)
+    }
