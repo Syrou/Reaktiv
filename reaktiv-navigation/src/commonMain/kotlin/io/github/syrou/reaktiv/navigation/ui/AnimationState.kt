@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -139,7 +140,25 @@ public fun rememberLayerAnimationState(
 @Composable
 public fun rememberModalAnimationState(
     entries: List<NavigationEntry>
-): List<ModalEntryState> {
+): List<ModalEntryState> = rememberModalStackStates(entries).states
+
+internal class ModalStackStates(
+    private val entryStates: MutableState<Map<String, ModalEntryState>>
+) {
+    val states: List<ModalEntryState>
+        get() = entryStates.value.values.sortedBy { it.entry.navigatable.elevation }
+
+    fun completed(key: String) {
+        val current = entryStates.value[key] ?: return
+        val next = current.markCompleted()
+        entryStates.value = if (next == null) entryStates.value - key else entryStates.value + (key to next)
+    }
+}
+
+@Composable
+internal fun rememberModalStackStates(
+    entries: List<NavigationEntry>
+): ModalStackStates {
     val entryStates = remember { mutableStateOf<Map<String, ModalEntryState>>(emptyMap()) }
     val previousEntries = remember { mutableStateOf<Set<String>>(emptySet()) }
     val interactiveController = LocalInteractiveTransitionController.current
@@ -179,8 +198,7 @@ public fun rememberModalAnimationState(
         previousEntries.value = currentEntryIds
     }
 
-    return entryStates.value.values
-        .sortedBy { it.entry.navigatable.elevation }
+    return remember(entryStates) { ModalStackStates(entryStates) }
 }
 
 /**

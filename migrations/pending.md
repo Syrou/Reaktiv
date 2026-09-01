@@ -6312,3 +6312,40 @@ default. This is the same mechanism BC-90 uses to keep a guarded zone's start fr
 redirect, fed here by a declaration instead of by an intercept.
 
 ---
+
+### [BC-91] A CONTENT-layer modal renders inside the graph layouts, over the screen beneath
+
+**Type:** Behavioural
+
+**Grep:** `RenderLayer.CONTENT`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A Modal overriding renderLayer to CONTENT was handled by the content layer as a screen
+// push: the underlying screen played its exit transition and was dropped, the modal's slot
+// painted an opaque background, and no dimmer was drawn. Nothing was visible behind it.
+object UserDowngradedScreen : Modal {
+    override val renderLayer = RenderLayer.CONTENT
+}
+```
+
+**After:**
+```kotlin
+// The content layer keeps the last screen as its current entry, as the original layering
+// did, and hosts a trailing CONTENT modal inside that screen's slot, within all of its graph
+// layouts. The modal gets the standard presentation (dimmer, tap outside, swipe) and the
+// dimmer covers the layout's content area only, so a bottom bar or top bar outside it stays
+// undimmed. GLOBAL_OVERLAY still covers every layout and SYSTEM still sits above everything.
+```
+
+**Notes:** Modal exit state now has a single owner. `rememberModalAnimationState` is
+unchanged in signature but is backed by the holder the renderers use, and the renderers no
+longer keep a second map of entry states beside it. Two consequences follow. A modal that
+finishes its exit animation is removed rather than re-added from the stale copy, which is what
+kept a CONTENT modal composed after dismissal. And the overlay layer is composed even while
+empty, so the last GLOBAL_OVERLAY modal now plays its exit transition instead of vanishing
+when the layer emptied. Set `exitTransition = NavTransition.None` on a modal that should
+disappear immediately.
+
+---

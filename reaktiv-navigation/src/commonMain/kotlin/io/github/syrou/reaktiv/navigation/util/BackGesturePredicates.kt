@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation.util
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
@@ -58,6 +59,7 @@ internal fun contentEntryBeneath(state: NavigationState): NavigationEntry? =
 internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: NavigationModule): Boolean {
     if (!canHandleBack(state)) return false
     val top = state.currentEntry.navigatable
+    if (top is Modal) return false
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.backGestureEnabled) return false
 
@@ -96,6 +98,7 @@ internal fun presentsDismissIndicator(entry: NavigationEntry, navModule: Navigat
 internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationModule): Boolean {
     if (!canHandleBack(state)) return false
     val top = state.currentEntry.navigatable
+    if (top is Modal) return false
     if (top.renderLayer != RenderLayer.CONTENT) return false
     // Inside a dismissable graph the surface, not the screen, decides. A step that navigates
     // horizontally within the graph is still part of a sheet that can be dragged away.

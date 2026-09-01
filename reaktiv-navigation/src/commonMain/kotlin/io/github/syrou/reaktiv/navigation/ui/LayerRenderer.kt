@@ -50,6 +50,7 @@ internal object NavigationZIndex {
     const val CONTENT_REVEALED_SHIELD = 2.5f
     const val CONTENT_FRONT = 3f
     const val CONTENT_LIFTED_EXIT = 100f
+    const val CONTENT_MODAL_BASE = 10f
     const val GLOBAL_OVERLAY_BASE = 2000f
     const val SYSTEM_BASE = 9001f
 }
@@ -96,8 +97,7 @@ public fun UnifiedLayerRenderer(
         RenderLayer.CONTENT ->
             if (entries.isNotEmpty()) ContentLayerRenderer(entries, graphDefinitions)
 
-        RenderLayer.GLOBAL_OVERLAY ->
-            if (entries.isNotEmpty()) OverlayLayerRenderer(entries)
+        RenderLayer.GLOBAL_OVERLAY -> OverlayLayerRenderer(entries)
     }
 }
 
@@ -124,7 +124,15 @@ private fun ContentLayerRenderer(
     graphDefinitions: Map<String, NavigationGraph>
 ) {
     val navModule = LocalNavigationModule.current
-    val currentEntry = entries.last()
+    val contentModals = entries.filter { it.navigatable is Modal }
+    val screenEntries = entries.filter { it.navigatable !is Modal }
+    if (screenEntries.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            ModalStack(contentModals, NavigationZIndex.CONTENT_MODAL_BASE)
+        }
+        return
+    }
+    val currentEntry = screenEntries.last()
 
     val animationState = rememberLayerAnimationState(currentEntry)
 
@@ -347,6 +355,7 @@ private fun ContentLayerRenderer(
             ContentSlot(
                 entry = currentEntry,
                 uniqueLayouts = currentUnique,
+                hostedModals = contentModals,
                 indicatorHoisted = indicatorOwnsSharedChrome,
                 zIndex = currentZ,
                 isEntering = true,
@@ -409,6 +418,7 @@ private fun OptionalDismissIndicator(
 private class ContentSlot(
     val entry: NavigationEntry,
     val uniqueLayouts: List<NavigationGraph>,
+    val hostedModals: List<NavigationEntry> = emptyList(),
     /** True when the shared chrome level renders the dismiss affordance instead of this slot. */
     val indicatorHoisted: Boolean = false,
     val zIndex: Float,
@@ -477,7 +487,10 @@ private fun EntryHost(slot: ContentSlot, screenWidth: Float, screenHeight: Float
                     enabled = !slot.indicatorHoisted
                 ) {
                     ApplyLayoutsHierarchy(slot.uniqueLayouts) {
-                        slot.entry.navigatable.Content(slot.entry.params)
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            slot.entry.navigatable.Content(slot.entry.params)
+                            ModalStack(slot.hostedModals, NavigationZIndex.CONTENT_MODAL_BASE)
+                        }
                     }
                 }
             }
@@ -492,44 +505,38 @@ private fun EntryHost(slot: ContentSlot, screenWidth: Float, screenHeight: Float
 private fun OverlayLayerRenderer(
     entries: List<NavigationEntry>
 ) {
-    val modalStates = rememberModalAnimationState(entries)
-    val activeStates = remember { mutableStateMapOf<String, ModalEntryState>() }
-
-    modalStates.forEach { state ->
-        activeStates[state.entry.stableKey] = state
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
-        val windowInfo = LocalWindowInfo.current
-        val screenWidth = windowInfo.containerSize.width.toFloat()
-        val screenHeight = windowInfo.containerSize.height.toFloat()
+        ModalStack(entries, NavigationZIndex.GLOBAL_OVERLAY_BASE)
+    }
+}
 
-        activeStates.values
-            .sortedBy { it.entry.navigatable.elevation }
-            .forEach { modalState ->
-                key(modalState.entry.stableKey) {
-                    val navigatable = modalState.entry.navigatable
-                    NavigationAnimations.AnimatedEntry(
-                        entry = modalState.entry,
-                        animationType = modalState.animationType,
-                        screenWidth = screenWidth,
-                        screenHeight = screenHeight,
-                        zIndex = NavigationZIndex.GLOBAL_OVERLAY_BASE + navigatable.elevation,
-                        onAnimationComplete = {
-                            val completed = modalState.markCompleted()
-                            if (completed != null) {
-                                activeStates[modalState.entry.stableKey] = completed
-                            } else {
-                                activeStates.remove(modalState.entry.stableKey)
-                            }
-                        }
-                    ) {
-                        HostedEntry(modalState.entry) {
-                            navigatable.Content(modalState.entry.params)
-                        }
-                    }
+@Composable
+private fun ModalStack(
+    entries: List<NavigationEntry>,
+    zIndexBase: Float
+) {
+    val stack = rememberModalStackStates(entries)
+
+    val windowInfo = LocalWindowInfo.current
+    val screenWidth = windowInfo.containerSize.width.toFloat()
+    val screenHeight = windowInfo.containerSize.height.toFloat()
+
+    stack.states.forEach { modalState ->
+        key(modalState.entry.stableKey) {
+            val navigatable = modalState.entry.navigatable
+            NavigationAnimations.AnimatedEntry(
+                entry = modalState.entry,
+                animationType = modalState.animationType,
+                screenWidth = screenWidth,
+                screenHeight = screenHeight,
+                zIndex = zIndexBase + navigatable.elevation,
+                onAnimationComplete = { stack.completed(modalState.entry.stableKey) }
+            ) {
+                HostedEntry(modalState.entry) {
+                    navigatable.Content(modalState.entry.params)
                 }
             }
+        }
     }
 }
 

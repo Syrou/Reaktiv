@@ -5,6 +5,7 @@ import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -82,11 +83,23 @@ class BackGestureArmingTest {
         }
     }
 
+    private val contentModal = object : Modal {
+        override val route = "content-modal"
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val renderLayer = RenderLayer.CONTENT
+
+        @Composable
+        override fun Content(params: Params) {
+            Text("Content modal")
+        }
+    }
+
     private fun createModule() = createNavigationModule {
         rootGraph {
             start(homeScreen)
             screens(homeScreen, profileScreen, lockedScreen, sheetScreen)
-            modals(testModal)
+            modals(testModal, contentModal)
         }
     }
 
@@ -132,6 +145,22 @@ class BackGestureArmingTest {
             val state = store.selectState<NavigationState>().first()
             assertTrue(canHandleBack(state))
             assertFalse(canArmInteractiveBackGesture(state, navModule))
+        }
+
+    @Test
+    fun `content gestures cannot arm while a content-layer modal is on top`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val navModule = createModule()
+            val store = createStore {
+                module(navModule)
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            store.navigation { navigateTo("content-modal") }
+            advanceUntilIdle()
+            val state = store.selectState<NavigationState>().first()
+            assertTrue(canHandleBack(state))
+            assertFalse(canArmInteractiveBackGesture(state, navModule))
+            assertFalse(canArmSwipeDismiss(state, navModule))
         }
 
     @Test
