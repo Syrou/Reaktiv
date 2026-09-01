@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.Dismissal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.definition.Screen
@@ -95,10 +96,22 @@ class BackGestureArmingTest {
         }
     }
 
+    private val blockingScreen = object : Screen {
+        override val route = "blocking"
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val dismissal = Dismissal.Blocking
+
+        @Composable
+        override fun Content(params: Params) {
+            Text("Blocking")
+        }
+    }
+
     private fun createModule() = createNavigationModule {
         rootGraph {
             start(homeScreen)
-            screens(homeScreen, profileScreen, lockedScreen, sheetScreen)
+            screens(homeScreen, profileScreen, lockedScreen, sheetScreen, blockingScreen)
             modals(testModal, contentModal)
         }
     }
@@ -161,6 +174,21 @@ class BackGestureArmingTest {
             assertTrue(canHandleBack(state))
             assertFalse(canArmInteractiveBackGesture(state, navModule))
             assertFalse(canArmSwipeDismiss(state, navModule))
+        }
+
+    @Test
+    fun `back gesture cannot arm on a screen whose dismissal blocks back`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val navModule = createModule()
+            val store = createStore {
+                module(navModule)
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            store.navigation { navigateTo("blocking") }
+            advanceUntilIdle()
+            val state = store.selectState<NavigationState>().first()
+            assertTrue(canHandleBack(state))
+            assertFalse(canArmInteractiveBackGesture(state, navModule))
         }
 
     @Test

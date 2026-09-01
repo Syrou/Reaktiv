@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
@@ -32,7 +33,7 @@ internal fun dismissableBoundary(
     entry: NavigationEntry,
     navModule: NavigationModule
 ): String? = entry.graphChain.lastOrNull { graphId ->
-    navModule.getGraphDefinitions()[graphId]?.declaration?.swipeToDismiss == true
+    navModule.getGraphDefinitions()[graphId]?.declaration?.dismissal?.swipe?.allowsDismiss == true
 }
 
 /**
@@ -62,6 +63,7 @@ internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: Nav
     if (top is Modal) return false
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.backGestureEnabled) return false
+    if (!top.dismissal.back.allowsDismiss) return false
 
     val revealed = revealedEntryForBack(state) ?: return false
     // Read the axis from whatever would actually move. Going back from the first screen of a
@@ -92,7 +94,7 @@ internal fun presentsDismissIndicator(entry: NavigationEntry, navModule: Navigat
     val top = entry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.showsDismissIndicator) return false
-    return top.swipeToDismiss || dismissableBoundary(entry, navModule) != null
+    return top.dismissal.swipe.allowsDismiss || dismissableBoundary(entry, navModule) != null
 }
 
 internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationModule): Boolean {
@@ -103,7 +105,7 @@ internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationMod
     // Inside a dismissable graph the surface, not the screen, decides. A step that navigates
     // horizontally within the graph is still part of a sheet that can be dragged away.
     val insideDismissableGraph = dismissableBoundary(state.currentEntry, navModule) != null
-    if (!top.swipeToDismiss && !insideDismissableGraph) return false
+    if (!top.dismissal.swipe.allowsDismiss && !insideDismissableGraph) return false
     val revealed = revealedEntryForDismiss(state, navModule) ?: return false
     if (revealed.navigatable.renderLayer != RenderLayer.CONTENT) return false
     return state.activeModalContexts[revealed.path] == null

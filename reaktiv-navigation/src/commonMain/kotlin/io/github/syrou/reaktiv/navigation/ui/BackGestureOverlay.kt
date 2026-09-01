@@ -35,6 +35,7 @@ import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
 import io.github.syrou.reaktiv.navigation.util.canHandleBack
@@ -464,7 +465,7 @@ internal class GestureNestedScrollConnection(
     private fun dismissKindFor(state: NavigationState): InteractiveTransitionController.ScrubKind? {
         val navigatable = state.currentEntry.navigatable
         if (navigatable is Modal) {
-            if (!navigatable.swipeToDismiss) return null
+            if (!navigatable.dismissal.swipe.allowsDismiss) return null
             if (!canHandleBack(state)) return null
             return InteractiveTransitionController.ScrubKind.ModalDismiss(state.currentEntry)
         }

@@ -6,6 +6,18 @@
 // - Show declarations: true
 
 // Library unique name: <io.github.syrou:reaktiv-navigation>
+final enum class io.github.syrou.reaktiv.navigation.definition/DismissSource : kotlin/Enum<io.github.syrou.reaktiv.navigation.definition/DismissSource> { // io.github.syrou.reaktiv.navigation.definition/DismissSource|null[0]
+    enum entry Back // io.github.syrou.reaktiv.navigation.definition/DismissSource.Back|null[0]
+    enum entry Swipe // io.github.syrou.reaktiv.navigation.definition/DismissSource.Swipe|null[0]
+    enum entry TapOutside // io.github.syrou.reaktiv.navigation.definition/DismissSource.TapOutside|null[0]
+
+    final val entries // io.github.syrou.reaktiv.navigation.definition/DismissSource.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.syrou.reaktiv.navigation.definition/DismissSource> // io.github.syrou.reaktiv.navigation.definition/DismissSource.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.syrou.reaktiv.navigation.definition/DismissSource // io.github.syrou.reaktiv.navigation.definition/DismissSource.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.syrou.reaktiv.navigation.definition/DismissSource> // io.github.syrou.reaktiv.navigation.definition/DismissSource.values|values#static(){}[0]
+}
+
 final enum class io.github.syrou.reaktiv.navigation.definition/RemovalReason : kotlin/Enum<io.github.syrou.reaktiv.navigation.definition/RemovalReason> { // io.github.syrou.reaktiv.navigation.definition/RemovalReason|null[0]
     enum entry NAVIGATION // io.github.syrou.reaktiv.navigation.definition/RemovalReason.NAVIGATION|null[0]
     enum entry RESET // io.github.syrou.reaktiv.navigation.definition/RemovalReason.RESET|null[0]
@@ -64,6 +76,8 @@ final enum class io.github.syrou.reaktiv.navigation.transition/GestureAxis : kot
 abstract interface io.github.syrou.reaktiv.navigation.definition/Graph : io.github.syrou.reaktiv.navigation.definition/NavigationNode, io.github.syrou.reaktiv.navigation.transition/TransitionSpec { // io.github.syrou.reaktiv.navigation.definition/Graph|null[0]
     abstract val route // io.github.syrou.reaktiv.navigation.definition/Graph.route|{}route[0]
         abstract fun <get-route>(): kotlin/String // io.github.syrou.reaktiv.navigation.definition/Graph.route.<get-route>|<get-route>(){}[0]
+    open val dismissal // io.github.syrou.reaktiv.navigation.definition/Graph.dismissal|{}dismissal[0]
+        open fun <get-dismissal>(): io.github.syrou.reaktiv.navigation.definition/Dismissal // io.github.syrou.reaktiv.navigation.definition/Graph.dismissal.<get-dismissal>|<get-dismissal>(){}[0]
     open val enterTransition // io.github.syrou.reaktiv.navigation.definition/Graph.enterTransition|{}enterTransition[0]
         open fun <get-enterTransition>(): io.github.syrou.reaktiv.navigation.transition/NavTransition? // io.github.syrou.reaktiv.navigation.definition/Graph.enterTransition.<get-enterTransition>|<get-enterTransition>(){}[0]
     open val exitTransition // io.github.syrou.reaktiv.navigation.definition/Graph.exitTransition|{}exitTransition[0]
@@ -129,6 +143,8 @@ abstract interface io.github.syrou.reaktiv.navigation.definition/Navigatable : i
         abstract fun <get-titleResource>(): kotlin/Function2<androidx.compose.runtime/Composer, kotlin/Int, kotlin/String>? // io.github.syrou.reaktiv.navigation.definition/Navigatable.titleResource.<get-titleResource>|<get-titleResource>(){}[0]
     open val backGestureEnabled // io.github.syrou.reaktiv.navigation.definition/Navigatable.backGestureEnabled|{}backGestureEnabled[0]
         open fun <get-backGestureEnabled>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.definition/Navigatable.backGestureEnabled.<get-backGestureEnabled>|<get-backGestureEnabled>(){}[0]
+    open val dismissal // io.github.syrou.reaktiv.navigation.definition/Navigatable.dismissal|{}dismissal[0]
+        open fun <get-dismissal>(): io.github.syrou.reaktiv.navigation.definition/Dismissal // io.github.syrou.reaktiv.navigation.definition/Navigatable.dismissal.<get-dismissal>|<get-dismissal>(){}[0]
     open val elevation // io.github.syrou.reaktiv.navigation.definition/Navigatable.elevation|{}elevation[0]
         open fun <get-elevation>(): kotlin/Float // io.github.syrou.reaktiv.navigation.definition/Navigatable.elevation.<get-elevation>|<get-elevation>(){}[0]
     open val onDismissRequest // io.github.syrou.reaktiv.navigation.definition/Navigatable.onDismissRequest|{}onDismissRequest[0]
@@ -207,6 +223,19 @@ abstract interface io.github.syrou.reaktiv.navigation.transition/TransitionSpec 
         open fun <get-popExitTransition>(): io.github.syrou.reaktiv.navigation.transition/NavTransition? // io.github.syrou.reaktiv.navigation.transition/TransitionSpec.popExitTransition.<get-popExitTransition>|<get-popExitTransition>(){}[0]
 }
 
+sealed interface io.github.syrou.reaktiv.navigation.definition/DismissAction { // io.github.syrou.reaktiv.navigation.definition/DismissAction|null[0]
+    final class Run : io.github.syrou.reaktiv.navigation.definition/DismissAction { // io.github.syrou.reaktiv.navigation.definition/DismissAction.Run|null[0]
+        constructor <init>(kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/StoreAccessor, kotlin/Unit>) // io.github.syrou.reaktiv.navigation.definition/DismissAction.Run.<init>|<init>(kotlin.coroutines.SuspendFunction1<io.github.syrou.reaktiv.core.StoreAccessor,kotlin.Unit>){}[0]
+
+        final val handler // io.github.syrou.reaktiv.navigation.definition/DismissAction.Run.handler|{}handler[0]
+            final fun <get-handler>(): kotlin.coroutines/SuspendFunction1<io.github.syrou.reaktiv.core/StoreAccessor, kotlin/Unit> // io.github.syrou.reaktiv.navigation.definition/DismissAction.Run.handler.<get-handler>|<get-handler>(){}[0]
+    }
+
+    final object Ignore : io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/DismissAction.Ignore|null[0]
+
+    final object Pop : io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/DismissAction.Pop|null[0]
+}
+
 final class <#A: kotlin/Any?> io.github.syrou.reaktiv.navigation.param/SerializableParam : io.github.syrou.reaktiv.navigation.param/TypedParam<#A> { // io.github.syrou.reaktiv.navigation.param/SerializableParam|null[0]
     constructor <init>(#A, kotlinx.serialization/KSerializer<#A>) // io.github.syrou.reaktiv.navigation.param/SerializableParam.<init>|<init>(1:0;kotlinx.serialization.KSerializer<1:0>){}[0]
 
@@ -264,6 +293,37 @@ final class io.github.syrou.reaktiv.navigation.definition/BackstackLifecycle : k
     final fun invokeOnRemoval(kotlin/Function2<io.github.syrou.reaktiv.core/StoreAccessor, io.github.syrou.reaktiv.navigation.definition/RemovalReason, kotlin/Unit>) // io.github.syrou.reaktiv.navigation.definition/BackstackLifecycle.invokeOnRemoval|invokeOnRemoval(kotlin.Function2<io.github.syrou.reaktiv.core.StoreAccessor,io.github.syrou.reaktiv.navigation.definition.RemovalReason,kotlin.Unit>){}[0]
     final suspend inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleLogic> selectLogic(): #A1 // io.github.syrou.reaktiv.navigation.definition/BackstackLifecycle.selectLogic|selectLogic(){0§<io.github.syrou.reaktiv.core.ModuleLogic>}[0]
     final suspend inline fun <#A1: reified io.github.syrou.reaktiv.core/ModuleState> selectState(): kotlinx.coroutines.flow/StateFlow<#A1> // io.github.syrou.reaktiv.navigation.definition/BackstackLifecycle.selectState|selectState(){0§<io.github.syrou.reaktiv.core.ModuleState>}[0]
+}
+
+final class io.github.syrou.reaktiv.navigation.definition/Dismissal { // io.github.syrou.reaktiv.navigation.definition/Dismissal|null[0]
+    constructor <init>(io.github.syrou.reaktiv.navigation.definition/DismissAction = ..., io.github.syrou.reaktiv.navigation.definition/DismissAction = ..., io.github.syrou.reaktiv.navigation.definition/DismissAction = ...) // io.github.syrou.reaktiv.navigation.definition/Dismissal.<init>|<init>(io.github.syrou.reaktiv.navigation.definition.DismissAction;io.github.syrou.reaktiv.navigation.definition.DismissAction;io.github.syrou.reaktiv.navigation.definition.DismissAction){}[0]
+
+    final val back // io.github.syrou.reaktiv.navigation.definition/Dismissal.back|{}back[0]
+        final fun <get-back>(): io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/Dismissal.back.<get-back>|<get-back>(){}[0]
+    final val swipe // io.github.syrou.reaktiv.navigation.definition/Dismissal.swipe|{}swipe[0]
+        final fun <get-swipe>(): io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/Dismissal.swipe.<get-swipe>|<get-swipe>(){}[0]
+    final val tapOutside // io.github.syrou.reaktiv.navigation.definition/Dismissal.tapOutside|{}tapOutside[0]
+        final fun <get-tapOutside>(): io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/Dismissal.tapOutside.<get-tapOutside>|<get-tapOutside>(){}[0]
+
+    final fun component1(): io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/Dismissal.component1|component1(){}[0]
+    final fun component2(): io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/Dismissal.component2|component2(){}[0]
+    final fun component3(): io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/Dismissal.component3|component3(){}[0]
+    final fun copy(io.github.syrou.reaktiv.navigation.definition/DismissAction = ..., io.github.syrou.reaktiv.navigation.definition/DismissAction = ..., io.github.syrou.reaktiv.navigation.definition/DismissAction = ...): io.github.syrou.reaktiv.navigation.definition/Dismissal // io.github.syrou.reaktiv.navigation.definition/Dismissal.copy|copy(io.github.syrou.reaktiv.navigation.definition.DismissAction;io.github.syrou.reaktiv.navigation.definition.DismissAction;io.github.syrou.reaktiv.navigation.definition.DismissAction){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.navigation.definition/Dismissal.equals|equals(kotlin.Any?){}[0]
+    final fun get(io.github.syrou.reaktiv.navigation.definition/DismissSource): io.github.syrou.reaktiv.navigation.definition/DismissAction // io.github.syrou.reaktiv.navigation.definition/Dismissal.get|get(io.github.syrou.reaktiv.navigation.definition.DismissSource){}[0]
+    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/Dismissal.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.syrou.reaktiv.navigation.definition/Dismissal.toString|toString(){}[0]
+
+    final object Companion { // io.github.syrou.reaktiv.navigation.definition/Dismissal.Companion|null[0]
+        final val Blocking // io.github.syrou.reaktiv.navigation.definition/Dismissal.Companion.Blocking|{}Blocking[0]
+            final fun <get-Blocking>(): io.github.syrou.reaktiv.navigation.definition/Dismissal // io.github.syrou.reaktiv.navigation.definition/Dismissal.Companion.Blocking.<get-Blocking>|<get-Blocking>(){}[0]
+        final val Default // io.github.syrou.reaktiv.navigation.definition/Dismissal.Companion.Default|{}Default[0]
+            final fun <get-Default>(): io.github.syrou.reaktiv.navigation.definition/Dismissal // io.github.syrou.reaktiv.navigation.definition/Dismissal.Companion.Default.<get-Default>|<get-Default>(){}[0]
+        final val Dismissable // io.github.syrou.reaktiv.navigation.definition/Dismissal.Companion.Dismissable|{}Dismissable[0]
+            final fun <get-Dismissable>(): io.github.syrou.reaktiv.navigation.definition/Dismissal // io.github.syrou.reaktiv.navigation.definition/Dismissal.Companion.Dismissable.<get-Dismissable>|<get-Dismissable>(){}[0]
+
+        final fun all(io.github.syrou.reaktiv.navigation.definition/DismissAction): io.github.syrou.reaktiv.navigation.definition/Dismissal // io.github.syrou.reaktiv.navigation.definition/Dismissal.Companion.all|all(io.github.syrou.reaktiv.navigation.definition.DismissAction){}[0]
+    }
 }
 
 final class io.github.syrou.reaktiv.navigation.definition/MutableNavigationGraph : io.github.syrou.reaktiv.navigation.definition/NavigationGraph { // io.github.syrou.reaktiv.navigation.definition/MutableNavigationGraph|null[0]
@@ -1962,6 +2022,10 @@ final object io.github.syrou.reaktiv.navigation.ui/NavigationAnimations { // io.
 }
 
 final val io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_BackstackLifecycle$stableprop // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_BackstackLifecycle$stableprop|#static{}io_github_syrou_reaktiv_navigation_definition_BackstackLifecycle$stableprop[0]
+final val io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Ignore$stableprop // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Ignore$stableprop|#static{}io_github_syrou_reaktiv_navigation_definition_DismissAction_Ignore$stableprop[0]
+final val io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Pop$stableprop // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Pop$stableprop|#static{}io_github_syrou_reaktiv_navigation_definition_DismissAction_Pop$stableprop[0]
+final val io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Run$stableprop // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Run$stableprop|#static{}io_github_syrou_reaktiv_navigation_definition_DismissAction_Run$stableprop[0]
+final val io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_Dismissal$stableprop // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_Dismissal$stableprop|#static{}io_github_syrou_reaktiv_navigation_definition_Dismissal$stableprop[0]
 final val io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph$stableprop // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph$stableprop|#static{}io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph$stableprop[0]
 final val io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph_$serializer$stableprop // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph_$serializer$stableprop|#static{}io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph_$serializer$stableprop[0]
 final val io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_NavigationPath$stableprop // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_NavigationPath$stableprop|#static{}io_github_syrou_reaktiv_navigation_definition_NavigationPath$stableprop[0]
@@ -2112,6 +2176,10 @@ final fun (kotlin.collections/Map<kotlin/String, kotlin/Any>).io.github.syrou.re
 final fun (kotlin.collections/Map<kotlin/String, kotlin/Any>).io.github.syrou.reaktiv.navigation.param/requireLong(kotlin/String): kotlin/Long // io.github.syrou.reaktiv.navigation.param/requireLong|requireLong@kotlin.collections.Map<kotlin.String,kotlin.Any>(kotlin.String){}[0]
 final fun (kotlin.collections/Map<kotlin/String, kotlin/Any>).io.github.syrou.reaktiv.navigation.param/requireString(kotlin/String): kotlin/String // io.github.syrou.reaktiv.navigation.param/requireString|requireString@kotlin.collections.Map<kotlin.String,kotlin.Any>(kotlin.String){}[0]
 final fun io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_BackstackLifecycle$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_BackstackLifecycle$stableprop_getter|io_github_syrou_reaktiv_navigation_definition_BackstackLifecycle$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Ignore$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Ignore$stableprop_getter|io_github_syrou_reaktiv_navigation_definition_DismissAction_Ignore$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Pop$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Pop$stableprop_getter|io_github_syrou_reaktiv_navigation_definition_DismissAction_Pop$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Run$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_DismissAction_Run$stableprop_getter|io_github_syrou_reaktiv_navigation_definition_DismissAction_Run$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_Dismissal$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_Dismissal$stableprop_getter|io_github_syrou_reaktiv_navigation_definition_Dismissal$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph$stableprop_getter|io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph_$serializer$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph_$serializer$stableprop_getter|io_github_syrou_reaktiv_navigation_definition_MutableNavigationGraph_$serializer$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_NavigationPath$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.definition/io_github_syrou_reaktiv_navigation_definition_NavigationPath$stableprop_getter|io_github_syrou_reaktiv_navigation_definition_NavigationPath$stableprop_getter(){}[0]

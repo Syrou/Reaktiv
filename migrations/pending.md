@@ -6349,3 +6349,59 @@ when the layer emptied. Set `exitTransition = NavTransition.None` on a modal tha
 disappear immediately.
 
 ---
+
+### [AD-112] Dismissal: one declaration for how a surface may be dismissed
+
+**Type:** Replaces-deprecated
+
+**Grep:** `Dismissal\.|DismissAction\.|override val dismissal`
+**File glob:** `**/*.kt`
+
+**Replaces:** `onDismissRequest` and `swipeToDismiss` on `Navigatable`, `Modal` and `Graph`,
+now deprecated. Their meaning lived in absences: a `null` handler meant "pop on back and swipe,
+ignore a tap outside", a no-op `{ }` meant "nothing dismisses this", and `swipeToDismiss` was a
+second knob that only made sense together with the first.
+
+**Example:**
+```kotlin
+// A dialog that must be answered. Back, swipe and tap outside all do nothing.
+object UserDowngradedScreen : Modal {
+    override val dismissal = Dismissal.Blocking
+}
+
+// A dialog that goes away however the user asks.
+object ConfirmArtistsToActivate : Modal {
+    override val dismissal = Dismissal.Dismissable
+}
+
+// Per source. Back asks first, the other two are inert.
+object UnsavedChanges : Modal {
+    override val dismissal = Dismissal(
+        back = DismissAction.Run { navigate(Route.DISCARD_PROMPT) },
+        tapOutside = DismissAction.Ignore,
+        swipe = DismissAction.Ignore,
+    )
+}
+
+// A sheet-presented graph that confirms before it is dragged away.
+object WizardGraph : Graph {
+    override val route = "wizard"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val dismissal = Dismissal(swipe = DismissAction.Run { navigate(Route.ABANDON_WIZARD) })
+}
+```
+
+**Notes:** The framework reads only `dismissal`. Its default is derived from the deprecated
+properties, so anything that declares neither behaves exactly as before, and anything that
+declares `dismissal` wins. The mechanical migration is: `onDismissRequest = { }` becomes
+`Dismissal.Blocking`, a handler that only pops becomes `Dismissal.Dismissable`, any other
+handler becomes `DismissAction.Run(handler)` on the sources it should apply to, and
+`swipeToDismiss = false` becomes `DismissAction.Ignore` on `swipe`. `Dismissal.Default` keeps
+today's defaults, including that a tap on the dimmer is inert; `Dismissable` is the explicit
+opt-in for that tap to pop. `showsDismissIndicator` on a `Graph` now follows `dismissal.swipe`.
+On a graph, `back` and `swipe` apply when a gesture or back press leaves the graph, and a graph
+whose action for that source is `Pop` defers to the current screen's own `dismissal`, which is
+the precedence the two handlers had. The deprecated properties will be removed in a later
+release.
+
+---

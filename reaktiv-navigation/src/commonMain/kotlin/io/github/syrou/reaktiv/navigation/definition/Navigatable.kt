@@ -194,14 +194,26 @@ public interface Navigatable : NavigationNode, TransitionSpec {
     public val backGestureEnabled: Boolean
         get() = true
 
+    @Deprecated(
+        "Declare dismissal instead. DismissAction.Ignore on Dismissal.swipe replaces swipeToDismiss = false, and Dismissal.Blocking replaces it together with a no-op onDismissRequest.",
+        level = DeprecationLevel.WARNING
+    )
     public val swipeToDismiss: Boolean
         get() = enterTransition.presentationAxis() == GestureAxis.Vertical
 
     public val showsDismissIndicator: Boolean
         get() = true
 
+    @Deprecated(
+        "Declare dismissal instead. Dismissal.Blocking replaces a no-op handler, Dismissal.Dismissable replaces a handler that pops, and DismissAction.Run keeps a custom handler for the sources that need it.",
+        level = DeprecationLevel.WARNING
+    )
     public val onDismissRequest: (suspend StoreAccessor.() -> Unit)?
         get() = null
+
+    @Suppress("DEPRECATION")
+    public val dismissal: Dismissal
+        get() = Dismissal.fromLegacy(onDismissRequest, swipeToDismiss)
 
     /**
      * Called when this navigatable is added to the backstack.

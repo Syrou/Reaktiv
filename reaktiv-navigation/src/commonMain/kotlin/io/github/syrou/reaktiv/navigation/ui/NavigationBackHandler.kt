@@ -7,6 +7,9 @@ import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.navigation.definition.DismissAction
+import io.github.syrou.reaktiv.navigation.definition.DismissSource
 import io.github.syrou.reaktiv.navigation.util.canHandleBack
 import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
 import io.github.syrou.reaktiv.navigation.extension.navigation
@@ -95,11 +98,20 @@ internal class PlatformBackCoordinator(
  *
  * @param expectedTopKey Guards against committing a stale pop
  */
+internal suspend fun DismissAction.perform(store: StoreAccessor, pop: suspend () -> Unit) {
+    when (this) {
+        DismissAction.Pop -> pop()
+        DismissAction.Ignore -> Unit
+        is DismissAction.Run -> handler(store)
+    }
+}
+
 internal suspend fun dismissSurface(
     store: Store,
     navModule: NavigationModule,
     top: NavigationEntry,
     revealed: NavigationEntry?,
+    source: DismissSource,
     expectedTopKey: String? = null
 ) {
     val boundary = dismissableBoundary(top, navModule)
@@ -107,33 +119,32 @@ internal suspend fun dismissSurface(
         revealed != null &&
         dismissableBoundary(revealed, navModule) != boundary
 
-    val graphHandler = if (leavesGraph) {
-        navModule.getGraphDefinitions()[boundary]?.declaration?.onDismissRequest
-    } else {
-        null
-    }
-    val handler = graphHandler ?: top.navigatable.onDismissRequest
-    if (handler != null) {
-        handler.invoke(store)
-        return
-    }
-
-    if (leavesGraph && revealed != null) {
-        store.navigation {
-            popUpTo(revealed.path, inclusive = false)
+    val screenAction = top.navigatable.dismissal[source]
+    val action = if (leavesGraph) {
+        val graphAction = navModule.getGraphDefinitions()[boundary]?.declaration?.dismissal?.get(source)
+        when {
+            graphAction != null && graphAction !is DismissAction.Pop -> graphAction
+            screenAction is DismissAction.Run -> screenAction
+            else -> DismissAction.Pop
         }
     } else {
-        store.navigateBack(expectedTopKey = expectedTopKey)
+        screenAction
+    }
+    action.perform(store) {
+        if (leavesGraph && revealed != null) {
+            store.navigation {
+                popUpTo(revealed.path, inclusive = false)
+            }
+        } else {
+            store.navigateBack(expectedTopKey = expectedTopKey)
+        }
     }
 }
 
 internal suspend fun dispatchBackDismissal(store: Store, navModule: NavigationModule) {
     val state = store.selectState<NavigationState>().first()
     if (!canHandleBack(state)) return
-    val handler = state.currentEntry.navigatable.onDismissRequest
-    if (handler != null) {
-        handler.invoke(store)
-    } else {
+    state.currentEntry.navigatable.dismissal[DismissSource.Back].perform(store) {
         store.navigateBack()
     }
 }

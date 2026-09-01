@@ -567,7 +567,63 @@ public final class io/github/syrou/reaktiv/navigation/definition/BackstackLifecy
 	public final fun invokeOnRemoval (Lkotlin/jvm/functions/Function2;)V
 }
 
+public abstract interface class io/github/syrou/reaktiv/navigation/definition/DismissAction {
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/DismissAction$Ignore : io/github/syrou/reaktiv/navigation/definition/DismissAction {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/definition/DismissAction$Ignore;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/DismissAction$Pop : io/github/syrou/reaktiv/navigation/definition/DismissAction {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/definition/DismissAction$Pop;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/DismissAction$Run : io/github/syrou/reaktiv/navigation/definition/DismissAction {
+	public static final field $stable I
+	public fun <init> (Lkotlin/jvm/functions/Function2;)V
+	public final fun getHandler ()Lkotlin/jvm/functions/Function2;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/DismissSource : java/lang/Enum {
+	public static final field Back Lio/github/syrou/reaktiv/navigation/definition/DismissSource;
+	public static final field Swipe Lio/github/syrou/reaktiv/navigation/definition/DismissSource;
+	public static final field TapOutside Lio/github/syrou/reaktiv/navigation/definition/DismissSource;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/DismissSource;
+	public static fun values ()[Lio/github/syrou/reaktiv/navigation/definition/DismissSource;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/Dismissal {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/definition/Dismissal$Companion;
+	public fun <init> ()V
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/DismissAction;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/definition/DismissAction;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/definition/DismissAction;
+	public final fun component2 ()Lio/github/syrou/reaktiv/navigation/definition/DismissAction;
+	public final fun component3 ()Lio/github/syrou/reaktiv/navigation/definition/DismissAction;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/definition/DismissAction;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/definition/Dismissal;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;Lio/github/syrou/reaktiv/navigation/definition/DismissAction;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun get (Lio/github/syrou/reaktiv/navigation/definition/DismissSource;)Lio/github/syrou/reaktiv/navigation/definition/DismissAction;
+	public final fun getBack ()Lio/github/syrou/reaktiv/navigation/definition/DismissAction;
+	public final fun getSwipe ()Lio/github/syrou/reaktiv/navigation/definition/DismissAction;
+	public final fun getTapOutside ()Lio/github/syrou/reaktiv/navigation/definition/DismissAction;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/Dismissal$Companion {
+	public final fun all (Lio/github/syrou/reaktiv/navigation/definition/DismissAction;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
+	public final fun getBlocking ()Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
+	public final fun getDefault ()Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
+	public final fun getDismissable ()Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
+}
+
 public abstract interface class io/github/syrou/reaktiv/navigation/definition/Graph : io/github/syrou/reaktiv/navigation/definition/NavigationNode, io/github/syrou/reaktiv/navigation/transition/TransitionSpec {
+	public fun getDismissal ()Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public fun getEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public fun getExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public fun getOnDismissRequest ()Lkotlin/jvm/functions/Function2;
@@ -579,6 +635,7 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Gr
 }
 
 public final class io/github/syrou/reaktiv/navigation/definition/Graph$DefaultImpls {
+	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getExitTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lkotlin/jvm/functions/Function2;
@@ -602,6 +659,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/LoadingModal$De
 	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
 	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Z
 	public static fun getBackgroundDimAlpha (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)F
+	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)F
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
 	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -630,6 +688,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/Modal$DefaultIm
 	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
 	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Z
 	public static fun getBackgroundDimAlpha (Lio/github/syrou/reaktiv/navigation/definition/Modal;)F
+	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Modal;)F
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
 	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -696,6 +755,7 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Na
 	public abstract fun Content (Lio/github/syrou/reaktiv/navigation/param/Params;Landroidx/compose/runtime/Composer;I)V
 	public abstract fun getActionResource ()Lkotlin/jvm/functions/Function2;
 	public fun getBackGestureEnabled ()Z
+	public fun getDismissal ()Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public fun getElevation ()F
 	public abstract fun getEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public abstract fun getExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -711,6 +771,7 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Na
 
 public final class io/github/syrou/reaktiv/navigation/definition/Navigatable$DefaultImpls {
 	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Z
+	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)F
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lkotlin/jvm/functions/Function2;
 	public static fun getRenderLayer (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
@@ -832,6 +893,7 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Sc
 public final class io/github/syrou/reaktiv/navigation/definition/Screen$DefaultImpls {
 	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function2;
 	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Z
+	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Screen;)F
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function2;
 	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;

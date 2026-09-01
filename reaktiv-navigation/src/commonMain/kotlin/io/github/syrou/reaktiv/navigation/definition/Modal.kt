@@ -11,6 +11,10 @@ public interface Modal : Navigatable {
     override val popEnterTransition: NavTransition? get() = null
     override val popExitTransition: NavTransition? get() = null
 
+    @Deprecated(
+        "Declare dismissal instead. DismissAction.Ignore on Dismissal.swipe replaces swipeToDismiss = false, and Dismissal.Blocking replaces it together with a no-op onDismissRequest.",
+        level = DeprecationLevel.WARNING
+    )
     override val swipeToDismiss: Boolean get() = true
 
     public val shouldDimBackground: Boolean get() = true

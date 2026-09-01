@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.ui
 
+import io.github.syrou.reaktiv.navigation.definition.DismissSource
 import androidx.compose.runtime.State
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
@@ -138,6 +139,10 @@ internal suspend fun completeInteractiveDismiss(
     top: NavigationEntry,
     revealed: NavigationEntry?
 ) {
+    val source = when (controller.scrubKind) {
+        is InteractiveTransitionController.ScrubKind.ContentBack -> DismissSource.Back
+        else -> DismissSource.Swipe
+    }
     try {
         if (commit && revealed != null) {
             controller.markCommittedTarget(revealed)
@@ -158,7 +163,7 @@ internal suspend fun completeInteractiveDismiss(
         } else {
             controller.armModalHandoff(top.stableKey)
         }
-        dismissSurface(store, navModule, top, revealed, expectedTopKey = top.stableKey)
+        dismissSurface(store, navModule, top, revealed, source = source, expectedTopKey = top.stableKey)
         val after = store.selectState<NavigationState>().first()
         if (after.currentEntry.stableKey == top.stableKey) {
             controller.settle(commit = false)

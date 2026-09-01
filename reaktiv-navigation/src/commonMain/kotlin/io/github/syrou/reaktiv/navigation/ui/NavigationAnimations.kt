@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -169,7 +170,7 @@ public object NavigationAnimations {
                 .fillMaxSize()
                 .zIndex(zIndex)
                 .let { modifier ->
-                    if (modal?.swipeToDismiss == true && isEntering && controller != null) {
+                    if (modal != null && modal.dismissal.swipe.allowsDismiss && isEntering && controller != null) {
                         modifier.pointerInput(entry.stableKey) {
                             val velocityThresholdPx =
                                 InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
@@ -214,7 +215,7 @@ public object NavigationAnimations {
                 }
         ) {
             // Background layer — always captures taps to prevent click pass-through.
-            // Invokes onDismissRequest when set; does nothing when null.
+            // Acts on the modal's tapOutside dismissal.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -228,7 +229,11 @@ public object NavigationAnimations {
                         indication = null,
                         enabled = isEntering
                     ) {
-                        modal?.onDismissRequest?.let { scope.launch { it(store) } }
+                        if (modal != null) {
+                            scope.launch {
+                                modal.dismissal.tapOutside.perform(store) { store.navigateBack() }
+                            }
+                        }
                     }
             )
 

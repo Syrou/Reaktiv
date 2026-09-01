@@ -59,6 +59,10 @@ public interface Graph : NavigationNode, TransitionSpec {
      * Unlike the screen-level property, committing this removes every entry belonging to the graph
      * rather than popping one.
      */
+    @Deprecated(
+        "Declare dismissal instead. DismissAction.Ignore on Dismissal.swipe replaces swipeToDismiss = false, and Dismissal.Blocking replaces it together with a no-op onDismissRequest.",
+        level = DeprecationLevel.WARNING
+    )
     public val swipeToDismiss: Boolean
         get() = enterTransition?.presentationAxis() == GestureAxis.Vertical
 
@@ -68,7 +72,7 @@ public interface Graph : NavigationNode, TransitionSpec {
      * Follows [swipeToDismiss] rather than defaulting to true, so a structural graph never promises
      * a handle it cannot honour.
      */
-    public val showsDismissIndicator: Boolean get() = swipeToDismiss
+    public val showsDismissIndicator: Boolean get() = dismissal.swipe !is DismissAction.Ignore
 
     /**
      * Whether destinations inside this graph want a navigation header.
@@ -83,7 +87,15 @@ public interface Graph : NavigationNode, TransitionSpec {
      * Invoked instead of popping when the graph is dismissed, letting the surface decide what
      * leaving means. Takes precedence over the current screen's own handler.
      */
+    @Deprecated(
+        "Declare dismissal instead. Dismissal.Blocking replaces a no-op handler, Dismissal.Dismissable replaces a handler that pops, and DismissAction.Run keeps a custom handler for the sources that need it.",
+        level = DeprecationLevel.WARNING
+    )
     public val onDismissRequest: (suspend StoreAccessor.() -> Unit)? get() = null
+
+    @Suppress("DEPRECATION")
+    public val dismissal: Dismissal
+        get() = Dismissal.fromLegacy(onDismissRequest, swipeToDismiss)
 
     public val startAnchorsChildren: Boolean get() = true
 }

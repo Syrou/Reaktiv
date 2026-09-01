@@ -1,3 +1,4 @@
+import io.github.syrou.reaktiv.navigation.definition.DismissSource
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
@@ -76,7 +77,8 @@ class GestureCommitTargetTest {
                 store = store,
                 navModule = navModule,
                 top = state.currentEntry,
-                revealed = revealedEntryForBack(state)
+                revealed = revealedEntryForBack(state),
+                source = DismissSource.Back
             )
             advanceUntilIdle()
 
@@ -104,7 +106,8 @@ class GestureCommitTargetTest {
                 store = store,
                 navModule = navModule,
                 top = state.currentEntry,
-                revealed = revealedEntryForDismiss(state, navModule)
+                revealed = revealedEntryForDismiss(state, navModule),
+                source = DismissSource.Swipe
             )
             advanceUntilIdle()
 
@@ -131,7 +134,8 @@ class GestureCommitTargetTest {
                 store = store,
                 navModule = navModule,
                 top = state.currentEntry,
-                revealed = revealedEntryForBack(state)
+                revealed = revealedEntryForBack(state),
+                source = DismissSource.Back
             )
             advanceUntilIdle()
 
