@@ -6168,3 +6168,147 @@ throwable is still in hand, and carried on the event so no consumer has to re-de
 an exception name. See BC-87.
 
 ---
+
+### [BC-88] Intercept guards run again when a navigation clears the back stack
+
+**Type:** Behavioural
+
+**Grep:** `navigateDeepLink|clearBackStack`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Once any entry in the back stack sat inside an intercepted zone, every navigation into
+// that zone skipped the guard, including a deep link. The skip was decided on the stack the
+// deep link was about to discard, so this re-entered "home" with no guard evaluation at all:
+store.navigateDeepLink("studio/streams")
+```
+
+**After:**
+```kotlin
+// The skip is decided on the back stack the navigation actually starts from. A navigation
+// that clears the stack starts from nothing, so it passes the guard again. Plain navigateTo
+// deeper into a zone the stack is already inside still skips, as before.
+store.navigateDeepLink("studio/streams")
+
+// To keep a deep link from re-running an expensive guard whose inputs have not changed,
+// give the intercept a cacheKey. The cached verdict answers as long as the key is equal.
+intercept(
+    guard = { store -> checkSession(store) },
+    cacheKey = { store -> store.selectState<SessionState>().value.sessionId }
+) { graph(HomeGraph) { ... } }
+```
+
+**Notes:** Affects `navigateDeepLink` and any `navigate { clearBackStack(); navigateTo(...) }`.
+A guard that redirects now takes effect on such re-entries. `PendAndRedirectTo` is also
+evaluated against the surviving stack, so a cleared stack never counts as already being at
+the redirect target.
+
+---
+
+### [BC-89] A dismissable sheet reserves its grabber strip on every visit
+
+**Type:** Behavioural
+
+**Grep:** `showsDismissIndicator|swipeToDismiss|consumeWindowInsets`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// The strip above a sheet's content (status bar inset plus the grab pill) was only laid out
+// when the dismiss gesture could arm at that moment. Presenting the same screen from a modal,
+// where the gesture cannot arm, dropped the strip, so a layout that had offset its top bar to
+// sit under the strip ended up under the status bar instead. The strip also collapsed while
+// the screen was on its way out, jumping its content up by the strip's height.
+```
+
+**After:**
+```kotlin
+// A screen presented vertically, or living inside a Graph that is, reserves the strip
+// whenever it is composed. Only the pill and the gesture still depend on whether a drag can
+// arm right now. Layouts tuned to the strip see the same offset from a modal as from a screen.
+```
+
+**Notes:** Nothing to change in app code. If a layout had been compensating for the missing
+strip specifically when presented over a modal, remove that compensation. The same rule now
+governs where a screen-level sheet's graph layout is placed at rest: it travels with the
+sheet, inside the strip, whether or not the dismiss gesture can arm. Before, a sheet reached
+from a modal had its graph layout hoisted outside the strip because nothing was revealed
+beneath it, which is how a `Scaffold` under that layout ended up above the strip instead of
+below it. Graph-level sheets keep hoisting the strip above their shared chrome, unchanged.
+
+---
+
+### [BC-90] A guard redirect lands the way the navigation it replaced would have
+
+**Type:** Behavioural
+
+**Grep:** `RedirectTo|PendAndRedirectTo`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// RedirectTo from a deep link was a plain push: no clear, no ancestors. Deep linking to
+// home/insight/insight-hub with a guard redirecting to the no-subscription screen landed on
+//   [<whatever was showing>, home/insight/insight-no-subscription]
+// and on a cold start that was the bootstrap placeholder with the redirect on top.
+```
+
+**After:**
+```kotlin
+// The redirect keeps the stack semantics of the navigation it intercepted: it clears when
+// that one cleared and synthesizes ancestors when that one did. Synthesis stops at the
+// guarded zone, so the zone's own start is never placed beneath the screen the guard chose:
+//   [splash, home/home-start, home/insight/insight-no-subscription]
+// An in-app navigateTo that gets redirected still pushes on the current stack, as before.
+```
+
+**Notes:** `PendAndRedirectTo` already cleared and keeps doing so. It now also synthesizes the
+redirect target's ancestors when the intercepted navigation did. Use `intercept` rather than a
+dynamic `start` when a graph must route every entry, including deep links to screens inside
+it: a dynamic `start` only decides where entering the graph itself lands, and a deep link to a
+screen inside the graph is not that. See the `start` KDoc in `NavigationGraphBuilder`.
+
+---
+
+### [AD-111] Graph.startAnchorsChildren
+
+**Type:** Addition
+
+**Grep:** `startAnchorsChildren`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// A graph whose children are peers switched by a bottom bar. Its start is where entering the
+// graph lands, not something that belongs beneath every screen inside it.
+object HomeGraph : Graph {
+    override val route = "home"
+    override val startAnchorsChildren = false
+}
+
+graph(HomeGraph) {
+    start(route = { store -> /* first tab */ })
+    layout { content -> HomeScaffold(content) }
+    graph(ArtistGraph) {
+        start(ArtistOverview)
+        screens(ArtistOverview, ArtistEdit)
+    }
+}
+
+// Deep link synthesis then produces what a tab tap would have:
+//   home/artist        -> [artist-overview]
+//   home/artist/edit   -> [artist-overview, edit]
+// instead of putting home's start beneath both.
+```
+
+**Notes:** Default true, so every existing graph keeps its behaviour. Only the declaring
+graph's own start is affected: children inside it keep anchoring their descendants, so a
+wizard inside a tab still lands with its first step beneath. The check applies on both routes
+by which a host's start reaches the stack: the host as an enclosing graph of the target, and
+the root's dynamic start resolving into the host. A deep link to a target outside the host is
+unaffected. Graphs declared as `graph("id") { }` have no declaration object and keep the
+default. This is the same mechanism BC-90 uses to keep a guarded zone's start from beneath a
+redirect, fed here by a declaration instead of by an intercept.
+
+---

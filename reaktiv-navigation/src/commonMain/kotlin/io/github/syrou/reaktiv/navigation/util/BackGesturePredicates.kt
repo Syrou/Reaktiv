@@ -52,6 +52,9 @@ internal fun revealedEntryForDismiss(
     }
 }
 
+internal fun contentEntryBeneath(state: NavigationState): NavigationEntry? =
+    state.orderedBackStack.dropLast(1).lastOrNull { it.navigatable.renderLayer == RenderLayer.CONTENT }
+
 internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: NavigationModule): Boolean {
     if (!canHandleBack(state)) return false
     val top = state.currentEntry.navigatable
@@ -71,6 +74,23 @@ internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: Nav
     )
     if (departing.gestureAxis() == GestureAxis.Vertical) return false
     return revealedContentEntryAvailable(state)
+}
+
+/**
+ * Whether [entry] is a surface that carries the grab affordance, decided by what the entry is
+ * rather than by what currently sits beneath it.
+ *
+ * This is the layout question and it is deliberately separate from [canArmSwipeDismiss]. The
+ * strip a sheet reserves for its grabber has to be there on every visit, because a screen laid
+ * out under that strip has offset its own chrome to match. Deciding it by whether the drag can
+ * arm right now moved that chrome by the strip's height whenever the entry underneath was a
+ * modal, and again while the screen was on its way out.
+ */
+internal fun presentsDismissIndicator(entry: NavigationEntry, navModule: NavigationModule): Boolean {
+    val top = entry.navigatable
+    if (top.renderLayer != RenderLayer.CONTENT) return false
+    if (!top.showsDismissIndicator) return false
+    return top.swipeToDismiss || dismissableBoundary(entry, navModule) != null
 }
 
 internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationModule): Boolean {

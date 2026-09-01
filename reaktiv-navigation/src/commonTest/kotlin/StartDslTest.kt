@@ -557,7 +557,7 @@ class StartDslTest {
         }
 
     @Test
-    fun `intercept guard skipped when deep linking within already-entered zone`() =
+    fun `intercept guard runs again when a deep link re-enters the zone it is already inside`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             var guardCount = 0
             val dispatcher = StandardTestDispatcher(testScheduler)
@@ -587,7 +587,91 @@ class StartDslTest {
 
             store.navigateDeepLink("workspace/detail")
             advanceUntilIdle()
-            assertEquals(1, guardCount, "Guard must not re-run on deep link within already-entered zone")
+            assertEquals(
+                2, guardCount,
+                "A deep link clears the stack that earned the skip, so it must pass the guard again"
+            )
+            assertEquals("detail", store.selectState<NavigationState>().first().currentEntry.route)
+        }
+
+    @Test
+    fun `deep link into an already-entered zone honours a guard redirect`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            var allow = true
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createNavigationModule {
+                    rootGraph {
+                        start(homeScreen)
+                        screens(homeScreen, loginScreen)
+                        intercept(guard = { _ ->
+                            if (allow) GuardResult.Allow else GuardResult.RedirectTo("login")
+                        }) {
+                            graph("workspace") {
+                                start(dashboardScreen)
+                                screens(dashboardScreen, detailScreen)
+                            }
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace") }
+            advanceUntilIdle()
+            assertEquals("dashboard", store.selectState<NavigationState>().first().currentEntry.route)
+
+            allow = false
+            store.navigateDeepLink("workspace/detail")
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route)
+            assertFalse(
+                state.backStack.any { it.route == "detail" },
+                "The deep link target must not be reached when the guard redirects"
+            )
+        }
+
+    @Test
+    fun `deep link re-entry does not re-run a guard whose cache key is unchanged`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            var guardCount = 0
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(createNavigationModule {
+                    rootGraph {
+                        start(homeScreen)
+                        screens(homeScreen)
+                        intercept(
+                            guard = { _ ->
+                                guardCount++
+                                GuardResult.Allow
+                            },
+                            cacheKey = { _ -> "session-1" }
+                        ) {
+                            graph("workspace") {
+                                start(dashboardScreen)
+                                screens(dashboardScreen, detailScreen)
+                            }
+                        }
+                    }
+                })
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("workspace") }
+            advanceUntilIdle()
+            assertEquals(1, guardCount)
+
+            store.navigateDeepLink("workspace/detail")
+            advanceUntilIdle()
+            assertEquals(
+                1, guardCount,
+                "With an unchanged cache key the guard's cached verdict answers the deep link"
+            )
             assertEquals("detail", store.selectState<NavigationState>().first().currentEntry.route)
         }
 

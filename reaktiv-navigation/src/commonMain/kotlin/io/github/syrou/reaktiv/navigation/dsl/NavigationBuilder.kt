@@ -346,6 +346,15 @@ public class NavigationBuilder(
         return this
     }
 
+    /**
+     * Whether executing this builder discards every entry already in the back stack.
+     *
+     * `ClearBackStack` wipes the stack wherever it sits among the operations, so the entries
+     * standing there when the navigation begins do not survive it.
+     */
+    internal fun clearsBackStack(): Boolean =
+        operations.any { it.operation == NavigationOperation.ClearBackStack || it.shouldClearBackStack }
+
     internal fun describeTarget(): String =
         operations.firstOrNull { it.target != null }?.let { step ->
             runCatching { step.target.toString() }.getOrNull()

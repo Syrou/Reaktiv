@@ -574,6 +574,7 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Gr
 	public abstract fun getRoute ()Ljava/lang/String;
 	public fun getShowsDismissIndicator ()Z
 	public fun getShowsNavigationChrome ()Z
+	public fun getStartAnchorsChildren ()Z
 	public fun getSwipeToDismiss ()Z
 }
 
@@ -585,6 +586,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/Graph$DefaultIm
 	public static fun getPopExitTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getShowsDismissIndicator (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Z
 	public static fun getShowsNavigationChrome (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Z
+	public static fun getStartAnchorsChildren (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Z
 	public static fun getSwipeToDismiss (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Z
 }
 

@@ -28,6 +28,7 @@ import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.model.CacheKeySelector
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.GuardResult
+import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
@@ -170,7 +171,14 @@ public class NavigationLogic(
                     val bootstrapStep = NavigationStep(NavigationOperation.Navigate)
                     val currentState = getCurrentNavigationState()
 
-                    when (val guard = evaluateGuard(resolvedPath, resolvedResolution, bootstrapStep, currentState)) {
+                    when (
+                        val guard = evaluateGuard(
+                            resolvedPath,
+                            resolvedResolution,
+                            bootstrapStep,
+                            stackSurvivingInto(routeBuilder, currentState)
+                        )
+                    ) {
                         is GuardEvaluation.PendAndRedirect -> {
                             storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
                             routeBuilder.navigateTo(guard.redirectRoute)
@@ -318,19 +326,58 @@ public class NavigationLogic(
     private sealed class GuardEvaluation {
         object Allow : GuardEvaluation()
         object Reject : GuardEvaluation()
-        data class Redirect(val route: String) : GuardEvaluation()
+        data class Redirect(val route: String, val zonePath: String?) : GuardEvaluation()
         data class PendAndRedirect(
             val pending: PendingNavigation,
             val redirectRoute: String,
-            val alreadyAtRedirect: Boolean
+            val alreadyAtRedirect: Boolean,
+            val zonePath: String?
         ) : GuardEvaluation()
     }
 
+    /**
+     * The full path of the outermost graph protected by [interceptDef], starting the search at
+     * [innerGraphId], which is the graph the guarded target belongs to.
+     *
+     * A redirect lands as if the zone had been entered and the guard had answered at the door,
+     * so the entries beneath it are the ones above this path. Synthesizing the zone's own start
+     * under the redirect would put the very screen the guard refused one back press away.
+     */
+    private fun zoneBoundaryPath(innerGraphId: String, interceptDef: InterceptDefinition): String? {
+        val chain = precomputedData.graphHierarchies[innerGraphId] ?: return null
+        val boundary = chain.firstOrNull { graphId ->
+            precomputedData.interceptsByGraphId[graphId] === interceptDef
+        } ?: innerGraphId
+        return precomputedData.routeResolver.fullPathForGraph(boundary) ?: boundary
+    }
+
+    /**
+     * The entries of [state]'s back stack that are still standing when [builder]'s navigation
+     * reaches its destination.
+     *
+     * Empty when the builder clears the stack, which is what a deep link does before it lands.
+     */
+    private fun stackSurvivingInto(
+        builder: NavigationBuilder,
+        state: NavigationState
+    ): List<NavigationEntry> =
+        if (builder.clearsBackStack()) emptyList() else state.backStack
+
+    /**
+     * Evaluates the intercept guards protecting [targetRoute], or `null` when the route is not
+     * inside a protected zone.
+     *
+     * [stackBeforeNavigation] is the back stack this navigation actually starts from, which is
+     * empty when the navigation clears the stack. A guard is skipped only when that stack is
+     * already inside the same zone, because passing the guard to get there is what earns the
+     * skip. Reading the live stack instead would let a deep link re-enter a zone unguarded on
+     * the strength of entries it is about to discard.
+     */
     private suspend fun evaluateGuard(
         targetRoute: String,
         targetResolution: RouteResolution?,
         primaryStep: NavigationStep,
-        currentState: NavigationState
+        stackBeforeNavigation: List<NavigationEntry>
     ): GuardEvaluation? {
         if (isExternallyDriven()) return GuardEvaluation.Allow
         val pathIntercept = precomputedData.interceptsByPath[targetRoute]
@@ -344,11 +391,12 @@ public class NavigationLogic(
             ?: graphZoneId?.let { precomputedData.interceptsByGraphId.getValue(it) }
             ?: return null
         val zoneKey = graphZoneId ?: targetRoute
+        val zonePath = graphZoneId?.let { zoneBoundaryPath(it, interceptDef) }
 
         fun GuardResult.toGuardEvaluation(): GuardEvaluation = when (this) {
             is GuardResult.Allow -> GuardEvaluation.Allow
             is GuardResult.Reject -> GuardEvaluation.Reject
-            is GuardResult.RedirectTo -> GuardEvaluation.Redirect(route)
+            is GuardResult.RedirectTo -> GuardEvaluation.Redirect(route, zonePath)
             is GuardResult.PendAndRedirectTo -> {
                 val pending = PendingNavigation(
                     route = targetRoute,
@@ -363,12 +411,13 @@ public class NavigationLogic(
                 GuardEvaluation.PendAndRedirect(
                     pending = pending,
                     redirectRoute = route,
-                    alreadyAtRedirect = redirectPath == currentState.currentEntry.path
+                    alreadyAtRedirect = redirectPath == stackBeforeNavigation.lastOrNull()?.path,
+                    zonePath = zonePath
                 )
             }
         }
 
-        val isAlreadyInZone = currentState.backStack.any { entry ->
+        val isAlreadyInZone = stackBeforeNavigation.any { entry ->
             precomputedData.interceptsByPath[entry.path] === interceptDef
         }
         if (isAlreadyInZone) return GuardEvaluation.Allow
@@ -496,11 +545,25 @@ public class NavigationLogic(
         }
     }
 
-    private suspend fun navigateDirect(route: String) {
+    /**
+     * Executes the navigation a guard substituted for the one it intercepted.
+     *
+     * The redirect keeps the stack semantics of the navigation it replaces: it clears when that
+     * one cleared and synthesizes ancestors when that one did, so a deep link that gets
+     * redirected still lands on a coherent stack rather than on top of whatever was showing.
+     * Synthesis stops at [zonePath], see [zoneBoundaryPath].
+     */
+    private suspend fun executeRedirect(
+        route: String,
+        clearsBackStack: Boolean,
+        synthesizeBackstack: Boolean,
+        zonePath: String?
+    ) {
         val builder = NavigationBuilder(storeAccessor)
-        builder.navigateTo(route)
+        if (clearsBackStack) builder.clearBackStack()
+        builder.navigateTo(route, synthesizeBackstack = synthesizeBackstack)
         builder.validate()
-        executeNavigation(builder)
+        executeNavigation(builder, synthesisFloor = zonePath)
     }
 
     private fun NavigationNode.fullPathOrRoute(): String =
@@ -511,43 +574,64 @@ public class NavigationLogic(
         if (node is Navigatable) navigateTo(node) else navigateTo(node.fullPathOrRoute())
     }
 
-    private suspend fun guardOutcome(guard: GuardEvaluation?): NavigationOutcome? = when (guard) {
+    private suspend fun guardOutcome(
+        guard: GuardEvaluation?,
+        builder: NavigationBuilder,
+        primaryStep: NavigationStep
+    ): NavigationOutcome? = when (guard) {
         is GuardEvaluation.Reject -> NavigationOutcome.Rejected
         is GuardEvaluation.Redirect -> {
-            navigateDirect(guard.route)
+            executeRedirect(
+                route = guard.route,
+                clearsBackStack = builder.clearsBackStack(),
+                synthesizeBackstack = primaryStep.synthesizeBackstack,
+                zonePath = guard.zonePath
+            )
             NavigationOutcome.Redirected(guard.route)
         }
         is GuardEvaluation.PendAndRedirect -> {
             storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
             if (!guard.alreadyAtRedirect) {
-                val redirectBuilder = NavigationBuilder(storeAccessor)
-                redirectBuilder.clearBackStack()
-                redirectBuilder.navigateTo(guard.redirectRoute)
-                redirectBuilder.validate()
-                executeNavigation(redirectBuilder)
+                executeRedirect(
+                    route = guard.redirectRoute,
+                    clearsBackStack = true,
+                    synthesizeBackstack = primaryStep.synthesizeBackstack,
+                    zonePath = guard.zonePath
+                )
             }
             NavigationOutcome.Redirected(guard.redirectRoute)
         }
         is GuardEvaluation.Allow, null -> null
     }
 
+    private fun peerHostsAbove(route: String): List<String> =
+        precomputedData.routeResolver.buildPathHierarchy(route).dropLast(1).filter { graphPath ->
+            val graphId = precomputedData.routeResolver.canonicalGraphId(graphPath) ?: return@filter false
+            precomputedData.graphDefinitions[graphId]?.declaration?.startAnchorsChildren == false
+        }
+
     private suspend fun synthesizeAncestorEntries(
         route: String,
         simulatedBackStack: List<NavigationEntry>,
         seenPaths: MutableSet<String>,
         includeRoot: Boolean,
-        entryMemo: Map<String, NavigationNode> = emptyMap()
+        entryMemo: Map<String, NavigationNode> = emptyMap(),
+        floor: String? = null
     ): List<NavigationEntry> {
         val synthesized = mutableListOf<NavigationEntry>()
         var stack = simulatedBackStack
+        val peerHosts = peerHostsAbove(route)
         if (includeRoot) {
             val rootEntry = resolveGraphEntryForSynthesis("root", stack, entryMemo = entryMemo)
-            if (rootEntry != null && seenPaths.add(rootEntry.path)) {
+            val rootInsidePeerHost = rootEntry != null && peerHosts.any { rootEntry.path.startsWith("$it/") }
+            if (rootEntry != null && !rootInsidePeerHost && seenPaths.add(rootEntry.path)) {
                 synthesized.add(rootEntry)
                 stack = stack + rootEntry
             }
         }
         for (intermediatePath in precomputedData.routeResolver.buildPathHierarchy(route).dropLast(1)) {
+            if (floor != null && (intermediatePath == floor || intermediatePath.startsWith("$floor/"))) continue
+            if (intermediatePath in peerHosts) continue
             val entry = resolveGraphEntryForSynthesis(intermediatePath, stack, entryMemo = entryMemo) ?: continue
             if (!seenPaths.add(entry.path)) continue
             synthesized.add(entry)
@@ -632,8 +716,9 @@ public class NavigationLogic(
 
                     val currentState = getCurrentNavigationState()
 
-                    val initialGuard = evaluateGuard(targetRoute, targetResolution, primaryStep, currentState)
-                    guardOutcome(initialGuard)?.let { return@withContext it }
+                    val guardStack = stackSurvivingInto(builder, currentState)
+                    val initialGuard = evaluateGuard(targetRoute, targetResolution, primaryStep, guardStack)
+                    guardOutcome(initialGuard, builder, primaryStep)?.let { return@withContext it }
 
                     val owningGraphId = precomputedData.routeResolver.canonicalGraphId(targetRoute)
                     val isDynamicGraphTarget = owningGraphId != null &&
@@ -667,8 +752,13 @@ public class NavigationLogic(
                         if (initialGuard == null) {
                             val resolvedRoute = resolvedNode.fullPathOrRoute()
                             val stateAfterResolution = getCurrentNavigationState()
-                            val resolvedGuard = evaluateGuard(resolvedRoute, resolvedResolution, primaryStep, stateAfterResolution)
-                            guardOutcome(resolvedGuard)?.let { return@withContext it }
+                            val resolvedGuard = evaluateGuard(
+                                resolvedRoute,
+                                resolvedResolution,
+                                primaryStep,
+                                stackSurvivingInto(builder, stateAfterResolution)
+                            )
+                            guardOutcome(resolvedGuard, builder, primaryStep)?.let { return@withContext it }
                         }
 
                         val routeBuilder = NavigationBuilder(storeAccessor)
@@ -884,6 +974,7 @@ public class NavigationLogic(
         builder: NavigationBuilder,
         primaryResolution: RouteResolution? = null,
         entryMemo: Map<String, NavigationNode> = emptyMap(),
+        synthesisFloor: String? = null,
         wrapActions: (List<NavigationAction>) -> List<NavigationAction> = { it }
     ) {
         transitionSettleJob?.join()
@@ -917,7 +1008,7 @@ public class NavigationLogic(
                         val destinationPath = resolution.targetNavigatable.fullPathOrRoute()
                         val seenPaths = (sim.backStack.map { it.path } + destinationPath).toMutableSet()
 
-                        for (entry in synthesizeAncestorEntries(resolvedRoute, sim.backStack, seenPaths, includeRoot = true, entryMemo)) {
+                        for (entry in synthesizeAncestorEntries(resolvedRoute, sim.backStack, seenPaths, includeRoot = true, entryMemo, synthesisFloor)) {
                             batchedActions.add(NavigationAction.Navigate(entry))
                             sim = NavigationStackMath.applyNavigate(sim, entry, null, false)
                             lastNavigatedEntry = entry

@@ -29,6 +29,8 @@ import io.github.syrou.reaktiv.navigation.transition.computeBackGesturePlan
 import io.github.syrou.reaktiv.navigation.transition.computeDismissGesturePlan
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
+import io.github.syrou.reaktiv.navigation.util.contentEntryBeneath
+import io.github.syrou.reaktiv.navigation.util.presentsDismissIndicator
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
 import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
@@ -262,10 +264,16 @@ private fun ContentLayerRenderer(
 
     val restingBackRevealed = if (
         revealedEntry == null &&
-        navigationState.currentEntry.stableKey == currentEntry.stableKey &&
-        canArmInteractiveBackGesture(navigationState, navModule)
+        navigationState.currentEntry.stableKey == currentEntry.stableKey
     ) {
-        revealedEntryForBack(navigationState)
+        when {
+            canArmInteractiveBackGesture(navigationState, navModule) ->
+                revealedEntryForBack(navigationState)
+            presentsDismissIndicator(currentEntry, navModule) &&
+                dismissableBoundary(currentEntry, navModule) == null ->
+                contentEntryBeneath(navigationState)
+            else -> null
+        }
     } else null
     val restingBackLayouts = restingBackRevealed?.let {
         val backGraphId = navModule.getGraphId(it) ?: it.route

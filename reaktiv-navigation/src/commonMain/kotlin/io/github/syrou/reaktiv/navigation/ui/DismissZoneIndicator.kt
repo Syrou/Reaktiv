@@ -24,6 +24,7 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
+import io.github.syrou.reaktiv.navigation.util.presentsDismissIndicator
 
 private val DISMISS_INDICATOR_SLOT_HEIGHT = 28.dp
 
@@ -35,9 +36,9 @@ internal fun DismissIndicatorSlot(
     val controller = LocalInteractiveTransitionController.current
     val navModule = LocalNavigationModule.current
     val navigationState by composeState<NavigationState>()
-    val navigatable = entry.navigatable
+    val reservesStrip = controller != null && presentsDismissIndicator(entry, navModule)
     val showPill = controller != null &&
-        navigatable.showsDismissIndicator &&
+        reservesStrip &&
         navigationState.currentEntry.stableKey == entry.stableKey &&
         canArmSwipeDismiss(navigationState, navModule)
 
@@ -46,15 +47,21 @@ internal fun DismissIndicatorSlot(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(
-                    if (showPill) {
+                    if (reservesStrip) {
                         Modifier
                             .windowInsetsPadding(WindowInsets.statusBars)
                             .height(DISMISS_INDICATOR_SLOT_HEIGHT)
-                            .onGloballyPositioned { coordinates ->
-                                controller.indicatorCoordinates = coordinates
-                            }
                     } else {
                         Modifier.height(0.dp)
+                    }
+                )
+                .then(
+                    if (showPill) {
+                        Modifier.onGloballyPositioned { coordinates ->
+                            controller.indicatorCoordinates = coordinates
+                        }
+                    } else {
+                        Modifier
                     }
                 ),
             contentAlignment = Alignment.Center

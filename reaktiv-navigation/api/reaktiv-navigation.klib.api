@@ -74,6 +74,8 @@ abstract interface io.github.syrou.reaktiv.navigation.definition/Graph : io.gith
         open fun <get-showsDismissIndicator>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.definition/Graph.showsDismissIndicator.<get-showsDismissIndicator>|<get-showsDismissIndicator>(){}[0]
     open val showsNavigationChrome // io.github.syrou.reaktiv.navigation.definition/Graph.showsNavigationChrome|{}showsNavigationChrome[0]
         open fun <get-showsNavigationChrome>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.definition/Graph.showsNavigationChrome.<get-showsNavigationChrome>|<get-showsNavigationChrome>(){}[0]
+    open val startAnchorsChildren // io.github.syrou.reaktiv.navigation.definition/Graph.startAnchorsChildren|{}startAnchorsChildren[0]
+        open fun <get-startAnchorsChildren>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.definition/Graph.startAnchorsChildren.<get-startAnchorsChildren>|<get-startAnchorsChildren>(){}[0]
     open val swipeToDismiss // io.github.syrou.reaktiv.navigation.definition/Graph.swipeToDismiss|{}swipeToDismiss[0]
         open fun <get-swipeToDismiss>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.definition/Graph.swipeToDismiss.<get-swipeToDismiss>|<get-swipeToDismiss>(){}[0]
 }

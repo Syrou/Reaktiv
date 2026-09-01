@@ -84,4 +84,6 @@ public interface Graph : NavigationNode, TransitionSpec {
      * leaving means. Takes precedence over the current screen's own handler.
      */
     public val onDismissRequest: (suspend StoreAccessor.() -> Unit)? get() = null
+
+    public val startAnchorsChildren: Boolean get() = true
 }
