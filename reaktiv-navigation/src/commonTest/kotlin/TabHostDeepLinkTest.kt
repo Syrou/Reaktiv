@@ -11,6 +11,7 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationPath
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.dsl.NavigationGraphBuilder
 import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
+import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -86,6 +87,62 @@ class TabHostDeepLinkTest {
             }
         }
     }
+
+    private val awaitingData = screen("insight-awaiting-data")
+    private val hubMain = screen("hub-main")
+
+    private fun guardedInsightModule(redirectRoute: String) = createNavigationModule {
+        loadingModal(loadingScreen)
+        rootGraph {
+            start(route = { _ -> NavigationPath("home") })
+            intercept(guard = { _ -> GuardResult.Allow }) {
+                graph(TabHome) {
+                    start(route = { _ -> NavigationPath("home/releases/release-overview") })
+                    graph("releases") {
+                        start(releaseOverview)
+                        screens(releaseOverview)
+                    }
+                    intercept(guard = { _ -> GuardResult.RedirectTo(redirectRoute) }) {
+                        graph("insight") {
+                            screens(awaitingData)
+                            graph("insight-hub") {
+                                start(hubMain)
+                                screens(hubMain)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        deepLinkAliases {
+            alias("studio/streams", "home/insight") { Params.empty() }
+        }
+    }
+
+    private fun deepLinkPathsWith(module: io.github.syrou.reaktiv.navigation.NavigationModule, link: String, assertion: (List<String>) -> Unit) =
+        runTest(timeout = 20.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store: Store = createStore {
+                module(module)
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+            store.navigateDeepLink(link)
+            advanceUntilIdle()
+            assertion(store.selectState<NavigationState>().first().backStack.map { it.path })
+        }
+
+    @Test
+    fun guardRedirectToBareRouteInsidePeerHostLandsAlone() =
+        deepLinkPathsWith(guardedInsightModule("insight-awaiting-data"), "studio/streams") { paths ->
+            assertEquals(listOf("home/insight/insight-awaiting-data"), paths)
+        }
+
+    @Test
+    fun guardRedirectToFullPathInsidePeerHostLandsAlone() =
+        deepLinkPathsWith(guardedInsightModule("home/insight/insight-awaiting-data"), "studio/streams") { paths ->
+            assertEquals(listOf("home/insight/insight-awaiting-data"), paths)
+        }
 
     private fun deepLinkPaths(hostDeclaresPeers: Boolean, link: String, assertion: (List<String>) -> Unit) =
         runTest(timeout = 20.toDuration(DurationUnit.SECONDS)) {

@@ -504,6 +504,12 @@ public data class PrecomputedNavigationData(
                 notFoundScreen = notFoundScreen
             )
 
+            deepLinkAliases.forEach { alias ->
+                require(routeResolver.isFullPath(alias.targetRoute)) {
+                    fullPathMessage(routeResolver, alias.targetRoute, "alias target for '${alias.pattern}'")
+                }
+            }
+
             return PrecomputedNavigationData(
                 routeResolver = routeResolver,
                 availableNavigatables = availableNavigatables,
@@ -536,6 +542,17 @@ public data class PrecomputedNavigationData(
             return pathSegments.joinToString("/")
         }
     }
+}
+
+internal fun fullPathMessage(resolver: RouteResolver, route: String, describedAs: String): String {
+    val suggestions = resolver.fullPathSuggestions(route)
+    val hint = when (suggestions.size) {
+        0 -> "No registered path ends with '/$route'."
+        1 -> "Did you mean '${suggestions.single()}'?"
+        else -> "Candidates: ${suggestions.joinToString(", ")}."
+    }
+    return "The $describedAs '$route' is not a full path. Deep links must name the full path " +
+        "from the root graph, such as 'home/releases/release-info'. $hint"
 }
 
 // Internal computation function

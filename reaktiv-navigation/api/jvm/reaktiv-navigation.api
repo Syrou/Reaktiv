@@ -2061,7 +2061,9 @@ public final class io/github/syrou/reaktiv/navigation/util/RouteResolver {
 	public final fun canonicalGraphId (Ljava/lang/String;)Ljava/lang/String;
 	public final fun findRouteInBackStack (Ljava/lang/String;Ljava/util/List;)I
 	public final fun fullPathForGraph (Ljava/lang/String;)Ljava/lang/String;
+	public final fun fullPathSuggestions (Ljava/lang/String;)Ljava/util/List;
 	public final fun getNavigatableNotFoundHint (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Ljava/lang/String;
+	public final fun isFullPath (Ljava/lang/String;)Z
 	public final fun notFoundResolution ()Lio/github/syrou/reaktiv/navigation/model/RouteResolution;
 	public final fun resolve (Ljava/lang/String;Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/model/RouteResolution;
 	public static synthetic fun resolve$default (Lio/github/syrou/reaktiv/navigation/util/RouteResolver;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/model/RouteResolution;

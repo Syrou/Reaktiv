@@ -931,6 +931,7 @@ public class NavigationLogic(
             targetRoute = cleanRoute
             targetParams = Params.fromMap(queryParams) + params
         }
+        requireFullPath(targetRoute, describedAs = if (alias != null) "alias target for '$cleanRoute'" else "deep link")
 
         deepLinkStartedBeforeBootstrap.value = true
         val bootstrapWasComplete = bootstrapCompleted.isCompleted
@@ -948,6 +949,11 @@ public class NavigationLogic(
         if (!bootstrapWasComplete) {
             storeAccessor.dispatchAndAwait(NavigationAction.BootstrapComplete)
         }
+    }
+
+    private fun requireFullPath(route: String, describedAs: String) {
+        if (precomputedData.routeResolver.isFullPath(route)) return
+        throw RouteNotFoundException(fullPathMessage(precomputedData.routeResolver, route, describedAs))
     }
 
     /**
@@ -1008,7 +1014,7 @@ public class NavigationLogic(
                         val destinationPath = resolution.targetNavigatable.fullPathOrRoute()
                         val seenPaths = (sim.backStack.map { it.path } + destinationPath).toMutableSet()
 
-                        for (entry in synthesizeAncestorEntries(resolvedRoute, sim.backStack, seenPaths, includeRoot = true, entryMemo, synthesisFloor)) {
+                        for (entry in synthesizeAncestorEntries(destinationPath, sim.backStack, seenPaths, includeRoot = true, entryMemo, synthesisFloor)) {
                             batchedActions.add(NavigationAction.Navigate(entry))
                             sim = NavigationStackMath.applyNavigate(sim, entry, null, false)
                             lastNavigatedEntry = entry
@@ -1097,7 +1103,7 @@ public class NavigationLogic(
                     val seenPaths = (sim.backStack.map { it.path } + destinationPath).toMutableSet()
 
                     for (entry in synthesizeAncestorEntries(
-                        pendingRoute, sim.backStack, seenPaths,
+                        destinationPath, sim.backStack, seenPaths,
                         includeRoot = sim.backStack.isEmpty(),
                         entryMemo = pendingEntryMemo
                     )) {

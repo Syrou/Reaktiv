@@ -6309,7 +6309,9 @@ by which a host's start reaches the stack: the host as an enclosing graph of the
 the root's dynamic start resolving into the host. A deep link to a target outside the host is
 unaffected. Graphs declared as `graph("id") { }` have no declaration object and keep the
 default. This is the same mechanism BC-90 uses to keep a guarded zone's start from beneath a
-redirect, fed here by a declaration instead of by an intercept.
+redirect, fed here by a declaration instead of by an intercept. Ancestors are derived from the
+resolved destination's full path rather than from the route as it was requested, so an alias or
+a guard redirect that names a bare route gets the same stack as one that names the full path.
 
 ---
 
@@ -6403,5 +6405,41 @@ On a graph, `back` and `swipe` apply when a gesture or back press leaves the gra
 whose action for that source is `Pop` defers to the current screen's own `dismissal`, which is
 the precedence the two handlers had. The deprecated properties will be removed in a later
 release.
+
+---
+
+### [BC-92] Deep links and alias targets must be full paths
+
+**Type:** Breaking
+
+**Grep:** `navigateDeepLink\(|alias\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A bare route or a bare nested graph id was accepted through the simple-route fallback and
+// landed with whatever stack that spelling produced, which was not the stack the full path
+// produced. A mistyped alias target only failed when a user opened the link.
+store.navigateDeepLink("release-overview")
+alias("studio/wallet", "wallet/overview") { Params.empty() }
+```
+
+**After:**
+```kotlin
+// A deep link target is the full path from the root graph. Anything else throws
+// RouteNotFoundException naming the registered paths that end with what was given.
+store.navigateDeepLink("home/releases/release-overview")
+
+// Alias targets are checked when the navigation module is built, so a wrong target fails at
+// startup with IllegalArgumentException and the same hint, not on the first tap.
+alias("studio/wallet", "home/wallet/overview") { Params.empty() }
+```
+
+**Notes:** A full path is a registered screen path, a parameterized screen path with its
+values or its `{placeholder}` template, or a graph path. A root-level route is its own full
+path, and a top-level graph id is its own graph path. Alias patterns are unchanged and stay
+free-form. `RouteResolver.isFullPath` and `fullPathSuggestions` are public for tooling. In-app
+`navigateTo` is not affected by this entry. See AD-111 for why the stack is derived from the
+resolved destination.
 
 ---

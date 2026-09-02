@@ -145,6 +145,24 @@ public class RouteResolver private constructor(
 
     public fun fullPathForGraph(graphId: String): String? = graphIdToFullPath[graphId]
 
+    public fun isFullPath(route: String): Boolean {
+        val clean = route.trimStart('/').trimEnd('/')
+        if (clean.isEmpty()) return false
+        if (routeToNavigatable.containsKey(clean)) return true
+        val graphId = canonicalGraphId(clean)
+        if (graphId != null) return (graphIdToFullPath[graphId] ?: graphId) == clean
+        val candidates = parameterizedRouteIndex[ParameterizedRouteKey.fromRoute(clean)] ?: return false
+        return candidates.any { it.regex.matches(clean) }
+    }
+
+    public fun fullPathSuggestions(route: String): List<String> {
+        val clean = route.trimStart('/').trimEnd('/')
+        if (clean.isEmpty()) return emptyList()
+        val screens = navigatableToFullPath.values.filter { it.endsWith("/$clean") }
+        val graphs = graphIdToFullPath.values.filter { it.endsWith("/$clean") }
+        return (screens + graphs).distinct().sorted()
+    }
+
     /**
      * Resolves a route or full path to a destination, or `null` when nothing matches.
      *
