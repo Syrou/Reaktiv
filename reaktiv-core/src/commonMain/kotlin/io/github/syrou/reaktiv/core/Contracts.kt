@@ -88,5 +88,6 @@ public sealed class DispatchResult {
 internal data class DispatchEnvelope(
     val action: ModuleAction,
     val completion: CompletableDeferred<DispatchResult>?,
-    val enqueuedAtMs: Long = 0L
+    val enqueuedAtMs: Long = 0L,
+    val epoch: Long = 0L
 )

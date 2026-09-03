@@ -13,7 +13,11 @@ class VersionPlugin : Plugin<Project> {
             }.standardOutput.asText.get().trim()
             output.ifEmpty { DEFAULT_VERSION }
         } catch (e: Exception) {
-            project.logger.warn("Failed to get version from Git tag, using default version", e)
+            val reason = e.message?.lineSequence()?.firstOrNull() ?: e::class.simpleName
+            project.logger.warn(
+                "Version: no Git tag describes HEAD ($reason), using $DEFAULT_VERSION. " +
+                    "Fetch tags (fetch-depth: 0 in CI) to build with the real version."
+            )
             DEFAULT_VERSION
         }
     }

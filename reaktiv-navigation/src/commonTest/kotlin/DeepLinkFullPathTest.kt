@@ -51,8 +51,18 @@ class DeepLinkFullPathTest {
     private val releaseInfo = screen("release-info/{release-id}")
     private val insightHub = screen("insight-hub")
 
-    private fun module() = createNavigationModule {
+    private val notFound = screen("not-found")
+
+    private fun module(configureNotFound: Boolean = false, withAliases: Boolean = false) = createNavigationModule {
         loadingModal(loadingScreen)
+        if (configureNotFound) notFoundScreen(notFound)
+        if (withAliases) {
+            deepLinkAliases {
+                alias("studio/streams/{id}", "home/releases/release-info/{release-id}") { params ->
+                    Params.of("release-id" to (params["id"] as? String ?: ""))
+                }
+            }
+        }
         rootGraph {
             start(splash)
             screens(splash, login)
@@ -70,11 +80,15 @@ class DeepLinkFullPathTest {
         }
     }
 
-    private fun withStore(block: suspend (Store) -> Unit) =
+    private fun withStore(
+        configureNotFound: Boolean = false,
+        withAliases: Boolean = false,
+        block: suspend (Store) -> Unit
+    ) =
         runTest(timeout = 20.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
-                module(module())
+                module(module(configureNotFound, withAliases))
                 coroutineContext(dispatcher)
             }
             advanceUntilIdle()
@@ -102,6 +116,36 @@ class DeepLinkFullPathTest {
         assertTrue("home/insight" in (error.message ?: ""), error.message)
         assertEquals("splash", store.currentPath())
     }
+
+    @Test
+    fun unknownDeepLinkLandsOnTheNotFoundScreenWhenOneIsConfigured() = withStore(configureNotFound = true) { store ->
+        store.navigateDeepLink("studio/streams/2")
+        val state = store.selectState<NavigationState>().first()
+        assertEquals("not-found", state.currentEntry.route)
+        assertEquals(1, state.backStack.size)
+    }
+
+    @Test
+    fun bareRouteOfNestedScreenLandsOnTheNotFoundScreenWhenOneIsConfigured() = withStore(configureNotFound = true) { store ->
+        store.navigateDeepLink("release-overview")
+        assertEquals("not-found", store.currentPath())
+    }
+
+    @Test
+    fun aliasStillWinsWhenANotFoundScreenIsConfigured() =
+        withStore(configureNotFound = true, withAliases = true) { store ->
+            store.navigateDeepLink("studio/streams/2")
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("home/releases/release-info/{release-id}", state.currentEntry.path)
+            assertEquals("2", state.currentEntry.params.getString("release-id"))
+        }
+
+    @Test
+    fun linkMatchingNoAliasLandsOnTheNotFoundScreen() =
+        withStore(configureNotFound = true, withAliases = true) { store ->
+            store.navigateDeepLink("studio/other/9")
+            assertEquals("not-found", store.currentPath())
+        }
 
     @Test
     fun rootLevelRouteIsItsOwnFullPath() = withStore { store ->

@@ -31,6 +31,19 @@ public fun interface DispatchStepDecorator {
 }
 
 /**
+ * Why the store discarded an action instead of processing it.
+ *
+ * @see DispatchInstrumentation.onDispatchDropped
+ */
+public enum class DispatchDropReason {
+    /** The store was externally driven and the action was not [ExternalControlExempt] */
+    EXTERNAL_CONTROL,
+
+    /** The action was queued before a reset, and the reset swapped the store past it */
+    RESET
+}
+
+/**
  * The seam through which tooling observes a [Store] without core depending on any tooling artifact.
  *
  * Core emits neutral events here and holds no tracer, no timing and no event types of its own.
@@ -65,7 +78,7 @@ public fun interface DispatchStepDecorator {
  *         println("$token failed: ${error.message}")
  *     }
  *
- *     override suspend fun onDispatchDropped(action: ModuleAction) = Unit
+ *     override suspend fun onDispatchDropped(action: ModuleAction, reason: DispatchDropReason) = Unit
  *
  *     override suspend fun onExternalControlChanged(enabled: Boolean) = Unit
  * }
@@ -120,12 +133,30 @@ public interface DispatchInstrumentation {
     public fun onDispatchFailed(token: String, error: Throwable, durationMs: Long)
 
     /**
-     * Called when an action is discarded without processing, which happens while the store is
-     * externally driven and the action is not [ExternalControlExempt].
+     * Older form of [onDispatchDropped] that cannot say why the action was dropped.
+     *
+     * The two-argument overload forwards here by default, so an implementation that still
+     * overrides this keeps receiving every drop until it moves.
+     */
+    @Deprecated(
+        "Implement onDispatchDropped(action, reason). The store now reports why an action was dropped.",
+        level = DeprecationLevel.WARNING
+    )
+    public suspend fun onDispatchDropped(action: ModuleAction): Unit = Unit
+
+    /**
+     * Called when an action is discarded without processing.
+     *
+     * This happens while the store is externally driven and the action is not
+     * [ExternalControlExempt], and for every action that was still queued when a reset swapped
+     * the store to a fresh generation.
      *
      * @param action The discarded action
+     * @param reason Why the store discarded it
      */
-    public suspend fun onDispatchDropped(action: ModuleAction)
+    @Suppress("DEPRECATION")
+    public suspend fun onDispatchDropped(action: ModuleAction, reason: DispatchDropReason): Unit =
+        onDispatchDropped(action)
 
     /**
      * Called when a remote publisher takes over authoring this store's state, or hands it back.

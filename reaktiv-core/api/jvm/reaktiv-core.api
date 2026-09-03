@@ -10,11 +10,20 @@ public final class io/github/syrou/reaktiv/core/CrashRecovery : java/lang/Enum {
 	public static fun values ()[Lio/github/syrou/reaktiv/core/CrashRecovery;
 }
 
+public final class io/github/syrou/reaktiv/core/DispatchDropReason : java/lang/Enum {
+	public static final field EXTERNAL_CONTROL Lio/github/syrou/reaktiv/core/DispatchDropReason;
+	public static final field RESET Lio/github/syrou/reaktiv/core/DispatchDropReason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/core/DispatchDropReason;
+	public static fun values ()[Lio/github/syrou/reaktiv/core/DispatchDropReason;
+}
+
 public abstract interface class io/github/syrou/reaktiv/core/DispatchInstrumentation {
 	public fun isActive ()Z
 	public fun newDispatchDecorator ()Lio/github/syrou/reaktiv/core/DispatchStepDecorator;
 	public abstract fun onDispatchCompleted (Ljava/lang/String;ZJ)V
-	public abstract fun onDispatchDropped (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onDispatchDropped (Lio/github/syrou/reaktiv/core/ModuleAction;Lio/github/syrou/reaktiv/core/DispatchDropReason;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onDispatchDropped (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun onDispatchFailed (Ljava/lang/String;Ljava/lang/Throwable;J)V
 	public abstract fun onDispatchStarted (Lio/github/syrou/reaktiv/core/ModuleAction;JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun onEvaluationCompleted (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V
@@ -26,6 +35,8 @@ public abstract interface class io/github/syrou/reaktiv/core/DispatchInstrumenta
 public final class io/github/syrou/reaktiv/core/DispatchInstrumentation$DefaultImpls {
 	public static fun isActive (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;)Z
 	public static fun newDispatchDecorator (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;)Lio/github/syrou/reaktiv/core/DispatchStepDecorator;
+	public static fun onDispatchDropped (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;Lio/github/syrou/reaktiv/core/ModuleAction;Lio/github/syrou/reaktiv/core/DispatchDropReason;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static fun onDispatchDropped (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static fun onEvaluationCompleted (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V
 	public static fun onEvaluationFailed (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;Ljava/lang/String;Ljava/lang/Throwable;J)V
 	public static fun onEvaluationStarted (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

@@ -44,12 +44,17 @@ public open class ModuleLogic : Logic {
     /**
      * Called on the **current** logic instance just before the store is reset.
      *
-     * Override to clean up resources held by this logic instance — for example,
-     * running lifecycle handlers, releasing observers, or clearing caches — before
-     * the instance is discarded and a new one is created by [Module.createLogic].
+     * Override to clean up resources held by this logic instance, for example running
+     * lifecycle handlers, releasing observers, or clearing caches, before the instance is
+     * discarded and a new one is created by [Module.createLogic].
      *
-     * This is called after all operational coroutines have been cancelled and joined,
-     * but before modules are reinitialized. Suspend calls are safe here.
+     * This is called on the dispatch pipeline after every coroutine this instance launched
+     * through the store has been cancelled and joined, and just before the state and logic swap,
+     * so nothing else touches module state or lifecycle bookkeeping while it runs. Suspend calls
+     * are safe here, but [StoreAccessor.dispatchAndAwait] throws because the pipeline would be
+     * waiting for itself. An action passed to [StoreAccessor.dispatch] from here is applied to the
+     * new generation after the swap, and a coroutine launched on the [StoreAccessor] runs in the
+     * new generation.
      *
      * Example:
      * ```kotlin

@@ -1,5 +1,6 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import io.github.syrou.reaktiv.core.DispatchDropReason
 import io.github.syrou.reaktiv.core.DispatchInstrumentation
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
@@ -66,7 +67,7 @@ class GuardTracingTest {
 
         override fun onDispatchFailed(token: String, error: Throwable, durationMs: Long) = Unit
 
-        override suspend fun onDispatchDropped(action: ModuleAction) = Unit
+        override suspend fun onDispatchDropped(action: ModuleAction, reason: DispatchDropReason) = Unit
 
         override suspend fun onExternalControlChanged(enabled: Boolean) = Unit
 

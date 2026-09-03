@@ -85,7 +85,7 @@ class DispatchTracingTest {
 
         override fun onDispatchFailed(token: String, error: Throwable, durationMs: Long) {}
 
-        override suspend fun onDispatchDropped(action: ModuleAction) {}
+        override suspend fun onDispatchDropped(action: ModuleAction, reason: DispatchDropReason) {}
 
         override fun newDispatchDecorator(): DispatchStepDecorator =
             DispatchStepDecorator { name, step ->

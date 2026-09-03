@@ -21,6 +21,17 @@ final enum class io.github.syrou.reaktiv.core/CrashRecovery : kotlin/Enum<io.git
     final fun values(): kotlin/Array<io.github.syrou.reaktiv.core/CrashRecovery> // io.github.syrou.reaktiv.core/CrashRecovery.values|values#static(){}[0]
 }
 
+final enum class io.github.syrou.reaktiv.core/DispatchDropReason : kotlin/Enum<io.github.syrou.reaktiv.core/DispatchDropReason> { // io.github.syrou.reaktiv.core/DispatchDropReason|null[0]
+    enum entry EXTERNAL_CONTROL // io.github.syrou.reaktiv.core/DispatchDropReason.EXTERNAL_CONTROL|null[0]
+    enum entry RESET // io.github.syrou.reaktiv.core/DispatchDropReason.RESET|null[0]
+
+    final val entries // io.github.syrou.reaktiv.core/DispatchDropReason.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.syrou.reaktiv.core/DispatchDropReason> // io.github.syrou.reaktiv.core/DispatchDropReason.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.syrou.reaktiv.core/DispatchDropReason // io.github.syrou.reaktiv.core/DispatchDropReason.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.syrou.reaktiv.core/DispatchDropReason> // io.github.syrou.reaktiv.core/DispatchDropReason.values|values#static(){}[0]
+}
+
 abstract fun interface io.github.syrou.reaktiv.core.util/ReaktivLogSink { // io.github.syrou.reaktiv.core.util/ReaktivLogSink|null[0]
     abstract fun log(kotlin/String, kotlin/String, kotlin/String) // io.github.syrou.reaktiv.core.util/ReaktivLogSink.log|log(kotlin.String;kotlin.String;kotlin.String){}[0]
 }
@@ -74,12 +85,13 @@ abstract interface io.github.syrou.reaktiv.core/DispatchInstrumentation { // io.
 
     abstract fun onDispatchCompleted(kotlin/String, kotlin/Boolean, kotlin/Long) // io.github.syrou.reaktiv.core/DispatchInstrumentation.onDispatchCompleted|onDispatchCompleted(kotlin.String;kotlin.Boolean;kotlin.Long){}[0]
     abstract fun onDispatchFailed(kotlin/String, kotlin/Throwable, kotlin/Long) // io.github.syrou.reaktiv.core/DispatchInstrumentation.onDispatchFailed|onDispatchFailed(kotlin.String;kotlin.Throwable;kotlin.Long){}[0]
-    abstract suspend fun onDispatchDropped(io.github.syrou.reaktiv.core/ModuleAction) // io.github.syrou.reaktiv.core/DispatchInstrumentation.onDispatchDropped|onDispatchDropped(io.github.syrou.reaktiv.core.ModuleAction){}[0]
     abstract suspend fun onDispatchStarted(io.github.syrou.reaktiv.core/ModuleAction, kotlin/Long, kotlin/Long): kotlin/String // io.github.syrou.reaktiv.core/DispatchInstrumentation.onDispatchStarted|onDispatchStarted(io.github.syrou.reaktiv.core.ModuleAction;kotlin.Long;kotlin.Long){}[0]
     abstract suspend fun onExternalControlChanged(kotlin/Boolean) // io.github.syrou.reaktiv.core/DispatchInstrumentation.onExternalControlChanged|onExternalControlChanged(kotlin.Boolean){}[0]
     open fun newDispatchDecorator(): io.github.syrou.reaktiv.core/DispatchStepDecorator? // io.github.syrou.reaktiv.core/DispatchInstrumentation.newDispatchDecorator|newDispatchDecorator(){}[0]
     open fun onEvaluationCompleted(kotlin/String, kotlin/String?, kotlin/String, kotlin/Long) // io.github.syrou.reaktiv.core/DispatchInstrumentation.onEvaluationCompleted|onEvaluationCompleted(kotlin.String;kotlin.String?;kotlin.String;kotlin.Long){}[0]
     open fun onEvaluationFailed(kotlin/String, kotlin/Throwable, kotlin/Long) // io.github.syrou.reaktiv.core/DispatchInstrumentation.onEvaluationFailed|onEvaluationFailed(kotlin.String;kotlin.Throwable;kotlin.Long){}[0]
+    open suspend fun onDispatchDropped(io.github.syrou.reaktiv.core/ModuleAction) // io.github.syrou.reaktiv.core/DispatchInstrumentation.onDispatchDropped|onDispatchDropped(io.github.syrou.reaktiv.core.ModuleAction){}[0]
+    open suspend fun onDispatchDropped(io.github.syrou.reaktiv.core/ModuleAction, io.github.syrou.reaktiv.core/DispatchDropReason) // io.github.syrou.reaktiv.core/DispatchInstrumentation.onDispatchDropped|onDispatchDropped(io.github.syrou.reaktiv.core.ModuleAction;io.github.syrou.reaktiv.core.DispatchDropReason){}[0]
     open suspend fun onEvaluationStarted(kotlin/String, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String>): kotlin/String // io.github.syrou.reaktiv.core/DispatchInstrumentation.onEvaluationStarted|onEvaluationStarted(kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
 }
 

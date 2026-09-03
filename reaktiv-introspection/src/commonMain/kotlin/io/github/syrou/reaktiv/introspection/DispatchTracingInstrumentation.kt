@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.introspection
 
+import io.github.syrou.reaktiv.core.DispatchDropReason
 import io.github.syrou.reaktiv.core.DispatchInstrumentation
 import io.github.syrou.reaktiv.core.DispatchStepDecorator
 import io.github.syrou.reaktiv.core.ModuleAction
@@ -116,11 +117,15 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
         }
     }
 
-    override suspend fun onDispatchDropped(action: ModuleAction) {
+    override suspend fun onDispatchDropped(action: ModuleAction, reason: DispatchDropReason) {
+        val source = when (reason) {
+            DispatchDropReason.EXTERNAL_CONTROL -> "externalControl"
+            DispatchDropReason.RESET -> "reset"
+        }
         val callId = LogicTracer.notifyMethodStart(
             logicClass = DISPATCH_TRACE_CLASS,
             methodName = action::class.simpleName ?: "Action",
-            params = mapOf("externalControl" to "dropped")
+            params = mapOf(source to "dropped")
         )
         if (callId.isNotEmpty()) {
             LogicTracer.notifyMethodCompleted(callId, "Blocked", "DispatchResult", 0L)

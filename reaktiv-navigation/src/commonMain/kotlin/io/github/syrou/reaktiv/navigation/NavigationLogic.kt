@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.CrashListener
 import io.github.syrou.reaktiv.core.CrashRecovery
+import io.github.syrou.reaktiv.core.DispatchResult
 import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
@@ -45,12 +46,14 @@ import io.github.syrou.reaktiv.navigation.util.traceNavigation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -71,7 +74,7 @@ private class NavigationLockMarker : AbstractCoroutineContextElement(NavigationL
 /**
  * Side-effecting logic for the navigation system.
  *
- * `NavigationLogic` orchestrates all navigation operations — guard evaluation, entry-point
+ * `NavigationLogic` orchestrates all navigation operations: guard evaluation, entry-point
  * resolution, back-stack synthesis, deep-link handling, and lifecycle callbacks. It is
  * created automatically by [NavigationModule] and registered with the store.
  *
@@ -103,15 +106,15 @@ public class NavigationLogic(
     private val onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null
 ) : ModuleLogic() {
 
+    private val logicJob = SupervisorJob(storeAccessor.coroutineContext[Job])
+    private val logicScope = CoroutineScope(storeAccessor.coroutineContext + logicJob)
     private val bootstrapCompleted = CompletableDeferred<Unit>()
     private val navigationMutex = Mutex()
     private val deepLinkStartedBeforeBootstrap = MutableStateFlow(false)
     private var bootstrapJob: Job? = null
 
-    private val entryLifecycleJobs = mutableMapOf<String, Job>()
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
-
-    private val pendingRemovals = mutableSetOf<Job>()
+    private val exitingLifecycles = mutableSetOf<BackstackLifecycle>()
 
     private data class CachedEvaluation(val key: Any?, val value: Any?)
 
@@ -145,7 +148,7 @@ public class NavigationLogic(
         val bootstrapGraphId = if (rootEntryDef != null) "root" else graphRefId
 
         if (bootstrapEntry?.route == null) {
-            storeAccessor.launch {
+            logicScope.launch {
                 storeAccessor.dispatchAndAwait(NavigationAction.BootstrapComplete)
                 bootstrapCompleted.complete(Unit)
             }
@@ -153,7 +156,7 @@ public class NavigationLogic(
         }
 
         val bootstrapSelector = bootstrapEntry.route
-        bootstrapJob = storeAccessor.launch {
+        bootstrapJob = logicScope.launch {
             navigationMutex.withLock {
               withContext(NavigationLockMarker()) {
                 try {
@@ -232,14 +235,12 @@ public class NavigationLogic(
     }
 
     override suspend fun beforeReset() {
-        pendingRemovals.toList().forEach { it.cancel() }
-        pendingRemovals.clear()
-        transitionSettleJob?.cancel()
-        transitionSettleJob = null
-        entryLifecycles.values.forEach { it.runRemovalHandlers(RemovalReason.RESET) }
-        entryLifecycleJobs.clear()
+        (entryLifecycles.values + exitingLifecycles).forEach { it.runRemovalHandlers(RemovalReason.RESET) }
         entryLifecycles.clear()
+        exitingLifecycles.clear()
         evaluationCache.clear()
+        transitionSettleJob = null
+        bootstrapJob = null
     }
 
     private fun registerCrashListenerIfNeeded() {
@@ -642,14 +643,20 @@ public class NavigationLogic(
 
     /**
      * Evaluate intercept guards and entry definitions for the given builder, then execute
-     * the navigation. Runs inside [NonCancellable] so that guard evaluation and state
-     * commits are never partially cancelled.
+     * the navigation.
+     *
+     * The work runs on this logic's own job with the caller's context, and the caller awaits it
+     * without observing its own cancellation. A caller that goes away, such as a composable
+     * leaving composition, therefore never leaves a navigation half applied, while a store reset
+     * cancels the work and the caller sees that cancellation. The outcome travels through its own
+     * deferred rather than the job, so work that ran to completion reports its outcome even when
+     * a reset cancelled the job meanwhile, and a navigation that committed is never reported as
+     * cancelled.
      *
      * Navigations are serialized: a call issued while another navigation is in progress
      * suspends until the in-flight one completes, then executes. Re-entrant calls made
      * from inside an in-flight navigation (e.g. a guard navigating) execute inline.
-     */
-    /**
+     *
      * @param bypassLock Runs without waiting for the navigation lock, for navigations that must not
      *   queue behind another. Guards and multi-step blocks still serialise through the store's own
      *   ordered dispatch, so this only skips the evaluation lock, not state consistency.
@@ -671,9 +678,21 @@ public class NavigationLogic(
         navigationMutex.lock()
         var settleJob: Job? = null
         val outcome = try {
-            withContext(NonCancellable + NavigationLockMarker()) {
-                performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
+            val result = CompletableDeferred<NavigationOutcome>()
+            val work = CoroutineScope(currentCoroutineContext().minusKey(Job) + logicJob)
+                .launch(NavigationLockMarker()) {
+                    try {
+                        result.complete(
+                            performEvaluateAndExecute(builder, precomputedTargetRoute, precomputedTargetResolution)
+                        )
+                    } catch (e: Throwable) {
+                        result.completeExceptionally(e)
+                    }
+                }
+            work.invokeOnCompletion { cause ->
+                if (cause != null) result.completeExceptionally(cause)
             }
+            withContext(NonCancellable) { result.await() }
         } finally {
             settleJob = transitionSettleJob
             navigationMutex.unlock()
@@ -689,7 +708,7 @@ public class NavigationLogic(
         precomputedTargetRoute: String? = null,
         precomputedTargetResolution: RouteResolution? = null
     ): NavigationOutcome {
-        return withContext(NonCancellable) {
+        return run {
                 try {
                     val primaryStep = builder.operations.firstOrNull {
                         it.operation == NavigationOperation.Navigate || it.operation == NavigationOperation.Replace
@@ -697,7 +716,7 @@ public class NavigationLogic(
 
                     if (primaryStep == null) {
                         executeNavigation(builder)
-                        return@withContext NavigationOutcome.Success
+                        return@run NavigationOutcome.Success
                     }
 
                     val targetRoute = precomputedTargetRoute ?: try {
@@ -708,7 +727,7 @@ public class NavigationLogic(
 
                     if (targetRoute == null) {
                         executeNavigation(builder)
-                        return@withContext NavigationOutcome.Success
+                        return@run NavigationOutcome.Success
                     }
 
                     val targetResolution = precomputedTargetResolution
@@ -718,7 +737,7 @@ public class NavigationLogic(
 
                     val guardStack = stackSurvivingInto(builder, currentState)
                     val initialGuard = evaluateGuard(targetRoute, targetResolution, primaryStep, guardStack)
-                    guardOutcome(initialGuard, builder, primaryStep)?.let { return@withContext it }
+                    guardOutcome(initialGuard, builder, primaryStep)?.let { return@run it }
 
                     val owningGraphId = precomputedData.routeResolver.canonicalGraphId(targetRoute)
                     val isDynamicGraphTarget = owningGraphId != null &&
@@ -758,7 +777,7 @@ public class NavigationLogic(
                                 primaryStep,
                                 stackSurvivingInto(builder, stateAfterResolution)
                             )
-                            guardOutcome(resolvedGuard, builder, primaryStep)?.let { return@withContext it }
+                            guardOutcome(resolvedGuard, builder, primaryStep)?.let { return@run it }
                         }
 
                         val routeBuilder = NavigationBuilder(storeAccessor)
@@ -776,14 +795,16 @@ public class NavigationLogic(
                             .forEach { routeBuilder.operations.add(it) }
                         routeBuilder.validate()
                         executeNavigation(routeBuilder, primaryResolution = resolvedResolution, entryMemo = entryMemo)
-                        return@withContext NavigationOutcome.Success
+                        return@run NavigationOutcome.Success
                     }
 
                     executeNavigation(builder, primaryResolution = targetResolution)
                     NavigationOutcome.Success
                 } finally {
-                    if (getCurrentNavigationState().isEvaluatingNavigation) {
-                        storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+                    withContext(NonCancellable) {
+                        if (getCurrentNavigationState().isEvaluatingNavigation) {
+                            storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
+                        }
                     }
                 }
         }
@@ -931,7 +952,15 @@ public class NavigationLogic(
             targetRoute = cleanRoute
             targetParams = Params.fromMap(queryParams) + params
         }
-        requireFullPath(targetRoute, describedAs = if (alias != null) "alias target for '$cleanRoute'" else "deep link")
+        val notFound = if (precomputedData.routeResolver.isFullPath(targetRoute)) {
+            null
+        } else {
+            val describedAs = if (alias != null) "alias target for '$cleanRoute'" else "deep link"
+            val message = fullPathMessage(precomputedData.routeResolver, targetRoute, describedAs)
+            val fallback = precomputedData.notFoundScreen ?: throw RouteNotFoundException(message)
+            ReaktivDebug.warn("$message Landing on the notFoundScreen '${fallback.route}' instead.")
+            fallback
+        }
 
         deepLinkStartedBeforeBootstrap.value = true
         val bootstrapWasComplete = bootstrapCompleted.isCompleted
@@ -942,18 +971,17 @@ public class NavigationLogic(
         val builder = NavigationBuilder(storeAccessor)
         builder.clearBackStack()
         builder.params(targetParams)
-        builder.navigateTo(targetRoute, synthesizeBackstack = true)
+        if (notFound == null) {
+            builder.navigateTo(targetRoute, synthesizeBackstack = true)
+        } else {
+            builder.navigateTo(notFound)
+        }
         builder.validate()
         evaluateAndExecute(builder)
 
         if (!bootstrapWasComplete) {
             storeAccessor.dispatchAndAwait(NavigationAction.BootstrapComplete)
         }
-    }
-
-    private fun requireFullPath(route: String, describedAs: String) {
-        if (precomputedData.routeResolver.isFullPath(route)) return
-        throw RouteNotFoundException(fullPathMessage(precomputedData.routeResolver, route, describedAs))
     }
 
     /**
@@ -1178,11 +1206,12 @@ public class NavigationLogic(
         }
 
         val allActions = wrapActions(batchedActions)
-        when {
-            allActions.isEmpty() -> return
-            allActions.size == 1 -> storeAccessor.dispatchAndAwait(allActions[0])
-            else -> storeAccessor.dispatchAndAwait(NavigationAction.AtomicBatch(allActions))
+        if (allActions.isEmpty()) return
+        val commit = withContext(NonCancellable) {
+            if (allActions.size == 1) storeAccessor.dispatchAndAwait(allActions[0])
+            else storeAccessor.dispatchAndAwait(NavigationAction.AtomicBatch(allActions))
         }
+        if (commit == DispatchResult.Blocked) currentCoroutineContext().ensureActive()
 
         val decision = determineAnimationDecision(
             previousEntry = navigationStartEntry,
@@ -1199,7 +1228,7 @@ public class NavigationLogic(
         val animMs = maxOf(enterMs, exitMs)
         if (animMs > 0L) {
             transitionSettleJob?.cancel()
-            transitionSettleJob = storeAccessor.launch { delay(animMs) }
+            transitionSettleJob = logicScope.launch { delay(animMs) }
         }
     }
 
@@ -1209,6 +1238,7 @@ public class NavigationLogic(
     private suspend fun invokeLifecycleCallbacks(newBackStack: List<NavigationEntry>) {
         val newKeys = newBackStack.map { it.stableKey }.toSet()
 
+        exitingLifecycles.removeAll { it.isRemoved }
         val addedEntries = newBackStack.filter { it.stableKey !in entryLifecycles }
         val removedLifecycles = entryLifecycles.filterKeys { it !in newKeys }
 
@@ -1217,10 +1247,7 @@ public class NavigationLogic(
         addedEntries.forEach { entry ->
             val navigatable = entry.navigatable
             try {
-                val lifecycleJob = SupervisorJob(storeAccessor.coroutineContext[Job])
-                val lifecycleScope = CoroutineScope(storeAccessor.coroutineContext + lifecycleJob)
-                entryLifecycleJobs[entry.stableKey] = lifecycleJob
-
+                val lifecycleScope = CoroutineScope(storeAccessor.coroutineContext + SupervisorJob(logicJob))
                 val lifecycle = BackstackLifecycle(entry, navigationStateFlow, storeAccessor, lifecycleScope)
                 entryLifecycles[entry.stableKey] = lifecycle
                 navigatable.onLifecycleCreated(lifecycle)
@@ -1231,19 +1258,17 @@ public class NavigationLogic(
 
         removedLifecycles.forEach { (key, lifecycle) ->
             entryLifecycles.remove(key)
-            val lifecycleJob = entryLifecycleJobs.remove(key)
             val exitMs = popExitSpec(lifecycle.entry.navigatable)?.transition?.durationMillis?.toLong() ?: 0L
             if (exitMs <= 0L) {
                 lifecycle.runRemovalHandlers(RemovalReason.NAVIGATION)
-                lifecycleJob?.cancel()
+                lifecycle.cancel()
             } else {
-                val pending = storeAccessor.launch {
+                exitingLifecycles.add(lifecycle)
+                logicScope.launch {
                     delay(exitMs)
                     lifecycle.runRemovalHandlers(RemovalReason.NAVIGATION)
-                    lifecycleJob?.cancel()
+                    lifecycle.cancel()
                 }
-                pendingRemovals.add(pending)
-                pending.invokeOnCompletion { pendingRemovals.remove(pending) }
             }
         }
     }

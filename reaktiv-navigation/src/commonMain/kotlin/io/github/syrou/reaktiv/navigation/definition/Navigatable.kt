@@ -17,6 +17,8 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.presentationAxis
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +55,8 @@ public enum class RemovalReason {
  * 3. Screen removed from backstack -> [invokeOnRemoval] handlers called once, then scope cancelled
  *
  * **With Store.reset():**
- * 1. `Store.reset()` called -> [invokeOnRemoval] handlers for all existing entries
+ * 1. `Store.reset()` cancels every lifecycle scope, then runs [invokeOnRemoval] handlers with
+ *    [RemovalReason.RESET] for every entry, including one whose exit transition is still playing
  * 2. Observation restarts -> [Navigatable.onLifecycleCreated] called once for each backstack entry
  * 3. Fresh lifecycle instances created with clean state
  *
@@ -77,7 +80,7 @@ public enum class RemovalReason {
  *
  *     // Register cleanup when removed from backstack
  *     lifecycle.invokeOnRemoval {
- *         // `this` is StoreAccessor — non-suspend context
+ *         // `this` is StoreAccessor, a non-suspend context
  *         // Must use launch for suspend work (fire-and-forget)
  *         launch {
  *             val logic = selectLogic<SomeLogic>()
@@ -91,6 +94,7 @@ public enum class RemovalReason {
  * @property entry The navigation entry for this navigatable
  * @property visibility StateFlow indicating whether this entry is currently visible. Use .value for current state or collect for changes.
  */
+@OptIn(ExperimentalAtomicApi::class)
 public class BackstackLifecycle(
     public val entry: NavigationEntry,
     navigationStateFlow: StateFlow<NavigationState>,
@@ -117,17 +121,27 @@ public class BackstackLifecycle(
 
     private val removalHandlers = mutableListOf<StoreAccessor.(RemovalReason) -> Unit>()
 
+    private val removalHandlersRan = AtomicBoolean(false)
+
+    internal val isRemoved: Boolean
+        get() = removalHandlersRan.load()
+
     /**
      * Register a callback to be invoked when this entry is removed from the backstack.
      *
      * ## When Handlers Are Called
      *
      * Removal handlers execute in two scenarios:
-     * 1. **Normal removal** - When navigating back/away and the entry leaves the backstack
-     * 2. **Store reset** - When `Store.reset()` is called (for all entries in backstack)
+     * 1. **Normal removal** - When navigating back/away and the entry leaves the backstack. An
+     *    entry with an exit transition runs them once that transition has finished
+     * 2. **Store reset** - When `Store.reset()` is called, for every entry that has a lifecycle,
+     *    including one that is still leaving
      *
-     * Handlers run **before** the lifecycle scope is cancelled, so the store is still
-     * fully operational. Multiple handlers can be registered and all will execute.
+     * Each lifecycle runs its handlers exactly once. On normal removal they run **before** the
+     * lifecycle scope is cancelled, so work launched on the lifecycle still runs. On reset the
+     * scope has already been cancelled, so `launch` on the lifecycle does nothing, while
+     * [StoreAccessor.launch] runs in the new generation. Multiple handlers can be registered and
+     * all will execute.
      *
      * ## Handler Execution
      *
@@ -163,6 +177,7 @@ public class BackstackLifecycle(
      * @param reason Why the entry is being removed
      */
     internal fun runRemovalHandlers(reason: RemovalReason) {
+        if (!removalHandlersRan.compareAndSet(expectedValue = false, newValue = true)) return
         removalHandlers.forEach { handler ->
             handler(storeAccessor, reason)
         }

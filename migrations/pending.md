@@ -6426,8 +6426,9 @@ alias("studio/wallet", "wallet/overview") { Params.empty() }
 
 **After:**
 ```kotlin
-// A deep link target is the full path from the root graph. Anything else throws
-// RouteNotFoundException naming the registered paths that end with what was given.
+// A deep link target is the full path from the root graph. Anything else lands on the
+// notFoundScreen when one is configured, the way an unresolvable in-app navigation does, and
+// otherwise throws RouteNotFoundException naming the registered paths that end with what was given.
 store.navigateDeepLink("home/releases/release-overview")
 
 // Alias targets are checked when the navigation module is built, so a wrong target fails at
@@ -6441,5 +6442,135 @@ path, and a top-level graph id is its own graph path. Alias patterns are unchang
 free-form. `RouteResolver.isFullPath` and `fullPathSuggestions` are public for tooling. In-app
 `navigateTo` is not affected by this entry. See AD-111 for why the stack is derived from the
 resolved destination.
+
+---
+
+### [BC-93] Reset is an ordered fence on a live dispatch pipeline
+
+**Type:** Behavioural
+
+**Grep:** `\.reset\(\)|resetAsync\(\)|beforeReset`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// reset() cancelled the store's coroutines and moved on without waiting for them, paused the
+// dispatch pipeline until the swap, and let everything queued before the reset land on the fresh
+// state afterwards. Calling it from a store coroutine cancelled that coroutine too, so a logout
+// had to fire and forget.
+suspend fun logout() {
+    api.logout()
+    storeAccessor.resetAsync()
+}
+```
+
+**After:**
+```kotlin
+// reset() suspends until the store is fresh, and the coroutine that awaits it survives, so a
+// logout can hold a loading flag through the whole reset and continue afterwards. The initial
+// state no longer carries the flag, and the line after reset() runs against the new generation.
+suspend fun logout() {
+    storeAccessor.dispatch(AuthAction.LoggingOut(true))
+    api.logout()
+    storeAccessor.reset()
+    storeAccessor.selectState<NavigationState>().first { !it.isBootstrapping }
+}
+```
+
+**Notes:** A reset now runs in phases. Every coroutine the retired generation launched through
+the store is cancelled and then joined before `beforeReset` runs, so `beforeReset` never races
+work that is still unwinding. The join is bounded at five seconds, after which a warning names
+how many coroutines were still running and the reset proceeds without them. `beforeReset` itself
+runs on the dispatch pipeline immediately before the swap, so it is also serialised against
+middleware and lifecycle bookkeeping. `dispatchAndAwait` from there, or from any middleware, now
+throws `IllegalStateException` instead of waiting for itself, and `selectLogic` on the pipeline
+never waits for a reset to finish, since the pipeline is what finishes it. A `dispatch` from
+`beforeReset` lands on the new generation. The coroutine that
+awaits `reset()` is the one exception: it and its ancestors are left alive, everything beside
+them is cancelled, so code after `reset()` runs and dispatches land on the fresh store. The
+dispatch pipeline keeps running throughout, and `selectState` and `dispatchAndAwait` no longer
+wait for the reset to finish, so `NonCancellable` cleanup that awaits a dispatch completes
+instead of blocking the reset. `selectLogic` still waits for the new generation. Actions
+enqueued before the reset are not applied to the fresh state any more: they complete with
+`DispatchResult.Blocked` and are reported through `DispatchInstrumentation.onDispatchDropped`.
+The state and logic swap itself runs on the dispatch consumer, so no action can interleave with
+it. `reset()` awaited from inside middleware throws `IllegalStateException`, because the
+pipeline is what completes it, use `resetAsync()` there. `resetAsync()` now runs beside the
+generations rather than inside one, so its job completes normally instead of cancelled. An
+exception from `beforeReset` is logged, the reset still completes, and the first such exception
+is rethrown, so a failing cleanup no longer leaves the store uninitialised. A `reset()` call
+made from inside a `NonCancellable` block in a store coroutine cannot be recognised as the
+requester, so the drain waits out the timeout before continuing: call `reset()` outside
+`NonCancellable`, or use `resetAsync()`.
+
+---
+
+### [BC-94] Navigation is cancelled by a reset and every entry gets its removal handlers once
+
+**Type:** Behavioural
+
+**Grep:** `invokeOnRemoval|RemovalReason\.RESET`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A navigation ran NonCancellable end to end, so a reset could not stop it and its commit landed
+// on the fresh state afterwards. A screen whose exit transition was still playing when the store
+// reset never ran its removal handlers at all.
+lifecycle.invokeOnRemoval { reason ->
+    launch { selectLogic<DetailLogic>().release() }
+}
+```
+
+**After:**
+```kotlin
+// A reset cancels a navigation that has not committed yet, and the caller sees
+// CancellationException("Store Reset"). Once the commit is dispatched it is awaited without
+// cancellation, so a navigation that landed reports Success even if a reset arrived meanwhile,
+// and one whose commit the reset dropped reports the cancellation. Cancelling the caller, for
+// example a composable leaving composition, still does not interrupt a navigation. Every entry runs its removal handlers exactly once, including an entry
+// that is mid-exit when the store resets, which runs them with RemovalReason.RESET. On RESET the
+// lifecycle scope is already cancelled, so launch on the lifecycle does nothing, while launch on
+// the StoreAccessor runs in the new generation.
+lifecycle.invokeOnRemoval { reason ->
+    if (reason == RemovalReason.NAVIGATION) {
+        launch { selectLogic<DetailLogic>().release() }
+    }
+}
+```
+
+**Notes:** `NavigationLogic` no longer keeps its own registry of pending removal jobs. All of its
+background work, bootstrap, transition settle, pending removals and lifecycle scopes, hangs off
+one per-instance job that the store's reset cancels and joins, which is what removed the
+concurrent-modification crash in `beforeReset` on Kotlin/Native. A guard that suspends while the
+store resets is cancelled there, so a slow guard can no longer hold a logout open or land after
+it. See BC-93 for the store side.
+
+---
+
+### [AD-113] DispatchDropReason on the instrumentation seam
+
+**Type:** Replaces-deprecated
+
+**Grep:** `onDispatchDropped\(`
+**File glob:** `**/*.kt`
+
+**Replaces:** `DispatchInstrumentation.onDispatchDropped(action)`, which could not say why an action
+was dropped. It is deprecated with a no-op default, and the new overload forwards to it by default,
+so an implementation that still overrides the old form keeps receiving every drop until it moves.
+
+**Example:**
+```kotlin
+override suspend fun onDispatchDropped(action: ModuleAction, reason: DispatchDropReason) {
+    when (reason) {
+        DispatchDropReason.EXTERNAL_CONTROL -> log("$action dropped while following a publisher")
+        DispatchDropReason.RESET -> log("$action was queued before a reset and never applied")
+    }
+}
+```
+
+**Notes:** Reset drops are new with BC-93. The introspection tracer records them with a `reset`
+parameter beside the existing `externalControl` one, so a DevTools stream shows which reset or
+handoff discarded an action. The deprecated form will be removed in a later release.
 
 ---

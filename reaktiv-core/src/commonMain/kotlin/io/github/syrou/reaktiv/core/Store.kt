@@ -20,8 +20,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +32,7 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import kotlinx.serialization.modules.SerializersModule
 import kotlin.coroutines.CoroutineContext
@@ -70,7 +71,7 @@ public class Store private constructor(
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     public val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
 
-    private val constructed = AtomicBoolean(false)
+    private val constructed = CompletableDeferred<Unit>()
     private val crashListeners = CopyOnWriteRegistry<CrashListener>()
 
     private val crashScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -89,6 +90,10 @@ public class Store private constructor(
         }
 
     private val storeJob: Job = SupervisorJob(coroutineScope.coroutineContext[Job])
+
+    private val generation = AtomicReference<Job>(SupervisorJob(storeJob))
+
+    private val resetEpoch = AtomicLong(0L)
 
     private val pipelineJob: Job = SupervisorJob(coroutineScope.coroutineContext[Job])
 
@@ -112,7 +117,8 @@ public class Store private constructor(
         externallyDriven.store(true)
     }
 
-    override val coroutineContext: CoroutineContext = baseContext + storeJob
+    override val coroutineContext: CoroutineContext
+        get() = baseContext + generation.load()
 
     @ExperimentalReaktivApi
     override fun addCrashListener(listener: CrashListener) {
@@ -129,7 +135,8 @@ public class Store private constructor(
         val envelope = DispatchEnvelope(
             action,
             completion,
-            enqueuedAtMs = if (instrumentationActive()) currentTimeMillis() else 0L
+            enqueuedAtMs = if (instrumentationActive()) currentTimeMillis() else 0L,
+            epoch = resetEpoch.load()
         )
         if (target.trySend(envelope).isFailure) {
             throw IllegalStateException("Store is closed")
@@ -140,6 +147,12 @@ public class Store private constructor(
     override val dispatch: Dispatch = { action -> enqueue(action, completion = null) }
 
     override suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult {
+        if (currentCoroutineContext()[PipelineMarker] != null) {
+            throw IllegalStateException(
+                "dispatchAndAwait() cannot be called from inside the dispatch pipeline, because the " +
+                    "pipeline would be waiting for itself. Use dispatch(), or launch a coroutine on the store."
+            )
+        }
         val completion = CompletableDeferred<DispatchResult>()
         enqueue(action, completion)
         return completion.await()
@@ -156,34 +169,38 @@ public class Store private constructor(
             logic::class.qualifiedName?.let { logicKeys[it] = info }
         }
         logicIndex.store(logicKeys)
-        constructed.store(true)
+        constructed.complete(Unit)
         _initialized.update { true }
     }
 
     init {
         launch { initializeModules(resetState = false) }
-        CoroutineScope(baseContext + pipelineJob).launch { processActionChannel() }
+        CoroutineScope(baseContext + pipelineJob + PipelineMarker).launch { processActionChannel() }
     }
 
     override suspend fun reset(): Boolean {
-        if (!constructed.load()) {
+        if (!constructed.isCompleted) {
             throw IllegalArgumentException("Reset can not be called until the Store has been constructed!")
+        }
+        if (currentCoroutineContext()[PipelineMarker] != null) {
+            throw IllegalStateException(
+                "reset() cannot be awaited from inside the dispatch pipeline, because the pipeline " +
+                    "is what completes it. Call resetAsync() from middleware instead."
+            )
         }
 
         if (!resetMutex.tryLock()) {
             return false
         }
 
+        val requester = currentCoroutineContext()[Job]
         return withContext(NonCancellable) {
             try {
                 _initialized.update { false }
                 externallyDriven.store(false)
-                cancelLogic()
-
-                moduleInfos.forEach { it.logic.load()?.beforeReset() }
-
-                initializeModules(resetState = true)
-
+                val retired = generation.exchange(SupervisorJob(storeJob))
+                drain(retire(retired, requester))
+                awaitResetFence()
                 true
             } finally {
                 resetMutex.unlock()
@@ -191,29 +208,123 @@ public class Store private constructor(
         }
     }
 
-    private suspend fun cancelLogic() {
-        storeJob.cancelChildren(CancellationException("Store Reset"))
-        yield()
+    private fun retire(retired: Job, requester: Job?): List<Job> {
+        val cause = CancellationException("Store Reset")
+        if (requester == null || !retired.isAncestorOf(requester)) {
+            val children = retired.children.toList()
+            retired.cancel(cause)
+            return children
+        }
+        val cancelled = mutableListOf<Job>()
+        var node: Job = retired
+        var requesterBranch: Job? = null
+        while (node !== requester) {
+            val next = node.children.first { it === requester || it.isAncestorOf(requester) }
+            if (requesterBranch == null) requesterBranch = next
+            node.children.forEach { child ->
+                if (child !== next) {
+                    child.cancel(cause)
+                    cancelled += child
+                }
+            }
+            node = next
+        }
+        requesterBranch?.invokeOnCompletion { retired.cancel(cause) }
+        return cancelled
     }
 
-    override fun resetAsync(): Job = launch {
+    private fun Job.isAncestorOf(target: Job): Boolean =
+        children.any { it === target || it.isAncestorOf(target) }
+
+    private suspend fun drain(cancelled: List<Job>) {
+        if (cancelled.isEmpty()) return
+        val finished = withTimeoutOrNull(RESET_DRAIN_TIMEOUT_MS) {
+            cancelled.forEach { it.join() }
+        }
+        if (finished == null) {
+            val remaining = cancelled.count { !it.isCompleted }
+            ReaktivDebug.warn(
+                "Store reset: $remaining coroutine(s) were still running ${RESET_DRAIN_TIMEOUT_MS}ms " +
+                    "after being cancelled, continuing without them"
+            )
+        }
+    }
+
+    private suspend fun runBeforeReset(): Throwable? {
+        var failure: Throwable? = null
+        moduleInfos.forEach { info ->
+            try {
+                info.logic.load()?.beforeReset()
+            } catch (e: Exception) {
+                ReaktivDebug.warn(
+                    "Store reset: beforeReset failed for ${info.module::class.simpleName} - ${e.message}"
+                )
+                if (failure == null) failure = e
+            }
+        }
+        return failure
+    }
+
+    private suspend fun awaitResetFence() {
+        val completion = CompletableDeferred<DispatchResult>()
+        resetEpoch.addAndFetch(1L)
+        enqueue(ResetFence, completion)
+        val result = completion.await()
+        if (result is DispatchResult.Error) throw result.cause
+    }
+
+    override fun resetAsync(): Job = CoroutineScope(baseContext + storeJob).launch {
         reset()
     }
 
     private suspend fun processActionChannel() {
-        while (true) {
-            val envelope = highPriorityChannel.tryReceive().getOrNull()
-                ?: select {
-                    highPriorityChannel.onReceiveCatching { it.getOrNull() }
-                    lowPriorityChannel.onReceiveCatching { it.getOrNull() }
+        constructed.await()
+        var appliedEpoch = 0L
+        val heldForNextGeneration = mutableListOf<DispatchEnvelope>()
+        try {
+            while (true) {
+                val envelope = highPriorityChannel.tryReceive().getOrNull()
+                    ?: select {
+                        highPriorityChannel.onReceiveCatching { it.getOrNull() }
+                        lowPriorityChannel.onReceiveCatching { it.getOrNull() }
+                    }
+                    ?: return
+                when {
+                    envelope.epoch < appliedEpoch -> dropEnvelope(envelope, DispatchDropReason.RESET)
+                    envelope.action is ResetFence -> {
+                        processResetFence(envelope)
+                        appliedEpoch = envelope.epoch
+                        val released = heldForNextGeneration.toList()
+                        heldForNextGeneration.clear()
+                        released.forEach { processEnvelope(it) }
+                    }
+                    envelope.epoch > appliedEpoch -> heldForNextGeneration += envelope
+                    else -> processEnvelope(envelope)
                 }
-                ?: return
-            if (!_initialized.value) {
-                initialized.first { it }
+                yield()
             }
-            processEnvelope(envelope)
-            yield()
+        } finally {
+            val closed = IllegalStateException("Store is closed")
+            heldForNextGeneration.forEach { it.completion?.complete(DispatchResult.Error(closed)) }
         }
+    }
+
+    private suspend fun processResetFence(envelope: DispatchEnvelope) {
+        val cleanupFailure = runBeforeReset()
+        val result = try {
+            initializeModules(resetState = true)
+            cleanupFailure?.let { DispatchResult.Error(it) } ?: DispatchResult.Processed
+        } catch (e: Throwable) {
+            DispatchResult.Error(e)
+        }
+        envelope.completion?.complete(result)
+        dispatchProcessedCount.addAndFetch(1L)
+    }
+
+    private suspend fun dropEnvelope(envelope: DispatchEnvelope, reason: DispatchDropReason) {
+        activeDispatchInstrumentation?.onDispatchDropped(envelope.action, reason)
+        envelope.completion?.complete(DispatchResult.Blocked)
+        dispatchProcessedCount.addAndFetch(1L)
     }
 
     /**
@@ -248,13 +359,11 @@ public class Store private constructor(
     }
 
     private suspend fun processEnvelope(envelope: DispatchEnvelope) {
-        val instrumentation = activeDispatchInstrumentation
         if (externallyDriven.load() && envelope.action !is ExternalControlExempt) {
-            instrumentation?.onDispatchDropped(envelope.action)
-            envelope.completion?.complete(DispatchResult.Blocked)
-            dispatchProcessedCount.addAndFetch(1L)
+            dropEnvelope(envelope, DispatchDropReason.EXTERNAL_CONTROL)
             return
         }
+        val instrumentation = activeDispatchInstrumentation
         var token = ""
         var processStartMs = 0L
         if (instrumentation != null) {
@@ -425,7 +534,7 @@ public class Store private constructor(
     }
 
     override suspend fun <S : ModuleState> selectState(stateClass: KClass<S>): StateFlow<S> {
-        initialized.first { it }
+        constructed.await()
         return selectStateNonSuspend(stateClass)
     }
 
@@ -441,7 +550,7 @@ public class Store private constructor(
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun <L : ModuleLogic> selectLogic(logicClass: KClass<L>): L {
-        initialized.first { it }
+        awaitLogic()
         return info(logicClass)?.logic?.load() as? L
             ?: throw IllegalStateException("No logic found for logic class: $logicClass")
     }
@@ -457,8 +566,16 @@ public class Store private constructor(
         info(module::class)?.state?.asStateFlow()
 
     override suspend fun getLogicForModule(module: Module<*, *>): ModuleLogic? {
-        initialized.first { it }
+        awaitLogic()
         return info(module::class)?.logic?.load()
+    }
+
+    private suspend fun awaitLogic() {
+        if (currentCoroutineContext()[PipelineMarker] != null) {
+            constructed.await()
+        } else {
+            initialized.first { it }
+        }
     }
 
     public suspend inline fun <reified L : ModuleLogic> selectLogic(): L = selectLogic(L::class)
@@ -496,7 +613,16 @@ public class Store private constructor(
 
     public suspend fun hasPersistedState(): Boolean = persistenceManager?.hasPersistedState() ?: false
 
+    private data object ResetFence : ModuleAction(Store::class), HighPriorityAction, ExternalControlExempt
+
+    private object PipelineMarker : CoroutineContext.Element, CoroutineContext.Key<PipelineMarker> {
+        override val key: CoroutineContext.Key<*>
+            get() = this
+    }
+
     public companion object {
+        private const val RESET_DRAIN_TIMEOUT_MS: Long = 5_000L
+
         internal fun create(
             coroutineScope: CoroutineScope,
             middlewares: List<Middleware>,

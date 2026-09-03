@@ -209,8 +209,8 @@ class ExternalControlTest {
 
                 override fun onDispatchFailed(token: String, error: Throwable, durationMs: Long) {}
 
-                override suspend fun onDispatchDropped(action: ModuleAction) {
-                    dropped.add(action::class.simpleName)
+                override suspend fun onDispatchDropped(action: ModuleAction, reason: DispatchDropReason) {
+                    dropped.add("${action::class.simpleName}:$reason")
                 }
 
                 override suspend fun onExternalControlChanged(enabled: Boolean) {}
@@ -219,7 +219,7 @@ class ExternalControlTest {
             assertEquals(DispatchResult.Blocked, store.dispatchAndAwait(ExternalControlAction.Plain))
             advanceUntilIdle()
 
-            assertEquals<List<String?>>(listOf("Plain"), dropped)
+            assertEquals<List<String?>>(listOf("Plain:EXTERNAL_CONTROL"), dropped)
             store.cleanup()
         }
 }

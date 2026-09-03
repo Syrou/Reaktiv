@@ -64,40 +64,53 @@ public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      *
      * @param action The action to dispatch
      * @return [DispatchResult.Processed] if action was applied,
-     *         [DispatchResult.Blocked] if middleware blocked the action,
+     *         [DispatchResult.Blocked] if middleware blocked the action or a reset dropped it,
      *         [DispatchResult.Error] if processing failed
+     * @throws IllegalStateException when called from inside the dispatch pipeline, which would wait
+     *         for itself. Middleware and [ModuleLogic.beforeReset] must use [dispatch] instead.
      */
     public abstract suspend fun dispatchAndAwait(action: ModuleAction): DispatchResult
 
     /**
-     * Resets the store by cancelling all child coroutines and restarting action processing.
+     * Resets every module to its initial state and recreates every logic instance.
      *
-     * Only one reset can execute at a time. If a reset is already in progress, this function
-     * returns false immediately without waiting or executing.
+     * A reset runs in order. Every coroutine the store launched for the current generation is
+     * cancelled and joined, bounded by a timeout after which a warning is logged and the reset
+     * continues without the stragglers. The dispatch pipeline then, in one ordered step, calls
+     * [ModuleLogic.beforeReset] on each logic instance, swaps state and logic, and drops every
+     * action that was queued before the reset with [DispatchResult.Blocked].
      *
-     * All module logic instances will have their [ModuleLogic.onStoreReset] method called
-     * sequentially. Any exceptions thrown during reset will propagate to the caller.
+     * The coroutine that awaits this call survives the reset, so a logic method can continue
+     * afterwards against the fresh store. Every other coroutine of the old generation is
+     * cancelled. Calling this from inside middleware throws, because the pipeline that would
+     * complete the reset is busy running that middleware. Use [resetAsync] there.
      *
-     * Safe to call from action handlers - uses [NonCancellable] context to ensure
-     * reset completes even if called from within the store's own action processing.
+     * Only one reset can execute at a time. A call made while another reset is in progress
+     * returns false immediately. An exception thrown by [ModuleLogic.beforeReset] is rethrown
+     * once the reset has completed.
      *
-     * For fire-and-forget usage, use [resetAsync] instead.
+     * Example:
+     * ```kotlin
+     * suspend fun logout() {
+     *     storeAccessor.dispatch(AuthAction.LoggingOut(true))
+     *     api.logout()
+     *     storeAccessor.reset()
+     * }
+     * ```
      *
-     * @return true if reset was executed, false if skipped due to concurrent reset
-     * @throws IllegalArgumentException if the store is not initialized
+     * @return true if the reset ran, false if one was already in progress
+     * @throws IllegalArgumentException if the store has not been constructed yet
+     * @throws IllegalStateException if called from inside the dispatch pipeline
      */
     public abstract suspend fun reset(): Boolean
 
     /**
-     * Non-suspend convenience function that resets the store asynchronously.
+     * Launches [reset] on the store's root job and returns immediately.
      *
-     * This launches [reset] in the store's coroutine scope and returns immediately.
-     * Use this for fire-and-forget reset operations where you don't need to wait
-     * for completion.
+     * The returned job belongs to no generation, so the reset it runs cannot cancel it. Use this
+     * from middleware, or anywhere that cannot suspend on the reset itself.
      *
-     * If you need to wait for reset to complete, use the suspend [reset] function instead.
-     *
-     * @return A [Job] that completes when the reset finishes.
+     * @return A [Job] that completes when the reset finishes
      */
     public abstract fun resetAsync(): Job
 
