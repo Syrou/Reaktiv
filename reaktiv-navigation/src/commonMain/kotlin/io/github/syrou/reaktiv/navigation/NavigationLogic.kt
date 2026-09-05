@@ -880,10 +880,11 @@ public class NavigationLogic(
      *
      * No-op unless the state can currently accept a back, which is the same question the
      * gesture and platform-back paths ask through `canHandleBack`. Back navigation is refused
-     * while bootstrap is unresolved, while an async guard or entry evaluation is in flight, and
-     * while a [LoadingModal] is the current entry, because this call bypasses the navigation
-     * mutex and an in-flight evaluation has already captured a state snapshot it is about to
-     * commit against.
+     * while a [LoadingModal] is the current entry, and while bootstrap is unresolved or an async
+     * guard or entry evaluation is in flight, unless the current entry is a [RenderLayer.SYSTEM]
+     * entry raised over that work. The evaluation commits deltas against the stack as it is when
+     * it lands, so an alert leaving from on top of it is harmless, whereas the screens beneath
+     * are what it is about to replace and must stay put.
      *
      * Dispatches [NavigationAction.Back] directly, bypassing the navigation mutex.
      * This is intentional: a back/dismiss requires no guard evaluation, and the mutex

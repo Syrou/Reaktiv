@@ -40,7 +40,9 @@ import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.transition.PopTransitionSpec
 import io.github.syrou.reaktiv.navigation.transition.ResolvedNavTransition
+import io.github.syrou.reaktiv.navigation.transition.popExitSpec
 import io.github.syrou.reaktiv.navigation.transition.resolve
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import kotlinx.coroutines.flow.first
@@ -102,16 +104,23 @@ public object NavigationAnimations {
         val navigationState by composeState<NavigationState>()
         val latestState = rememberUpdatedState(navigationState)
 
+        val exitSpec: PopTransitionSpec? = when {
+            isEntering -> null
+            else -> navigatable.popExitTransition
+                ?.takeUnless { it == NavTransition.None }
+                ?.let { PopTransitionSpec(it, reversedProgress = false) }
+                ?: popExitSpec(navigatable)
+        }
         val transition = when {
             isEntering -> navigatable.popEnterTransition ?: navigatable.enterTransition
-            else -> navigatable.popExitTransition ?: navigatable.exitTransition
+            else -> exitSpec?.transition ?: NavTransition.None
         }
 
         val shouldAnimate = transition != NavTransition.None
 
         val resolved = remember(transition, screenWidth, screenHeight, shouldAnimate) {
             if (shouldAnimate) {
-                transition.resolve(screenWidth, screenHeight, isForward = isEntering)
+                transition.resolve(screenWidth, screenHeight)
             } else null
         }
 
@@ -158,6 +167,7 @@ public object NavigationAnimations {
             }
         val scrubProgress = if (activeModalScrub != null) controller.progress else 0f
         val animationProgress = timedProgress * (1f - scrubProgress)
+        val specProgress = if (exitSpec?.reversedProgress == false) 1f - animationProgress else animationProgress
 
         val dimmerAlpha = if (modal?.shouldDimBackground == true) {
             modal.backgroundDimAlpha * animationProgress
@@ -243,12 +253,12 @@ public object NavigationAnimations {
                     .let { modifier ->
                         if (shouldAnimate && resolved != null) {
                             modifier.graphicsLayer {
-                                alpha = resolved.alpha(animationProgress)
-                                scaleX = resolved.scaleX(animationProgress)
-                                scaleY = resolved.scaleY(animationProgress)
-                                translationX = resolved.translationX(animationProgress)
-                                translationY = resolved.translationY(animationProgress)
-                                rotationZ = resolved.rotationZ(animationProgress)
+                                alpha = resolved.alpha(specProgress)
+                                scaleX = resolved.scaleX(specProgress)
+                                scaleY = resolved.scaleY(specProgress)
+                                translationX = resolved.translationX(specProgress)
+                                translationY = resolved.translationY(specProgress)
+                                rotationZ = resolved.rotationZ(specProgress)
                                 transformOrigin = TransformOrigin.Center
                             }
                         } else {

@@ -36,17 +36,22 @@ public object ReaktivDebug {
         sinks.forEachCatching({}) { it.log(level, category, message) }
     }
 
-    private fun log(category: String, message: String) {
+    private fun debug(category: String, message: String) {
         emit("DEBUG", category, message)
         if (isEnabled) {
             println("[$category] $message")
         }
     }
 
-    public fun nav(message: String): Unit = log("NAV", message)
-    public fun store(message: String): Unit = log("STORE", message)
-    public fun general(message: String): Unit = log("GENERAL", message)
-    public fun trace(message: String): Unit = log("TRACE", message)
+    public fun log(level: String, category: String, message: String, throwable: Throwable? = null) {
+        val detail = throwable?.let { "$message: ${it.message}" } ?: message
+        emit(level.uppercase(), category, detail)
+    }
+
+    public fun nav(message: String): Unit = debug("NAV", message)
+    public fun store(message: String): Unit = debug("STORE", message)
+    public fun general(message: String): Unit = debug("GENERAL", message)
+    public fun trace(message: String): Unit = debug("TRACE", message)
 
     public fun warn(message: String) {
         emit("WARN", "GENERAL", message)

@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.navigation.definition
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
@@ -218,6 +219,12 @@ public interface Navigatable : NavigationNode, TransitionSpec {
 
     public val showsDismissIndicator: Boolean
         get() = true
+
+    public val dismissIndicatorColor: Color
+        get() = Color.Unspecified
+
+    public val dismissIndicatorBackground: Color
+        get() = Color.Unspecified
 
     @Deprecated(
         "Declare dismissal instead. Dismissal.Blocking replaces a no-op handler, Dismissal.Dismissable replaces a handler that pops, and DismissAction.Run keeps a custom handler for the sources that need it.",

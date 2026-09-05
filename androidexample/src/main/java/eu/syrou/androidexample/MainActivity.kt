@@ -212,7 +212,11 @@ fun MainRender() {
                 }
             }
         ) {
-            NavigationBackgroundProvider(MaterialTheme.colorScheme.background) {
+            NavigationBackgroundProvider(
+                backgroundColor = MaterialTheme.colorScheme.background,
+                dismissIndicatorBackground = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.6f),
+                dismissIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            ) {
                 NavigationRender(
                     modifier = Modifier
                         .fillMaxSize()

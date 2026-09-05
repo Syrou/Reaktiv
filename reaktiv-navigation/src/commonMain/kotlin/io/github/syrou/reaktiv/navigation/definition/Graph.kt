@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.navigation.definition
 
+import androidx.compose.ui.graphics.Color
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -73,6 +74,10 @@ public interface Graph : NavigationNode, TransitionSpec {
      * a handle it cannot honour.
      */
     public val showsDismissIndicator: Boolean get() = dismissal.swipe !is DismissAction.Ignore
+
+    public val dismissIndicatorColor: Color get() = Color.Unspecified
+
+    public val dismissIndicatorBackground: Color get() = Color.Unspecified
 
     /**
      * Whether destinations inside this graph want a navigation header.

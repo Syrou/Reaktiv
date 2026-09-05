@@ -11,10 +11,12 @@ import io.github.syrou.reaktiv.navigation.transition.GestureAxis
 import io.github.syrou.reaktiv.navigation.transition.gestureAxis
 
 internal fun canHandleBack(state: NavigationState): Boolean {
+    if (!state.canGoBack) return false
+    val top = state.currentEntry.navigatable
+    if (top is LoadingModal) return false
+    if (top.renderLayer == RenderLayer.SYSTEM) return true
     if (state.isBootstrapping) return false
     if (state.isEvaluatingNavigation) return false
-    if (!state.canGoBack) return false
-    if (state.currentEntry.navigatable is LoadingModal) return false
     return true
 }
 

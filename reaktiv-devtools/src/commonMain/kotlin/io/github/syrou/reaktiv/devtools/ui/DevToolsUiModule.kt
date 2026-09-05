@@ -83,8 +83,8 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                 }
             }
 
-            is DevToolsUiAction.ToggleDevicePanel -> {
-                state.copy(devicePanelExpanded = !state.devicePanelExpanded)
+            is DevToolsUiAction.SetDestination -> {
+                state.copy(destination = action.destination)
             }
 
             is DevToolsUiAction.ClearHistory -> {
@@ -193,12 +193,8 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                 state.copy(excludedLogicMethods = action.methodIdentifiers)
             }
 
-            is DevToolsUiAction.ShowImportGhostDialog -> {
-                state.copy(showImportGhostDialog = true)
-            }
-
-            is DevToolsUiAction.HideImportGhostDialog -> {
-                state.copy(showImportGhostDialog = false)
+            is DevToolsUiAction.SetOverlay -> {
+                state.copy(overlay = action.overlay)
             }
 
             is DevToolsUiAction.SetCrashEvent -> {
@@ -273,24 +269,21 @@ internal object DevToolsUiModule : ModuleWithLogic<DevToolsUiState, DevToolsUiAc
                 state.copy(selection = Selection.None, followLatest = false)
             }
 
-            is DevToolsUiAction.SetMode -> {
-                if (action.mode == state.mode) {
-                    state
+            is DevToolsUiAction.SetInspectorView -> {
+                state.copy(inspectorView = action.view)
+            }
+
+            is DevToolsUiAction.SetSplitFraction -> {
+                state.copy(splitFraction = action.fraction.coerceIn(0.3f, 0.8f))
+            }
+
+            is DevToolsUiAction.ToggleLogLevel -> {
+                val hidden = if (action.level in state.hiddenLogLevels) {
+                    state.hiddenLogLevels - action.level
                 } else {
-                    state.copy(
-                        mode = action.mode,
-                        selection = Selection.None,
-                        followLatest = false
-                    )
+                    state.hiddenLogLevels + action.level
                 }
-            }
-
-            is DevToolsUiAction.SetPerformanceView -> {
-                state.copy(performanceView = action.view)
-            }
-
-            is DevToolsUiAction.SetInspectorTab -> {
-                state.copy(inspectorTab = action.tab)
+                state.copy(hiddenLogLevels = hidden)
             }
 
             is DevToolsUiAction.SetPlaybackSpeed -> {
@@ -720,7 +713,7 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
 
             connection.send(message)
 
-            storeAccessor.dispatch(DevToolsUiAction.HideImportGhostDialog)
+            storeAccessor.dispatch(DevToolsUiAction.SetOverlay(Overlay.None))
 
             println("DevTools UI: Ghost session imported - ${export.sessionId}")
         } catch (e: Exception) {

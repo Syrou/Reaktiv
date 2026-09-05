@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import kotlin.math.abs
 import io.github.syrou.reaktiv.core.util.ReaktivLogSink
 import io.github.syrou.reaktiv.introspection.ClientMetadata
 import io.github.syrou.reaktiv.introspection.DEFAULT_SENSITIVE_KEYS
@@ -68,6 +69,10 @@ import kotlin.random.Random
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+private const val CRASH_DEDUP_WINDOW_MS: Long = 1_000L
+
+private const val CRASH_DEDUP_HISTORY: Int = 8
 
 /**
  * Captures session data for crash reports, manual export, and DevTools streaming.
@@ -143,6 +148,7 @@ public class SessionCapture(
     private var started = false
     private var initialStateJson: String = "{}"
     private var capturedCrash: CrashInfo? = null
+    private val recentCrashes = ArrayDeque<Pair<Triple<String, String?, String>, Long>>()
     private val droppedCount = AtomicLong(0L)
 
     private val json = reaktivJson(encodeDefaults = true)
@@ -494,6 +500,18 @@ public class SessionCapture(
         enqueue(CrashRecord(crash))
     }
 
+    private fun isRepeatedCrash(info: CrashInfo): Boolean {
+        val key = Triple(info.exception.exceptionType, info.exception.message, info.exception.stackTrace)
+        val repeated = recentCrashes.any { (seen, at) ->
+            seen == key && abs(info.timestamp - at) <= CRASH_DEDUP_WINDOW_MS
+        }
+        if (!repeated) {
+            recentCrashes.addLast(key to info.timestamp)
+            if (recentCrashes.size > CRASH_DEDUP_HISTORY) recentCrashes.removeFirst()
+        }
+        return repeated
+    }
+
     /**
      * Reports a crash from a throwable.
      */
@@ -842,17 +860,19 @@ public class SessionCapture(
                         _markers.tryEmit(enriched)
                     }
                     is CrashRecord -> {
-                        val enriched = record.info.copy(
-                            route = record.info.route ?: currentRouteFromShadow(),
-                            afterActionIndex = if (record.info.afterActionIndex >= 0) {
-                                record.info.afterActionIndex
-                            } else {
-                                actionCount - 1
-                            }
-                        )
-                        crashLines.add(json.encodeToString(enriched))
-                        capturedCrash = enriched
-                        _crashes.tryEmit(enriched)
+                        if (!isRepeatedCrash(record.info)) {
+                            val enriched = record.info.copy(
+                                route = record.info.route ?: currentRouteFromShadow(),
+                                afterActionIndex = if (record.info.afterActionIndex >= 0) {
+                                    record.info.afterActionIndex
+                                } else {
+                                    actionCount - 1
+                                }
+                            )
+                            crashLines.add(json.encodeToString(enriched))
+                            capturedCrash = enriched
+                            _crashes.tryEmit(enriched)
+                        }
                     }
                 }
             } catch (e: Exception) {

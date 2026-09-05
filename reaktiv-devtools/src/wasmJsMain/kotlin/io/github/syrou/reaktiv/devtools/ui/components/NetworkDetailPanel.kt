@@ -77,6 +77,7 @@ internal fun NetworkOverviewList(
     filter: NetworkFilter,
     searchQuery: String,
     showStats: Boolean,
+    searchField: @Composable () -> Unit = {},
     onSelectRequest: (String?) -> Unit,
     onFilterChange: (NetworkFilter) -> Unit,
     onToggleStats: () -> Unit,
@@ -93,9 +94,11 @@ internal fun NetworkOverviewList(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Network",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f)
+                style = MaterialTheme.typography.titleSmall
             )
+            Spacer(modifier = Modifier.width(8.dp))
+            searchField()
+            Spacer(modifier = Modifier.weight(1f))
             if (networkEvents.isNotEmpty()) {
                 FilterChip(
                     selected = showStats,

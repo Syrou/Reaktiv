@@ -1,6 +1,9 @@
 package io.github.syrou.reaktiv.introspection.tooling
 
+import io.github.syrou.reaktiv.core.CrashListener
+import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
+import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
@@ -17,6 +20,7 @@ import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.SessionFileExport
 import io.github.syrou.reaktiv.introspection.gzipCompress
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
+import io.github.syrou.reaktiv.introspection.protocol.CrashOrigin
 import io.github.syrou.reaktiv.introspection.tracing.IntrospectionLogicObserver
 import kotlinx.coroutines.launch
 
@@ -32,6 +36,7 @@ public class ToolingLogic internal constructor(
     private var logicObserver: IntrospectionLogicObserver? = null
     private var stateReadObserver: ((StateRead) -> Unit)? = null
     private var stallWatchdog: StallWatchdog? = null
+    private var crashListener: CrashListener? = null
     private val fileExport = SessionFileExport(platformContext)
 
     init {
@@ -40,6 +45,12 @@ public class ToolingLogic internal constructor(
         }
         if (config.enabled) {
             (storeAccessor as? Store)?.serializersModule?.let { capture.attachStateSerializers(it) }
+            crashListener = object : CrashListener {
+                override suspend fun onLogicCrash(exception: Throwable, action: ModuleAction?): CrashRecovery {
+                    capture.reportCrash(exception, CrashOrigin.UNCAUGHT)
+                    return CrashRecovery.RETHROW
+                }
+            }.also { storeAccessor.addCrashListener(it) }
             if (config.installLogicTracing) {
                 logicObserver = IntrospectionLogicObserver(capture).also { LogicTracer.addObserver(it) }
                 (storeAccessor as? Store)?.setDispatchInstrumentation(DispatchTracingInstrumentation())
@@ -143,5 +154,7 @@ public class ToolingLogic internal constructor(
         stateReadObserver = null
         stallWatchdog?.stop()
         stallWatchdog = null
+        crashListener?.let { storeAccessor.removeCrashListener(it) }
+        crashListener = null
     }
 }

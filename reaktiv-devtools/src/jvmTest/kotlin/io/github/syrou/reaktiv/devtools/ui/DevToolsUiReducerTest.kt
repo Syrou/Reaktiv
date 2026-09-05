@@ -45,8 +45,9 @@ class DevToolsUiReducerTest {
         val withData = reduce(DevToolsUiState(), DevToolsUiAction.AddActionStateEvent(action(1)))
 
         val toggled = reduce(withData, DevToolsUiAction.ToggleStateViewMode)
-        val moded = reduce(toggled, DevToolsUiAction.SetMode(DevToolsMode.NETWORK))
-        val searched = reduce(moded, DevToolsUiAction.SetSearchQuery("boom"))
+        val moved = reduce(toggled, DevToolsUiAction.SetDestination(DevToolsDestination.NETWORK))
+        val split = reduce(moved, DevToolsUiAction.SetSplitFraction(0.5f))
+        val searched = reduce(split, DevToolsUiAction.SetSearchQuery("boom"))
 
         assertEquals(withData.dataRevision, searched.dataRevision)
     }
@@ -111,19 +112,41 @@ class DevToolsUiReducerTest {
     }
 
     @Test
-    fun `time travel and changing mode both stop the stream following`() {
+    fun `time travel stops the stream following and changing destination keeps the selection`() {
         var state = DevToolsUiState()
         repeat(3) { state = reduce(state, DevToolsUiAction.AddActionStateEvent(action(it))) }
 
         val travelling = reduce(state, DevToolsUiAction.SetTimeTravelPosition(1))
         assertFalse(travelling.followLatest, "Scrubbing time travel is an explicit look at the past")
 
-        val moded = reduce(state, DevToolsUiAction.SetMode(DevToolsMode.NETWORK))
-        assertFalse(moded.followLatest, "Changing mode closes the inspector and stops following")
-        assertEquals(Selection.None, moded.selection)
+        val moved = reduce(state, DevToolsUiAction.SetDestination(DevToolsDestination.NETWORK))
+        assertTrue(moved.followLatest, "The inspector is always present, so a destination change is not a look away")
+        assertEquals(state.selection, moved.selection, "The selection survives a destination change")
 
-        val afterEvent = reduce(moded, DevToolsUiAction.AddActionStateEvent(action(3)))
-        assertEquals(Selection.None, afterEvent.selection, "The inspector stays closed")
+        val afterEvent = reduce(moved, DevToolsUiAction.AddActionStateEvent(action(3)))
+        assertEquals(Selection.Action(3), afterEvent.selection, "Following continues on the new destination")
+    }
+
+    @Test
+    fun `the split fraction is clamped and overlays replace each other`() {
+        val wide = reduce(DevToolsUiState(), DevToolsUiAction.SetSplitFraction(0.95f))
+        assertEquals(0.8f, wide.splitFraction)
+        val narrow = reduce(wide, DevToolsUiAction.SetSplitFraction(0.1f))
+        assertEquals(0.3f, narrow.splitFraction)
+
+        val help = reduce(narrow, DevToolsUiAction.SetOverlay(Overlay.Help))
+        assertEquals(Overlay.Help, help.overlay)
+        val palette = reduce(help, DevToolsUiAction.SetOverlay(Overlay.Palette))
+        assertEquals(Overlay.Palette, palette.overlay)
+        assertEquals(Overlay.None, reduce(palette, DevToolsUiAction.SetOverlay(Overlay.None)).overlay)
+    }
+
+    @Test
+    fun `log levels toggle in and out of the hidden set`() {
+        val hidden = reduce(DevToolsUiState(), DevToolsUiAction.ToggleLogLevel("DEBUG"))
+        assertEquals(setOf("DEBUG"), hidden.hiddenLogLevels)
+        val shown = reduce(hidden, DevToolsUiAction.ToggleLogLevel("DEBUG"))
+        assertEquals(emptySet(), shown.hiddenLogLevels)
     }
 
     @Test

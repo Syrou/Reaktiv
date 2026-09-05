@@ -2,12 +2,14 @@ package io.github.syrou.reaktiv.devtools.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,9 +25,7 @@ import io.github.syrou.reaktiv.devtools.ui.DevToolsColors
 @Composable
 internal fun ConnectionStatus(
     connectionState: ConnectionState,
-    deviceCount: Int = 0,
-    isDevicePanelExpanded: Boolean = false,
-    onToggleDevicePanel: () -> Unit = {},
+    publisherName: String? = null,
     onReconnect: () -> Unit = {}
 ) {
     Row(
@@ -48,9 +48,7 @@ internal fun ConnectionStatus(
                     shape = CircleShape
                 )
         )
-
         Spacer(modifier = Modifier.width(8.dp))
-
         Text(
             text = when (connectionState) {
                 ConnectionState.CONNECTED -> "Connected"
@@ -60,7 +58,14 @@ internal fun ConnectionStatus(
             },
             style = MaterialTheme.typography.labelMedium
         )
-
+        if (publisherName != null && connectionState == ConnectionState.CONNECTED) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "$publisherName publishing",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         if (connectionState == ConnectionState.ERROR || connectionState == ConnectionState.DISCONNECTED) {
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -78,25 +83,6 @@ internal fun ConnectionStatus(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-
         Spacer(modifier = Modifier.weight(1f))
-
-        Row(
-            modifier = Modifier
-                .clickable { onToggleDevicePanel() }
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isDevicePanelExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
-                contentDescription = if (isDevicePanelExpanded) "Collapse devices" else "Expand devices",
-                modifier = Modifier.size(16.dp)
-            )
-            Text(
-                text = "Devices ($deviceCount)",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
     }
 }

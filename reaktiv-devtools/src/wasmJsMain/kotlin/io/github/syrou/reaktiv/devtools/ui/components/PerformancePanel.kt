@@ -71,6 +71,7 @@ internal fun PerformancePanel(
     logicMethodEvents: List<LogicMethodEvent>,
     findings: List<Finding>,
     searchQuery: String = "",
+    searchField: @Composable () -> Unit = {},
     actionStateHistory: List<CapturedAction> = emptyList(),
     initialStateJson: String = "{}",
 ) {
@@ -115,6 +116,10 @@ internal fun PerformancePanel(
     var sortBy by remember { mutableStateOf(MethodSort.TOTAL) }
     var warningsExpanded by remember { mutableStateOf(false) }
     var showPipeline by remember { mutableStateOf(false) }
+    val pipelineCount = stats.count { it.logicClass in SYNTHETIC_TRACE_CLASSES }
+    val shownStats = stats
+        .filter { searchQuery.isBlank() || it.methodIdentifier.contains(searchQuery, ignoreCase = true) }
+        .filter { showPipeline || it.logicClass !in SYNTHETIC_TRACE_CLASSES }
 
     if (logicMethodEvents.isEmpty()) {
         EmptyState(
@@ -145,8 +150,9 @@ internal fun PerformancePanel(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                searchField()
                 Text(
-                    text = "${stats.size} methods, ${stats.sumOf { it.calls }} calls",
+                    text = "${shownStats.size} of ${stats.size} methods, ${shownStats.sumOf { it.calls }} calls",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -177,16 +183,14 @@ internal fun PerformancePanel(
         ) {
             FilterChip(
                 selected = showPipeline,
+                enabled = pipelineCount > 0,
                 onClick = { showPipeline = !showPipeline },
-                label = { Text("Pipeline", style = MaterialTheme.typography.labelSmall) }
+                label = { Text("Pipeline $pipelineCount", style = MaterialTheme.typography.labelSmall) }
             )
             CopyControl(
                 actions = listOf(
                     CopyAction("method stats") {
-                        displayedStatsText(
-                            stats.filter { searchQuery.isBlank() || it.methodIdentifier.contains(searchQuery, ignoreCase = true) }
-                                .filter { showPipeline || it.logicClass !in SYNTHETIC_TRACE_CLASSES }
-                        )
+                        displayedStatsText(shownStats)
                     }
                 )
             )
@@ -200,12 +204,9 @@ internal fun PerformancePanel(
             stallStats != null
 
         val visibleSizeStats = sizeStats
-        val visibleStats = stats
         val visibleThreadStats = threadStats
         val showDispatch = dispatchStats != null
-        val displayedStats = visibleStats
-            .filter { searchQuery.isBlank() || it.methodIdentifier.contains(searchQuery, ignoreCase = true) }
-            .filter { showPipeline || it.logicClass !in SYNTHETIC_TRACE_CLASSES }
+        val displayedStats = shownStats
             .let { list ->
                 when (sortBy) {
                     MethodSort.TOTAL -> list.sortedByDescending { it.totalMs }

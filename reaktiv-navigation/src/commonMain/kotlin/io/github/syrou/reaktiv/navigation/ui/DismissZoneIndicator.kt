@@ -16,7 +16,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -24,13 +26,20 @@ import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
+import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
 import io.github.syrou.reaktiv.navigation.util.presentsDismissIndicator
 
 private val DISMISS_INDICATOR_SLOT_HEIGHT = 28.dp
 
+private const val DISMISS_INDICATOR_ALPHA = 0.4f
+
+private fun Modifier.paintIfSpecified(color: Color): Modifier =
+    if (color.isSpecified && color != Color.Transparent) background(color) else this
+
 @Composable
 internal fun DismissIndicatorSlot(
     entry: NavigationEntry,
+    contentBackground: Color = Color.Unspecified,
     content: @Composable () -> Unit
 ) {
     val controller = LocalInteractiveTransitionController.current
@@ -41,11 +50,26 @@ internal fun DismissIndicatorSlot(
         reservesStrip &&
         navigationState.currentEntry.stableKey == entry.stableKey &&
         canArmSwipeDismiss(navigationState, navModule)
+    val boundary = dismissableBoundary(entry, navModule)
+        ?.let { navModule.getGraphDefinitions()[it]?.declaration }
+    val pillColor = listOfNotNull(
+        boundary?.dismissIndicatorColor,
+        entry.navigatable.dismissIndicatorColor,
+        LocalDismissIndicatorColor.current
+    ).firstOrNull { it.isSpecified }
+        ?: MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DISMISS_INDICATOR_ALPHA)
+    val stripBackground = listOfNotNull(
+        boundary?.dismissIndicatorBackground,
+        entry.navigatable.dismissIndicatorBackground,
+        LocalDismissIndicatorBackground.current
+    ).firstOrNull { it.isSpecified }
+        ?: MaterialTheme.colorScheme.surfaceContainerLow
 
     Column(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .paintIfSpecified(stripBackground)
                 .then(
                     if (reservesStrip) {
                         Modifier
@@ -71,14 +95,14 @@ internal fun DismissIndicatorSlot(
                     modifier = Modifier
                         .size(width = 36.dp, height = 4.dp)
                         .background(
-                            color = Color(0x99888888),
+                            color = pillColor,
                             shape = RoundedCornerShape(2.dp)
                         )
                         .testTag("reaktiv-dismiss-indicator")
                 )
             }
         }
-        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+        Box(modifier = Modifier.fillMaxWidth().weight(1f).paintIfSpecified(contentBackground)) {
             content()
         }
     }

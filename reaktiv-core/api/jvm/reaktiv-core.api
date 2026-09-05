@@ -281,6 +281,8 @@ public final class io/github/syrou/reaktiv/core/util/ReaktivDebug {
 	public static synthetic fun error$default (Lio/github/syrou/reaktiv/core/util/ReaktivDebug;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)V
 	public final fun general (Ljava/lang/String;)V
 	public final fun isEnabled ()Z
+	public final fun log (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public static synthetic fun log$default (Lio/github/syrou/reaktiv/core/util/ReaktivDebug;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)V
 	public final fun nav (Ljava/lang/String;)V
 	public final fun removeSink (Lio/github/syrou/reaktiv/core/util/ReaktivLogSink;)V
 	public final fun store (Ljava/lang/String;)V

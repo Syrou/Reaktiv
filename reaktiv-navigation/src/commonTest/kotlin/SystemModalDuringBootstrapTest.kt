@@ -3,12 +3,16 @@ import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.DismissAction
+import io.github.syrou.reaktiv.navigation.definition.Dismissal
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.ui.dispatchBackDismissal
+import io.github.syrou.reaktiv.navigation.util.canHandleBack
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,6 +25,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -48,6 +53,34 @@ class SystemModalDuringBootstrapTest {
         @Composable
         override fun Content(params: Params) {
             Text("Alert")
+        }
+    }
+
+    private var backHandlerRan = false
+
+    private val blockingAlert = object : Modal {
+        override val route = "blocking-alert"
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val renderLayer = RenderLayer.SYSTEM
+        override val dismissal = Dismissal.Blocking
+
+        @Composable
+        override fun Content(params: Params) {
+            Text("Blocking")
+        }
+    }
+
+    private val handledAlert = object : Modal {
+        override val route = "handled-alert"
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val renderLayer = RenderLayer.SYSTEM
+        override val dismissal = Dismissal(back = DismissAction.Run { backHandlerRan = true })
+
+        @Composable
+        override fun Content(params: Params) {
+            Text("Handled")
         }
     }
 
@@ -81,7 +114,7 @@ class SystemModalDuringBootstrapTest {
                 home
             })
             screens(home)
-            modals(systemAlert, plainModal)
+            modals(systemAlert, plainModal, blockingAlert, handledAlert)
         }
     }
 
@@ -172,6 +205,150 @@ class SystemModalDuringBootstrapTest {
                 "the alert is the user's to dismiss, so finishing the start destination must not " +
                     "take it away with the loader"
             )
+        }
+
+    @Test
+    fun the_alert_can_be_dismissed_while_bootstrap_is_still_resolving() =
+        runTest(timeout = 20.toDuration(DurationUnit.SECONDS)) {
+            val navModule = slowModule()
+            val store = createStore {
+                module(navModule)
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceTimeBy(1_000)
+            launch { store.navigation { navigateTo("system-alert") } }
+            advanceTimeBy(1_000)
+
+            val raised = store.selectState<NavigationState>().first()
+            assertTrue(
+                canHandleBack(raised),
+                "an alert the user raised over the loader is theirs to dismiss right away"
+            )
+
+            store.navigateBack()
+            advanceTimeBy(1_000)
+
+            val dismissed = store.selectState<NavigationState>().first()
+            assertTrue(
+                dismissed.systemLayerEntries.none { it.navigatable.route == "system-alert" },
+                "dismissing must not have to wait for the start lambda"
+            )
+            assertTrue(
+                dismissed.isBootstrapping,
+                "bootstrap should still be running, otherwise this proves nothing"
+            )
+            assertTrue(
+                dismissed.currentEntry.navigatable is LoadingModal,
+                "what the dismiss reveals is the loader the alert was raised over"
+            )
+            assertFalse(canHandleBack(dismissed), "the loader itself is never backed out of")
+
+            store.navigateBack()
+            advanceTimeBy(1_000)
+            assertEquals(
+                dismissed.backStack.map { it.stableKey },
+                store.selectState<NavigationState>().first().backStack.map { it.stableKey },
+                "a second back with the loader on top changes nothing"
+            )
+        }
+
+    @Test
+    fun the_platform_back_dismisses_a_dismissable_alert_during_bootstrap() =
+        runTest(timeout = 20.toDuration(DurationUnit.SECONDS)) {
+            val navModule = slowModule()
+            val store = createStore {
+                module(navModule)
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceTimeBy(1_000)
+            launch { store.navigation { navigateTo("system-alert") } }
+            advanceTimeBy(1_000)
+
+            dispatchBackDismissal(store, navModule)
+            advanceTimeBy(1_000)
+
+            val state = store.selectState<NavigationState>().first()
+            assertTrue(state.isBootstrapping)
+            assertTrue(
+                state.systemLayerEntries.none { it.navigatable.route == "system-alert" },
+                "the platform back reaches the alert the same way the button does"
+            )
+            assertTrue(state.currentEntry.navigatable is LoadingModal)
+        }
+
+    @Test
+    fun a_blocking_alert_ignores_the_platform_back_during_bootstrap() =
+        runTest(timeout = 20.toDuration(DurationUnit.SECONDS)) {
+            val navModule = slowModule()
+            val store = createStore {
+                module(navModule)
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceTimeBy(1_000)
+            launch { store.navigation { navigateTo("blocking-alert") } }
+            advanceTimeBy(1_000)
+
+            dispatchBackDismissal(store, navModule)
+            advanceTimeBy(1_000)
+
+            val state = store.selectState<NavigationState>().first()
+            assertTrue(state.isBootstrapping)
+            assertEquals(
+                "blocking-alert",
+                state.currentEntry.navigatable.route,
+                "opening the gate during bootstrap must not bypass the entry's dismissal policy"
+            )
+        }
+
+    @Test
+    fun an_alert_with_a_back_handler_runs_it_instead_of_popping_during_bootstrap() =
+        runTest(timeout = 20.toDuration(DurationUnit.SECONDS)) {
+            backHandlerRan = false
+            val navModule = slowModule()
+            val store = createStore {
+                module(navModule)
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceTimeBy(1_000)
+            launch { store.navigation { navigateTo("handled-alert") } }
+            advanceTimeBy(1_000)
+
+            dispatchBackDismissal(store, navModule)
+            advanceTimeBy(1_000)
+
+            val state = store.selectState<NavigationState>().first()
+            assertTrue(backHandlerRan, "the entry's own back handler is what the platform back reaches")
+            assertEquals(
+                "handled-alert",
+                state.currentEntry.navigatable.route,
+                "a Run action decides for itself, it is not popped on the entry's behalf"
+            )
+            assertTrue(state.isBootstrapping)
+        }
+
+    @Test
+    fun bootstrap_lands_normally_after_the_alert_was_dismissed_mid_flight() =
+        runTest(timeout = 20.toDuration(DurationUnit.SECONDS)) {
+            val navModule = slowModule()
+            val store = createStore {
+                module(navModule)
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceTimeBy(1_000)
+            launch { store.navigation { navigateTo("system-alert") } }
+            advanceTimeBy(1_000)
+            store.navigateBack()
+            advanceUntilIdle()
+
+            val settled = store.selectState<NavigationState>().first()
+            assertFalse(settled.isBootstrapping)
+            assertEquals(
+                listOf("home"),
+                settled.backStack.map { it.navigatable.route },
+                "the commit that was in flight when the alert left lands as if it had never been raised"
+            )
+            assertEquals("home", settled.currentEntry.navigatable.route)
+            assertTrue(settled.activeModalContexts.isEmpty())
         }
 
     @Test

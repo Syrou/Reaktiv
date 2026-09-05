@@ -6574,3 +6574,192 @@ parameter beside the existing `externalControl` one, so a DevTools stream shows 
 handoff discarded an action. The deprecated form will be removed in a later release.
 
 ---
+
+### [AD-114] ReaktivDebug.log forwards an application logger into the DevTools log lane
+
+**Type:** Addition
+
+**Grep:** `ReaktivDebug\.log\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// An application logging facade keeps printing wherever it did before, and additionally hands
+// every line to Reaktiv with its own level and tag intact.
+object MyAppLog {
+    fun d(tag: String, message: String) {
+        platformPrint(tag, message)
+        ReaktivDebug.log("DEBUG", tag, message)
+    }
+
+    fun w(tag: String, message: String) {
+        platformPrint(tag, message)
+        ReaktivDebug.log("WARN", tag, message)
+    }
+
+    fun e(tag: String, message: String, throwable: Throwable? = null) {
+        platformPrint(tag, message, throwable)
+        ReaktivDebug.log("ERROR", tag, message, throwable)
+    }
+}
+```
+
+**Notes:** Every `ReaktivLogSink` receives the line: the DevTools service batches it into the log
+lane of the wasm UI, and `SessionCapture` records it into exported sessions. Sinks receive lines
+whether or not `ReaktivDebug.enable()` was called, and `log` never prints on its own, so a facade
+that already prints does not print twice. The level is uppercased and stored as a free string. The
+UI highlights `ERROR` and `WARN`, and its search matches level, category, and message, so any tag
+scheme works. Do not call this from inside a `ReaktivLogSink`, that would feed a sink's own output
+back into every sink.
+
+---
+
+### [AD-115] Exceptions escaping store coroutines reach the capture and DevTools
+
+**Type:** Addition
+
+**Grep:** `createToolingModule\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// Nothing to adopt. With tooling enabled, an exception that escapes a coroutine launched on
+// the store, for example inside a logic method or a lifecycle handler, is now reported as a
+// crash with CrashOrigin.UNCAUGHT, shown in the DevTools findings, and written into the
+// exported session. It was previously invisible on JVM and wasm, and only visible on Android
+// when it was about to kill the process.
+class ProfileLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
+    suspend fun refresh() {
+        storeAccessor.launch {
+            api.load()
+        }
+    }
+}
+```
+
+**Notes:** The tooling logic registers a `CrashListener` on the store and returns `RETHROW`, so
+it never changes the recovery decision another listener makes, such as a navigation crash
+screen. Only suspend logic methods are wrapped by the tracing plugin, so a failure inside a
+launched coroutine, a non-suspend method, or an `init` block never appears as a failed method
+in the event stream, and this is the path that makes it visible. `SessionCapture` drops a
+crash whose type, message, and stack trace match one recorded within the previous second, so a
+traced method failure that then escapes to the store is reported once, with its method identity.
+
+---
+
+### [BC-95] A modal dismiss plays the same exit a popped screen does
+
+**Type:** Behavioural
+
+**Grep:** `: Modal`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A modal declaring a slide-out exit jumped off screen on dismiss, slid back in from the bottom,
+// and was then removed, because the overlay animator fed a presence value that runs from one
+// to zero into an exit transition whose progress means how far gone the surface is.
+object NotificationModal : Modal {
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+}
+```
+
+**After:**
+```kotlin
+// Unchanged declaration. The dismiss now slides the modal down from where it rests and removes it
+// at the end, the way the same declaration behaves on a screen pop.
+object NotificationModal : Modal {
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+}
+```
+
+**Notes:** The overlay animator now resolves a dismiss with the same rule as a screen pop: an
+explicit `popExitTransition` plays forward, otherwise the `enterTransition` plays in reverse,
+otherwise the `exitTransition` plays forward. A modal that declared an entering transition such as
+`Fade` in the exit slot used to look right by accident and still does, since the reversed enter
+wins. A modal that relied on `exitTransition` being different from its reversed enter now sees the
+reversed enter on dismiss, and can declare `popExitTransition` to keep the old surface. Pinned by
+`dismissingSlidingOverlayModalSlidesDownFromWhereItRests` in `ContentLayerModalUiTest`.
+
+---
+
+### [AD-116] Dismiss handle colours on Navigatable, Graph and the background provider
+
+**Type:** Addition
+
+**Grep:** `dismissIndicatorBackground|dismissIndicatorColor`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// App level: the strip behind the handle and the pill follow the Material wrapper, provided in
+// the same place as the container background.
+NavigationBackgroundProvider(
+    backgroundColor = MaterialTheme.colorScheme.background,
+    dismissIndicatorBackground = MaterialTheme.colorScheme.surface
+) {
+    NavigationRender()
+}
+
+// A vertically presented screen that wants the screen beneath to show above its own surface keeps
+// the drag zone and the swipe, but paints nothing behind the handle.
+object PlayerSheet : Screen {
+    override val route = "player"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+    override val dismissIndicatorBackground = Color.Transparent
+}
+```
+
+**Notes:** Two colours, each resolved in the same order: the dismiss boundary graph's
+declaration, then the screen's, then the nearest `NavigationBackgroundProvider`
+(`dismissIndicatorBackground` and `dismissIndicatorColor` parameters, alongside the container
+background it already carried), then Material 3. `Color.Unspecified` at any level falls through.
+With nothing declared the handle area is a Material 3 sheet header: the strip paints the
+surrounding scheme's `surfaceContainerLow`, the container colour of Material's bottom sheet, and
+the pill paints `onSurfaceVariant` at 40 percent opacity, the colour of its drag handle. Both read
+the scheme at the point the handle is drawn, which is above the graph layouts, so a theme that
+should reach it belongs around `NavigationRender` or in the provider. Before this the pill was a
+fixed grey and the strip borrowed the slot background for a single screen and painted nothing for
+a graph presented as a sheet. The slot no longer paints its background underneath the strip, so a
+transparent strip is see-through rather than painted twice. The strip is still reserved and the
+pill still the drag target whatever the colours, which is the difference from
+`showsDismissIndicator = false`.
+
+---
+
+### [BC-96] A system-layer entry can be backed out of while bootstrap or an evaluation is in flight
+
+**Type:** Behavioural
+
+**Grep:** `RenderLayer.SYSTEM`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// An alert raised over the loading screen could be shown during bootstrap but not dismissed.
+// navigateBack(), the platform back button and the swipe on a modal all refused until the start
+// destination had resolved, so the alert's own Dismiss button did nothing until the app reached
+// its first screen.
+```
+
+**After:**
+```kotlin
+// Nothing to change. Back on a RenderLayer.SYSTEM entry goes through whenever there is something
+// beneath it, bootstrap or not, and reveals the loader the alert was raised over.
+```
+
+**Notes:** The refusal existed so that a back could not pull a screen out from under an
+evaluation that is about to commit against it. A SYSTEM entry is not that screen: navigating to
+one already bypasses the bootstrap wait, and the commit in flight applies deltas to the stack as it
+is when it lands, so the entry leaving first is the same as it never having been raised. The loader
+itself is still never backed out of, and a CONTENT screen or a normal modal beneath an evaluation
+still waits, as before. The gate is all that changed: the entry's `dismissal` policy is applied
+after it on every user path, so a `Dismissal.Blocking` alert still ignores the platform back and
+a `DismissAction.Run` handler still runs in place of the pop. Before this the platform back handler
+was disabled for the whole of bootstrap, so a back press with a blocking alert showing was handed
+to the platform instead of being consumed.
+
+---

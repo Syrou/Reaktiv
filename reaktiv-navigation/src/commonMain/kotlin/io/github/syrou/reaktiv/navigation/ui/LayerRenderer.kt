@@ -406,12 +406,25 @@ private fun ContentLayerRenderer(
 private fun OptionalDismissIndicator(
     entry: NavigationEntry,
     enabled: Boolean,
+    background: Color = Color.Unspecified,
     content: @Composable () -> Unit
 ) {
     if (enabled) {
-        DismissIndicatorSlot(entry) { content() }
+        DismissIndicatorSlot(entry, contentBackground = background) { content() }
     } else {
-        content()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (background.isSpecified && background != Color.Transparent) {
+                        Modifier.background(background)
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
+            content()
+        }
     }
 }
 
@@ -465,17 +478,7 @@ private fun EntryHost(slot: ContentSlot, screenWidth: Float, screenHeight: Float
         // LocalNavigationBackgroundColor and is not a paintable value, and a layout that owns its
         // own surface provides Transparent here so the slot stops covering it.
         val slotBackground = rememberNavigationBackgroundColor()
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (slotBackground.isSpecified && slotBackground != Color.Transparent) {
-                        Modifier.background(slotBackground)
-                    } else {
-                        Modifier
-                    }
-                )
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             HostedEntry(slot.entry) {
                 // The dismiss affordance belongs to the surface being dismissed, which is the
                 // whole slot including the graph layouts that arrived with it, not just the screen
@@ -484,7 +487,8 @@ private fun EntryHost(slot: ContentSlot, screenWidth: Float, screenHeight: Float
                 // drag starting on the header would miss it.
                 OptionalDismissIndicator(
                     entry = slot.entry,
-                    enabled = !slot.indicatorHoisted
+                    enabled = !slot.indicatorHoisted,
+                    background = slotBackground
                 ) {
                     ApplyLayoutsHierarchy(slot.uniqueLayouts) {
                         Box(modifier = Modifier.fillMaxSize()) {

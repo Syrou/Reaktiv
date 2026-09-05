@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -49,6 +50,11 @@ class StoreResetMemorySafetyTest {
         override val createLogic: (StoreAccessor) -> HeavyLogic = { storeAccessor ->
             HeavyLogic(storeAccessor)
         }
+    }
+
+    @BeforeTest
+    fun setUp() {
+        LogicTracer.clearObservers()
     }
 
     @Test

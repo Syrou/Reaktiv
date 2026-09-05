@@ -64,6 +64,8 @@ internal fun ClientList(
     selectedListener: String?,
     clientStatuses: Map<String, ServiceStatus> = emptyMap(),
     canExportSession: Boolean = false,
+    showDevices: Boolean = true,
+    showSessions: Boolean = true,
     onPublisherSelected: (String?) -> Unit,
     onListenerSelected: (String?) -> Unit,
     onAssignRole: (String, String) -> Unit,
@@ -99,7 +101,7 @@ internal fun ClientList(
         ) {
             Column {
                 Text(
-                    text = "Devices",
+                    text = if (showDevices) "Devices" else "Sessions",
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
@@ -140,7 +142,7 @@ internal fun ClientList(
                 modifier = Modifier.fillMaxWidth().padding(end = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (publisherDevices.isNotEmpty()) {
+                if (showDevices && publisherDevices.isNotEmpty()) {
                     item(key = "section-publisher") {
                         SectionLabel("Publisher", MaterialTheme.colorScheme.primary)
                     }
@@ -165,7 +167,7 @@ internal fun ClientList(
                     }
                 }
 
-                if (followerDevices.isNotEmpty()) {
+                if (showDevices && followerDevices.isNotEmpty()) {
                     item(key = "section-followers") {
                         SectionLabel("Followers", MaterialTheme.colorScheme.secondary)
                     }
@@ -185,7 +187,7 @@ internal fun ClientList(
                     }
                 }
 
-                if (availableDevices.isNotEmpty()) {
+                if (showDevices && availableDevices.isNotEmpty()) {
                     item(key = "section-available") {
                         SectionLabel("Available", MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -213,7 +215,7 @@ internal fun ClientList(
                     }
                 }
 
-                if (devices.isEmpty()) {
+                if (showDevices && devices.isEmpty()) {
                     item(key = "no-devices") {
                         Text(
                             text = "No live devices connected",
@@ -224,7 +226,17 @@ internal fun ClientList(
                     }
                 }
 
-                if (ghosts.isNotEmpty()) {
+                if (showSessions && ghosts.isEmpty()) {
+                    item(key = "no-sessions") {
+                        Text(
+                            text = "No saved sessions. Import one, or export the session a publisher is recording.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+                if (showSessions && ghosts.isNotEmpty()) {
                     item(key = "section-ghosts") {
                         SectionLabel("Saved sessions", MaterialTheme.colorScheme.tertiary)
                     }

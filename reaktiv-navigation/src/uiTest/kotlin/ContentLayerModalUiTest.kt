@@ -15,16 +15,19 @@ import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertTopPositionInRootIsEqualTo
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilExactlyOneExists
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.createStore
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
@@ -35,7 +38,10 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class, ExperimentalMaterial3Api::class)
 class ContentLayerModalUiTest {
@@ -85,6 +91,17 @@ class ContentLayerModalUiTest {
         }
     }
 
+    private object SlidingOverlayModal : Modal {
+        override val route = "sliding-overlay-modal"
+        override val enterTransition = NavTransition.SlideUpBottom
+        override val exitTransition = NavTransition.SlideOutBottom
+
+        @Composable
+        override fun Content(params: Params) {
+            Box(modifier = Modifier.fillMaxSize().testTag("sliding-overlay-modal")) { Text("Sliding modal") }
+        }
+    }
+
     @Composable
     private fun HomeScaffoldLike(content: @Composable () -> Unit) {
         Scaffold(
@@ -105,7 +122,7 @@ class ContentLayerModalUiTest {
                 graph("home") {
                     start(HomeBodyScreen)
                     screens(HomeBodyScreen)
-                    modals(ContentModal, OverlayModal, FadingOverlayModal)
+                    modals(ContentModal, OverlayModal, FadingOverlayModal, SlidingOverlayModal)
                     layout { content -> HomeScaffoldLike(content) }
                 }
             }
@@ -179,6 +196,46 @@ class ContentLayerModalUiTest {
         store.launch { store.navigateBack() }
         awaitCurrentScreen(store, "home-body")
         waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Overlay modal").fetchSemanticsNodes().isEmpty() }
+    }
+
+    @Test
+    fun dismissingSlidingOverlayModalSlidesDownFromWhereItRests() = runComposeUiTest {
+        val store = mount()
+
+        store.launch { store.navigation { navigateTo(SlidingOverlayModal) } }
+        awaitCurrentScreen(store, "sliding-overlay-modal")
+        waitUntilExactlyOneExists(hasText("Sliding modal"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitForIdle()
+        val restingTop = onNodeWithTag("sliding-overlay-modal").getUnclippedBoundsInRoot().top
+        val rootBounds = onRoot().getUnclippedBoundsInRoot()
+        val screenHeight = rootBounds.bottom - rootBounds.top
+
+        mainClock.autoAdvance = false
+        store.launch { store.navigateBack() }
+        val navigationState = runBlocking { store.selectState<NavigationState>() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) {
+            navigationState.value.currentEntry.navigatable.route == "home-body"
+        }
+
+        var firstMovedTop: Dp? = null
+        for (frame in 0 until 60) {
+            mainClock.advanceTimeByFrame()
+            waitForIdle()
+            if (onAllNodesWithTag("sliding-overlay-modal").fetchSemanticsNodes().isEmpty()) break
+            val top = onNodeWithTag("sliding-overlay-modal").getUnclippedBoundsInRoot().top
+            if (top != restingTop) {
+                firstMovedTop = top
+                break
+            }
+        }
+        val moved = assertNotNull(firstMovedTop, "The modal should move during its exit")
+        assertTrue(
+            moved - restingTop < screenHeight / 2,
+            "The exit starts where the modal rests and slides down, but the first moved frame was at $moved"
+        )
+
+        mainClock.autoAdvance = true
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Sliding modal").fetchSemanticsNodes().isEmpty() }
     }
 
     @Test

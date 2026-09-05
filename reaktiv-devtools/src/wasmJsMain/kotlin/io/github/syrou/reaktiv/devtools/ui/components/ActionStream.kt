@@ -180,6 +180,7 @@ internal fun ActionStream(
     showNetwork: Boolean = true,
     searchQuery: String = "",
     onClearSearch: () -> Unit = {},
+    searchField: (@Composable () -> Unit)? = null,
     onSelectAction: (Int?) -> Unit = {},
     onSelectLogicMethod: (String?) -> Unit = {},
     onSelectNetworkRequest: (String?) -> Unit = {},
@@ -201,12 +202,6 @@ internal fun ActionStream(
     var showFilters by remember { mutableStateOf(false) }
     var exclusionInput by remember { mutableStateOf("") }
 
-    val sessionStart = remember(dataRevision) {
-        minOf(
-            actions.firstOrNull()?.timestamp ?: Long.MAX_VALUE,
-            logicMethodEvents.minOfOrNull { it.timestamp } ?: Long.MAX_VALUE
-        ).takeIf { it != Long.MAX_VALUE } ?: 0L
-    }
 
     val rows = remember(
         actions.size, logicMethodEvents.size, crashEvent, markers.size, deviceLogs.size,
@@ -302,6 +297,7 @@ internal fun ActionStream(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            searchField?.invoke()
             Spacer(modifier = Modifier.weight(1f))
             FollowChip(
                 following = followLatest,
@@ -429,33 +425,28 @@ internal fun ActionStream(
                         when (row) {
                             is StreamRow.ActionRow -> ActionRowView(
                                 row = row,
-                                sessionStart = sessionStart,
                                 selected = row.originalIndex == selectedIndex,
                                 onClick = { onSelectAction(row.originalIndex) },
                                 onExclude = { onAddExclusion(row.event.actionType) }
                             )
                             is StreamRow.CallRow -> CallRowView(
                                 call = row.call,
-                                sessionStart = sessionStart,
                                 selected = row.call.callId == selectedLogicMethodCallId,
                                 onClick = { onSelectLogicMethod(row.call.callId) },
                                 onExclude = { row.call.methodId?.let(onAddLogicMethodExclusion) }
                             )
                             is StreamRow.CrashRow -> CrashRowView(
                                 info = row.info,
-                                sessionStart = sessionStart,
                                 selected = crashSelected,
                                 onClick = { onSelectCrash(true) }
                             )
                             is StreamRow.MarkerRow -> MarkerRowView(
                                 marker = row.marker,
-                                sessionStart = sessionStart,
                                 onClick = { onMarkerClick(row.marker) }
                             )
-                            is StreamRow.LogRow -> LogRowView(row.log, sessionStart)
+                            is StreamRow.LogRow -> LogRowView(row.log)
                             is StreamRow.NetworkRow -> NetworkRowView(
                                 row = row.row,
-                                sessionStart = sessionStart,
                                 selected = row.row.event.id == selectedNetworkRequestId,
                                 onClick = { onSelectNetworkRequest(row.row.event.id) }
                             )
@@ -549,7 +540,7 @@ private fun RowShell(
 
 private val STATUS_WIDTH = 52.dp
 private val DURATION_WIDTH = 62.dp
-private val OFFSET_WIDTH = 58.dp
+private val OFFSET_WIDTH = 88.dp
 private val MUTE_WIDTH = 46.dp
 
 @Composable
@@ -596,7 +587,7 @@ private fun MetaCell(width: Dp, content: @Composable () -> Unit) {
 
 @Composable
 private fun RowTail(
-    offsetMs: Long,
+    timestampMs: Long,
     statusText: String? = null,
     statusColor: Color? = null,
     durationText: String? = null,
@@ -621,7 +612,7 @@ private fun RowTail(
         }
     }
     MetaCell(OFFSET_WIDTH) {
-        MetaText(formatOffset(offsetMs))
+        MetaText(formatClockTime(timestampMs))
     }
     MetaCell(MUTE_WIDTH) {
         if (hovered && onExclude != null) {
@@ -655,7 +646,6 @@ private fun MetaText(text: String) {
 @Composable
 private fun ActionRowView(
     row: StreamRow.ActionRow,
-    sessionStart: Long,
     selected: Boolean,
     onClick: () -> Unit,
     onExclude: () -> Unit
@@ -674,7 +664,7 @@ private fun ActionRowView(
             }
             Spacer(modifier = Modifier.weight(1f))
             RowTail(
-                offsetMs = row.event.timestamp - sessionStart,
+                timestampMs = row.event.timestamp,
                 hovered = hovered,
                 onExclude = onExclude
             )
@@ -685,7 +675,6 @@ private fun ActionRowView(
 @Composable
 private fun CallRowView(
     call: LogicCall,
-    sessionStart: Long,
     selected: Boolean,
     onClick: () -> Unit,
     onExclude: () -> Unit
@@ -710,7 +699,7 @@ private fun CallRowView(
             )
             Spacer(modifier = Modifier.weight(1f))
             RowTail(
-                offsetMs = call.timestampMs - sessionStart,
+                timestampMs = call.timestampMs,
                 statusText = when (call.kind) {
                     LogicFailureKind.THROWN -> "failed"
                     LogicFailureKind.CANCELLED -> "cancelled"
@@ -734,7 +723,6 @@ private fun CallRowView(
 @Composable
 private fun CrashRowView(
     info: CrashEventInfo,
-    sessionStart: Long,
     selected: Boolean,
     onClick: () -> Unit
 ) {
@@ -752,7 +740,7 @@ private fun CrashRowView(
                 MetaText(it)
             }
             Spacer(modifier = Modifier.weight(1f))
-            RowTail(offsetMs = info.timestamp - sessionStart)
+            RowTail(timestampMs = info.timestamp)
         }
     }
 }
@@ -760,7 +748,6 @@ private fun CrashRowView(
 @Composable
 private fun MarkerRowView(
     marker: SessionMarker,
-    sessionStart: Long,
     onClick: () -> Unit
 ) {
     RowShell(MaterialTheme.colorScheme.tertiary, selected = false, indent = 0, onClick = onClick) {
@@ -783,7 +770,7 @@ private fun MarkerRowView(
                 MetaText(marker.note)
             }
             Spacer(modifier = Modifier.weight(1f))
-            RowTail(offsetMs = marker.timestampMs - sessionStart)
+            RowTail(timestampMs = marker.timestampMs)
         }
     }
 }
@@ -791,7 +778,6 @@ private fun MarkerRowView(
 @Composable
 private fun NetworkRowView(
     row: NetworkEventRow,
-    sessionStart: Long,
     selected: Boolean,
     onClick: () -> Unit
 ) {
@@ -820,7 +806,7 @@ private fun NetworkRowView(
             )
             Spacer(modifier = Modifier.weight(1f))
             RowTail(
-                offsetMs = event.startedAtMs - sessionStart,
+                timestampMs = event.startedAtMs,
                 statusText = when {
                     event.error != null -> "failed"
                     event.responseStatus != null -> "${event.responseStatus}"
@@ -834,7 +820,7 @@ private fun NetworkRowView(
 }
 
 @Composable
-private fun LogRowView(log: DeviceLogRow, sessionStart: Long) {
+private fun LogRowView(log: DeviceLogRow) {
     val barColor = when (log.level) {
         "ERROR" -> MaterialTheme.colorScheme.error
         "WARN" -> MaterialTheme.colorScheme.tertiary
@@ -852,7 +838,7 @@ private fun LogRowView(log: DeviceLogRow, sessionStart: Long) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            RowTail(offsetMs = log.timestampMs - sessionStart)
+            RowTail(timestampMs = log.timestampMs)
         }
     }
 }

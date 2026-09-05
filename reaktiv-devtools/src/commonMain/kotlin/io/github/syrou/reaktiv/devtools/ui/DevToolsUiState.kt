@@ -32,7 +32,6 @@ internal data class DevToolsUiState(
     val selectedPublisher: String? = null,
     val selectedListener: String? = null,
     val showStateAsDiff: Boolean = false,
-    val devicePanelExpanded: Boolean = false,
     val followLatest: Boolean = true,
     val excludedActionTypes: Set<String> = emptySet(),
     val timeTravelEnabled: Boolean = false,
@@ -41,11 +40,12 @@ internal data class DevToolsUiState(
     val showLogicMethods: Boolean = true,
     val excludedLogicMethods: Set<String> = emptySet(),
     val callIdToMethodIdentifier: Map<String, String> = emptyMap(),
-    val showImportGhostDialog: Boolean = false,
     val crashEvent: CrashEventInfo? = null,
-    val mode: DevToolsMode = DevToolsMode.DEBUG,
-    val performanceView: PerformanceView = PerformanceView.METHODS,
-    val inspectorTab: InspectorTab = InspectorTab.DETAILS,
+    val destination: DevToolsDestination = DevToolsDestination.STREAM,
+    val inspectorView: InspectorView = InspectorView.DELTA,
+    val overlay: Overlay = Overlay.None,
+    val splitFraction: Float = 0.6f,
+    val hiddenLogLevels: Set<String> = emptySet(),
     val stateReads: List<StateRead> = emptyList(),
     val logicEventKeys: Set<String> = emptySet(),
     val publisherSessionStart: Long? = null,
@@ -131,7 +131,7 @@ internal sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data class SelectListener(val clientId: String?) : DevToolsUiAction()
     data object ToggleStateViewMode : DevToolsUiAction()
     data class SelectAction(val index: Int?) : DevToolsUiAction()
-    data object ToggleDevicePanel : DevToolsUiAction()
+    data class SetDestination(val destination: DevToolsDestination) : DevToolsUiAction()
     data object ClearHistory : DevToolsUiAction()
     data class AddActionExclusion(val actionType: String) : DevToolsUiAction()
     data class RemoveActionExclusion(val actionType: String) : DevToolsUiAction()
@@ -145,14 +145,13 @@ internal sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
     data class AddLogicMethodExclusion(val methodIdentifier: String) : DevToolsUiAction()
     data class RemoveLogicMethodExclusion(val methodIdentifier: String) : DevToolsUiAction()
     data class SetLogicMethodExclusions(val methodIdentifiers: Set<String>) : DevToolsUiAction()
-    data object ShowImportGhostDialog : DevToolsUiAction()
-    data object HideImportGhostDialog : DevToolsUiAction()
+    data class SetOverlay(val overlay: Overlay) : DevToolsUiAction()
     data class SetCrashEvent(val crashEvent: CrashEventInfo?) : DevToolsUiAction()
     data class SelectCrash(val selected: Boolean) : DevToolsUiAction()
     data object ClearSelection : DevToolsUiAction()
-    data class SetMode(val mode: DevToolsMode) : DevToolsUiAction()
-    data class SetPerformanceView(val view: PerformanceView) : DevToolsUiAction()
-    data class SetInspectorTab(val tab: InspectorTab) : DevToolsUiAction()
+    data class SetInspectorView(val view: InspectorView) : DevToolsUiAction()
+    data class SetSplitFraction(val fraction: Float) : DevToolsUiAction()
+    data class ToggleLogLevel(val level: String) : DevToolsUiAction()
     data class SetPlaybackSpeed(val speed: Float) : DevToolsUiAction()
     data class SetAutoPlaying(val playing: Boolean) : DevToolsUiAction()
     data class AddMarker(val marker: SessionMarker) : DevToolsUiAction()
@@ -213,20 +212,42 @@ internal sealed class DevToolsUiAction : ModuleAction(DevToolsUiModule::class) {
  */
 internal const val DEVTOOLS_UI_CLIENT_ID: String = "devtools-ui"
 
-internal enum class DevToolsMode(val label: String) {
-    DEBUG("Debug"),
-    PERFORMANCE("Performance"),
-    NETWORK("Network")
+internal enum class DevToolsDestination(val label: String) {
+    STREAM("Stream"),
+    STATE("State"),
+    NAVIGATION("Nav"),
+    PERFORMANCE("Perf"),
+    NETWORK("Net"),
+    FINDINGS("Findings"),
+    LOGS("Logs"),
+    DEVICES("Devices"),
+    SESSIONS("Sessions")
 }
 
-internal enum class InspectorTab(val label: String) {
-    DETAILS("Details"),
-    NAVIGATION("Navigation")
+internal val DevToolsDestination.showsCapturedData: Boolean
+    get() = this != DevToolsDestination.DEVICES && this != DevToolsDestination.SESSIONS
+
+internal enum class InspectorView(val label: String) {
+    EVENT("Event"),
+    DELTA("Delta")
 }
 
-internal enum class PerformanceView(val label: String) {
-    METHODS("Methods"),
-    FINDINGS("Findings")
+@Serializable
+internal sealed interface Overlay {
+    @Serializable
+    data object None : Overlay
+
+    @Serializable
+    data object Palette : Overlay
+
+    @Serializable
+    data object Help : Overlay
+
+    @Serializable
+    data object Marker : Overlay
+
+    @Serializable
+    data object ImportGhost : Overlay
 }
 
 internal fun logicEventKey(event: LogicMethodEvent): String = when (event) {

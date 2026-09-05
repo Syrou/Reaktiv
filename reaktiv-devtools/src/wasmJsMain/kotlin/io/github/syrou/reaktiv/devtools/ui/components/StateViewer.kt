@@ -28,7 +28,7 @@ import io.github.syrou.reaktiv.introspection.protocol.StateReconstructor
 /**
  * State viewer tab selection.
  */
-private enum class StateViewerTab { ACTION, DELTA, STATE }
+internal enum class StateViewerContent { EVENT, DELTA, FULL_STATE }
 
 @Composable
 internal fun StateViewer(
@@ -39,6 +39,7 @@ internal fun StateViewer(
     selectedLogicMethodCallId: String? = null,
     crashEvent: CrashEventInfo? = null,
     crashSelected: Boolean = false,
+    content: StateViewerContent,
     showAsDiff: Boolean,
     excludedActionTypes: Set<String>,
     initialStateJson: String = "{}",
@@ -47,7 +48,6 @@ internal fun StateViewer(
     onClear: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var activeTab by remember { mutableStateOf(StateViewerTab.DELTA) }
 
     val selectedEvent = selectedActionIndex?.let { actionStateHistory.getOrNull(it) }
     val previousEvent = if (showAsDiff && selectedEvent != null && selectedActionIndex != null) {
@@ -119,63 +119,13 @@ internal fun StateViewer(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            if (isActionSelected && activeTab != StateViewerTab.ACTION) {
+            if (isActionSelected && content != StateViewerContent.EVENT) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TextButton(onClick = onToggleDiffMode) {
                         Text(if (showAsDiff) "Show Full" else "Show Diff")
                     }
-                }
-            }
-        }
-
-        if (isActionSelected) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                TextButton(
-                    onClick = { activeTab = StateViewerTab.ACTION },
-                    colors = if (activeTab == StateViewerTab.ACTION) {
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                ) {
-                    Text("Action")
-                }
-                TextButton(
-                    onClick = { activeTab = StateViewerTab.DELTA },
-                    colors = if (activeTab == StateViewerTab.DELTA) {
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                ) {
-                    Text("Delta")
-                }
-                TextButton(
-                    onClick = { activeTab = StateViewerTab.STATE },
-                    colors = if (activeTab == StateViewerTab.STATE) {
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                ) {
-                    Text("State")
                 }
             }
         }
@@ -213,11 +163,11 @@ internal fun StateViewer(
                     .map { shortComposableName(it.composable) }
                     .distinct()
                     .sorted()
-                when (activeTab) {
-                    StateViewerTab.ACTION -> {
+                when (content) {
+                    StateViewerContent.EVENT -> {
                         ActionPayloadView(event = selectedEvent)
                     }
-                    StateViewerTab.DELTA -> {
+                    StateViewerContent.DELTA -> {
                         StateSnapshotView(
                             event = selectedEvent,
                             stateJson = selectedEvent.stateDeltaJson,
@@ -229,7 +179,7 @@ internal fun StateViewer(
                             observingComposables = observingComposables
                         )
                     }
-                    StateViewerTab.STATE -> {
+                    StateViewerContent.FULL_STATE -> {
                         StateSnapshotView(
                             event = selectedEvent,
                             stateJson = reconstructedState ?: "{}",

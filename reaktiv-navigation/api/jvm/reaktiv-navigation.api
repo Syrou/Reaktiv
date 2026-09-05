@@ -623,6 +623,8 @@ public final class io/github/syrou/reaktiv/navigation/definition/Dismissal$Compa
 }
 
 public abstract interface class io/github/syrou/reaktiv/navigation/definition/Graph : io/github/syrou/reaktiv/navigation/definition/NavigationNode, io/github/syrou/reaktiv/navigation/transition/TransitionSpec {
+	public fun getDismissIndicatorBackground-0d7_KjU ()J
+	public fun getDismissIndicatorColor-0d7_KjU ()J
 	public fun getDismissal ()Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public fun getEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public fun getExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -635,6 +637,8 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Gr
 }
 
 public final class io/github/syrou/reaktiv/navigation/definition/Graph$DefaultImpls {
+	public static fun getDismissIndicatorBackground-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Graph;)J
+	public static fun getDismissIndicatorColor-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Graph;)J
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getExitTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -659,6 +663,8 @@ public final class io/github/syrou/reaktiv/navigation/definition/LoadingModal$De
 	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
 	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Z
 	public static fun getBackgroundDimAlpha (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)F
+	public static fun getDismissIndicatorBackground-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)J
+	public static fun getDismissIndicatorColor-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)J
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)F
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
@@ -688,6 +694,8 @@ public final class io/github/syrou/reaktiv/navigation/definition/Modal$DefaultIm
 	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
 	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Z
 	public static fun getBackgroundDimAlpha (Lio/github/syrou/reaktiv/navigation/definition/Modal;)F
+	public static fun getDismissIndicatorBackground-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Modal;)J
+	public static fun getDismissIndicatorColor-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Modal;)J
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Modal;)F
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
@@ -755,6 +763,8 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Na
 	public abstract fun Content (Lio/github/syrou/reaktiv/navigation/param/Params;Landroidx/compose/runtime/Composer;I)V
 	public abstract fun getActionResource ()Lkotlin/jvm/functions/Function2;
 	public fun getBackGestureEnabled ()Z
+	public fun getDismissIndicatorBackground-0d7_KjU ()J
+	public fun getDismissIndicatorColor-0d7_KjU ()J
 	public fun getDismissal ()Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public fun getElevation ()F
 	public abstract fun getEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -771,6 +781,8 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Na
 
 public final class io/github/syrou/reaktiv/navigation/definition/Navigatable$DefaultImpls {
 	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Z
+	public static fun getDismissIndicatorBackground-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)J
+	public static fun getDismissIndicatorColor-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)J
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)F
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lkotlin/jvm/functions/Function2;
@@ -893,6 +905,8 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Sc
 public final class io/github/syrou/reaktiv/navigation/definition/Screen$DefaultImpls {
 	public static fun getActionResource (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function2;
 	public static fun getBackGestureEnabled (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Z
+	public static fun getDismissIndicatorBackground-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Screen;)J
+	public static fun getDismissIndicatorColor-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Screen;)J
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Screen;)F
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function2;
@@ -1941,7 +1955,9 @@ public final class io/github/syrou/reaktiv/navigation/ui/LayerRendererKt {
 }
 
 public final class io/github/syrou/reaktiv/navigation/ui/LocalNavigationBackgroundColorKt {
-	public static final fun NavigationBackgroundProvider-3J-VO9M (JLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun NavigationBackgroundProvider-g9RBwZg (JJJLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun getLocalDismissIndicatorBackground ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun getLocalDismissIndicatorColor ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun getLocalNavigationBackgroundColor ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun rememberNavigationBackgroundColor (Landroidx/compose/runtime/Composer;I)J
 }
