@@ -72,10 +72,9 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent, source: String) {
         if (intent.action == Intent.ACTION_VIEW) {
             val uri = intent.data ?: return
-            val route = if (uri.scheme == "poedex") {
-                uri.path?.replace("/navigation/", "") ?: ""
-            } else {
-                uri.toString()
+            val route = when (uri.scheme) {
+                "poedex" -> uri.path?.replace("/navigation/", "") ?: ""
+                else -> listOfNotNull(uri.path, uri.query?.let { "?$it" }).joinToString("")
             }
             lifecycleScope.launch {
                 customApp.store.navigateDeepLink(route)

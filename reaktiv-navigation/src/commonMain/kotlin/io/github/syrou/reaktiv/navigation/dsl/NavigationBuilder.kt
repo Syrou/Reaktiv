@@ -347,6 +347,19 @@ public class NavigationBuilder(
     }
 
     /**
+     * Whether this navigation was asked for from outside the app, as a deep link is.
+     *
+     * The app's own position inside a protected zone is what earns a guard skip, and a request
+     * arriving from outside inherits no part of it: the link makes its own case at the door.
+     */
+    internal var isExternallyRequested: Boolean = false
+        private set
+
+    internal fun markExternallyRequested() {
+        isExternallyRequested = true
+    }
+
+    /**
      * Whether executing this builder discards every entry already in the back stack.
      *
      * `ClearBackStack` wipes the stack wherever it sits among the operations, so the entries

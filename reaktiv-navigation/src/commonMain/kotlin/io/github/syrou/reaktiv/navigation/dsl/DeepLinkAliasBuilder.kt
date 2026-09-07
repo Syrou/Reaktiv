@@ -65,7 +65,7 @@ public data class DeepLinkAlias(
     val targetRoute: String,
     val paramsMapping: (Params) -> Params = { it }
 ) {
-    private val compiledRegex: Regex by lazy { createRouteRegex(pattern) }
+    private val compiledRegex: Regex by lazy { createRouteRegex(pattern.trimStart('/')) }
     private val compiledParamNames: List<String> by lazy { extractRouteParameterNames(pattern) }
 
     /**
@@ -74,7 +74,7 @@ public data class DeepLinkAlias(
      * @return Extracted [Params] if the pattern matches, or `null` if it does not.
      */
     public fun matchAndExtract(url: String): Params? {
-        val matchResult = compiledRegex.find(url) ?: return null
+        val matchResult = compiledRegex.find(url.trimStart('/')) ?: return null
         val paramsMap = mutableMapOf<String, Any>()
         matchResult.groupValues.drop(1).forEachIndexed { index, value ->
             if (index < compiledParamNames.size) {

@@ -179,7 +179,7 @@ public class NavigationLogic(
                             resolvedPath,
                             resolvedResolution,
                             bootstrapStep,
-                            stackSurvivingInto(routeBuilder, currentState)
+                            guardVantage(routeBuilder, currentState)
                         )
                     ) {
                         is GuardEvaluation.PendAndRedirect -> {
@@ -353,32 +353,47 @@ public class NavigationLogic(
     }
 
     /**
-     * The entries of [state]'s back stack that are still standing when [builder]'s navigation
-     * reaches its destination.
+     * The two readings of the back stack a guard decision needs.
      *
-     * Empty when the builder clears the stack, which is what a deep link does before it lands.
+     * [passed] is the stack this navigation may claim as already guarded: every entry in it got
+     * there by satisfying whatever guards stood in the way. It is empty for a navigation asked
+     * for from outside the app, which makes its own case rather than inheriting the app's, and
+     * empty until the first navigation lands, because the stack the state was constructed with
+     * is a placeholder nobody navigated to and no guard was ever asked about.
+     *
+     * [surviving] is what is still standing once this navigation lands, so it is empty when the
+     * builder clears the stack.
      */
-    private fun stackSurvivingInto(
-        builder: NavigationBuilder,
-        state: NavigationState
-    ): List<NavigationEntry> =
-        if (builder.clearsBackStack()) emptyList() else state.backStack
+    private class GuardVantage(
+        val passed: List<NavigationEntry>,
+        val surviving: List<NavigationEntry>
+    )
+
+    private fun guardVantage(builder: NavigationBuilder, state: NavigationState): GuardVantage =
+        GuardVantage(
+            passed = if (builder.isExternallyRequested || state.lastNavigationAction == null) {
+                emptyList()
+            } else {
+                state.backStack
+            },
+            surviving = if (builder.clearsBackStack()) emptyList() else state.backStack
+        )
 
     /**
      * Evaluates the intercept guards protecting [targetRoute], or `null` when the route is not
      * inside a protected zone.
      *
-     * [stackBeforeNavigation] is the back stack this navigation actually starts from, which is
-     * empty when the navigation clears the stack. A guard is skipped only when that stack is
-     * already inside the same zone, because passing the guard to get there is what earns the
-     * skip. Reading the live stack instead would let a deep link re-enter a zone unguarded on
-     * the strength of entries it is about to discard.
+     * A guard is skipped only when [GuardVantage.passed] is already inside the same zone,
+     * because passing the guard to get there is what earns the skip. Clearing the back stack
+     * does not revoke it: what a clear discards is history, not the position the app already
+     * holds. A deep link, bootstrap and the placeholder stack all start from an empty vantage,
+     * so none of them can enter a zone on a claim that was never theirs.
      */
     private suspend fun evaluateGuard(
         targetRoute: String,
         targetResolution: RouteResolution?,
         primaryStep: NavigationStep,
-        stackBeforeNavigation: List<NavigationEntry>
+        vantage: GuardVantage
     ): GuardEvaluation? {
         if (isExternallyDriven()) return GuardEvaluation.Allow
         val pathIntercept = precomputedData.interceptsByPath[targetRoute]
@@ -412,13 +427,13 @@ public class NavigationLogic(
                 GuardEvaluation.PendAndRedirect(
                     pending = pending,
                     redirectRoute = route,
-                    alreadyAtRedirect = redirectPath == stackBeforeNavigation.lastOrNull()?.path,
+                    alreadyAtRedirect = redirectPath == vantage.surviving.lastOrNull()?.path,
                     zonePath = zonePath
                 )
             }
         }
 
-        val isAlreadyInZone = stackBeforeNavigation.any { entry ->
+        val isAlreadyInZone = vantage.passed.any { entry ->
             precomputedData.interceptsByPath[entry.path] === interceptDef
         }
         if (isAlreadyInZone) return GuardEvaluation.Allow
@@ -735,7 +750,7 @@ public class NavigationLogic(
 
                     val currentState = getCurrentNavigationState()
 
-                    val guardStack = stackSurvivingInto(builder, currentState)
+                    val guardStack = guardVantage(builder, currentState)
                     val initialGuard = evaluateGuard(targetRoute, targetResolution, primaryStep, guardStack)
                     guardOutcome(initialGuard, builder, primaryStep)?.let { return@run it }
 
@@ -775,7 +790,7 @@ public class NavigationLogic(
                                 resolvedRoute,
                                 resolvedResolution,
                                 primaryStep,
-                                stackSurvivingInto(builder, stateAfterResolution)
+                                guardVantage(builder, stateAfterResolution)
                             )
                             guardOutcome(resolvedGuard, builder, primaryStep)?.let { return@run it }
                         }
@@ -970,6 +985,7 @@ public class NavigationLogic(
         }
 
         val builder = NavigationBuilder(storeAccessor)
+        builder.markExternallyRequested()
         builder.clearBackStack()
         builder.params(targetParams)
         if (notFound == null) {

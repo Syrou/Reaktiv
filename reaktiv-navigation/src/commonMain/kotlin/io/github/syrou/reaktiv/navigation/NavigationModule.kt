@@ -545,9 +545,10 @@ public data class PrecomputedNavigationData(
 }
 
 internal fun fullPathMessage(resolver: RouteResolver, route: String, describedAs: String): String {
+    val clean = route.trimStart('/').trimEnd('/')
     val suggestions = resolver.fullPathSuggestions(route)
     val hint = when (suggestions.size) {
-        0 -> "No registered path ends with '/$route'."
+        0 -> "No registered path ends with '/$clean'."
         1 -> "Did you mean '${suggestions.single()}'?"
         else -> "Candidates: ${suggestions.joinToString(", ")}."
     }

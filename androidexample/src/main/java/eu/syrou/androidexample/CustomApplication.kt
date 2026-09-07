@@ -187,9 +187,9 @@ class CustomApplication : Application() {
             intercept(
                 guard = requireAuth,
             ) {
-                modals(InvitationModal)
                 graph("home") {
                     start("news")
+                    modals(InvitationModal)
                     layout { content ->
                         HomeNavigationScaffold(content)
                     }
@@ -228,23 +228,38 @@ class CustomApplication : Application() {
 
         deepLinkAliases {
             alias(
-                pattern = "{scheme}://example.com/invitations/team/confirm/{token}",
+                pattern = "invitations/{type}/confirm/{token}",
+                targetRoute = "home/invitation/{type}"
+            ) { params ->
+                Params.of(
+                    "type" to (params["type"] as? String ?: ""),
+                    "token" to (params["token"] as? String ?: "")
+                )
+            }
+            alias(
+                pattern = "invitation/{type}",
+                targetRoute = "home/invitation/{type}"
+            ) { params ->
+                Params.of("type" to (params["type"] as? String ?: ""))
+            }
+            alias(
+                pattern = "invite-test/{token}",
                 targetRoute = "deep-link-test/{token}"
             ) { params ->
                 Params.of("token" to (params["token"] as? String ?: ""))
             }
             alias(
-                pattern = "{scheme}://example.com/invitation/{type}",
-                targetRoute = "invitation/{type}"
+                pattern = "projects/{project-id}",
+                targetRoute = "home/workspace/projects/overview"
             ) { params ->
-                Params.of("type" to (params["type"] as? String ?: ""))
+                Params.of("projectId" to (params["project-id"] as? String ?: "0"))
             }
             alias(
-                pattern = "{scheme}://example.com/deeplink-demo/detail",
+                pattern = "deeplink-demo/detail",
                 targetRoute = "deeplink-demo/demo-detail"
             ) { _ -> Params.empty() }
             alias(
-                pattern = "{scheme}://example.com/deeplink-demo",
+                pattern = "deeplink-demo",
                 targetRoute = "deeplink-demo/demo-home"
             ) { _ -> Params.empty() }
         }

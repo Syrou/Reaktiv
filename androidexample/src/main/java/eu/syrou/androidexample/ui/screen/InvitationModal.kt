@@ -58,6 +58,7 @@ object InvitationModal : Modal {
         val store = rememberStore()
         val scope = rememberCoroutineScope()
         val inviteType = params["type"] as? String ?: "unknown"
+        val token = params["token"] as? String
 
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -95,9 +96,20 @@ object InvitationModal : Modal {
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    if (token != null) {
+                        Text(
+                            text = "Token: ${token.take(24)}${if (token.length > 24) "..." else ""}",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
                     Text(
-                        text = "This modal is registered directly inside intercept { } and uses RenderLayer.SYSTEM. " +
-                                "It is protected by the auth guard via navigatableIntercepts.",
+                        text = "This modal is registered inside the home graph under intercept { } and uses " +
+                                "RenderLayer.SYSTEM. Its full path is home/invitation/{type}, which is what the " +
+                                "deep link aliases target.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,

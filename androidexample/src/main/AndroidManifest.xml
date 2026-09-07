@@ -47,7 +47,7 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="reaktiv"
                       android:host="example.com"
-                      android:pathPrefix="/invitations/team/confirm/"
+                      android:pathPrefix="/invitations/"
                 />
             </intent-filter>
             <intent-filter>
@@ -57,6 +57,24 @@
                 <data android:scheme="reaktiv"
                       android:host="example.com"
                       android:pathPrefix="/invitation/"
+                />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="reaktiv"
+                      android:host="example.com"
+                      android:pathPrefix="/invite-test/"
+                />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="reaktiv"
+                      android:host="example.com"
+                      android:pathPrefix="/projects/"
                 />
             </intent-filter>
         </activity>

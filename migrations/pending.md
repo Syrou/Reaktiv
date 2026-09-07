@@ -6439,7 +6439,8 @@ alias("studio/wallet", "home/wallet/overview") { Params.empty() }
 **Notes:** A full path is a registered screen path, a parameterized screen path with its
 values or its `{placeholder}` template, or a graph path. A root-level route is its own full
 path, and a top-level graph id is its own graph path. Alias patterns are unchanged and stay
-free-form. `RouteResolver.isFullPath` and `fullPathSuggestions` are public for tooling. In-app
+free-form, and a leading slash on either the pattern or the incoming link is ignored when
+matching, so a path taken from a web URL matches a pattern written without one. `RouteResolver.isFullPath` and `fullPathSuggestions` are public for tooling. In-app
 `navigateTo` is not affected by this entry. See AD-111 for why the stack is derived from the
 resolved destination.
 
@@ -6761,5 +6762,45 @@ after it on every user path, so a `Dismissal.Blocking` alert still ignores the p
 a `DismissAction.Run` handler still runs in place of the pop. Before this the platform back handler
 was disabled for the whole of bootstrap, so a back press with a blocking alert showing was handed
 to the platform instead of being consumed.
+
+---
+
+### [BC-97] Clearing the back stack no longer re-runs a guard the app already passed
+
+**Type:** Behavioural
+
+**Grep:** `clearBackStack`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Standing inside a guarded zone, resetting history and staying in it re-ran the guard, so an
+// expensive guard flashed the loadingModal on an ordinary "back to home" button.
+store.navigation {
+    clearBackStack()
+    navigateTo("home")
+}
+```
+
+**After:**
+```kotlin
+// Nothing to change. The guard is skipped because the app is already inside the zone it protects,
+// exactly as it is for a navigateTo() that keeps the stack.
+store.navigation {
+    clearBackStack()
+    navigateTo("home")
+}
+```
+
+**Notes:** A guard is skipped when the back stack the navigation starts from is already inside the
+same protected zone, because passing the guard to get there is what earns the skip. That test used
+to read the stack the navigation leaves behind, which is empty whenever the navigation clears, so
+an in-app `clearBackStack()` looked identical to arriving from outside. It now reads the stack the
+app actually navigated to. Two things still earn nothing, and both are unchanged: a deep link makes
+its own case at the door however deep in the zone the app already is, and the stack the state is
+constructed with was never navigated to, so bootstrap starts from an empty claim and so does the
+first navigation out of a root `start()` that points into a guarded graph. A guard that must re-run
+on every in-app entry regardless should say so through its own `cacheKey`, or live on the
+destination rather than on the zone.
 
 ---
