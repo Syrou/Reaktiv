@@ -1,17 +1,13 @@
 package io.github.syrou.reaktiv.navigation.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.isSpecified
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -28,16 +24,12 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.computeBackGesturePlan
 import io.github.syrou.reaktiv.navigation.transition.computeDismissGesturePlan
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
-import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
-import io.github.syrou.reaktiv.navigation.util.contentEntryBeneath
-import io.github.syrou.reaktiv.navigation.util.presentsDismissIndicator
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
+import io.github.syrou.reaktiv.navigation.util.contentEntryBeneath
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
-import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
 import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
 import io.github.syrou.reaktiv.navigation.util.presentationSourceFor
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
 
 internal class ContentScrubPreview(
     val revealedEntry: NavigationEntry?,
@@ -107,16 +99,15 @@ public fun UnifiedLayerRenderer(
  * Manages screen transitions by keeping current and previous screens composed simultaneously.
  * Previous entry is tracked locally in Compose and cleared after animation duration.
  *
- * When the layout hierarchy changes between screens (e.g. navigating out of a sub-graph),
- * two strategies handle the exiting screen:
+ * Each rendered screen is nested under its own graph layouts by [buildLayoutTree], and layouts
+ * two screens have in common are composed once around both of them. A screen's position in the
+ * composition therefore depends only on that screen, which is what lets it keep its remembered
+ * state, its DisposableEffect and its running animations for as long as it is on the back stack.
  *
- * INSIDE: When shared layout chrome exists (e.g. HomeNavigationScaffold). The shared chrome
- * renders once and stays static. Inside its content slot, the entering screen and the animated
- * exiting screen (wrapped in its unique layouts like ProjectTabLayout) coexist at different
- * zIndex values. Only the unique layouts animate; shared chrome stays fixed.
- *
- * OUTSIDE: When no shared chrome exists (e.g. login -> projects). The exiting screen is lifted
- * outside the incoming layout hierarchy entirely, placed at the top level at zIndex=100.
+ * Which element plays a transition follows from the same tree. A screen arriving under chrome that
+ * is already on screen animates alone, inside chrome that stays put, while a screen arriving with
+ * chrome of its own animates together with it, because the outermost layout enclosing only that
+ * screen is the one carrying its transition.
  */
 @Composable
 private fun ContentLayerRenderer(
@@ -270,43 +261,19 @@ private fun ContentLayerRenderer(
         findLayoutGraphsInHierarchy(revealedGraphId, graphDefinitions)
     }
 
-    val restingBackRevealed = if (
-        revealedEntry == null &&
-        navigationState.currentEntry.stableKey == currentEntry.stableKey
-    ) {
-        when {
-            canArmInteractiveBackGesture(navigationState, navModule) ->
-                revealedEntryForBack(navigationState)
-            presentsDismissIndicator(currentEntry, navModule) &&
-                dismissableBoundary(currentEntry, navModule) == null ->
-                contentEntryBeneath(navigationState)
-            else -> null
-        }
-    } else null
-    val restingBackLayouts = restingBackRevealed?.let {
-        val backGraphId = navModule.getGraphId(it) ?: it.route
-        findLayoutGraphsInHierarchy(backGraphId, graphDefinitions)
-    }
-
-    val sharing = decideLayoutSharing(
-        currentLayoutRoutes = currentLayouts.map { it.route },
+    val currentLayoutRoutes = currentLayouts.map { it.route }
+    val exitPlacement = decideExitPlacement(
+        currentLayoutRoutes = currentLayoutRoutes,
         previousLayoutRoutes = prevLayouts?.map { it.route },
-        revealedLayoutRoutes = revealedLayouts?.map { it.route },
-        restingBackLayoutRoutes = restingBackLayouts?.map { it.route },
         shouldAnimateExit = animationState.animationDecision?.shouldAnimateExit ?: false
     )
-    val sharedRoutes = sharing.sharedRoutes
-    val liftExiting = sharing.liftExiting
-    val sharedLayouts = currentLayouts.filter { it.route in sharedRoutes }
-    val currentUnique = currentLayouts.filter { it.route !in sharedRoutes }
-    val prevUnique = prevLayouts.orEmpty().filter { it.route in sharing.exitingUniqueRoutes }
-    val revealedUnique = revealedLayouts.orEmpty().filter { it.route !in sharedRoutes }
+    val liftExiting = exitPlacement.liftExiting
 
     val shouldExitBeOnTop = !liftExiting && (animationState.animationDecision?.let { decision ->
         decision.enterTransition is NavTransition.None &&
             decision.exitTransition !is NavTransition.None
     } ?: false)
-    val currentDecision = if (liftExiting && sharedLayouts.isNotEmpty()) {
+    val currentDecision = if (liftExiting && exitPlacement.sharesChrome) {
         null
     } else {
         animationState.animationDecision
@@ -318,16 +285,12 @@ private fun ContentLayerRenderer(
         else -> NavigationZIndex.CONTENT_BACK
     }
 
-    val graphDismissBoundary = dismissableBoundary(navigationState.currentEntry, navModule)
-    val indicatorOwnsSharedChrome = graphDismissBoundary != null &&
-        graphDismissBoundary in sharedRoutes
-
     val slots = buildList {
         if (revealedEntry != null) {
             add(
                 ContentSlot(
                     entry = revealedEntry,
-                    uniqueLayouts = revealedUnique,
+                    layouts = revealedLayouts.orEmpty(),
                     zIndex = NavigationZIndex.CONTENT_BACK,
                     isEntering = false,
                     animationDecision = null,
@@ -341,7 +304,7 @@ private fun ContentLayerRenderer(
             add(
                 ContentSlot(
                     entry = prevEntry,
-                    uniqueLayouts = prevUnique,
+                    layouts = prevLayouts.orEmpty(),
                     zIndex = prevZ,
                     isEntering = false,
                     animationDecision = animationState.animationDecision,
@@ -354,9 +317,8 @@ private fun ContentLayerRenderer(
         add(
             ContentSlot(
                 entry = currentEntry,
-                uniqueLayouts = currentUnique,
+                layouts = currentLayouts,
                 hostedModals = contentModals,
-                indicatorHoisted = indicatorOwnsSharedChrome,
                 zIndex = currentZ,
                 isEntering = true,
                 animationDecision = currentDecision,
@@ -371,69 +333,60 @@ private fun ContentLayerRenderer(
     val screenWidth = windowInfo.containerSize.width.toFloat()
     val screenHeight = windowInfo.containerSize.height.toFloat()
 
-    // A graph presented as a draggable surface owns its chrome, so the dismiss affordance belongs
-    // above the shared layouts rather than inside them. Once past the first screen the graph's
-    // layout is shared between steps and renders outside the slots, and an indicator nested under
-    // it would sit below the chrome it is supposed to drag.
-    Box(modifier = Modifier.fillMaxSize()) {
-        OptionalDismissIndicator(
-            entry = navigationState.currentEntry,
-            enabled = indicatorOwnsSharedChrome
-        ) {
-        ApplyLayoutsHierarchy(sharedLayouts) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                slots.forEach { slot ->
-                    key(slot.entry.stableKey) {
-                        EntryHost(slot, screenWidth, screenHeight)
-                    }
-                }
-                if (revealedEntry != null) {
-                    RevealedInputShield()
-                }
-            }
-        }
-        }
+    // A dismiss takes the whole surface away, and the surface reaches as far out as the chrome that
+    // is not also holding up whatever the drag would reveal. That is where the grab affordance
+    // belongs: above the header of a graph presented as a sheet, but underneath chrome the revealed
+    // screen keeps.
+    val beneathEntry = revealedEntryForDismiss(navigationState, navModule)
+        ?.takeIf { it.navigatable.renderLayer == RenderLayer.CONTENT }
+        ?: contentEntryBeneath(navigationState)
+    val beneathLayoutRoutes = beneathEntry?.let { beneath ->
+        val beneathGraphId = navModule.getGraphId(beneath) ?: beneath.route
+        findLayoutGraphsInHierarchy(beneathGraphId, graphDefinitions).map { it.route }
     }
-}
-
-/**
- * Wraps [content] in the dismiss affordance only when this level owns it.
- *
- * The affordance is rendered once, at whichever level represents the surface being dragged: around
- * the shared chrome for a graph presented as a sheet, or around the slot for a single screen.
- */
-@Composable
-private fun OptionalDismissIndicator(
-    entry: NavigationEntry,
-    enabled: Boolean,
-    background: Color = Color.Unspecified,
-    content: @Composable () -> Unit
-) {
-    if (enabled) {
-        DismissIndicatorSlot(entry, contentBackground = background) { content() }
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (background.isSpecified && background != Color.Transparent) {
-                        Modifier.background(background)
-                    } else {
-                        Modifier
-                    }
-                )
-        ) {
-            content()
+    val slotLayoutRoutes = slots.map { slot -> slot.layouts.map { it.route } }
+    val tree = buildLayoutTree(
+        slots.mapIndexed { index, slot ->
+            // What a drag would take away depends on the stack, never on what else happens to be
+            // animating. Reading the other slots here made a sheet's grab affordance drop below the
+            // graph's own chrome for the length of a step transition and climb back afterwards,
+            // because the step being left shares that chrome.
+            val staysBehind = if (slot.entry.stableKey == navigationState.currentEntry.stableKey) {
+                beneathLayoutRoutes
+            } else {
+                beneathLayoutRoutes ?: currentLayoutRoutes
+            }
+            LayoutTreeSlot(
+                key = slot.entry.stableKey,
+                layoutRoutes = slotLayoutRoutes[index],
+                zIndex = slot.zIndex,
+                indicatorAnchorRoute = outermostUnsharedLayout(
+                    layoutRoutes = slotLayoutRoutes[index],
+                    staysBehind = listOfNotNull(staysBehind)
+                ),
+                shielded = slot.entry.stableKey == revealedEntry?.stableKey
+            )
         }
+    )
+    val slotsByKey = slots.associateBy { it.entry.stableKey }
+    val graphsByRoute = slots.flatMap { it.layouts }.associateBy { it.route }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LayoutTreeNodes(
+            nodes = tree,
+            slotsByKey = slotsByKey,
+            graphsByRoute = graphsByRoute,
+            fallbackIndicatorEntry = navigationState.currentEntry,
+            screenWidth = screenWidth,
+            screenHeight = screenHeight
+        )
     }
 }
 
 private class ContentSlot(
     val entry: NavigationEntry,
-    val uniqueLayouts: List<NavigationGraph>,
+    val layouts: List<NavigationGraph>,
     val hostedModals: List<NavigationEntry> = emptyList(),
-    /** True when the shared chrome level renders the dismiss affordance instead of this slot. */
-    val indicatorHoisted: Boolean = false,
     val zIndex: Float,
     val isEntering: Boolean,
     val animationDecision: AnimationDecision?,
@@ -451,26 +404,151 @@ private fun Modifier.consumeAllPointerInput(): Modifier = pointerInput(Unit) {
 }
 
 @Composable
-private fun EntryHost(slot: ContentSlot, screenWidth: Float, screenHeight: Float) {
+private fun Modifier.slotTransition(
+    slot: ContentSlot,
+    screenWidth: Float,
+    screenHeight: Float
+): Modifier {
     val transition = if (slot.isEntering) {
         slot.animationDecision?.enterTransition ?: NavTransition.None
     } else {
         slot.animationDecision?.exitTransition ?: NavTransition.None
     }
+    return animateNavTransition(
+        transition = transition,
+        isEntering = slot.isEntering,
+        animationDecision = slot.animationDecision,
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        entryKey = slot.entry.stableKey,
+        onAnimationComplete = null,
+        progressDriver = slot.progressDriver
+    )
+}
+
+/**
+ * Renders one level of the layout tree.
+ *
+ * Every element a slot sits under is rendered unconditionally, so what changes as slots come and
+ * go is which element carries the transition and which one reserves the dismiss affordance, never
+ * where the screen itself is composed.
+ */
+@Composable
+private fun LayoutTreeNodes(
+    nodes: List<LayoutTreeNode>,
+    slotsByKey: Map<String, ContentSlot>,
+    graphsByRoute: Map<String, NavigationGraph>,
+    fallbackIndicatorEntry: NavigationEntry,
+    screenWidth: Float,
+    screenHeight: Float
+) {
+    nodes.forEach { node ->
+        key(node.key) {
+            when (node) {
+                is LayoutTreeBranch -> LayoutBranchHost(
+                    branch = node,
+                    slotsByKey = slotsByKey,
+                    graphsByRoute = graphsByRoute,
+                    fallbackIndicatorEntry = fallbackIndicatorEntry,
+                    screenWidth = screenWidth,
+                    screenHeight = screenHeight
+                )
+
+                is LayoutTreeLeaf -> EntryHost(
+                    slot = slotsByKey.getValue(node.slotKey),
+                    ownsTransition = node.ownsTransition,
+                    ownsIndicator = node.ownsIndicator,
+                    screenWidth = screenWidth,
+                    screenHeight = screenHeight
+                )
+
+                is LayoutTreeShield -> RevealedInputShield()
+            }
+        }
+    }
+}
+
+@Composable
+private fun LayoutBranchHost(
+    branch: LayoutTreeBranch,
+    slotsByKey: Map<String, ContentSlot>,
+    graphsByRoute: Map<String, NavigationGraph>,
+    fallbackIndicatorEntry: NavigationEntry,
+    screenWidth: Float,
+    screenHeight: Float
+) {
+    val owner = branch.ownerSlotKey?.let { slotsByKey[it] }
+    val indicatorSlot = branch.indicatorSlotKey?.let { slotsByKey[it] }
+    val inheritedEntry = LocalRenderedEntry.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(branch.zIndex)
+            .then(
+                if (owner != null) {
+                    Modifier.slotTransition(owner, screenWidth, screenHeight)
+                } else {
+                    Modifier
+                }
+            )
+    ) {
+        CompositionLocalProvider(LocalRenderedEntry provides (owner?.entry ?: inheritedEntry)) {
+            // The affordance belongs to the surface being dragged. A graph presented as a sheet is
+            // dragged whole, so the grab strip sits above the graph's own chrome rather than under
+            // it, where a drag starting on the header would miss it.
+            DismissIndicatorSlot(
+                entry = indicatorSlot?.entry ?: fallbackIndicatorEntry,
+                enabled = indicatorSlot != null
+            ) {
+                GraphLayout(graphsByRoute[branch.route]) {
+                    // Everything under one layout occupies the same space and is ordered by zIndex.
+                    // Handing the children straight to the layout would let a Column or a Scaffold
+                    // stack the screens one after another instead.
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        LayoutTreeNodes(
+                            nodes = branch.children,
+                            slotsByKey = slotsByKey,
+                            graphsByRoute = graphsByRoute,
+                            fallbackIndicatorEntry = fallbackIndicatorEntry,
+                            screenWidth = screenWidth,
+                            screenHeight = screenHeight
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GraphLayout(graph: NavigationGraph?, content: @Composable () -> Unit) {
+    val layout = graph?.layout
+    if (layout != null) {
+        layout { content() }
+    } else {
+        content()
+    }
+}
+
+@Composable
+private fun EntryHost(
+    slot: ContentSlot,
+    ownsTransition: Boolean,
+    ownsIndicator: Boolean,
+    screenWidth: Float,
+    screenHeight: Float
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(slot.zIndex)
             .then(if (slot.clearSemantics) Modifier.clearAndSetSemantics { } else Modifier)
-            .animateNavTransition(
-                transition = transition,
-                isEntering = slot.isEntering,
-                animationDecision = slot.animationDecision,
-                screenWidth = screenWidth,
-                screenHeight = screenHeight,
-                entryKey = slot.entry.stableKey,
-                onAnimationComplete = null,
-                progressDriver = slot.progressDriver
+            .then(
+                if (ownsTransition) {
+                    Modifier.slotTransition(slot, screenWidth, screenHeight)
+                } else {
+                    Modifier
+                }
             )
             .then(if (slot.blockInput) Modifier.consumeAllPointerInput() else Modifier)
     ) {
@@ -480,21 +558,14 @@ private fun EntryHost(slot: ContentSlot, screenWidth: Float, screenHeight: Float
         val slotBackground = rememberNavigationBackgroundColor()
         Box(modifier = Modifier.fillMaxSize()) {
             HostedEntry(slot.entry) {
-                // The dismiss affordance belongs to the surface being dismissed, which is the
-                // whole slot including the graph layouts that arrived with it, not just the screen
-                // inside them. Nesting it under the layouts would put the grab pill below the
-                // graph's own chrome and measure the dismiss zone from the screen's bounds, so a
-                // drag starting on the header would miss it.
-                OptionalDismissIndicator(
+                DismissIndicatorSlot(
                     entry = slot.entry,
-                    enabled = !slot.indicatorHoisted,
-                    background = slotBackground
+                    enabled = ownsIndicator,
+                    contentBackground = slotBackground
                 ) {
-                    ApplyLayoutsHierarchy(slot.uniqueLayouts) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            slot.entry.navigatable.Content(slot.entry.params)
-                            ModalStack(slot.hostedModals, NavigationZIndex.CONTENT_MODAL_BASE)
-                        }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        slot.entry.navigatable.Content(slot.entry.params)
+                        ModalStack(slot.hostedModals, NavigationZIndex.CONTENT_MODAL_BASE)
                     }
                 }
             }
@@ -605,24 +676,5 @@ private fun SystemLayerRenderer(
         ) {
             evaluationOverlay.Content(Params.empty())
         }
-    }
-}
-
-/**
- * Applies layout hierarchy composition using foldRight for proper nesting order
- */
-@Composable
-private fun ApplyLayoutsHierarchy(
-    layoutGraphs: List<NavigationGraph>,
-    content: @Composable () -> Unit
-) {
-    if (layoutGraphs.isEmpty()) {
-        content()
-    } else {
-        layoutGraphs.foldRight(content) { graph, acc ->
-            @Composable {
-                graph.layout?.invoke { acc() } ?: acc()
-            }
-        }.invoke()
     }
 }

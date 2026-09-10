@@ -6804,3 +6804,59 @@ on every in-app entry regardless should say so through its own `cacheKey`, or li
 destination rather than on the zone.
 
 ---
+
+### [BC-98] A screen keeps its composition for as long as it is rendered
+
+**Type:** Behavioural
+
+**Grep:** `layout \{`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A screen under a graph layout was disposed and composed again in the middle of its own life,
+// once as a transition settled and once as the next screen animated in over it. Work that has to
+// happen exactly once had to be moved out of the screen and into a module to survive.
+graph("flow") {
+    layout { content -> AppScaffold(content) }
+    screens(FlowFirst, FlowSecond)
+}
+
+object FlowSecond : Screen {
+    @Composable
+    override fun Content(params: Params) {
+        // Ran a second time a few hundred milliseconds after arriving.
+        LaunchedEffect(Unit) { track("viewed") }
+        // onDispose fired while the screen was still on screen.
+        DisposableEffect(Unit) { onDispose { release() } }
+        val draft = remember { mutableStateOf("") }
+    }
+}
+```
+
+**After:**
+```kotlin
+// Nothing to change. The same code now composes once and is disposed once, when the screen stops
+// being rendered. remember, rememberScrollState, LaunchedEffect(Unit) and DisposableEffect all
+// survive a transition settling and the arrival of the screen above.
+```
+
+**Notes:** Graph layouts used to be rendered in one of two places depending on whether the screens
+on screen at that moment happened to share them, so a screen changed position in the composition
+whenever the set of screens around it changed, and Compose rebuilt it. Layouts are now nested by
+`buildLayoutTree` in one place: every screen sits under its own layout chain, and a layout two
+screens have in common encloses both of them rather than being duplicated or hoisted. A screen's
+path through the composition is a function of that screen alone, so nothing about its neighbours
+moves it.
+
+What plays a transition follows from the same nesting: the outermost layout enclosing only one
+screen carries that screen's transition, so a graph that arrives as a unit still animates together
+with its chrome, and steps taken inside a graph still animate underneath chrome that stays put.
+The dismiss affordance is anchored the same way, at the outermost chrome that would leave with the
+surface being dragged, so it sits above a sheet graph's own header and below chrome the revealed
+screen keeps.
+
+A screen that is no longer rendered is still disposed. Only the top two entries are composed, so
+navigating forward twice disposes the first screen exactly as before.
+
+---

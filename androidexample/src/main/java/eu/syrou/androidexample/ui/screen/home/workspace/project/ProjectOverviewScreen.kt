@@ -126,7 +126,7 @@ private fun ProjectOverviewContent(params: Params) {
         Button(onClick = {
             scope.launch {
                 store.navigation {
-                    navigateTo("home/workspace/overview")
+                    navigateTo("pull-to-refresh-demo")
                     popUpTo("home/workspace", inclusive = true)
                 }
             }

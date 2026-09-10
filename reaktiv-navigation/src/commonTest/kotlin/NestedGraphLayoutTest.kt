@@ -9,7 +9,10 @@ import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
-import io.github.syrou.reaktiv.navigation.ui.decideLayoutSharing
+import io.github.syrou.reaktiv.navigation.ui.LayoutTreeBranch
+import io.github.syrou.reaktiv.navigation.ui.LayoutTreeLeaf
+import io.github.syrou.reaktiv.navigation.ui.LayoutTreeSlot
+import io.github.syrou.reaktiv.navigation.ui.buildLayoutTree
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -67,6 +70,16 @@ class NestedGraphLayoutTest {
         }
     }
 
+    private fun wizardBranch(
+        previousLayoutRoutes: List<String>,
+        currentLayoutRoutes: List<String>
+    ): LayoutTreeBranch = buildLayoutTree(
+        listOf(
+            LayoutTreeSlot(key = "exiting", layoutRoutes = previousLayoutRoutes, zIndex = 2f),
+            LayoutTreeSlot(key = "entering", layoutRoutes = currentLayoutRoutes, zIndex = 3f)
+        )
+    ).filterIsInstance<LayoutTreeBranch>().single { it.route == "wizard" }
+
     @Test
     fun the_parent_layout_is_still_in_the_hierarchy_of_a_nested_graph() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
@@ -112,19 +125,15 @@ class NestedGraphLayoutTest {
                 navModule.getGraphId(after) ?: after.route, graphs
             ).map { it.route }
 
-            val sharing = decideLayoutSharing(
-                currentLayoutRoutes = afterLayouts,
-                previousLayoutRoutes = beforeLayouts,
-                revealedLayoutRoutes = null,
-                restingBackLayoutRoutes = null,
-                shouldAnimateExit = true
-            )
+            val wizard = wizardBranch(beforeLayouts, afterLayouts)
 
-            assertTrue(
-                "wizard" in sharing.sharedRoutes,
+            assertEquals(
+                setOf("exiting", "entering"),
+                wizard.children.filterIsInstance<LayoutTreeLeaf>().map { it.slotKey }.toSet(),
                 "the wizard layout was already on screen and is still in scope, so it must not " +
                     "be torn down and rebuilt inside the arriving transition"
             )
+            assertTrue(wizard.ownerSlotKey == null)
         }
 
     @Test
@@ -150,14 +159,11 @@ class NestedGraphLayoutTest {
                 navModule.getGraphId(after) ?: after.route, graphs
             ).map { it.route }
 
-            val sharing = decideLayoutSharing(
-                currentLayoutRoutes = afterLayouts,
-                previousLayoutRoutes = beforeLayouts,
-                revealedLayoutRoutes = null,
-                restingBackLayoutRoutes = null,
-                shouldAnimateExit = true
+            val wizard = wizardBranch(beforeLayouts, afterLayouts)
+            assertEquals(
+                setOf("exiting", "entering"),
+                wizard.children.filterIsInstance<LayoutTreeLeaf>().map { it.slotKey }.toSet()
             )
-            assertTrue("wizard" in sharing.sharedRoutes)
         }
 
     private val groupedOne = screen("grouped-one")

@@ -39,13 +39,14 @@ private fun Modifier.paintIfSpecified(color: Color): Modifier =
 @Composable
 internal fun DismissIndicatorSlot(
     entry: NavigationEntry,
+    enabled: Boolean = true,
     contentBackground: Color = Color.Unspecified,
     content: @Composable () -> Unit
 ) {
     val controller = LocalInteractiveTransitionController.current
     val navModule = LocalNavigationModule.current
     val navigationState by composeState<NavigationState>()
-    val reservesStrip = controller != null && presentsDismissIndicator(entry, navModule)
+    val reservesStrip = enabled && controller != null && presentsDismissIndicator(entry, navModule)
     val showPill = controller != null &&
         reservesStrip &&
         navigationState.currentEntry.stableKey == entry.stableKey &&
