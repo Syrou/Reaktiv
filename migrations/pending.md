@@ -6864,7 +6864,7 @@ navigating forward twice disposes the first screen exactly as before.
 
 ---
 
-### [BC-99] Bootstrap waits for app interactivity and retries instead of hanging
+### [BC-99] A start destination lambda that throws is reported instead of hanging silently
 
 **Type:** Behavioural
 
@@ -6885,63 +6885,20 @@ rootGraph {
 }
 ```
 
-**Notes:** The DSL is unchanged, the runtime behaviour around it is not. A start destination
-lambda that threw or was cancelled used to leave `NavigationState.isBootstrapping` set to `true`
-for the life of the store, pinning the UI to the loading modal with no way out, because
-`NavigationAction.BootstrapComplete` was only dispatched on the success path. Bootstrap is now an
-armed loop: it holds the lambda until the app reports it is interactive, abandons an attempt that
-is in flight when interactivity is lost, and runs again the next time interactivity returns.
+**Notes:** The DSL is unchanged, the runtime behaviour around it is not. A start destination lambda
+that threw used to leave `NavigationState.isBootstrapping` set to `true` for the life of the store,
+pinning the UI to the loading modal with nothing logged, because `NavigationAction.BootstrapComplete`
+was only dispatched on the success path.
 
-Three consequences worth knowing. A lambda that throws with no `crashScreen()` configured now
-logs through `ReaktivDebug.error` and stays armed rather than hanging silently, and it never lands
-on `notFoundScreen`, which is reserved for routes that could not be resolved. A lambda that throws
-with `crashScreen()` configured lands there and completes bootstrap, as any other logic crash
-does. A lambda whose failure is deterministic keeps the app on the loading modal, because there is
-no correct destination to invent, so make sure a lambda that can fail either has a `crashScreen()`
+A lambda that throws with `crashScreen()` configured now completes bootstrap and dispatches the
+crash screen, as any other logic crash does, so the store is no longer pinned. Without one, the
+failure is reported through `ReaktivDebug.error` and navigation stays on the loading modal, because
+there is no correct destination to invent, and it never lands on `notFoundScreen`, which is reserved
+for routes that could not be resolved. Make sure a lambda that can fail either has a `crashScreen()`
 or returns a destination of its own on failure.
 
-An abandoned attempt is not resumed, it is cancelled and the lambda is invoked again from
-scratch, so **a start destination lambda must be safe to run more than once**. Whatever it was
-suspended on is cancelled rather than continued, and `evaluateCached` only caches a value the
-lambda actually returned, so an abandoned attempt leaves nothing behind. A lambda that consumes a
-one-shot token, posts an analytics event, or advances a counter will do so once per attempt.
-
-Retry is triggered by any report of interactivity, not by a transition into it, so an app that was
-never composed while it was away still retries on the first report it makes. Correctness does not
-depend on the lifecycle signal being accurate: without any report the lambda still runs once, and
-a report that arrives late still retries a failed attempt.
-
-Apps rendering through `NavigationRender` need no wiring, see AD-117.
-
----
-
-### [AD-117] StoreAccessor.setAppInteractive
-
-**Type:** Addition
-
-**Grep:** `setAppInteractive`
-**File glob:** `**/*.kt`
-
-**Example:**
-```kotlin
-val lifecycle = LocalLifecycleOwner.current.lifecycle
-LaunchedEffect(lifecycle) {
-    lifecycle.currentStateFlow.collect { state ->
-        store.setAppInteractive(state.isAtLeast(Lifecycle.State.STARTED))
-    }
-}
-```
-
-**Notes:** Reports whether the host application is visible and not behind a lock screen. Bootstrap
-holds the start destination lambda until this is `true`, so an app launched behind a keyguard does
-not run its start-up loading against a device that cannot service it, see BC-99.
-
-`NavigationRender` already reports this from the platform lifecycle, so apps rendering through it
-need no wiring. Call it directly only when rendering navigation yourself. The value defaults to
-`true`, so a headless store, a test, or a custom renderer that never reports is never held back.
-
-`reaktiv-navigation` gains a dependency on
-`org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose` for the lifecycle signal.
+Anything the lambda needs to wait for is the lambda's own business: it is a suspend function, so an
+app that must not start loading until the device is usable can await that condition inside it.
 
 ---
 

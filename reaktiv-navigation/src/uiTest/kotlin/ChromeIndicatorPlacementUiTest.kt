@@ -29,14 +29,6 @@ import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 
-/**
- * Where the grab affordance sits is a function of the screen presenting it, never of the stack it
- * happens to be standing on.
- *
- * This sheet is a screen inside a graph that is not a surface of its own, so dragging it away leaves
- * the graph's chrome standing and the strip belongs under that chrome, against the screen it drags.
- * That has to hold whichever screen the sheet was reached from.
- */
 @OptIn(ExperimentalTestApi::class)
 class ChromeIndicatorPlacementUiTest {
 
@@ -129,7 +121,6 @@ class ChromeIndicatorPlacementUiTest {
         waitUntilExactlyOneExists(hasText("Chrome Step Body"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
-        // The chrome is never offset, whatever is standing under it.
         onNodeWithTag("chrome-header").assertTopPositionInRootIsEqualTo(0.dp)
 
         store.launch { store.navigation { navigateTo("chrome/sheet") } }
@@ -140,9 +131,6 @@ class ChromeIndicatorPlacementUiTest {
         }
         waitForIdle()
 
-        // The screen beneath now stands under the same chrome. Reading the stack to place the
-        // affordance hoisted the strip above the chrome on the route taken above and dropped it
-        // back under the chrome here, so the same sheet offered its handle in two different places.
         assertSheetSitsUnderTheChromeWithItsOwnStrip()
     }
 }

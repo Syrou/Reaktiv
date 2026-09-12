@@ -70,14 +70,6 @@ object SubscriptionModule :
         { storeAccessor -> SubscriptionLogic(storeAccessor) }
 }
 
-/**
- * Drives the fake checkout.
- *
- * The celebration is one side effect chain hanging off the buy action rather than a state observer
- * in the UI, which matters here because the screen that starts it is replaced halfway through:
- * running on the store's scope means the confetti and the return home still happen once the payment
- * screen is gone.
- */
 class SubscriptionLogic(
     private val storeAccessor: StoreAccessor
 ) : ModuleLogic() {
@@ -97,10 +89,6 @@ class SubscriptionLogic(
         delay(PAYMENT_MILLIS)
         storeAccessor.dispatch(SubscriptionModule.SubscriptionAction.PurchaseSucceeded)
         val origin = storeAccessor.selectState<SubscriptionModule.SubscriptionState>().first().originPath
-
-        // The celebration replaces the step it was bought from, and the steps behind that go with
-        // it in the same block: leaving them on the stack means the return home has to unwind the
-        // checkout underneath the celebration rather than lifting one screen off the origin.
         storeAccessor.navigation {
             navigateTo(SubscriptionConfettiScreen, replaceCurrent = true)
             if (origin != null) {
@@ -127,10 +115,6 @@ class SubscriptionLogic(
         return origin
     }
 
-    /**
-     * The celebration outlives the screen that started it, and the timer can land after the user has
-     * already left by hand, so nothing is popped unless the flow is still what is on screen.
-     */
     private suspend fun returnToOrigin(origin: String) {
         val current = storeAccessor.selectState<NavigationState>().first().currentEntry
         val insideFlow = current.navigatable == SubscriptionConfettiScreen ||

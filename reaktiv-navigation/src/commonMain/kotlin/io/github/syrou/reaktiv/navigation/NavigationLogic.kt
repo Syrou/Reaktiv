@@ -114,11 +114,7 @@ public class NavigationLogic(
     private val bootstrapCompleted = CompletableDeferred<Unit>()
     private val navigationMutex = Mutex()
     private val deepLinkStartedBeforeBootstrap = MutableStateFlow(false)
-    private val appInteractive = MutableStateFlow(true)
-    private val interactiveReports = MutableStateFlow(0L)
     private var bootstrapJob: Job? = null
-
-    private class BootstrapDeferred : CancellationException("Bootstrap deferred until the app is interactive")
 
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
     private val exitingLifecycles = mutableSetOf<BackstackLifecycle>()
@@ -164,20 +160,7 @@ public class NavigationLogic(
 
         val bootstrapSelector = bootstrapEntry.route
         bootstrapJob = logicScope.launch {
-            runBootstrapAttempts(bootstrapSelector, bootstrapEntry.cacheKey, bootstrapGraphId)
-        }
-    }
-
-    private suspend fun runBootstrapAttempts(
-        bootstrapSelector: RouteSelector,
-        cacheKey: CacheKeySelector?,
-        bootstrapGraphId: String?
-    ) {
-        while (true) {
-            appInteractive.first { it }
-            val attemptedAt = interactiveReports.value
-            if (attemptBootstrap(bootstrapSelector, cacheKey, bootstrapGraphId)) return
-            interactiveReports.first { it > attemptedAt }
+            attemptBootstrap(bootstrapSelector, bootstrapEntry.cacheKey, bootstrapGraphId)
         }
     }
 
@@ -185,28 +168,13 @@ public class NavigationLogic(
         bootstrapSelector: RouteSelector,
         cacheKey: CacheKeySelector?,
         bootstrapGraphId: String?
-    ): Boolean {
+    ) {
         try {
-            return coroutineScope {
-                val deferWatcher = launch {
-                    appInteractive.first { !it }
-                    this@coroutineScope.cancel(BootstrapDeferred())
-                }
-                try {
-                    runBootstrapNavigation(bootstrapSelector, cacheKey, bootstrapGraphId)
-                } finally {
-                    deferWatcher.cancel()
-                }
-            }
+            runBootstrapNavigation(bootstrapSelector, cacheKey, bootstrapGraphId)
         } catch (cancellation: CancellationException) {
-            currentCoroutineContext().ensureActive()
-            ReaktivDebug.nav(
-                "Bootstrap was interrupted before it resolved a start destination, so it stays " +
-                    "armed and runs again once the app reports it is interactive."
-            )
-            return false
+            throw cancellation
         } catch (failure: Throwable) {
-            return handleBootstrapFailure(failure)
+            handleBootstrapFailure(failure)
         }
     }
 
@@ -283,47 +251,25 @@ public class NavigationLogic(
      *
      * When a crash screen is configured the failure is terminal and lands there, matching how
      * every other logic crash is surfaced. Without one there is nowhere correct to land, so the
-     * failure is logged and bootstrap is left armed to run again rather than sending the user to
+     * failure is logged and navigation stays on the loading modal rather than sending the user to
      * a destination the app never asked for.
-     *
-     * @return `true` when the failure was resolved onto the crash screen, `false` to retry later
      */
-    private suspend fun handleBootstrapFailure(failure: Throwable): Boolean {
+    private suspend fun handleBootstrapFailure(failure: Throwable) {
         val crashScreenDef = precomputedData.crashScreen
         if (crashScreenDef == null) {
             ReaktivDebug.error(
                 "NavigationLogic: the start destination lambda failed, so navigation stays on the " +
-                    "loading modal and bootstrap will run again when the app next becomes " +
-                    "interactive. Configure crashScreen() to land somewhere on failure instead.",
+                    "loading modal. Configure crashScreen() to land somewhere on failure, or have " +
+                    "the lambda return a destination of its own when it cannot resolve one.",
                 failure
             )
-            return false
+            return
         }
         val recovery = onCrash?.invoke(failure, null) ?: CrashRecovery.NAVIGATE_TO_CRASH_SCREEN
-        if (recovery != CrashRecovery.NAVIGATE_TO_CRASH_SCREEN) return false
+        if (recovery != CrashRecovery.NAVIGATE_TO_CRASH_SCREEN) return
         navigateToCrashScreen(failure, null, crashScreenDef)
         storeAccessor.dispatchAndAwait(NavigationAction.BootstrapComplete)
         bootstrapCompleted.complete(Unit)
-        return true
-    }
-
-    /**
-     * Records whether the host application is currently interactive, meaning it is visible and
-     * not behind a lock screen.
-     *
-     * Bootstrap does not invoke the start destination lambda while the app is not interactive, so
-     * an app launched behind a keyguard does not run its start-up loading against a device that
-     * cannot service it. An attempt already in flight is cancelled when this turns `false` and is
-     * retried the next time it turns `true`.
-     *
-     * The value defaults to `true`, so a host that never reports (a headless store, a test, or a
-     * custom renderer) is never held back.
-     *
-     * @param interactive `true` when the app is visible and usable, `false` while it is not
-     */
-    public suspend fun setAppInteractive(interactive: Boolean) {
-        appInteractive.value = interactive
-        if (interactive) interactiveReports.update { it + 1 }
     }
 
     override suspend fun onExternalControlChanged(externallyDriven: Boolean) {

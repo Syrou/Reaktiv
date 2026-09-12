@@ -19,15 +19,6 @@ internal fun NavigatableContent(navigatable: Navigatable, params: Params) {
     }
 }
 
-/**
- * The insets the renderer holds this content clear of, or null when the declaration leaves that to
- * the content itself.
- *
- * Null is the whole of what [ContentInsets.Fullscreen] means, and it is what says the renderer is
- * to touch nothing: the grab strip above the surface reads the same answer to decide whether to
- * report the inset it stands in, so a screen that was never declared keeps the layout it had before
- * any of this existed.
- */
 @Composable
 internal fun ContentInsets.windowInsets(): WindowInsets? = when (this) {
     ContentInsets.Fullscreen -> null

@@ -330,7 +330,6 @@ public final class io/github/syrou/reaktiv/navigation/NavigationLogic : io/githu
 	public fun onExternalControlChanged (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun popUpTo (Ljava/lang/String;ZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun popUpTo$default (Lio/github/syrou/reaktiv/navigation/NavigationLogic;Ljava/lang/String;ZLjava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public final fun setAppInteractive (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class io/github/syrou/reaktiv/navigation/NavigationModule : io/github/syrou/reaktiv/core/ModuleWithLogic, io/github/syrou/reaktiv/core/util/CustomTypeRegistrar {
@@ -1239,7 +1238,6 @@ public final class io/github/syrou/reaktiv/navigation/extension/ExtensionsKt {
 	public static final fun navigateDeepLink (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun navigateDeepLink$default (Lio/github/syrou/reaktiv/core/StoreAccessor;Ljava/lang/String;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun navigation (Lio/github/syrou/reaktiv/core/StoreAccessor;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun setAppInteractive (Lio/github/syrou/reaktiv/core/StoreAccessor;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class io/github/syrou/reaktiv/navigation/layer/RenderLayer : java/lang/Enum {

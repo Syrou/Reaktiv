@@ -153,8 +153,6 @@ class OverlayScaffoldInsetsUiTest {
         waitForIdle()
     }
 
-    // The picker is dismissed on its own, so this graph's app bar stays behind and keeps its
-    // position. The strip belongs against the screen being dragged, under that bar.
     private fun ComposeUiTest.assertOverlayChromeKeepsTheStripBelowIt() {
         val topBar = onNodeWithTag("overlay-top-bar").getUnclippedBoundsInRoot()
         onNodeWithTag("overlay-top-bar").assertTopPositionInRootIsEqualTo(0.dp)

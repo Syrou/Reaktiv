@@ -95,49 +95,22 @@ internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: Nav
  * own layout to match. Deciding it by whether the drag can arm right now moved that chrome by the
  * strip's height whenever the entry underneath was a modal, and again while the screen was on its
  * way out.
- *
- * See [dismissIndicatorAnchor] for where the affordance this reports then goes.
+
  */
 internal fun presentsDismissIndicator(entry: NavigationEntry, navModule: NavigationModule): Boolean {
     val top = entry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.showsDismissIndicator) return false
-    // The affordance belongs to the surface the drag takes away, so that surface is also what
-    // decides whether to offer one. Inside a graph presented as a sheet that is the graph, and a
-    // graph declining the handle declines it for every step taken inside it.
     val surface = dismissableSurface(entry, navModule) ?: return top.dismissal.swipe.allowsDismiss
     return surface.showsDismissIndicator
 }
 
-/**
- * Where a surface's grab affordance is composed.
- *
- * [OwnContent] is directly above the screen's own content, under any graph layout enclosing it.
- * [Layout] is above the named graph layout, which is chrome the drag takes away along with the
- * screen.
- */
 internal sealed interface IndicatorAnchor {
     object OwnContent : IndicatorAnchor
 
     data class Layout(val route: String) : IndicatorAnchor
 }
 
-/**
- * Where [entry]'s grab affordance belongs, or null when it offers none.
- *
- * [DismissIndicatorPlacement.Surface], the default, puts it above exactly the chrome that would
- * leave with the surface: the layout of the graph presented as a sheet, or the innermost layout
- * inside that graph when the graph declares none. A screen dismissed on its own takes no chrome
- * with it, so the affordance sits above its own content and the graph layout around it stays where
- * it is. [DismissIndicatorPlacement.OutermostChrome] puts it above every layout enclosing the
- * screen instead, for an app that wants the grabber at the top of the window whatever the drag
- * actually removes, at the cost of that chrome being offset while such a screen is on top.
- *
- * The surface a drag takes away is what declares this, the same way it declares whether to offer a
- * handle at all. Read from the entry and the static graph declarations alone, never from the stack,
- * so a screen offers its handle in the same place on every visit and cannot move it while a
- * transition runs.
- */
 internal fun dismissIndicatorAnchor(
     entry: NavigationEntry,
     navModule: NavigationModule,

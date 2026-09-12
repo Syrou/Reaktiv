@@ -175,9 +175,6 @@ class CustomApplication : Application() {
                 layout { content -> HandoffBetaLayout(content) }
             }
 
-            // A flow that ends by replacing its last step with a screen outside itself, so the
-            // sheet leaves as the celebration arrives, and then returns to whichever screen opened
-            // it. SubscriptionConfettiScreen is registered on the root graph above for that reason.
             graph(SubscriptionGraph) {
                 start(SubscriptionPlanScreen)
                 screens(SubscriptionPlanScreen, SubscriptionPaymentScreen)

@@ -34,6 +34,7 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
+        binaries.executable()
     }
 
     applyDefaultHierarchyTemplate()
@@ -44,7 +45,6 @@ kotlin {
                 implementation(compose.foundation)
                 implementation(compose.material3)
                 implementation(compose.components.resources)
-                implementation(libs.jetbrains.lifecycle.runtime.compose)
                 implementation(project(":reaktiv-core"))
                 implementation(project(":reaktiv-compose"))
                 implementation(libs.kotlinx.coroutines.core)

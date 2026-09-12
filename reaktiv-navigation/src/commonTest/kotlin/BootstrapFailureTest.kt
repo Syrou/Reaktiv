@@ -1,21 +1,17 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.createStore
-import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.setAppInteractive
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -45,11 +41,11 @@ class BootstrapFailureTest {
     }
 
     private val homeScreen = screen("home")
+    private val crashDestination = screen("crash")
 
     @Test
-    fun `bootstrap runs without waiting when the host never reports interactivity`() =
+    fun `a start lambda that resolves completes bootstrap`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val dispatcher = StandardTestDispatcher(testScheduler)
             val store = createStore {
                 module(createNavigationModule {
                     loadingModal(loadingModal())
@@ -58,138 +54,59 @@ class BootstrapFailureTest {
                         screens(homeScreen)
                     }
                 })
-                coroutineContext(dispatcher)
+                coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
-            assertFalse(state.isBootstrapping, "a store with no interactivity reports must not be held back")
+            assertFalse(state.isBootstrapping)
             assertEquals("home", state.currentEntry.route)
+            assertFalse(state.backStack.any { it.route == "loading" })
         }
 
     @Test
-    fun `losing interactivity abandons an in-flight bootstrap and unlocking retries it`() =
+    fun `a start lambda that throws with no crash screen leaves navigation on the loading modal`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val dispatcher = StandardTestDispatcher(testScheduler)
-            val gate = CompletableDeferred<Screen>()
-            var attempts = 0
             val store = createStore {
                 module(createNavigationModule {
                     loadingModal(loadingModal())
                     rootGraph {
-                        start(route = { _ ->
-                            attempts++
-                            gate.await()
-                        })
+                        start(route = { _ -> throw IllegalStateException("no destination") })
                         screens(homeScreen)
                     }
                 })
-                coroutineContext(dispatcher)
+                coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            val whileLoading = store.selectState<NavigationState>().first()
-            assertTrue(whileLoading.isBootstrapping, "bootstrap is still waiting on the start lambda")
-            assertEquals(1, attempts)
-
-            store.setAppInteractive(false)
-            advanceUntilIdle()
-
-            val whileLocked = store.selectState<NavigationState>().first()
-            assertTrue(whileLocked.isBootstrapping, "bootstrap must not resolve while the app is locked")
-            assertEquals("loading", whileLocked.currentEntry.route)
-
-            gate.complete(homeScreen)
-            advanceUntilIdle()
-
-            val stillLocked = store.selectState<NavigationState>().first()
+            val state = store.selectState<NavigationState>().first()
             assertTrue(
-                stillLocked.isBootstrapping,
-                "the abandoned attempt must not resolve after the app has gone away"
+                state.isBootstrapping,
+                "there is no correct destination to invent, so bootstrap stays unresolved"
             )
-
-            store.setAppInteractive(true)
-            advanceUntilIdle()
-
-            val afterUnlock = store.selectState<NavigationState>().first()
-            assertFalse(afterUnlock.isBootstrapping, "bootstrap must resolve once the app becomes interactive")
-            assertEquals("home", afterUnlock.currentEntry.route)
-            assertFalse(afterUnlock.backStack.any { it.route == "loading" })
-            assertEquals(2, attempts, "the start lambda must run again on the unlocked attempt")
+            assertEquals("loading", state.currentEntry.route)
         }
 
     @Test
-    fun `an eager failure is retried on the first interactivity report even without a preceding loss`() =
+    fun `a start lambda that throws completes bootstrap when a crash screen is configured`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val dispatcher = StandardTestDispatcher(testScheduler)
-            val gate = CompletableDeferred<Screen>()
-            var attempts = 0
             val store = createStore {
                 module(createNavigationModule {
                     loadingModal(loadingModal())
+                    crashScreen(crashDestination)
                     rootGraph {
-                        start(route = { _ ->
-                            attempts++
-                            withTimeout(50) { gate.await() }
-                        })
+                        start(route = { _ -> throw IllegalStateException("no destination") })
                         screens(homeScreen)
                     }
                 })
-                coroutineContext(dispatcher)
+                coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            val afterEagerFailure = store.selectState<NavigationState>().first()
-            assertTrue(afterEagerFailure.isBootstrapping, "the eager attempt failed while the app was away")
-            assertEquals(1, attempts)
-
-            gate.complete(homeScreen)
-            store.setAppInteractive(true)
-            advanceUntilIdle()
-
-            val afterUnlock = store.selectState<NavigationState>().first()
+            val state = store.selectState<NavigationState>().first()
             assertFalse(
-                afterUnlock.isBootstrapping,
-                "the first interactivity report must retry bootstrap even though it was never told the app went away"
+                state.isBootstrapping,
+                "a configured crash screen makes the failure terminal instead of leaving the store pinned"
             )
-            assertEquals("home", afterUnlock.currentEntry.route)
-            assertEquals(2, attempts)
-        }
-
-    @Test
-    fun `a start lambda that times out is retried when the app next becomes interactive`() =
-        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val dispatcher = StandardTestDispatcher(testScheduler)
-            val gate = CompletableDeferred<Screen>()
-            var attempts = 0
-            val store = createStore {
-                module(createNavigationModule {
-                    loadingModal(loadingModal())
-                    rootGraph {
-                        start(route = { _ ->
-                            attempts++
-                            withTimeout(50) { gate.await() }
-                        })
-                        screens(homeScreen)
-                    }
-                })
-                coroutineContext(dispatcher)
-            }
-            advanceUntilIdle()
-
-            val afterFailure = store.selectState<NavigationState>().first()
-            assertTrue(afterFailure.isBootstrapping, "a timed out start lambda leaves bootstrap armed")
-            assertEquals(1, attempts)
-
-            gate.complete(homeScreen)
-            store.setAppInteractive(false)
-            advanceUntilIdle()
-            store.setAppInteractive(true)
-            advanceUntilIdle()
-
-            val afterRetry = store.selectState<NavigationState>().first()
-            assertFalse(afterRetry.isBootstrapping, "becoming interactive again must retry bootstrap")
-            assertEquals("home", afterRetry.currentEntry.route)
-            assertEquals(2, attempts)
         }
 }

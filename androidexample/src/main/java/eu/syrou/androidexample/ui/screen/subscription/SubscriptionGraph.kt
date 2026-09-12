@@ -33,25 +33,12 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.ui.NavigationBackgroundProvider
 import kotlinx.coroutines.launch
 
-/**
- * The checkout as a presented surface.
- *
- * Declaring the vertical transitions here is what makes it one surface: it arrives from the bottom
- * with its chrome, its steps cross-fade inside it, dragging down anywhere takes the whole thing
- * away, and the grab handle therefore sits above the chrome this graph draws rather than inside it.
- */
 object SubscriptionGraph : Graph {
     override val route: String = "subscribe"
     override val enterTransition: NavTransition = NavTransition.SlideUpBottom
     override val exitTransition: NavTransition = NavTransition.SlideOutBottom
 }
 
-/**
- * Chrome shared by every checkout step.
- *
- * The close button leaves the whole flow rather than stepping back through it, which is the same
- * thing the drag on the grab handle above this chrome does.
- */
 @Composable
 internal fun SubscriptionLayout(content: @Composable () -> Unit) {
     val store = rememberStore()
@@ -104,9 +91,6 @@ internal fun SubscriptionLayout(content: @Composable () -> Unit) {
                 }
             }
             Box(modifier = Modifier.fillMaxSize()) {
-                // The steps cross-fade, so each one has to be opaque or the step being left shows
-                // through the one arriving for as long as the fade lasts. Painting them in the
-                // colour this layout's own surface uses keeps them indistinguishable from it.
                 NavigationBackgroundProvider(MaterialTheme.colorScheme.surfaceVariant) {
                     content()
                 }

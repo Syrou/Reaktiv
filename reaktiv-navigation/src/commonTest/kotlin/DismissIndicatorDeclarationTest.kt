@@ -26,10 +26,6 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/**
- * The grab affordance is offered by the surface a drag takes away, and sits above exactly the chrome
- * that would leave with it.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DismissIndicatorDeclarationTest {
 

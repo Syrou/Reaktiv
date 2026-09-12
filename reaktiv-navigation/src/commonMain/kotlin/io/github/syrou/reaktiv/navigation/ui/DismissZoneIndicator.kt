@@ -107,11 +107,6 @@ internal fun DismissIndicatorSlot(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                // The strip stands in the space the top inset reserves, so where the renderer is
-                // holding this surface's content clear of the insets it has to say that this one is
-                // already accounted for, or the content pads for the status bar a second time.
-                // A surface handling its own insets is told nothing and sees what it always saw,
-                // including having to consume this itself.
                 .then(
                     if (reportsOccupiedInset) {
                         Modifier.consumeWindowInsets(WindowInsets.statusBars)

@@ -27,11 +27,6 @@ import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 
-/**
- * The inset values themselves only exist on a device, so what is checked here is that declaring
- * them costs a screen nothing when there are none: a safe-area screen occupies the window exactly
- * as a fullscreen one does, which is what says the wrapper applying the declaration is transparent.
- */
 @OptIn(ExperimentalTestApi::class)
 class ContentInsetsUiTest {
 

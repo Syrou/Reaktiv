@@ -104,13 +104,6 @@ private class AnchoredSlot(
     val transitionAnchorRoute: String?
 )
 
-/**
- * Whether the slot's grab affordance belongs at [route], or at its own leaf when [route] is null.
- *
- * The slot carries the answer rather than the tree deriving one, because which chrome leaves with a
- * surface is a question about the graph declarations rather than about the shape of this tree. Both
- * placements read the same field, so the affordance cannot end up in two places or in neither.
- */
 private fun LayoutTreeSlot.holdsIndicatorAt(route: String?): Boolean = when (route) {
     null -> indicatorAnchor == IndicatorAnchor.OwnContent
     else -> indicatorAnchor == IndicatorAnchor.Layout(route)
