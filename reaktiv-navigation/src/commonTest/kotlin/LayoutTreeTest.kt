@@ -4,8 +4,13 @@ import io.github.syrou.reaktiv.navigation.ui.LayoutTreeNode
 import io.github.syrou.reaktiv.navigation.ui.LayoutTreeShield
 import io.github.syrou.reaktiv.navigation.ui.LayoutTreeSlot
 import io.github.syrou.reaktiv.navigation.ui.buildLayoutTree
-import io.github.syrou.reaktiv.navigation.ui.decideExitPlacement
+import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.ui.NavigationZIndex
+import io.github.syrou.reaktiv.navigation.ui.decideTransitionPlacement
+import io.github.syrou.reaktiv.navigation.util.AnimationDecision
+import io.github.syrou.reaktiv.navigation.util.IndicatorAnchor
 import io.github.syrou.reaktiv.navigation.ui.outermostUnsharedLayout
+import io.github.syrou.reaktiv.navigation.ui.sharedLayoutDepth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -18,13 +23,13 @@ class LayoutTreeTest {
         key: String,
         vararg layoutRoutes: String,
         zIndex: Float = 3f,
-        indicatorAnchorRoute: String? = null,
+        indicatorAnchor: IndicatorAnchor? = null,
         shielded: Boolean = false
     ) = LayoutTreeSlot(
         key = key,
         layoutRoutes = layoutRoutes.toList(),
         zIndex = zIndex,
-        indicatorAnchorRoute = indicatorAnchorRoute,
+        indicatorAnchor = indicatorAnchor,
         shielded = shielded
     )
 
@@ -213,21 +218,11 @@ class LayoutTreeTest {
 
     @Test
     fun `a sheet graph holds the affordance for every step taken inside it`() {
-        val sheet = listOf("checkout")
-        val beneath = listOf<List<String>>(emptyList())
+        val anchor = IndicatorAnchor.Layout("checkout")
         val tree = buildLayoutTree(
             listOf(
-                slot(
-                    "exiting",
-                    "checkout",
-                    zIndex = 2f,
-                    indicatorAnchorRoute = outermostUnsharedLayout(sheet, beneath)
-                ),
-                slot(
-                    "entering",
-                    "checkout",
-                    indicatorAnchorRoute = outermostUnsharedLayout(sheet, beneath)
-                )
+                slot("exiting", "checkout", zIndex = 2f, indicatorAnchor = anchor),
+                slot("entering", "checkout", indicatorAnchor = anchor)
             )
         )
 
@@ -244,33 +239,59 @@ class LayoutTreeTest {
     }
 
     @Test
-    fun `chrome the revealed screen keeps holds no affordance of its own`() {
+    fun `a screen dragged on its own carries the strip under chrome that stays`() {
         val tree = buildLayoutTree(
             listOf(
-                slot(
-                    "entering",
-                    "chrome-home",
-                    indicatorAnchorRoute = outermostUnsharedLayout(
-                        listOf("chrome-home"),
-                        listOf(listOf("chrome-home"))
-                    )
-                )
+                slot("beneath", "chrome-home", zIndex = 2f),
+                slot("entering", "chrome-home", indicatorAnchor = IndicatorAnchor.OwnContent)
             )
         )
 
-        assertNull(branches(tree).single().indicatorSlotKey)
-        assertTrue(
-            leaves(tree).single().ownsIndicator,
-            "dragging this screen away leaves the chrome standing, so the affordance sits under it"
+        assertNull(
+            branches(tree).single { it.route == "chrome-home" }.indicatorSlotKey,
+            "this chrome is not going anywhere, so it holds no affordance and is not offset"
+        )
+        assertEquals(
+            listOf("entering"),
+            leaves(tree).filter { it.ownsIndicator }.map { it.slotKey }
         )
     }
 
     @Test
-    fun `a surface anchors above the chrome that would leave with it`() {
+    fun `only the layout the surface anchors at holds the affordance`() {
+        val tree = buildLayoutTree(
+            listOf(slot("entering", "outer", "inner", indicatorAnchor = IndicatorAnchor.Layout("inner")))
+        )
+
+        assertNull(
+            branches(tree).single { it.route == "outer" }.indicatorSlotKey,
+            "chrome outside the surface stays behind, so the affordance is not hoisted above it"
+        )
+        assertEquals("entering", branches(tree).single { it.route == "inner" }.indicatorSlotKey)
+        assertFalse(leaves(tree).single().ownsIndicator)
+    }
+
+    @Test
+    fun `a screen standing under no layout carries the strip itself`() {
+        val tree = buildLayoutTree(listOf(slot("entering", indicatorAnchor = IndicatorAnchor.OwnContent)))
+
+        assertTrue(leaves(tree).single().ownsIndicator)
+    }
+
+    @Test
+    fun `a surface that cannot be dragged away reserves nothing anywhere`() {
+        val tree = buildLayoutTree(listOf(slot("entering", "chrome-home")))
+
+        assertNull(branches(tree).single().indicatorSlotKey)
+        assertFalse(leaves(tree).single().ownsIndicator)
+    }
+
+    @Test
+    fun `a surface begins at the outermost layout the screens beside it do not stand under`() {
         assertEquals(
             "overlay",
             outermostUnsharedLayout(listOf("overlay"), listOf(listOf("home"))),
-            "the overlay chrome goes away with the screen, so the grab strip belongs above it"
+            "the overlay chrome arrived with the screen, so the screen animates together with it"
         )
         assertNull(
             outermostUnsharedLayout(listOf("wallet", "royalty"), listOf(listOf("wallet", "royalty")))
@@ -279,72 +300,126 @@ class LayoutTreeTest {
             "royalty",
             outermostUnsharedLayout(listOf("wallet", "royalty"), listOf(listOf("wallet")))
         )
-        assertNull(
+        assertEquals(
+            "wallet",
             outermostUnsharedLayout(listOf("wallet"), emptyList()),
-            "with nothing left behind there is nothing to dismiss to, so nothing is hoisted"
+            "with nothing to measure against, none of the chrome is held up by anything else"
         )
     }
 
     @Test
-    fun `changed layouts with an animating exit lift the exiting screen out`() {
-        val placement = decideExitPlacement(
+    fun `chrome is shared as far down as the two screens agree`() {
+        val screen = listOf("wallet", "royalty")
+
+        assertEquals(
+            2,
+            sharedLayoutDepth(screen, listOf(listOf("wallet", "royalty"), listOf("wallet"))),
+            "the deepest agreement wins, so chrome another screen is standing under is shared"
+        )
+        assertEquals(0, sharedLayoutDepth(screen, listOf(emptyList())))
+        assertEquals(0, sharedLayoutDepth(screen, emptyList()))
+        assertEquals(
+            outermostUnsharedLayout(screen, listOf(listOf("wallet"))),
+            screen.getOrNull(sharedLayoutDepth(screen, listOf(listOf("wallet")))),
+            "a surface begins exactly where its agreement with the screens beside it ends"
+        )
+    }
+
+    private fun decision(
+        enter: NavTransition = NavTransition.SlideInRight,
+        exit: NavTransition = NavTransition.SlideOutLeft,
+        animateExit: Boolean = true
+    ) = AnimationDecision(
+        shouldAnimateEnter = true,
+        shouldAnimateExit = animateExit,
+        isForward = true,
+        enterTransition = enter,
+        exitTransition = exit
+    )
+
+    @Test
+    fun `changed layouts with an animating exit lift the exiting screen clear`() {
+        val placement = decideTransitionPlacement(
             currentLayoutRoutes = listOf("wallet"),
             previousLayoutRoutes = listOf("home"),
-            shouldAnimateExit = true
+            decision = decision()
         )
 
-        assertTrue(placement.liftExiting)
-        assertFalse(placement.sharesChrome)
+        assertEquals(NavigationZIndex.CONTENT_LIFTED_EXIT, placement.previousZIndex)
+        assertEquals(NavigationZIndex.CONTENT_FRONT, placement.currentZIndex)
+        assertTrue(
+            placement.currentPlaysTransition,
+            "the screens stand under different chrome, so the arriving one has its own entrance"
+        )
     }
 
     @Test
     fun `changed layouts without an animating exit do not lift`() {
-        val placement = decideExitPlacement(
+        val placement = decideTransitionPlacement(
             currentLayoutRoutes = listOf("wallet"),
             previousLayoutRoutes = listOf("home"),
-            shouldAnimateExit = false
+            decision = decision(animateExit = false)
         )
 
-        assertFalse(placement.liftExiting)
+        assertEquals(NavigationZIndex.CONTENT_BACK, placement.previousZIndex)
+        assertEquals(NavigationZIndex.CONTENT_FRONT, placement.currentZIndex)
     }
 
     @Test
     fun `moving inside one graph never lifts the exiting screen`() {
-        val placement = decideExitPlacement(
+        val placement = decideTransitionPlacement(
             currentLayoutRoutes = listOf("wallet"),
             previousLayoutRoutes = listOf("wallet"),
-            shouldAnimateExit = true
+            decision = decision()
         )
 
-        assertFalse(placement.liftExiting)
-        assertTrue(placement.sharesChrome)
+        assertEquals(NavigationZIndex.CONTENT_BACK, placement.previousZIndex)
+        assertEquals(NavigationZIndex.CONTENT_FRONT, placement.currentZIndex)
+        assertTrue(placement.currentPlaysTransition)
     }
 
     @Test
-    fun `a deeper graph under the same chrome lifts but is still recognised as sharing it`() {
-        val placement = decideExitPlacement(
+    fun `a screen revealed under chrome it shares plays no entrance of its own`() {
+        val placement = decideTransitionPlacement(
             currentLayoutRoutes = listOf("wallet", "royalty-analytics"),
             previousLayoutRoutes = listOf("wallet"),
-            shouldAnimateExit = true
+            decision = decision()
         )
 
-        assertTrue(placement.liftExiting)
-        assertTrue(
-            placement.sharesChrome,
-            "the arriving screen is revealed underneath the lifted one inside chrome they share, " +
-                "so it must not play its own enter transition as well"
+        assertEquals(NavigationZIndex.CONTENT_LIFTED_EXIT, placement.previousZIndex)
+        assertFalse(
+            placement.currentPlaysTransition,
+            "the leaving screen is lifted above it inside chrome they share, so the arriving one " +
+                "is revealed underneath rather than playing an entrance nobody can see"
+        )
+    }
+
+    @Test
+    fun `a screen that does not animate in lets the leaving one draw over it`() {
+        val placement = decideTransitionPlacement(
+            currentLayoutRoutes = listOf("wallet"),
+            previousLayoutRoutes = listOf("wallet"),
+            decision = decision(enter = NavTransition.None, exit = NavTransition.SlideOutLeft)
+        )
+
+        assertEquals(NavigationZIndex.CONTENT_BACK, placement.currentZIndex)
+        assertEquals(
+            NavigationZIndex.CONTENT_FRONT,
+            placement.previousZIndex,
+            "nothing moves the arriving screen into view, so the leaving one has to move off it"
         )
     }
 
     @Test
     fun `nothing is lifted when there is no exiting screen`() {
-        val placement = decideExitPlacement(
+        val placement = decideTransitionPlacement(
             currentLayoutRoutes = listOf("wallet"),
             previousLayoutRoutes = null,
-            shouldAnimateExit = true
+            decision = null
         )
 
-        assertFalse(placement.liftExiting)
-        assertFalse(placement.sharesChrome)
+        assertEquals(NavigationZIndex.CONTENT_FRONT, placement.currentZIndex)
+        assertEquals(NavigationZIndex.CONTENT_BACK, placement.previousZIndex)
+        assertTrue(placement.currentPlaysTransition)
     }
 }

@@ -49,6 +49,20 @@ class DismissIndicatorLayoutUiTest {
         }
     }
 
+    private object UiNoHandleSheetScreen : Screen {
+        override val route = "ui-no-handle-sheet"
+        override val enterTransition = NavTransition.SlideUpBottom
+        override val exitTransition = NavTransition.SlideOutBottom
+        override val showsDismissIndicator = false
+
+        @Composable
+        override fun Content(params: Params) {
+            Box(modifier = Modifier.fillMaxSize().testTag("ui-no-handle-sheet-screen")) {
+                Text("UI No Handle Sheet")
+            }
+        }
+    }
+
     private object UiAlertModal : Modal {
         override val route = "ui-alert"
         override val enterTransition = NavTransition.Fade
@@ -64,7 +78,7 @@ class DismissIndicatorLayoutUiTest {
         module(createNavigationModule {
             rootGraph {
                 start(UiHomeScreen)
-                screens(UiHomeScreen, UiSheetScreen, UiClearSheetScreen)
+                screens(UiHomeScreen, UiSheetScreen, UiClearSheetScreen, UiNoHandleSheetScreen)
                 modals(UiAlertModal)
             }
         })
@@ -108,6 +122,26 @@ class DismissIndicatorLayoutUiTest {
 
         onNodeWithTag("ui-sheet-screen").assertTopPositionInRootIsEqualTo(stripHeight)
         waitUntilExactlyOneExists(hasTestTag("reaktiv-dismiss-indicator"), timeoutMillis = UI_TEST_WAIT_MS)
+    }
+
+    @Test
+    fun aSheetDecliningTheHandleReservesNoStripAndKeepsItsDrag() = runComposeUiTest {
+        val store = buildStore()
+        setContent {
+            StoreProvider(store) {
+                NavigationRender()
+            }
+        }
+        waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
+
+        store.launch { store.navigation { navigateTo("ui-no-handle-sheet") } }
+        awaitCurrentScreen(store, "ui-no-handle-sheet")
+        waitUntilExactlyOneExists(hasText("UI No Handle Sheet"), timeoutMillis = UI_TEST_WAIT_MS)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("UI Home").fetchSemanticsNodes().isEmpty() }
+        waitForIdle()
+
+        onNodeWithTag("ui-no-handle-sheet-screen").assertTopPositionInRootIsEqualTo(0.dp)
+        onAllNodesWithTag("reaktiv-dismiss-indicator").assertCountEquals(0)
     }
 
     @Test

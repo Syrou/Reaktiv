@@ -220,6 +220,12 @@ public interface Navigatable : NavigationNode, TransitionSpec {
     public val showsDismissIndicator: Boolean
         get() = true
 
+    public val dismissIndicatorPlacement: DismissIndicatorPlacement
+        get() = DismissIndicatorPlacement.Surface
+
+    public val contentInsets: ContentInsets
+        get() = ContentInsets.Fullscreen
+
     public val dismissIndicatorColor: Color
         get() = Color.Unspecified
 

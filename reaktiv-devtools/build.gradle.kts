@@ -19,7 +19,7 @@ centralPublisher {
 kotlin {
     android {
         namespace = "io.github.syrou.reaktiv.devtools"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 23
     }
     jvm {

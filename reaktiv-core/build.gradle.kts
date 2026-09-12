@@ -18,7 +18,7 @@ kotlin {
     jvm()
     android {
         namespace = "io.github.syrou.reaktiv.core"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 23
     }
     macosArm64()

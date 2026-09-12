@@ -25,8 +25,8 @@ import io.github.syrou.reaktiv.navigation.transition.computeBackGesturePlan
 import io.github.syrou.reaktiv.navigation.transition.computeDismissGesturePlan
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
-import io.github.syrou.reaktiv.navigation.util.contentEntryBeneath
 import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
+import io.github.syrou.reaktiv.navigation.util.dismissIndicatorAnchor
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
 import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
 import io.github.syrou.reaktiv.navigation.util.presentationSourceFor
@@ -262,28 +262,11 @@ private fun ContentLayerRenderer(
     }
 
     val currentLayoutRoutes = currentLayouts.map { it.route }
-    val exitPlacement = decideExitPlacement(
+    val placement = decideTransitionPlacement(
         currentLayoutRoutes = currentLayoutRoutes,
         previousLayoutRoutes = prevLayouts?.map { it.route },
-        shouldAnimateExit = animationState.animationDecision?.shouldAnimateExit ?: false
+        decision = animationState.animationDecision
     )
-    val liftExiting = exitPlacement.liftExiting
-
-    val shouldExitBeOnTop = !liftExiting && (animationState.animationDecision?.let { decision ->
-        decision.enterTransition is NavTransition.None &&
-            decision.exitTransition !is NavTransition.None
-    } ?: false)
-    val currentDecision = if (liftExiting && exitPlacement.sharesChrome) {
-        null
-    } else {
-        animationState.animationDecision
-    }
-    val currentZ = if (shouldExitBeOnTop) NavigationZIndex.CONTENT_BACK else NavigationZIndex.CONTENT_FRONT
-    val prevZ = when {
-        liftExiting -> NavigationZIndex.CONTENT_LIFTED_EXIT
-        shouldExitBeOnTop -> NavigationZIndex.CONTENT_FRONT
-        else -> NavigationZIndex.CONTENT_BACK
-    }
 
     val slots = buildList {
         if (revealedEntry != null) {
@@ -305,7 +288,7 @@ private fun ContentLayerRenderer(
                 ContentSlot(
                     entry = prevEntry,
                     layouts = prevLayouts.orEmpty(),
-                    zIndex = prevZ,
+                    zIndex = placement.previousZIndex,
                     isEntering = false,
                     animationDecision = animationState.animationDecision,
                     progressDriver = TransitionProgressDriver.Timed,
@@ -319,9 +302,10 @@ private fun ContentLayerRenderer(
                 entry = currentEntry,
                 layouts = currentLayouts,
                 hostedModals = contentModals,
-                zIndex = currentZ,
+                zIndex = placement.currentZIndex,
                 isEntering = true,
-                animationDecision = currentDecision,
+                animationDecision = animationState.animationDecision
+                    .takeIf { placement.currentPlaysTransition },
                 progressDriver = scrubPreview?.topDriver ?: TransitionProgressDriver.Timed,
                 blockInput = false,
                 clearSemantics = false
@@ -333,37 +317,23 @@ private fun ContentLayerRenderer(
     val screenWidth = windowInfo.containerSize.width.toFloat()
     val screenHeight = windowInfo.containerSize.height.toFloat()
 
-    // A dismiss takes the whole surface away, and the surface reaches as far out as the chrome that
-    // is not also holding up whatever the drag would reveal. That is where the grab affordance
-    // belongs: above the header of a graph presented as a sheet, but underneath chrome the revealed
-    // screen keeps.
-    val beneathEntry = revealedEntryForDismiss(navigationState, navModule)
-        ?.takeIf { it.navigatable.renderLayer == RenderLayer.CONTENT }
-        ?: contentEntryBeneath(navigationState)
-    val beneathLayoutRoutes = beneathEntry?.let { beneath ->
-        val beneathGraphId = navModule.getGraphId(beneath) ?: beneath.route
-        findLayoutGraphsInHierarchy(beneathGraphId, graphDefinitions).map { it.route }
-    }
     val slotLayoutRoutes = slots.map { slot -> slot.layouts.map { it.route } }
+    // Where the grab affordance goes follows from the entry and the graph declarations alone.
+    // Deriving it from whatever sat beneath instead put the same screen's affordance above a graph
+    // layout when the screen was reached from outside that layout and inside the layout when it was
+    // reached from a screen standing under it, and moved it from the one to the other while a
+    // transition was still running.
     val tree = buildLayoutTree(
         slots.mapIndexed { index, slot ->
-            // What a drag would take away depends on the stack, never on what else happens to be
-            // animating. Reading the other slots here made a sheet's grab affordance drop below the
-            // graph's own chrome for the length of a step transition and climb back afterwards,
-            // because the step being left shares that chrome.
-            val staysBehind = if (slot.entry.stableKey == navigationState.currentEntry.stableKey) {
-                beneathLayoutRoutes
-            } else {
-                beneathLayoutRoutes ?: currentLayoutRoutes
-            }
             LayoutTreeSlot(
                 key = slot.entry.stableKey,
                 layoutRoutes = slotLayoutRoutes[index],
                 zIndex = slot.zIndex,
-                indicatorAnchorRoute = outermostUnsharedLayout(
-                    layoutRoutes = slotLayoutRoutes[index],
-                    staysBehind = listOfNotNull(staysBehind)
-                ),
+                indicatorAnchor = if (interactiveController == null) {
+                    null
+                } else {
+                    dismissIndicatorAnchor(slot.entry, navModule, slotLayoutRoutes[index])
+                },
                 shielded = slot.entry.stableKey == revealedEntry?.stableKey
             )
         }
@@ -376,7 +346,6 @@ private fun ContentLayerRenderer(
             nodes = tree,
             slotsByKey = slotsByKey,
             graphsByRoute = graphsByRoute,
-            fallbackIndicatorEntry = navigationState.currentEntry,
             screenWidth = screenWidth,
             screenHeight = screenHeight
         )
@@ -438,7 +407,6 @@ private fun LayoutTreeNodes(
     nodes: List<LayoutTreeNode>,
     slotsByKey: Map<String, ContentSlot>,
     graphsByRoute: Map<String, NavigationGraph>,
-    fallbackIndicatorEntry: NavigationEntry,
     screenWidth: Float,
     screenHeight: Float
 ) {
@@ -449,7 +417,6 @@ private fun LayoutTreeNodes(
                     branch = node,
                     slotsByKey = slotsByKey,
                     graphsByRoute = graphsByRoute,
-                    fallbackIndicatorEntry = fallbackIndicatorEntry,
                     screenWidth = screenWidth,
                     screenHeight = screenHeight
                 )
@@ -473,7 +440,6 @@ private fun LayoutBranchHost(
     branch: LayoutTreeBranch,
     slotsByKey: Map<String, ContentSlot>,
     graphsByRoute: Map<String, NavigationGraph>,
-    fallbackIndicatorEntry: NavigationEntry,
     screenWidth: Float,
     screenHeight: Float
 ) {
@@ -493,13 +459,12 @@ private fun LayoutBranchHost(
             )
     ) {
         CompositionLocalProvider(LocalRenderedEntry provides (owner?.entry ?: inheritedEntry)) {
-            // The affordance belongs to the surface being dragged. A graph presented as a sheet is
-            // dragged whole, so the grab strip sits above the graph's own chrome rather than under
-            // it, where a drag starting on the header would miss it.
-            DismissIndicatorSlot(
-                entry = indicatorSlot?.entry ?: fallbackIndicatorEntry,
-                enabled = indicatorSlot != null
-            ) {
+            // A slot anchors here when the drag would take this chrome away along with it, so the
+            // grab strip sits above the chrome rather than under it, where a drag starting on the
+            // header would miss it. The strip is composed whether or not it holds an affordance,
+            // because a wrapper that came and went as a sheet arrived over the layout would take
+            // the layout and its screens down with it.
+            DismissIndicatorSlot(indicatorEntry = indicatorSlot?.entry) {
                 GraphLayout(graphsByRoute[branch.route]) {
                     // Everything under one layout occupies the same space and is ordered by zIndex.
                     // Handing the children straight to the layout would let a Column or a Scaffold
@@ -509,7 +474,6 @@ private fun LayoutBranchHost(
                             nodes = branch.children,
                             slotsByKey = slotsByKey,
                             graphsByRoute = graphsByRoute,
-                            fallbackIndicatorEntry = fallbackIndicatorEntry,
                             screenWidth = screenWidth,
                             screenHeight = screenHeight
                         )
@@ -559,12 +523,11 @@ private fun EntryHost(
         Box(modifier = Modifier.fillMaxSize()) {
             HostedEntry(slot.entry) {
                 DismissIndicatorSlot(
-                    entry = slot.entry,
-                    enabled = ownsIndicator,
+                    indicatorEntry = slot.entry.takeIf { ownsIndicator },
                     contentBackground = slotBackground
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        slot.entry.navigatable.Content(slot.entry.params)
+                        NavigatableContent(slot.entry.navigatable, slot.entry.params)
                         ModalStack(slot.hostedModals, NavigationZIndex.CONTENT_MODAL_BASE)
                     }
                 }
@@ -608,7 +571,7 @@ private fun ModalStack(
                 onAnimationComplete = { stack.completed(modalState.entry.stableKey) }
             ) {
                 HostedEntry(modalState.entry) {
-                    navigatable.Content(modalState.entry.params)
+                    NavigatableContent(navigatable, modalState.entry.params)
                 }
             }
         }
@@ -651,7 +614,7 @@ private fun SystemLayerRenderer(
                         onAnimationComplete = null
                     ) {
                         HostedEntry(entry) {
-                            navigatable.Content(entry.params)
+                            NavigatableContent(navigatable, entry.params)
                         }
                     }
                 } else {
@@ -661,7 +624,7 @@ private fun SystemLayerRenderer(
                             .zIndex(9001f + navigatable.elevation)
                     ) {
                         HostedEntry(entry) {
-                            navigatable.Content(entry.params)
+                            NavigatableContent(navigatable, entry.params)
                         }
                     }
                 }
@@ -674,7 +637,7 @@ private fun SystemLayerRenderer(
                 .fillMaxSize()
                 .zIndex(NavigationZIndex.SYSTEM_BASE + evaluationOverlay.elevation)
         ) {
-            evaluationOverlay.Content(Params.empty())
+            NavigatableContent(evaluationOverlay, Params.empty())
         }
     }
 }

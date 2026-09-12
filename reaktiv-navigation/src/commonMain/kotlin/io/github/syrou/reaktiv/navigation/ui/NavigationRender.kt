@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.zIndex
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import androidx.compose.runtime.snapshotFlow
@@ -21,6 +23,7 @@ import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.extension.setAppInteractive
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -133,6 +136,13 @@ public fun NavigationRender(
     }
 
     val interactiveController = remember { InteractiveTransitionController() }
+
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle, store) {
+        lifecycle.currentStateFlow.collect { lifecycleState ->
+            store.setAppInteractive(lifecycleState.isAtLeast(Lifecycle.State.STARTED))
+        }
+    }
 
     LaunchedEffect(interactiveController) {
         interactiveController.scrubDispatch = { action -> store.dispatch(action) }

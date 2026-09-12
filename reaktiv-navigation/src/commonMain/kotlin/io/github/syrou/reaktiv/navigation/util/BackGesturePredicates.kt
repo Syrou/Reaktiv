@@ -2,6 +2,8 @@ package io.github.syrou.reaktiv.navigation.util
 
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.definition.DismissIndicatorPlacement
+import io.github.syrou.reaktiv.navigation.definition.Graph
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
@@ -38,6 +40,10 @@ internal fun dismissableBoundary(
     navModule.getGraphDefinitions()[graphId]?.declaration?.dismissal?.swipe?.allowsDismiss == true
 }
 
+internal fun dismissableSurface(entry: NavigationEntry, navModule: NavigationModule): Graph? =
+    dismissableBoundary(entry, navModule)
+        ?.let { navModule.getGraphDefinitions()[it]?.declaration }
+
 /**
  * The entry a dismiss gesture would reveal, skipping everything inside a dismissable boundary.
  *
@@ -55,9 +61,6 @@ internal fun revealedEntryForDismiss(
         dismissableBoundary(candidate, navModule) != boundary
     }
 }
-
-internal fun contentEntryBeneath(state: NavigationState): NavigationEntry? =
-    state.orderedBackStack.dropLast(1).lastOrNull { it.navigatable.renderLayer == RenderLayer.CONTENT }
 
 internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: NavigationModule): Boolean {
     if (!canHandleBack(state)) return false
@@ -87,16 +90,72 @@ internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: Nav
  * rather than by what currently sits beneath it.
  *
  * This is the layout question and it is deliberately separate from [canArmSwipeDismiss]. The
- * strip a sheet reserves for its grabber has to be there on every visit, because a screen laid
- * out under that strip has offset its own chrome to match. Deciding it by whether the drag can
- * arm right now moved that chrome by the strip's height whenever the entry underneath was a
- * modal, and again while the screen was on its way out.
+ * strip a sheet reserves for its grabber has to be there on every visit, because whatever sits
+ * under that strip, the chrome of the surface being dragged or the screen itself, has offset its
+ * own layout to match. Deciding it by whether the drag can arm right now moved that chrome by the
+ * strip's height whenever the entry underneath was a modal, and again while the screen was on its
+ * way out.
+ *
+ * See [dismissIndicatorAnchor] for where the affordance this reports then goes.
  */
 internal fun presentsDismissIndicator(entry: NavigationEntry, navModule: NavigationModule): Boolean {
     val top = entry.navigatable
     if (top.renderLayer != RenderLayer.CONTENT) return false
     if (!top.showsDismissIndicator) return false
-    return top.dismissal.swipe.allowsDismiss || dismissableBoundary(entry, navModule) != null
+    // The affordance belongs to the surface the drag takes away, so that surface is also what
+    // decides whether to offer one. Inside a graph presented as a sheet that is the graph, and a
+    // graph declining the handle declines it for every step taken inside it.
+    val surface = dismissableSurface(entry, navModule) ?: return top.dismissal.swipe.allowsDismiss
+    return surface.showsDismissIndicator
+}
+
+/**
+ * Where a surface's grab affordance is composed.
+ *
+ * [OwnContent] is directly above the screen's own content, under any graph layout enclosing it.
+ * [Layout] is above the named graph layout, which is chrome the drag takes away along with the
+ * screen.
+ */
+internal sealed interface IndicatorAnchor {
+    object OwnContent : IndicatorAnchor
+
+    data class Layout(val route: String) : IndicatorAnchor
+}
+
+/**
+ * Where [entry]'s grab affordance belongs, or null when it offers none.
+ *
+ * [DismissIndicatorPlacement.Surface], the default, puts it above exactly the chrome that would
+ * leave with the surface: the layout of the graph presented as a sheet, or the innermost layout
+ * inside that graph when the graph declares none. A screen dismissed on its own takes no chrome
+ * with it, so the affordance sits above its own content and the graph layout around it stays where
+ * it is. [DismissIndicatorPlacement.OutermostChrome] puts it above every layout enclosing the
+ * screen instead, for an app that wants the grabber at the top of the window whatever the drag
+ * actually removes, at the cost of that chrome being offset while such a screen is on top.
+ *
+ * The surface a drag takes away is what declares this, the same way it declares whether to offer a
+ * handle at all. Read from the entry and the static graph declarations alone, never from the stack,
+ * so a screen offers its handle in the same place on every visit and cannot move it while a
+ * transition runs.
+ */
+internal fun dismissIndicatorAnchor(
+    entry: NavigationEntry,
+    navModule: NavigationModule,
+    layoutRoutes: List<String>
+): IndicatorAnchor? {
+    if (!presentsDismissIndicator(entry, navModule)) return null
+    val surface = dismissableSurface(entry, navModule)
+    val placement = surface?.dismissIndicatorPlacement ?: entry.navigatable.dismissIndicatorPlacement
+    val anchorRoute = when (placement) {
+        DismissIndicatorPlacement.OutermostChrome -> layoutRoutes.firstOrNull()
+        DismissIndicatorPlacement.Surface -> {
+            val boundary = dismissableBoundary(entry, navModule) ?: return IndicatorAnchor.OwnContent
+            val chain = entry.graphChain
+            val boundaryDepth = chain.lastIndexOf(boundary)
+            layoutRoutes.firstOrNull { chain.indexOf(it) >= boundaryDepth }
+        }
+    }
+    return anchorRoute?.let { IndicatorAnchor.Layout(it) } ?: IndicatorAnchor.OwnContent
 }
 
 internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationModule): Boolean {

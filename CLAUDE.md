@@ -535,7 +535,7 @@ pluginManagement {
 
 - **Kotlin**: 2.4.10
 - **Gradle**: 9.6.1 (runs on JDK 17-26; the system-default JDK 25 works)
-- **Compose Multiplatform**: 1.11.1
+- **Compose Multiplatform**: 1.12.0
 - **Android Gradle Plugin**: 9.3.0 (KMP modules use `com.android.kotlin.multiplatform.library` with the android target configured inside `kotlin { android { } }`; androidexample uses AGP built-in Kotlin — no `kotlin("android")` plugin)
 - **kotlinx**: coroutines 1.11.0, serialization 1.11.0, datetime 0.8.0
 - Target platforms: JVM, Android, iOS/macOS, wasmJs (module-dependent)

@@ -34,6 +34,7 @@ import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import io.github.syrou.reaktiv.navigation.model.RouteResolution
+import io.github.syrou.reaktiv.navigation.model.RouteSelector
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.popExitSpec
@@ -43,6 +44,7 @@ import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import io.github.syrou.reaktiv.navigation.util.traceEntrySelection
 import io.github.syrou.reaktiv.navigation.util.traceGuard
 import io.github.syrou.reaktiv.navigation.util.traceNavigation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -56,6 +58,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -111,7 +114,11 @@ public class NavigationLogic(
     private val bootstrapCompleted = CompletableDeferred<Unit>()
     private val navigationMutex = Mutex()
     private val deepLinkStartedBeforeBootstrap = MutableStateFlow(false)
+    private val appInteractive = MutableStateFlow(true)
+    private val interactiveReports = MutableStateFlow(0L)
     private var bootstrapJob: Job? = null
+
+    private class BootstrapDeferred : CancellationException("Bootstrap deferred until the app is interactive")
 
     private val entryLifecycles = mutableMapOf<String, BackstackLifecycle>()
     private val exitingLifecycles = mutableSetOf<BackstackLifecycle>()
@@ -157,65 +164,166 @@ public class NavigationLogic(
 
         val bootstrapSelector = bootstrapEntry.route
         bootstrapJob = logicScope.launch {
-            navigationMutex.withLock {
-              withContext(NavigationLockMarker()) {
-                try {
-                val selectedNode = evaluateCached(bootstrapSelector, bootstrapEntry.cacheKey) {
-                    bootstrapSelector.invoke(storeAccessor)
+            runBootstrapAttempts(bootstrapSelector, bootstrapEntry.cacheKey, bootstrapGraphId)
+        }
+    }
+
+    private suspend fun runBootstrapAttempts(
+        bootstrapSelector: RouteSelector,
+        cacheKey: CacheKeySelector?,
+        bootstrapGraphId: String?
+    ) {
+        while (true) {
+            appInteractive.first { it }
+            val attemptedAt = interactiveReports.value
+            if (attemptBootstrap(bootstrapSelector, cacheKey, bootstrapGraphId)) return
+            interactiveReports.first { it > attemptedAt }
+        }
+    }
+
+    private suspend fun attemptBootstrap(
+        bootstrapSelector: RouteSelector,
+        cacheKey: CacheKeySelector?,
+        bootstrapGraphId: String?
+    ): Boolean {
+        try {
+            return coroutineScope {
+                val deferWatcher = launch {
+                    appInteractive.first { !it }
+                    this@coroutineScope.cancel(BootstrapDeferred())
                 }
+                try {
+                    runBootstrapNavigation(bootstrapSelector, cacheKey, bootstrapGraphId)
+                } finally {
+                    deferWatcher.cancel()
+                }
+            }
+        } catch (cancellation: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            ReaktivDebug.nav(
+                "Bootstrap was interrupted before it resolved a start destination, so it stays " +
+                    "armed and runs again once the app reports it is interactive."
+            )
+            return false
+        } catch (failure: Throwable) {
+            return handleBootstrapFailure(failure)
+        }
+    }
 
-                if (!deepLinkStartedBeforeBootstrap.value) {
-                    val routeBuilder = NavigationBuilder(storeAccessor)
-                    routeBuilder.clearBackStack()
-                    val resolvedBootstrapNode = resolveEntryChain(selectedNode, bootstrapGraphId ?: "root")
-
-                    val resolvedPath = resolvedBootstrapNode.fullPathOrRoute()
-                    val resolvedResolution = precomputedData.routeResolver.resolve(resolvedPath)
-                    val bootstrapStep = NavigationStep(NavigationOperation.Navigate)
-                    val currentState = getCurrentNavigationState()
-
-                    when (
-                        val guard = evaluateGuard(
-                            resolvedPath,
-                            resolvedResolution,
-                            bootstrapStep,
-                            guardVantage(routeBuilder, currentState)
-                        )
-                    ) {
-                        is GuardEvaluation.PendAndRedirect -> {
-                            storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
-                            routeBuilder.navigateTo(guard.redirectRoute)
-                        }
-                        is GuardEvaluation.Redirect -> {
-                            routeBuilder.navigateTo(guard.route)
-                        }
-                        is GuardEvaluation.Reject -> {
-                            val fallback = precomputedData.notFoundScreen
-                            if (fallback != null) routeBuilder.navigateTo(fallback)
-                            else throw IllegalStateException(
-                                "A guard rejected the start destination '$resolvedPath' and no " +
-                                    "notFoundScreen is configured, so there is nowhere to land. " +
-                                    "Configure notFoundScreen(), or have the guard return " +
-                                    "RedirectTo or PendAndRedirectTo instead of Reject."
-                            )
-                        }
-                        is GuardEvaluation.Allow, null -> routeBuilder.navigateToNode(resolvedBootstrapNode)
+    private suspend fun runBootstrapNavigation(
+        bootstrapSelector: RouteSelector,
+        cacheKey: CacheKeySelector?,
+        bootstrapGraphId: String?
+    ): Boolean {
+        var resolved = false
+        navigationMutex.withLock {
+            withContext(NavigationLockMarker()) {
+                try {
+                    val selectedNode = evaluateCached(bootstrapSelector, cacheKey) {
+                        bootstrapSelector.invoke(storeAccessor)
                     }
 
-                    routeBuilder.validate()
-                    executeNavigation(routeBuilder) { it + listOf(NavigationAction.BootstrapComplete) }
-                }
+                    if (!deepLinkStartedBeforeBootstrap.value) {
+                        val routeBuilder = NavigationBuilder(storeAccessor)
+                        routeBuilder.clearBackStack()
+                        val resolvedBootstrapNode = resolveEntryChain(selectedNode, bootstrapGraphId ?: "root")
+
+                        val resolvedPath = resolvedBootstrapNode.fullPathOrRoute()
+                        val resolvedResolution = precomputedData.routeResolver.resolve(resolvedPath)
+                        val bootstrapStep = NavigationStep(NavigationOperation.Navigate)
+                        val currentState = getCurrentNavigationState()
+
+                        when (
+                            val guard = evaluateGuard(
+                                resolvedPath,
+                                resolvedResolution,
+                                bootstrapStep,
+                                guardVantage(routeBuilder, currentState)
+                            )
+                        ) {
+                            is GuardEvaluation.PendAndRedirect -> {
+                                storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
+                                routeBuilder.navigateTo(guard.redirectRoute)
+                            }
+                            is GuardEvaluation.Redirect -> {
+                                routeBuilder.navigateTo(guard.route)
+                            }
+                            is GuardEvaluation.Reject -> {
+                                val fallback = precomputedData.notFoundScreen
+                                if (fallback != null) routeBuilder.navigateTo(fallback)
+                                else throw IllegalStateException(
+                                    "A guard rejected the start destination '$resolvedPath' and no " +
+                                        "notFoundScreen is configured, so there is nowhere to land. " +
+                                        "Configure notFoundScreen(), or have the guard return " +
+                                        "RedirectTo or PendAndRedirectTo instead of Reject."
+                                )
+                            }
+                            is GuardEvaluation.Allow, null -> routeBuilder.navigateToNode(resolvedBootstrapNode)
+                        }
+
+                        routeBuilder.validate()
+                        executeNavigation(routeBuilder) { it + listOf(NavigationAction.BootstrapComplete) }
+                    }
+                    resolved = true
                 } finally {
                     withContext(NonCancellable) {
-                        bootstrapCompleted.complete(Unit)
+                        if (resolved) bootstrapCompleted.complete(Unit)
                         if (getCurrentNavigationState().isEvaluatingNavigation) {
                             storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
                         }
                     }
                 }
-              }
             }
         }
+        return resolved
+    }
+
+    /**
+     * Reports a start destination lambda that threw.
+     *
+     * When a crash screen is configured the failure is terminal and lands there, matching how
+     * every other logic crash is surfaced. Without one there is nowhere correct to land, so the
+     * failure is logged and bootstrap is left armed to run again rather than sending the user to
+     * a destination the app never asked for.
+     *
+     * @return `true` when the failure was resolved onto the crash screen, `false` to retry later
+     */
+    private suspend fun handleBootstrapFailure(failure: Throwable): Boolean {
+        val crashScreenDef = precomputedData.crashScreen
+        if (crashScreenDef == null) {
+            ReaktivDebug.error(
+                "NavigationLogic: the start destination lambda failed, so navigation stays on the " +
+                    "loading modal and bootstrap will run again when the app next becomes " +
+                    "interactive. Configure crashScreen() to land somewhere on failure instead.",
+                failure
+            )
+            return false
+        }
+        val recovery = onCrash?.invoke(failure, null) ?: CrashRecovery.NAVIGATE_TO_CRASH_SCREEN
+        if (recovery != CrashRecovery.NAVIGATE_TO_CRASH_SCREEN) return false
+        navigateToCrashScreen(failure, null, crashScreenDef)
+        storeAccessor.dispatchAndAwait(NavigationAction.BootstrapComplete)
+        bootstrapCompleted.complete(Unit)
+        return true
+    }
+
+    /**
+     * Records whether the host application is currently interactive, meaning it is visible and
+     * not behind a lock screen.
+     *
+     * Bootstrap does not invoke the start destination lambda while the app is not interactive, so
+     * an app launched behind a keyguard does not run its start-up loading against a device that
+     * cannot service it. An attempt already in flight is cancelled when this turns `false` and is
+     * retried the next time it turns `true`.
+     *
+     * The value defaults to `true`, so a host that never reports (a headless store, a test, or a
+     * custom renderer) is never held back.
+     *
+     * @param interactive `true` when the app is visible and usable, `false` while it is not
+     */
+    public suspend fun setAppInteractive(interactive: Boolean) {
+        appInteractive.value = interactive
+        if (interactive) interactiveReports.update { it + 1 }
     }
 
     override suspend fun onExternalControlChanged(externallyDriven: Boolean) {

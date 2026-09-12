@@ -21,7 +21,7 @@ kotlin {
     jvm()
     android {
         namespace = "io.github.syrou.reaktiv.navigation"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 23
         androidResources {
             enable = true
@@ -44,6 +44,7 @@ kotlin {
                 implementation(compose.foundation)
                 implementation(compose.material3)
                 implementation(compose.components.resources)
+                implementation(libs.jetbrains.lifecycle.runtime.compose)
                 implementation(project(":reaktiv-core"))
                 implementation(project(":reaktiv-compose"))
                 implementation(libs.kotlinx.coroutines.core)

@@ -1,5 +1,9 @@
 package io.github.syrou.reaktiv.navigation.ui
 
+import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.util.AnimationDecision
+import io.github.syrou.reaktiv.navigation.util.IndicatorAnchor
+
 /**
  * One surface the content layer renders, together with the graph layouts enclosing it.
  *
@@ -11,7 +15,7 @@ internal data class LayoutTreeSlot(
     val key: String,
     val layoutRoutes: List<String>,
     val zIndex: Float,
-    val indicatorAnchorRoute: String? = null,
+    val indicatorAnchor: IndicatorAnchor? = null,
     val shielded: Boolean = false
 )
 
@@ -28,8 +32,9 @@ internal sealed interface LayoutTreeNode {
  * where the slot's transition plays, so a graph arriving as a whole animates together with its
  * chrome, while steps taken inside a graph animate underneath chrome that stays put.
  *
- * [indicatorSlotKey] names the slot whose dismiss affordance belongs at this branch, which is the
- * outermost chrome that would leave with that slot when it is dragged away.
+ * [indicatorSlotKey] names the slot whose dismiss affordance belongs at this branch, meaning this
+ * is chrome the drag would take away along with that slot, so the affordance sits above it rather
+ * than inside it where a drag starting on the chrome would miss it.
  */
 internal data class LayoutTreeBranch(
     val route: String,
@@ -65,7 +70,8 @@ internal data class LayoutTreeShield(
  * and disappearing around it never relocate it.
  *
  * [slots] are given back to front. Where several of them anchor their dismiss affordance at the
- * same layout, the last one holds it, so the affordance belongs to the surface in front.
+ * same layout, the last one offering a drag holds it, so the affordance belongs to the surface in
+ * front and stays put for as long as one of them is still there.
  *
  * Usage:
  * ```kotlin
@@ -77,23 +83,50 @@ internal data class LayoutTreeShield(
  * )
  * ```
  */
-internal fun buildLayoutTree(slots: List<LayoutTreeSlot>): List<LayoutTreeNode> =
-    buildLayoutLevel(slots, depth = 0, transitionOwned = false)
+internal fun buildLayoutTree(slots: List<LayoutTreeSlot>): List<LayoutTreeNode> {
+    // Where a slot's transition plays is the one question that depends on the whole set, so it is
+    // answered for every slot up front. Where its affordance sits depends on that slot alone and is
+    // read straight off it.
+    val anchored = slots.mapIndexed { index, slot ->
+        AnchoredSlot(
+            slot = slot,
+            transitionAnchorRoute = outermostUnsharedLayout(
+                layoutRoutes = slot.layoutRoutes,
+                sharedWith = slots.filterIndexed { other, _ -> other != index }.map { it.layoutRoutes }
+            )
+        )
+    }
+    return buildLayoutLevel(anchored, depth = 0)
+}
 
-private fun buildLayoutLevel(
-    slots: List<LayoutTreeSlot>,
-    depth: Int,
-    transitionOwned: Boolean
-): List<LayoutTreeNode> {
+private class AnchoredSlot(
+    val slot: LayoutTreeSlot,
+    val transitionAnchorRoute: String?
+)
+
+/**
+ * Whether the slot's grab affordance belongs at [route], or at its own leaf when [route] is null.
+ *
+ * The slot carries the answer rather than the tree deriving one, because which chrome leaves with a
+ * surface is a question about the graph declarations rather than about the shape of this tree. Both
+ * placements read the same field, so the affordance cannot end up in two places or in neither.
+ */
+private fun LayoutTreeSlot.holdsIndicatorAt(route: String?): Boolean = when (route) {
+    null -> indicatorAnchor == IndicatorAnchor.OwnContent
+    else -> indicatorAnchor == IndicatorAnchor.Layout(route)
+}
+
+private fun buildLayoutLevel(slots: List<AnchoredSlot>, depth: Int): List<LayoutTreeNode> {
     val nodes = mutableListOf<LayoutTreeNode>()
     val branched = mutableSetOf<String>()
-    slots.forEach { slot ->
+    slots.forEach { anchored ->
+        val slot = anchored.slot
         if (slot.layoutRoutes.size <= depth) {
             nodes += LayoutTreeLeaf(
                 slotKey = slot.key,
                 zIndex = slot.zIndex,
-                ownsTransition = !transitionOwned,
-                ownsIndicator = slot.indicatorAnchorRoute == null
+                ownsTransition = anchored.transitionAnchorRoute == null,
+                ownsIndicator = slot.holdsIndicatorAt(null)
             )
             if (slot.shielded) {
                 nodes += LayoutTreeShield(slot.key, NavigationZIndex.CONTENT_REVEALED_SHIELD)
@@ -102,61 +135,93 @@ private fun buildLayoutLevel(
         }
         val route = slot.layoutRoutes[depth]
         if (!branched.add(route)) return@forEach
-        val group = slots.filter { it.layoutRoutes.getOrNull(depth) == route }
-        val owner = if (transitionOwned) null else group.singleOrNull()
+        val group = slots.filter { it.slot.layoutRoutes.getOrNull(depth) == route }
         nodes += LayoutTreeBranch(
             route = route,
-            zIndex = group.maxOf { it.zIndex },
-            ownerSlotKey = owner?.key,
-            indicatorSlotKey = group.lastOrNull { it.indicatorAnchorRoute == route }?.key,
-            children = buildLayoutLevel(group, depth + 1, transitionOwned || owner != null)
+            zIndex = group.maxOf { it.slot.zIndex },
+            ownerSlotKey = group.lastOrNull { it.transitionAnchorRoute == route }?.slot?.key,
+            indicatorSlotKey = group.lastOrNull { it.slot.holdsIndicatorAt(route) }?.slot?.key,
+            children = buildLayoutLevel(group, depth + 1)
         )
     }
     return nodes
 }
 
-internal data class ExitPlacement(
-    val liftExiting: Boolean,
-    val sharesChrome: Boolean
+internal data class TransitionPlacement(
+    val currentZIndex: Float,
+    val previousZIndex: Float,
+    val currentPlaysTransition: Boolean
 )
 
 /**
- * Decides how the screen on its way out is ordered against the one replacing it.
+ * How the screen arriving and the screen leaving are stacked against each other, and whether the
+ * arriving one plays a transition of its own.
  *
- * Lifting only applies when the two sit under different chrome, because an exit that animates
- * out of one graph and into another has nothing to slide against inside a common layout.
+ * Lifting the leaving screen clear of everything only applies when the two sit under different
+ * chrome, because an exit that animates out of one graph and into another has nothing to slide
+ * against inside a layout they both stand in. When they do share chrome, the leaving screen is
+ * lifted above the arriving one inside it, and the arriving one is simply revealed underneath
+ * rather than playing an entrance nobody can see.
+ *
+ * Usage:
+ * ```kotlin
+ * val placement = decideTransitionPlacement(
+ *     currentLayoutRoutes = listOf("wallet"),
+ *     previousLayoutRoutes = listOf("home"),
+ *     decision = animationDecision
+ * )
+ * ```
  */
-internal fun decideExitPlacement(
+internal fun decideTransitionPlacement(
     currentLayoutRoutes: List<String>,
     previousLayoutRoutes: List<String>?,
-    shouldAnimateExit: Boolean
-): ExitPlacement {
-    if (previousLayoutRoutes == null) {
-        return ExitPlacement(liftExiting = false, sharesChrome = false)
-    }
-    val sharedPrefix = currentLayoutRoutes.zip(previousLayoutRoutes)
-        .takeWhile { (current, previous) -> current == previous }
-        .size
-    return ExitPlacement(
-        liftExiting = previousLayoutRoutes != currentLayoutRoutes && shouldAnimateExit,
-        sharesChrome = sharedPrefix > 0
+    decision: AnimationDecision?
+): TransitionPlacement {
+    val sharedChrome = previousLayoutRoutes?.let {
+        sharedLayoutDepth(currentLayoutRoutes, listOf(it))
+    } ?: 0
+    val layoutChanged = previousLayoutRoutes != null &&
+        sharedChrome < maxOf(currentLayoutRoutes.size, previousLayoutRoutes.size)
+    val liftExiting = layoutChanged && decision?.shouldAnimateExit == true
+    val exitDrawsOnTop = !liftExiting &&
+        decision != null &&
+        decision.enterTransition is NavTransition.None &&
+        decision.exitTransition !is NavTransition.None
+    return TransitionPlacement(
+        currentZIndex = if (exitDrawsOnTop) {
+            NavigationZIndex.CONTENT_BACK
+        } else {
+            NavigationZIndex.CONTENT_FRONT
+        },
+        previousZIndex = when {
+            liftExiting -> NavigationZIndex.CONTENT_LIFTED_EXIT
+            exitDrawsOnTop -> NavigationZIndex.CONTENT_FRONT
+            else -> NavigationZIndex.CONTENT_BACK
+        },
+        currentPlaysTransition = !(liftExiting && sharedChrome > 0)
     )
 }
 
 /**
- * The outermost layout in [layoutRoutes] that nothing in [staysBehind] has, or null when every
- * layout the surface sits under also encloses something that remains once the surface is gone.
+ * How many layouts, counting from the outermost inwards, [layoutRoutes] has in common with whichever
+ * of [sharedWith] it agrees with furthest.
+ */
+internal fun sharedLayoutDepth(
+    layoutRoutes: List<String>,
+    sharedWith: List<List<String>>
+): Int = sharedWith.maxOfOrNull { other ->
+    layoutRoutes.zip(other).takeWhile { (route, otherRoute) -> route == otherRoute }.size
+} ?: 0
+
+/**
+ * The outermost layout in [layoutRoutes] that nothing in [sharedWith] has, or null when every layout
+ * the surface sits under also encloses one of them.
  *
- * This is where a surface begins. Chrome it does not share is part of it and leaves with it, so a
- * dismiss affordance belongs above that chrome. Chrome it shares belongs to what is underneath and
- * stays put, so the affordance belongs below it.
+ * This is where a surface begins. Chrome the screen does not share with the screens beside it
+ * arrived together with it and animates with it, while chrome they all stand under was already on
+ * screen and stays put.
  */
 internal fun outermostUnsharedLayout(
     layoutRoutes: List<String>,
-    staysBehind: List<List<String>>
-): String? {
-    val shared = staysBehind.maxOfOrNull { other ->
-        layoutRoutes.zip(other).takeWhile { (route, otherRoute) -> route == otherRoute }.size
-    } ?: return null
-    return layoutRoutes.getOrNull(shared)
-}
+    sharedWith: List<List<String>>
+): String? = layoutRoutes.getOrNull(sharedLayoutDepth(layoutRoutes, sharedWith))

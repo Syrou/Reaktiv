@@ -72,8 +72,16 @@ public interface Graph : NavigationNode, TransitionSpec {
      *
      * Follows [swipeToDismiss] rather than defaulting to true, so a structural graph never promises
      * a handle it cannot honour.
+     *
+     * The graph being dragged is the surface the affordance belongs to, so this decides for every
+     * step taken inside it. Setting it to false leaves the graph draggable with no handle and no
+     * strip reserved above its layout, which is how a vertically presented flow keeps the gesture
+     * without the grabber.
      */
     public val showsDismissIndicator: Boolean get() = dismissal.swipe !is DismissAction.Ignore
+
+    public val dismissIndicatorPlacement: DismissIndicatorPlacement
+        get() = DismissIndicatorPlacement.Surface
 
     public val dismissIndicatorColor: Color get() = Color.Unspecified
 

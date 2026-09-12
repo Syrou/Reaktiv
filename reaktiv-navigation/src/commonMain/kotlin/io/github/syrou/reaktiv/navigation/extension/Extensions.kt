@@ -20,6 +20,30 @@ public suspend fun StoreAccessor.navigation(block: suspend NavigationBuilder.() 
     navigationLogic.navigate(block)
 }
 
+/**
+ * Reports whether the host application is currently interactive, meaning it is visible and not
+ * behind a lock screen.
+ *
+ * Bootstrap holds the start destination lambda until this is `true`, so an app launched behind a
+ * keyguard does not run its start-up loading against a device that cannot service it.
+ * [io.github.syrou.reaktiv.navigation.ui.NavigationRender] reports this from the platform
+ * lifecycle, so apps rendering through it need no wiring of their own.
+ *
+ * ```kotlin
+ * val lifecycle = LocalLifecycleOwner.current.lifecycle
+ * LaunchedEffect(lifecycle) {
+ *     lifecycle.currentStateFlow.collect { state ->
+ *         store.setAppInteractive(state.isAtLeast(Lifecycle.State.STARTED))
+ *     }
+ * }
+ * ```
+ *
+ * @param interactive `true` when the app is visible and usable, `false` while it is not
+ */
+public suspend fun StoreAccessor.setAppInteractive(interactive: Boolean) {
+    selectLogic<NavigationLogic>().setAppInteractive(interactive)
+}
+
 public suspend fun StoreAccessor.navigateBack(expectedTopKey: String? = null) {
     selectLogic<NavigationLogic>().navigateBack(expectedTopKey)
 }

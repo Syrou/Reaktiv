@@ -33,6 +33,12 @@ import eu.syrou.androidexample.ui.screen.layouthandoff.HandoffBetaScreen
 import eu.syrou.androidexample.ui.screen.wizard.WizardAddonsGraph
 import eu.syrou.androidexample.ui.screen.wizard.WizardAddonsScreen
 import eu.syrou.androidexample.ui.screen.wizard.WizardDeliveryScreen
+import eu.syrou.androidexample.reaktiv.subscription.SubscriptionModule
+import eu.syrou.androidexample.ui.screen.subscription.SubscriptionConfettiScreen
+import eu.syrou.androidexample.ui.screen.subscription.SubscriptionGraph
+import eu.syrou.androidexample.ui.screen.subscription.SubscriptionLayout
+import eu.syrou.androidexample.ui.screen.subscription.SubscriptionPaymentScreen
+import eu.syrou.androidexample.ui.screen.subscription.SubscriptionPlanScreen
 import eu.syrou.androidexample.ui.screen.wizard.WizardGraph
 import eu.syrou.androidexample.ui.screen.wizard.WizardLayout
 import eu.syrou.androidexample.ui.screen.wizard.WizardPaymentScreen
@@ -140,6 +146,7 @@ class CustomApplication : Application() {
                 StreamsListScreen,
                 DeepLinkAliasTestScreen,
                 PullToRefreshDemoScreen,
+                SubscriptionConfettiScreen,
                 LifecycleDemoScreen,
                 *toolingScreens().toTypedArray(),
             )
@@ -166,6 +173,17 @@ class CustomApplication : Application() {
                 start(HandoffBetaScreen)
                 screens(HandoffBetaScreen)
                 layout { content -> HandoffBetaLayout(content) }
+            }
+
+            // A flow that ends by replacing its last step with a screen outside itself, so the
+            // sheet leaves as the celebration arrives, and then returns to whichever screen opened
+            // it. SubscriptionConfettiScreen is registered on the root graph above for that reason.
+            graph(SubscriptionGraph) {
+                start(SubscriptionPlanScreen)
+                screens(SubscriptionPlanScreen, SubscriptionPaymentScreen)
+                layout { content ->
+                    SubscriptionLayout(content)
+                }
             }
 
             graph(WizardGraph) {
@@ -281,6 +299,7 @@ class CustomApplication : Application() {
         module(TestNavigationModule)
         module(TwitchStreamsModule)
         module(CrashTestModule)
+        module(SubscriptionModule)
         toolingModule(this@CustomApplication)?.let { module(it) }
         module(navigationModule)
         middlewares(

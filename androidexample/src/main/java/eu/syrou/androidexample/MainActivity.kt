@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import eu.syrou.androidexample.reaktiv.crashtest.CrashTestLogic
 import eu.syrou.androidexample.reaktiv.settings.SettingsModule
+import eu.syrou.androidexample.reaktiv.subscription.SubscriptionLogic
 import eu.syrou.androidexample.ui.components.NotificationPermissionHandler
 import eu.syrou.androidexample.ui.screen.SettingsScreen
 import eu.syrou.androidexample.ui.theme.ReaktivTheme
@@ -143,6 +145,7 @@ fun MainRender() {
     val items =
         listOf(
             "Settings" to Icons.Default.Settings,
+            "Reaktiv Plus" to Icons.Default.Star,
             "DevTools" to Icons.Default.Build,
             "Crash Test" to Icons.Default.Warning,
             "Contact" to Icons.Default.Notifications,
@@ -179,6 +182,12 @@ fun MainRender() {
                                                 store.navigation {
                                                     navigateTo(SettingsScreen.route)
                                                 }
+                                            }
+                                        }
+
+                                        "Reaktiv Plus" -> {
+                                            store.launch {
+                                                store.selectLogic<SubscriptionLogic>().begin()
                                             }
                                         }
 

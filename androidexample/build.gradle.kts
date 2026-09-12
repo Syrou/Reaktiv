@@ -21,7 +21,7 @@ reaktivTracing {
 
 android {
     namespace = "eu.syrou.androidexample"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "eu.syrou.androidexample"

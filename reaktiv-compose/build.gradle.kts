@@ -18,7 +18,7 @@ centralPublisher {
 kotlin {
     android {
         namespace = "io.github.syrou.reaktiv.compose"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 23
         androidResources {
             enable = true

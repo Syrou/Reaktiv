@@ -4,7 +4,7 @@ plugins {
     id("com.android.application") apply false
     id("com.android.kotlin.multiplatform.library") apply false
     id("org.jetbrains.dokka") version "2.2.0"
-    id("org.jetbrains.compose") version "1.11.1"
+    id("org.jetbrains.compose") version "1.12.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.10"
     id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.1"
 }

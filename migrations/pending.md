@@ -1596,7 +1596,7 @@ Back dispatched during async guard evaluation interleaved with the pending forwa
 
 ---
 
-### [BC-09] Toolchain modernised: Kotlin 2.4.10, Gradle 9.6.1, AGP 9.3.0, Compose Multiplatform 1.11.1
+### [BC-09] Toolchain modernised: Kotlin 2.4.10, Gradle 9.6.1, AGP 9.3.0, Compose Multiplatform 1.12.0
 
 **Type:** Behavioural
 
@@ -1610,11 +1610,14 @@ Back dispatched during async guard evaluation interleaved with the pending forwa
 
 **After:**
 ```kotlin
-// Consumers should upgrade to Kotlin 2.4+ and Compose Multiplatform 1.11+.
+// Consumers should upgrade to Kotlin 2.4+ and Compose Multiplatform 1.12+,
+// Android Gradle Plugin 9.1+ and compileSdk 37.
 // Native/wasm klibs produced by Kotlin 2.4.10 are not consumable by older compilers.
 ```
 
-**Notes:** Library artifacts are now built with Kotlin 2.4.10 and Compose Multiplatform 1.11.1.
+**Notes:** Library artifacts are now built with Kotlin 2.4.10 and Compose Multiplatform 1.12.0.
+Compose Multiplatform 1.12.0 resolves androidx-compose 1.12.0, which requires Android Gradle
+Plugin 9.1.0 or higher and `compileSdk = 37`, so Android consumers must raise both.
 JVM/Android consumers on slightly older Kotlin generally keep working (metadata n+1 rule), but
 KMP native/wasm consumers must be on a compiler able to read 2.4 klibs. kotlinx dependency
 floors: coroutines 1.11.0, serialization 1.11.0, kotlinx-datetime 0.8.0.
@@ -6858,5 +6861,263 @@ screen keeps.
 
 A screen that is no longer rendered is still disposed. Only the top two entries are composed, so
 navigating forward twice disposes the first screen exactly as before.
+
+---
+
+### [BC-99] Bootstrap waits for app interactivity and retries instead of hanging
+
+**Type:** Behavioural
+
+**Grep:** `start(route =`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+rootGraph {
+    start(route = { storeAccessor -> loadStartDestination() })
+}
+```
+
+**After:**
+```kotlin
+rootGraph {
+    start(route = { storeAccessor -> loadStartDestination() })
+}
+```
+
+**Notes:** The DSL is unchanged, the runtime behaviour around it is not. A start destination
+lambda that threw or was cancelled used to leave `NavigationState.isBootstrapping` set to `true`
+for the life of the store, pinning the UI to the loading modal with no way out, because
+`NavigationAction.BootstrapComplete` was only dispatched on the success path. Bootstrap is now an
+armed loop: it holds the lambda until the app reports it is interactive, abandons an attempt that
+is in flight when interactivity is lost, and runs again the next time interactivity returns.
+
+Three consequences worth knowing. A lambda that throws with no `crashScreen()` configured now
+logs through `ReaktivDebug.error` and stays armed rather than hanging silently, and it never lands
+on `notFoundScreen`, which is reserved for routes that could not be resolved. A lambda that throws
+with `crashScreen()` configured lands there and completes bootstrap, as any other logic crash
+does. A lambda whose failure is deterministic keeps the app on the loading modal, because there is
+no correct destination to invent, so make sure a lambda that can fail either has a `crashScreen()`
+or returns a destination of its own on failure.
+
+An abandoned attempt is not resumed, it is cancelled and the lambda is invoked again from
+scratch, so **a start destination lambda must be safe to run more than once**. Whatever it was
+suspended on is cancelled rather than continued, and `evaluateCached` only caches a value the
+lambda actually returned, so an abandoned attempt leaves nothing behind. A lambda that consumes a
+one-shot token, posts an analytics event, or advances a counter will do so once per attempt.
+
+Retry is triggered by any report of interactivity, not by a transition into it, so an app that was
+never composed while it was away still retries on the first report it makes. Correctness does not
+depend on the lifecycle signal being accurate: without any report the lambda still runs once, and
+a report that arrives late still retries a failed attempt.
+
+Apps rendering through `NavigationRender` need no wiring, see AD-117.
+
+---
+
+### [AD-117] StoreAccessor.setAppInteractive
+
+**Type:** Addition
+
+**Grep:** `setAppInteractive`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val lifecycle = LocalLifecycleOwner.current.lifecycle
+LaunchedEffect(lifecycle) {
+    lifecycle.currentStateFlow.collect { state ->
+        store.setAppInteractive(state.isAtLeast(Lifecycle.State.STARTED))
+    }
+}
+```
+
+**Notes:** Reports whether the host application is visible and not behind a lock screen. Bootstrap
+holds the start destination lambda until this is `true`, so an app launched behind a keyguard does
+not run its start-up loading against a device that cannot service it, see BC-99.
+
+`NavigationRender` already reports this from the platform lifecycle, so apps rendering through it
+need no wiring. Call it directly only when rendering navigation yourself. The value defaults to
+`true`, so a headless store, a test, or a custom renderer that never reports is never held back.
+
+`reaktiv-navigation` gains a dependency on
+`org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose` for the lifecycle signal.
+
+---
+
+### [BC-100] The dismiss handle is placed by the surface, not by what sits beneath it
+
+**Type:** Behavioural
+
+**Grep:** `showsDismissIndicator|dismissIndicatorBackground`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Where the grab strip sat was decided by comparing the screen's graph layouts against those of
+// whatever entry happened to sit beneath it on the back stack. Chrome the entry beneath did not
+// also stand under counted as part of the arriving surface, so the strip was hoisted above that
+// chrome and offset it. The same screen therefore offered its handle above the chrome when it was
+// reached from outside it and inside the chrome when reached from a screen standing under it, and
+// moved between the two while a transition was running.
+graph("overlay") {
+    layout { content -> OverlayScaffold(content) }
+    screens(PickerScreen)
+}
+
+object PickerScreen : Screen {
+    override val enterTransition = NavTransition.SlideUpBottom
+}
+```
+
+**After:**
+```kotlin
+// The strip is now placed from the screen and the graph declarations alone. A screen dismissed on
+// its own takes no chrome with it, so its strip sits above its own content and OverlayScaffold is
+// never offset, whichever screen the picker was reached from. Declare the graph a presented surface
+// when the drag should take the chrome too, and the strip moves above it for every step inside.
+object OverlayGraph : Graph {
+    override val route = "overlay"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+}
+
+graph(OverlayGraph) {
+    layout { content -> OverlayScaffold(content) }
+    screens(PickerScreen)
+}
+```
+
+**Notes:** Only screens that present the handle are affected, meaning those whose `dismissal.swipe`
+allows a dismiss (by default a vertical enter transition) or those inside a graph declaring one, and
+only where a graph layout encloses them.
+
+A graph presented as a sheet is unchanged in the ordinary case: its handle already sat above the
+layout the graph declares, and it still does for every step taken inside it. It is also now correct
+where it was not, namely when nothing sat beneath the graph or the entry beneath belonged to the
+same graph, which used to drop the strip inside the graph's own chrome.
+
+A screen-level sheet inside a graph layout is the case that changes: the strip no longer hoists
+itself above that layout when the screen was reached from outside it. `DismissIndicatorPlacement`
+restores the old position where it was wanted, see AD-120.
+
+---
+
+### [AD-118] A graph or screen can decline the grab handle and keep the drag
+
+**Type:** Addition
+
+**Grep:** `showsDismissIndicator`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object CheckoutGraph : Graph {
+    override val route = "checkout"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+    override val showsDismissIndicator = false
+}
+
+object ComposerScreen : Screen {
+    override val route = "composer"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+    override val showsDismissIndicator = false
+}
+```
+
+**Notes:** `showsDismissIndicator = false` turns off the pill and the strip reserved for it while
+leaving the drag itself armed, so a vertically presented screen or graph keeps swipe to dismiss with
+no grabber and no space taken above its content. To turn the gesture off as well, declare
+`dismissal = Dismissal(swipe = DismissAction.Ignore)` instead.
+
+`Graph.showsDismissIndicator` was declarable before but never read. It now decides for every step
+taken inside the graph, because the graph is the surface a drag takes away. Nothing changes by
+default: it derives from the graph's own `dismissal`, which allows the drag for any graph that can
+be dragged.
+
+Where the handle sits is a separate question, see BC-100.
+
+---
+
+### [AD-119] ContentInsets on Navigatable
+
+**Type:** Addition
+
+**Grep:** `contentInsets`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object CameraScreen : Screen {
+    override val route = "camera"
+    override val enterTransition = NavTransition.Fade
+    override val exitTransition = NavTransition.Fade
+    override val contentInsets = ContentInsets.Fullscreen
+}
+
+object SettingsScreen : Screen {
+    override val route = "settings"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+    override val contentInsets = ContentInsets.SafeArea
+}
+```
+
+**Notes:** Declares how far a screen's or modal's content is held clear of the window edges, applied
+by the renderer around `Content` and inside the screen's transition, so the padding travels with the
+screen rather than being a fixed frame it slides through.
+
+`ContentInsets.Fullscreen` is the default and applies nothing, which is what every screen got before
+this existed. `ContentInsets.SafeArea` pads clear of the system bars and the display cutout, so a
+camera notch or a punch hole cannot cover the content. The IME is deliberately not included: a
+screen that has to react to the keyboard usually wants to scroll rather than shrink.
+
+The padding is applied with `windowInsetsPadding`, so it is consumed for everything the screen
+composes. A screen that already pads itself keeps working, and `WindowInsets.safeDrawing` read
+inside such a screen resolves to nothing left to pad rather than padding twice.
+
+Nothing about insets changes for a screen that declares none, which is every screen that existed
+before this. The grab strip reports the top inset it stands in only where the surface under it
+declared `ContentInsets.SafeArea`, because that is the only case where the renderer would otherwise
+pad for the status bar a second time. A screen handling its own insets keeps consuming
+`WindowInsets.statusBars` by hand under the strip exactly as before, and a screen declaring
+`SafeArea` no longer has to.
+
+The strip reads that from the surface holding the grab affordance, so two surfaces standing under
+one graph layout that disagree about their insets also disagree about what the strip reports while
+one is animating over the other. Declare the same policy for the screens sharing a layout.
+
+---
+
+### [AD-120] DismissIndicatorPlacement on Navigatable and Graph
+
+**Type:** Addition
+
+**Grep:** `dismissIndicatorPlacement`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object FiltersSheetScreen : Screen {
+    override val route = "filters"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+    override val dismissIndicatorPlacement = DismissIndicatorPlacement.OutermostChrome
+}
+```
+
+**Notes:** Chooses where the grab strip is composed.
+`DismissIndicatorPlacement.Surface` is the default and puts it above exactly the chrome that leaves
+with the surface: the layout of a graph presented as a sheet, or the screen's own content when the
+screen is dismissed on its own and the graph layout around it stays.
+`DismissIndicatorPlacement.OutermostChrome` puts it above every graph layout enclosing the screen
+instead, for an app that wants the grabber at the top of the window whatever the drag removes. That
+chrome is then offset by the strip height while such a screen is on top, and returns when it leaves.
+
+Declared by the surface the drag takes away, the same way `showsDismissIndicator` is: on the graph
+for a graph presented as a sheet, where it decides for every step inside it, and on the screen
+otherwise. Related: BC-100 for how placement is resolved, AD-118 for declining the handle outright.
 
 ---

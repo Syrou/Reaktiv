@@ -18,7 +18,7 @@ kotlin {
     jvm()
     android {
         namespace = "io.github.syrou.reaktiv.test.navigation"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 23
     }
     macosArm64()

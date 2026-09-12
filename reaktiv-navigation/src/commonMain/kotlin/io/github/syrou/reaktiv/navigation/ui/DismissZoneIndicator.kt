@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,10 +25,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.definition.ContentInsets
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
-import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
-import io.github.syrou.reaktiv.navigation.util.presentsDismissIndicator
+import io.github.syrou.reaktiv.navigation.util.dismissableSurface
 
 private val DISMISS_INDICATOR_SLOT_HEIGHT = 28.dp
 
@@ -38,30 +39,29 @@ private fun Modifier.paintIfSpecified(color: Color): Modifier =
 
 @Composable
 internal fun DismissIndicatorSlot(
-    entry: NavigationEntry,
-    enabled: Boolean = true,
+    indicatorEntry: NavigationEntry?,
     contentBackground: Color = Color.Unspecified,
     content: @Composable () -> Unit
 ) {
     val controller = LocalInteractiveTransitionController.current
     val navModule = LocalNavigationModule.current
     val navigationState by composeState<NavigationState>()
-    val reservesStrip = enabled && controller != null && presentsDismissIndicator(entry, navModule)
-    val showPill = controller != null &&
-        reservesStrip &&
-        navigationState.currentEntry.stableKey == entry.stableKey &&
+    val showPill = indicatorEntry != null &&
+        controller != null &&
+        navigationState.currentEntry.stableKey == indicatorEntry.stableKey &&
         canArmSwipeDismiss(navigationState, navModule)
-    val boundary = dismissableBoundary(entry, navModule)
-        ?.let { navModule.getGraphDefinitions()[it]?.declaration }
+    val surface = indicatorEntry?.let { dismissableSurface(it, navModule) }
+    val declaredInsets = indicatorEntry?.navigatable?.contentInsets ?: ContentInsets.Fullscreen
+    val reportsOccupiedInset = declaredInsets.windowInsets() != null
     val pillColor = listOfNotNull(
-        boundary?.dismissIndicatorColor,
-        entry.navigatable.dismissIndicatorColor,
+        surface?.dismissIndicatorColor,
+        indicatorEntry?.navigatable?.dismissIndicatorColor,
         LocalDismissIndicatorColor.current
     ).firstOrNull { it.isSpecified }
         ?: MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DISMISS_INDICATOR_ALPHA)
     val stripBackground = listOfNotNull(
-        boundary?.dismissIndicatorBackground,
-        entry.navigatable.dismissIndicatorBackground,
+        surface?.dismissIndicatorBackground,
+        indicatorEntry?.navigatable?.dismissIndicatorBackground,
         LocalDismissIndicatorBackground.current
     ).firstOrNull { it.isSpecified }
         ?: MaterialTheme.colorScheme.surfaceContainerLow
@@ -72,7 +72,7 @@ internal fun DismissIndicatorSlot(
                 .fillMaxWidth()
                 .paintIfSpecified(stripBackground)
                 .then(
-                    if (reservesStrip) {
+                    if (indicatorEntry != null) {
                         Modifier
                             .windowInsetsPadding(WindowInsets.statusBars)
                             .height(DISMISS_INDICATOR_SLOT_HEIGHT)
@@ -103,7 +103,24 @@ internal fun DismissIndicatorSlot(
                 )
             }
         }
-        Box(modifier = Modifier.fillMaxWidth().weight(1f).paintIfSpecified(contentBackground)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                // The strip stands in the space the top inset reserves, so where the renderer is
+                // holding this surface's content clear of the insets it has to say that this one is
+                // already accounted for, or the content pads for the status bar a second time.
+                // A surface handling its own insets is told nothing and sees what it always saw,
+                // including having to consume this itself.
+                .then(
+                    if (reportsOccupiedInset) {
+                        Modifier.consumeWindowInsets(WindowInsets.statusBars)
+                    } else {
+                        Modifier
+                    }
+                )
+                .paintIfSpecified(contentBackground)
+        ) {
             content()
         }
     }

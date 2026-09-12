@@ -17,7 +17,7 @@ centralPublisher {
 kotlin {
     android {
         namespace = "io.github.syrou.reaktiv.network.ktor"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 23
     }
 

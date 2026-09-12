@@ -12,6 +12,8 @@ import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.ui.NavigationZIndex
+import io.github.syrou.reaktiv.navigation.ui.decideTransitionPlacement
 import io.github.syrou.reaktiv.navigation.util.determineAnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,7 +37,7 @@ import kotlin.time.toDuration
  *
  * Also verifies the zIndex selection formula:
  *
- *   shouldExitBeOnTop = enterTransition == None && exitTransition != None
+ *   the exiting screen draws on top when enterTransition == None && exitTransition != None
  *
  * which drives whether the entering or exiting screen renders on top during a
  * transition. When true the exiting screen appears in front (e.g., a pop
@@ -332,10 +334,13 @@ class AnimationDecisionTest {
                 val profileEntry = start("profile", stackPosition = 2)
 
                 val decision = determineAnimationDecision(homeEntry, profileEntry, nm)
+                val placement = decideTransitionPlacement(emptyList(), emptyList(), decision)
 
-                val shouldExitBeOnTop = decision.enterTransition is NavTransition.None &&
-                        decision.exitTransition !is NavTransition.None
-                assertFalse(shouldExitBeOnTop, "Entering screen must be on top when enter transition is active")
+                assertEquals(
+                    NavigationZIndex.CONTENT_FRONT,
+                    placement.currentZIndex,
+                    "Entering screen must be on top when enter transition is active"
+                )
             }
         }
 
@@ -362,13 +367,14 @@ class AnimationDecisionTest {
             val destEntry = start("dest", stackPosition = 2)
 
             val decision = determineAnimationDecision(homeEntry, destEntry, nm)
-            val shouldExitBeOnTop = decision.enterTransition is NavTransition.None &&
-                    decision.exitTransition !is NavTransition.None
+            val placement = decideTransitionPlacement(emptyList(), emptyList(), decision)
 
-            assertTrue(
-                shouldExitBeOnTop,
+            assertEquals(
+                NavigationZIndex.CONTENT_FRONT,
+                placement.previousZIndex,
                 "Exit-only: exiting screen must render on top when entering screen has no enter transition"
             )
+            assertEquals(NavigationZIndex.CONTENT_BACK, placement.currentZIndex)
             assertEquals(NavTransition.None,         decision.enterTransition)
             assertEquals(NavTransition.SlideOutLeft, decision.exitTransition)
         }
