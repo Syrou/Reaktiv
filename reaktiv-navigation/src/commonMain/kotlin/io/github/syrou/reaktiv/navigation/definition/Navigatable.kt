@@ -221,7 +221,7 @@ public interface Navigatable : NavigationNode, TransitionSpec {
         get() = true
 
     public val dismissIndicatorPlacement: DismissIndicatorPlacement
-        get() = DismissIndicatorPlacement.Surface
+        get() = DismissIndicatorPlacement.OutermostChrome
 
     public val contentInsets: ContentInsets
         get() = ContentInsets.Fullscreen

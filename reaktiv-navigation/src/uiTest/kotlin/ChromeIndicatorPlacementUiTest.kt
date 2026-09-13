@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.DismissIndicatorPlacement
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
@@ -58,6 +59,7 @@ class ChromeIndicatorPlacementUiTest {
         override val route = "sheet"
         override val enterTransition = NavTransition.SlideUpBottom
         override val exitTransition = NavTransition.SlideOutBottom
+        override val dismissIndicatorPlacement = DismissIndicatorPlacement.Surface
 
         @Composable
         override fun Content(params: Params) {

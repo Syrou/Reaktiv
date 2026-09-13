@@ -49,15 +49,15 @@ class DismissIndicatorDeclarationTest {
     private val flowStep = screen("flow-step", NavTransition.SlideInRight)
     private val chromeSheet = screen("chrome-sheet", NavTransition.SlideUpBottom)
 
-    private val hoistedSheet = object : Screen {
-        override val route = "hoisted-sheet"
+    private val pinnedSheet = object : Screen {
+        override val route = "pinned-sheet"
         override val enterTransition = NavTransition.SlideUpBottom
         override val exitTransition = NavTransition.SlideOutBottom
-        override val dismissIndicatorPlacement = DismissIndicatorPlacement.OutermostChrome
+        override val dismissIndicatorPlacement = DismissIndicatorPlacement.Surface
 
         @Composable
         override fun Content(params: Params) {
-            Text("hoisted")
+            Text("pinned")
         }
     }
 
@@ -99,7 +99,7 @@ class DismissIndicatorDeclarationTest {
             }
             graph("chrome") {
                 start(chromeSheet)
-                screens(chromeSheet, hoistedSheet)
+                screens(chromeSheet, pinnedSheet)
                 layout { content -> content() }
             }
         }
@@ -131,7 +131,7 @@ class DismissIndicatorDeclarationTest {
         }
 
     @Test
-    fun a_screen_dragged_on_its_own_anchors_above_its_own_content() =
+    fun a_screen_with_no_chrome_around_it_anchors_above_its_own_content() =
         assertAnchorAt("sheet", IndicatorAnchor.OwnContent)
 
     @Test
@@ -151,10 +151,10 @@ class DismissIndicatorDeclarationTest {
         assertAnchorAt("bare/bare-step", IndicatorAnchor.OwnContent)
 
     @Test
-    fun a_screen_under_chrome_that_stays_anchors_above_its_own_content() =
-        assertAnchorAt("chrome/chrome-sheet", IndicatorAnchor.OwnContent)
+    fun a_screen_under_chrome_that_stays_anchors_above_that_chrome_by_default() =
+        assertAnchorAt("chrome/chrome-sheet", IndicatorAnchor.Layout("chrome"))
 
     @Test
-    fun a_screen_asking_for_the_outermost_chrome_anchors_above_the_layout_that_stays() =
-        assertAnchorAt("chrome/hoisted-sheet", IndicatorAnchor.Layout("chrome"))
+    fun a_screen_pinning_the_handle_to_the_surface_anchors_above_its_own_content() =
+        assertAnchorAt("chrome/pinned-sheet", IndicatorAnchor.OwnContent)
 }

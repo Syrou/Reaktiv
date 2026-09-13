@@ -153,20 +153,20 @@ class OverlayScaffoldInsetsUiTest {
         waitForIdle()
     }
 
-    private fun ComposeUiTest.assertOverlayChromeKeepsTheStripBelowIt() {
+    private fun ComposeUiTest.assertOverlayChromeSitsUnderTheStrip() {
+        onNodeWithTag("overlay-top-bar").assertTopPositionInRootIsEqualTo(28.dp)
         val topBar = onNodeWithTag("overlay-top-bar").getUnclippedBoundsInRoot()
-        onNodeWithTag("overlay-top-bar").assertTopPositionInRootIsEqualTo(0.dp)
-        onNodeWithTag("picker-content").assertTopPositionInRootIsEqualTo(topBar.bottom + 28.dp)
+        onNodeWithTag("picker-content").assertTopPositionInRootIsEqualTo(topBar.bottom)
     }
 
     @Test
-    fun pickerReachedFromScreenLaysOutUnderTheStripWithPill() = runComposeUiTest {
+    fun pickerReachedFromScreenPutsTheStripAboveTheOverlayChromeWithPill() = runComposeUiTest {
         val store = mount()
 
         store.launch { store.navigation { navigateTo(PickerScreen) } }
         settleOnPicker(store)
 
-        assertOverlayChromeKeepsTheStripBelowIt()
+        assertOverlayChromeSitsUnderTheStrip()
         waitUntilExactlyOneExists(hasTestTag("reaktiv-dismiss-indicator"), timeoutMillis = UI_TEST_WAIT_MS)
     }
 
@@ -181,7 +181,7 @@ class OverlayScaffoldInsetsUiTest {
         store.launch { store.navigation { navigateTo<PickerScreen>() } }
         settleOnPicker(store)
 
-        assertOverlayChromeKeepsTheStripBelowIt()
+        assertOverlayChromeSitsUnderTheStrip()
         waitForIdle()
         onAllNodesWithTag("reaktiv-dismiss-indicator").assertCountEquals(0)
     }

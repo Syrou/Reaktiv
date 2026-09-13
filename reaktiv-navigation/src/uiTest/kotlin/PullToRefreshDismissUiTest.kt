@@ -44,6 +44,7 @@ import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.DismissIndicatorPlacement
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -179,6 +180,7 @@ class PullToRefreshDismissUiTest {
         override val route = "ui-chrome-inner-sheet"
         override val enterTransition = NavTransition.SlideUpBottom
         override val exitTransition = NavTransition.SlideOutBottom
+        override val dismissIndicatorPlacement = DismissIndicatorPlacement.Surface
 
         @Composable
         override fun Content(params: Params) {

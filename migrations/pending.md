@@ -6930,9 +6930,10 @@ object PickerScreen : Screen {
 **After:**
 ```kotlin
 // The strip is now placed from the screen and the graph declarations alone. A screen dismissed on
-// its own takes no chrome with it, so its strip sits above its own content and OverlayScaffold is
-// never offset, whichever screen the picker was reached from. Declare the graph a presented surface
-// when the drag should take the chrome too, and the strip moves above it for every step inside.
+// its own hoists its strip above the chrome enclosing it, which is where it sat before whenever the
+// picker was reached from outside OverlayScaffold, and it now sits there whichever screen the
+// picker was reached from. Declare the graph a presented surface when the drag should take the
+// chrome too, and the strip moves above exactly that graph's layout for every step inside.
 object OverlayGraph : Graph {
     override val route = "overlay"
     override val enterTransition = NavTransition.SlideUpBottom
@@ -6954,9 +6955,12 @@ layout the graph declares, and it still does for every step taken inside it. It 
 where it was not, namely when nothing sat beneath the graph or the entry beneath belonged to the
 same graph, which used to drop the strip inside the graph's own chrome.
 
-A screen-level sheet inside a graph layout is the case that changes: the strip no longer hoists
-itself above that layout when the screen was reached from outside it. `DismissIndicatorPlacement`
-restores the old position where it was wanted, see AD-120.
+A screen-level sheet inside a graph layout keeps hoisting its strip above that layout, which is
+where it sat whenever the screen was reached from outside the chrome. What changes is that it does
+so every time rather than only then, so one screen no longer offers its handle in two places
+depending on the route taken to it, and no longer moves it while a transition runs. Declare
+`DismissIndicatorPlacement.Surface` on the screen to keep the strip inside the chrome instead, see
+AD-120.
 
 ---
 
@@ -7061,17 +7065,23 @@ object FiltersSheetScreen : Screen {
     override val route = "filters"
     override val enterTransition = NavTransition.SlideUpBottom
     override val exitTransition = NavTransition.SlideOutBottom
-    override val dismissIndicatorPlacement = DismissIndicatorPlacement.OutermostChrome
+    override val dismissIndicatorPlacement = DismissIndicatorPlacement.Surface
 }
 ```
 
 **Notes:** Chooses where the grab strip is composed.
-`DismissIndicatorPlacement.Surface` is the default and puts it above exactly the chrome that leaves
-with the surface: the layout of a graph presented as a sheet, or the screen's own content when the
-screen is dismissed on its own and the graph layout around it stays.
-`DismissIndicatorPlacement.OutermostChrome` puts it above every graph layout enclosing the screen
-instead, for an app that wants the grabber at the top of the window whatever the drag removes. That
-chrome is then offset by the strip height while such a screen is on top, and returns when it leaves.
+`DismissIndicatorPlacement.OutermostChrome` is the default on a screen and puts the strip above
+every graph layout enclosing it, so a vertically presented screen offers the grabber at the top of
+the window whatever the drag removes. That chrome is offset by the strip height while such a screen
+is on top, and returns when it leaves.
+`DismissIndicatorPlacement.Surface` puts it above exactly the chrome that leaves with the surface:
+the layout of a graph presented as a sheet, or the screen's own content when the screen is dismissed
+on its own and the graph layout around it stays. Declare it on a screen that should carry its handle
+inside the chrome it was opened under.
+
+`Surface` is the default on a graph, because the layout a presented graph declares is precisely the
+chrome its drag takes away, and hoisting above an app scaffold standing outside the graph would
+offset chrome the gesture never touches.
 
 Declared by the surface the drag takes away, the same way `showsDismissIndicator` is: on the graph
 for a graph presented as a sheet, where it decides for every step inside it, and on the screen
