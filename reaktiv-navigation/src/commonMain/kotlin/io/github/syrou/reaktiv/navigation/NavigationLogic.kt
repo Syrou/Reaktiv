@@ -25,6 +25,7 @@ import io.github.syrou.reaktiv.navigation.dsl.NavigationOperation
 import io.github.syrou.reaktiv.navigation.dsl.NavigationStep
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
+import io.github.syrou.reaktiv.navigation.exception.PopUpToTargetNotInBackStackException
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.model.CacheKeySelector
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
@@ -1244,8 +1245,13 @@ public class NavigationLogic(
                             batchedActions.add(NavigationAction.Navigate(newEntry))
                             sim = NavigationStackMath.applyNavigate(sim, newEntry, null, false)
                             lastNavigatedEntry = newEntry
+                        } else if (precomputedData.routeResolver.resolve(resolvedRoute) == null) {
+                            throw RouteNotFoundException("popUpTo target '$resolvedRoute' is not a route in any graph")
                         } else {
-                            throw RouteNotFoundException("No match found for route $resolvedRoute")
+                            throw PopUpToTargetNotInBackStackException(
+                                targetRoute = resolvedRoute,
+                                backStackPaths = sim.backStack.map { it.path }
+                            )
                         }
                     } else {
                         val trimmedBackStack = if (step.popUpToInclusive) {

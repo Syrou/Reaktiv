@@ -7088,3 +7088,28 @@ for a graph presented as a sheet, where it decides for every step inside it, and
 otherwise. Related: BC-100 for how placement is resolved, AD-118 for declining the handle outright.
 
 ---
+
+### [AD-121] PopUpToTargetNotInBackStackException
+
+**Type:** Addition
+
+**Grep:** `PopUpToTargetNotInBackStackException`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+try {
+    store.navigation { popUpTo<CheckoutScreen>() }
+} catch (e: PopUpToTargetNotInBackStackException) {
+    println("No ${e.targetRoute} entry in ${e.backStackPaths}")
+}
+```
+
+**Notes:** popUpTo used to throw a plain RouteNotFoundException saying "No match found for route"
+when the target was a valid route with no entry on the back stack. It now throws this subclass,
+carrying the target and the current back stack paths. A target that is not a route in any graph
+still throws a plain RouteNotFoundException. Existing catch blocks for RouteNotFoundException keep
+working because this class extends it. Use the fallback parameter of popUpTo when the entry can
+legitimately be absent.
+
+---

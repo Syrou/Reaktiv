@@ -5,6 +5,7 @@ import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.exception.PopUpToTargetNotInBackStackException
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -18,6 +19,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -44,6 +46,7 @@ class ExceptionHandlingTest {
 
     private val homeScreen = createScreen("home")
     private val profileScreen = createScreen("profile")
+    private val settingsScreen = createScreen("settings")
 
     @Test
     fun `test RouteNotFoundException for invalid simple routes`() =
@@ -189,6 +192,37 @@ class ExceptionHandlingTest {
                 advanceUntilIdle()
             }
             assertTrue(exception.message?.contains("nonexistent") ?: false)
+            assertFalse(exception is PopUpToTargetNotInBackStackException)
+        }
+
+    @Test
+    fun `test popUpTo a registered route with no back stack entry reports the missing entry`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val testDispatcher = StandardTestDispatcher(testScheduler)
+            val navigationModule = createNavigationModule {
+                rootGraph {
+                    start(homeScreen)
+                    screens(homeScreen, profileScreen, settingsScreen)
+                }
+            }
+
+            val store = createStore {
+                module(navigationModule)
+                coroutineContext(testDispatcher)
+            }
+
+            store.navigation { navigateTo("profile") }
+            advanceUntilIdle()
+
+            val exception = assertFailsWith<PopUpToTargetNotInBackStackException> {
+                store.navigation { popUpTo("settings") }
+                advanceUntilIdle()
+            }
+            assertEquals("settings", exception.targetRoute)
+            assertEquals(listOf("home", "profile"), exception.backStackPaths)
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("profile", state.currentEntry.route)
         }
 
     @Test

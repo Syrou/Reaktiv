@@ -592,8 +592,13 @@ final class io.github.syrou.reaktiv.navigation.encoding/DualNavigationParameterE
     final inline fun <#A1: reified kotlin/Any?> encodeTypeSafe(#A1): kotlin/String // io.github.syrou.reaktiv.navigation.encoding/DualNavigationParameterEncoder.encodeTypeSafe|encodeTypeSafe(0:0){0§<kotlin.Any?>}[0]
 }
 
-final class io.github.syrou.reaktiv.navigation.exception/RouteNotFoundException : kotlin/Exception { // io.github.syrou.reaktiv.navigation.exception/RouteNotFoundException|null[0]
-    constructor <init>(kotlin/String) // io.github.syrou.reaktiv.navigation.exception/RouteNotFoundException.<init>|<init>(kotlin.String){}[0]
+final class io.github.syrou.reaktiv.navigation.exception/PopUpToTargetNotInBackStackException : io.github.syrou.reaktiv.navigation.exception/RouteNotFoundException { // io.github.syrou.reaktiv.navigation.exception/PopUpToTargetNotInBackStackException|null[0]
+    constructor <init>(kotlin/String, kotlin.collections/List<kotlin/String>) // io.github.syrou.reaktiv.navigation.exception/PopUpToTargetNotInBackStackException.<init>|<init>(kotlin.String;kotlin.collections.List<kotlin.String>){}[0]
+
+    final val backStackPaths // io.github.syrou.reaktiv.navigation.exception/PopUpToTargetNotInBackStackException.backStackPaths|{}backStackPaths[0]
+        final fun <get-backStackPaths>(): kotlin.collections/List<kotlin/String> // io.github.syrou.reaktiv.navigation.exception/PopUpToTargetNotInBackStackException.backStackPaths.<get-backStackPaths>|<get-backStackPaths>(){}[0]
+    final val targetRoute // io.github.syrou.reaktiv.navigation.exception/PopUpToTargetNotInBackStackException.targetRoute|{}targetRoute[0]
+        final fun <get-targetRoute>(): kotlin/String // io.github.syrou.reaktiv.navigation.exception/PopUpToTargetNotInBackStackException.targetRoute.<get-targetRoute>|<get-targetRoute>(){}[0]
 }
 
 final class io.github.syrou.reaktiv.navigation.model/EntryDefinition { // io.github.syrou.reaktiv.navigation.model/EntryDefinition|null[0]
@@ -1377,6 +1382,10 @@ open class io.github.syrou.reaktiv.navigation.definition/ScreenGroup { // io.git
         final fun <get-screens>(): kotlin.collections/List<io.github.syrou.reaktiv.navigation.definition/Screen> // io.github.syrou.reaktiv.navigation.definition/ScreenGroup.screens.<get-screens>|<get-screens>(){}[0]
 }
 
+open class io.github.syrou.reaktiv.navigation.exception/RouteNotFoundException : kotlin/Exception { // io.github.syrou.reaktiv.navigation.exception/RouteNotFoundException|null[0]
+    constructor <init>(kotlin/String) // io.github.syrou.reaktiv.navigation.exception/RouteNotFoundException.<init>|<init>(kotlin.String){}[0]
+}
+
 sealed class <#A: kotlin/Any?> io.github.syrou.reaktiv.navigation.param/TypedParam { // io.github.syrou.reaktiv.navigation.param/TypedParam|null[0]
     abstract val serializer // io.github.syrou.reaktiv.navigation.param/TypedParam.serializer|{}serializer[0]
         abstract fun <get-serializer>(): kotlinx.serialization/KSerializer<#A> // io.github.syrou.reaktiv.navigation.param/TypedParam.serializer.<get-serializer>|<get-serializer>(){}[0]
@@ -2081,6 +2090,7 @@ final val io.github.syrou.reaktiv.navigation.dsl/io_github_syrou_reaktiv_navigat
 final val io.github.syrou.reaktiv.navigation.dsl/io_github_syrou_reaktiv_navigation_dsl_NavigationStep_$serializer$stableprop // io.github.syrou.reaktiv.navigation.dsl/io_github_syrou_reaktiv_navigation_dsl_NavigationStep_$serializer$stableprop|#static{}io_github_syrou_reaktiv_navigation_dsl_NavigationStep_$serializer$stableprop[0]
 final val io.github.syrou.reaktiv.navigation.encoding/io_github_syrou_reaktiv_navigation_encoding_DualNavigationParameterEncoder$stableprop // io.github.syrou.reaktiv.navigation.encoding/io_github_syrou_reaktiv_navigation_encoding_DualNavigationParameterEncoder$stableprop|#static{}io_github_syrou_reaktiv_navigation_encoding_DualNavigationParameterEncoder$stableprop[0]
 final val io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_ClearingBackStackWithOtherOperations$stableprop // io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_ClearingBackStackWithOtherOperations$stableprop|#static{}io_github_syrou_reaktiv_navigation_exception_ClearingBackStackWithOtherOperations$stableprop[0]
+final val io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_PopUpToTargetNotInBackStackException$stableprop // io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_PopUpToTargetNotInBackStackException$stableprop|#static{}io_github_syrou_reaktiv_navigation_exception_PopUpToTargetNotInBackStackException$stableprop[0]
 final val io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_RouteNotFoundException$stableprop // io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_RouteNotFoundException$stableprop|#static{}io_github_syrou_reaktiv_navigation_exception_RouteNotFoundException$stableprop[0]
 final val io.github.syrou.reaktiv.navigation.model/io_github_syrou_reaktiv_navigation_model_EntryDefinition$stableprop // io.github.syrou.reaktiv.navigation.model/io_github_syrou_reaktiv_navigation_model_EntryDefinition$stableprop|#static{}io_github_syrou_reaktiv_navigation_model_EntryDefinition$stableprop[0]
 final val io.github.syrou.reaktiv.navigation.model/io_github_syrou_reaktiv_navigation_model_GuardChainEntry$stableprop // io.github.syrou.reaktiv.navigation.model/io_github_syrou_reaktiv_navigation_model_GuardChainEntry$stableprop|#static{}io_github_syrou_reaktiv_navigation_model_GuardChainEntry$stableprop[0]
@@ -2245,6 +2255,7 @@ final fun io.github.syrou.reaktiv.navigation.dsl/io_github_syrou_reaktiv_navigat
 final fun io.github.syrou.reaktiv.navigation.dsl/io_github_syrou_reaktiv_navigation_dsl_NavigationStep_$serializer$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.dsl/io_github_syrou_reaktiv_navigation_dsl_NavigationStep_$serializer$stableprop_getter|io_github_syrou_reaktiv_navigation_dsl_NavigationStep_$serializer$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.navigation.encoding/io_github_syrou_reaktiv_navigation_encoding_DualNavigationParameterEncoder$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.encoding/io_github_syrou_reaktiv_navigation_encoding_DualNavigationParameterEncoder$stableprop_getter|io_github_syrou_reaktiv_navigation_encoding_DualNavigationParameterEncoder$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_ClearingBackStackWithOtherOperations$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_ClearingBackStackWithOtherOperations$stableprop_getter|io_github_syrou_reaktiv_navigation_exception_ClearingBackStackWithOtherOperations$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_PopUpToTargetNotInBackStackException$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_PopUpToTargetNotInBackStackException$stableprop_getter|io_github_syrou_reaktiv_navigation_exception_PopUpToTargetNotInBackStackException$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_RouteNotFoundException$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.exception/io_github_syrou_reaktiv_navigation_exception_RouteNotFoundException$stableprop_getter|io_github_syrou_reaktiv_navigation_exception_RouteNotFoundException$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.navigation.model/io_github_syrou_reaktiv_navigation_model_EntryDefinition$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.model/io_github_syrou_reaktiv_navigation_model_EntryDefinition$stableprop_getter|io_github_syrou_reaktiv_navigation_model_EntryDefinition$stableprop_getter(){}[0]
 final fun io.github.syrou.reaktiv.navigation.model/io_github_syrou_reaktiv_navigation_model_GuardChainEntry$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.model/io_github_syrou_reaktiv_navigation_model_GuardChainEntry$stableprop_getter|io_github_syrou_reaktiv_navigation_model_GuardChainEntry$stableprop_getter(){}[0]
