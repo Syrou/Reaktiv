@@ -11,9 +11,10 @@ import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.NavigationState
-import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import kotlinx.coroutines.launch
+import io.github.syrou.reaktiv.navigation.util.performUserBack
+import io.github.syrou.reaktiv.navigation.definition.DismissSource
+import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 
 /**
  * Everything a navigation header needs, derived from the current navigation state.
@@ -63,11 +64,7 @@ public class NavigationChromeState internal constructor(
 @Composable
 public fun previousTitle(): String? {
     val navigationState by composeState<NavigationState>()
-    val content = navigationState.backStack.filter {
-        it.navigatable.renderLayer == RenderLayer.CONTENT
-    }
-    if (content.size < 2) return null
-    return content[content.lastIndex - 1].titleResource?.invoke()
+    return navigationState.revealedEntry?.titleResource?.invoke()
 }
 
 /**
@@ -103,7 +100,7 @@ public fun rememberNavigationChrome(): NavigationChromeState {
             route = route,
             title = title,
             backTitle = backTitle,
-            onBack = if (canGoBack) ({ scope.launch { store.navigateBack() } }) else null
+            onBack = if (canGoBack) ({ scope.launch { performUserBack(store, store.getNavigationModule(), DismissSource.Back) } }) else null
         )
     }
 }

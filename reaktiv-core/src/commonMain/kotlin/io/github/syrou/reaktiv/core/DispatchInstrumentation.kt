@@ -40,7 +40,9 @@ public enum class DispatchDropReason {
     EXTERNAL_CONTROL,
 
     /** The action was queued before a reset, and the reset swapped the store past it */
-    RESET
+    RESET,
+
+    EXTERNAL_STATE_DENIED
 }
 
 /**

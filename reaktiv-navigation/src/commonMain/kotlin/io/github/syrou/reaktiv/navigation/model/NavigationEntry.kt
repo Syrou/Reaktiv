@@ -5,12 +5,14 @@ import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.param.Params
+import io.github.syrou.reaktiv.navigation.util.RouteTemplate
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import io.github.syrou.reaktiv.navigation.util.ROOT_GRAPH
 
 /**
  * A single entry in the navigation back stack representing one visited destination.
@@ -49,6 +51,8 @@ public data class NavigationEntry(
     /** The [navigatable]'s action resource, directly invokable in composition. */
     val actionResource: ActionResource? get() = navigatable.actionResource
 
+    public val location: String get() = RouteTemplate.parse(path).render(params::getString, encoded = true)
+
     /**
      * A stable identity key combining [path] and [params], suitable for use as a Compose key.
      * Changes when the entry's destination or parameters change.
@@ -72,7 +76,7 @@ public data class NavigationEntry(
      * The ID of the [NavigationGraph] that directly owns this entry, derived from [path].
      * Returns `"root"` for top-level navigatables that live outside a named graph.
      */
-    val graphId: String get() = graphChain.lastOrNull() ?: "root"
+    val graphId: String get() = graphChain.lastOrNull() ?: ROOT_GRAPH
 }
 
 /**
@@ -142,7 +146,8 @@ public data class RouteResolution(
     val owningGraphId: String,
     val extractedParams: Params,
     val requestedGraphId: String? = null,
-    val isGraphReference: Boolean = false
+    val isGraphReference: Boolean = false,
+    val path: String? = null
 ) {
     @Deprecated(
         "Renamed to owningGraphId, which says which of the two graph ids this is.",

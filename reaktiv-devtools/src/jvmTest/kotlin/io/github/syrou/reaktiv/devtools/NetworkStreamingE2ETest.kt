@@ -35,6 +35,13 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import io.github.syrou.reaktiv.core.tracing.LogicTracer
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.devtools.service.DevToolsCommand
+import io.github.syrou.reaktiv.devtools.service.DevToolsCommands
+import io.github.syrou.reaktiv.introspection.tooling.ToolingAction
+import io.github.syrou.reaktiv.introspection.tooling.ToolingLogic
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -47,7 +54,6 @@ class NetworkStreamingE2ETest {
 
     @BeforeTest
     fun startServer() = runBlocking {
-        DevToolsServer.resetState()
         server = DevToolsServer.startEmbedded(port = 0)
         serverPort = server.port()
     }
@@ -59,7 +65,7 @@ class NetworkStreamingE2ETest {
         server.stop()
     }
 
-    private fun buildPublisher(clientId: String): Store {
+    private fun buildPublisher(clientId: String, tracing: Boolean = false, autoConnect: Boolean = true): Store {
         val store = createStore {
             module(
                 createToolingModule(
@@ -67,7 +73,7 @@ class NetworkStreamingE2ETest {
                         clientId = clientId,
                         clientName = clientId,
                         platform = "JVM",
-                        installLogicTracing = false,
+                        installLogicTracing = tracing,
                         installStallWatchdog = false,
                         installCrashHandler = false
                     ),
@@ -77,7 +83,7 @@ class NetworkStreamingE2ETest {
                         DevToolsService(
                             DevToolsConfig(
                                 serverUrl = "ws://127.0.0.1:$serverPort/ws",
-                                autoConnect = true,
+                                autoConnect = autoConnect,
                                 autoReconnect = false,
                                 defaultRole = ClientRole.PUBLISHER
                             )
@@ -166,7 +172,7 @@ class NetworkStreamingE2ETest {
                 )
             )
             val chunk = awaitChunk(chunks, offset)
-            assertTrue(chunk.available, "The device must still retain the body")
+            assertTrue(chunk.content != null, "The device must still retain the body")
             assembled.append(chunk.content)
             if (chunk.isLast) break
             assertTrue(chunk.nextOffset > offset, "Every chunk must advance the offset")
@@ -219,6 +225,104 @@ class NetworkStreamingE2ETest {
         assertEquals("remote", relayed.marker.source)
 
         ui.disconnect()
+    }
+
+    @Test
+    fun `a crash on the publisher reaches the ui with its diagnosis instead of a whole export`() = runBlocking {
+        val publisher = buildPublisher("crash-publisher")
+        awaitTooling(publisher, "publishing")
+
+        val ui = DevToolsConnection("ws://127.0.0.1:$serverPort/ws")
+        val inbound = ConcurrentLinkedQueue<DevToolsMessage>()
+        ui.observeMessages { inbound.add(it) }
+        ui.connect("crash-ui", "crash-ui", "JVM")
+        ui.send(
+            DevToolsMessage.RoleAssignment(
+                targetClientId = "crash-ui",
+                role = ClientRole.ORCHESTRATOR,
+                publisherClientId = null
+            )
+        )
+        kotlinx.coroutines.delay(1500)
+
+        publisher.selectLogic<ToolingLogic>().getSessionCapture().reportCrash(IllegalStateException("boom"))
+
+        val report = awaitMessage(inbound, "the crash report") {
+            it is DevToolsMessage.CrashReport
+        } as DevToolsMessage.CrashReport
+        val diagnosis = assertNotNull(report.diagnosis, "the crash report carried no diagnosis")
+        assertEquals("boom", diagnosis.exceptionMessage)
+        assertTrue(diagnosis.exceptionType.endsWith("IllegalStateException"))
+
+        ui.disconnect()
+    }
+
+    @Test
+    fun `logic events and log lines reach the ui from the capture in the order they happened`() = runBlocking {
+        val publisher = buildPublisher("stream-publisher", tracing = true)
+        awaitTooling(publisher, "publishing")
+
+        val ui = DevToolsConnection("ws://127.0.0.1:$serverPort/ws")
+        val inbound = ConcurrentLinkedQueue<DevToolsMessage>()
+        ui.observeMessages { inbound.add(it) }
+        ui.connect("stream-ui", "stream-ui", "JVM")
+        ui.send(
+            DevToolsMessage.RoleAssignment(
+                targetClientId = "stream-ui",
+                role = ClientRole.ORCHESTRATOR,
+                publisherClientId = null
+            )
+        )
+        kotlinx.coroutines.delay(1500)
+
+        val calls = (0 until 20).map { index ->
+            LogicTracer.notifyMethodStart("StreamLogic", "step$index", emptyMap()).also { call ->
+                LogicTracer.notifyMethodCompleted(call, null, "Unit", 0L)
+            }
+        }
+        ReaktivDebug.log("INFO", "Stream", "a line from the device")
+
+        awaitMessage(inbound, "the last completion") {
+            it is DevToolsMessage.LogicMethodCompleted && it.event.callId == calls.last()
+        }
+        awaitMessage(inbound, "the log line") { message ->
+            message is DevToolsMessage.LogBatch && message.entries.any { it.message == "a line from the device" }
+        }
+        val seen = inbound.toList()
+        calls.forEach { call ->
+            val started = seen.indexOfFirst { it is DevToolsMessage.LogicMethodStarted && it.event.callId == call }
+            val completed = seen.indexOfFirst { it is DevToolsMessage.LogicMethodCompleted && it.event.callId == call }
+            assertTrue(started in 0 until completed, "call $call completed at $completed before it started at $started")
+        }
+
+        ui.disconnect()
+    }
+
+    @Test
+    fun `a typed connect command connects a device that waits for one`() = runBlocking {
+        val device = buildPublisher("typed-device", autoConnect = false)
+        awaitTooling(device, "awaiting connect")
+
+        device.dispatch(DevToolsCommands.connect("ws://127.0.0.1:$serverPort/ws", ClientRole.PUBLISHER))
+
+        awaitTooling(device, "publishing")
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `the enum connect command with string arguments still connects`() = runBlocking {
+        val device = buildPublisher("legacy-device", autoConnect = false)
+        awaitTooling(device, "awaiting connect")
+
+        device.dispatch(
+            ToolingAction.ServiceCommand(
+                DevToolsCommands.SERVICE_NAME,
+                DevToolsCommand.CONNECT,
+                mapOf("url" to "ws://127.0.0.1:$serverPort/ws", "role" to "PUBLISHER")
+            )
+        )
+
+        awaitTooling(device, "publishing")
     }
 
     private suspend fun awaitChunk(

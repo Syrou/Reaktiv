@@ -1,0 +1,222 @@
+package io.github.syrou.reaktiv.devtools.ui.components
+
+import io.github.syrou.reaktiv.devtools.ui.ViewChoices
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import io.github.syrou.reaktiv.core.tracing.StateRead
+import io.github.syrou.reaktiv.devtools.protocol.Finding
+import io.github.syrou.reaktiv.devtools.protocol.FindingSeverity
+import io.github.syrou.reaktiv.devtools.protocol.StateSizeTracker
+import io.github.syrou.reaktiv.devtools.protocol.aggregateChurn
+import io.github.syrou.reaktiv.devtools.protocol.asClipboardText
+import io.github.syrou.reaktiv.devtools.protocol.computeFindings
+import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
+import io.github.syrou.reaktiv.devtools.ui.LogicTrace
+import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
+import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
+
+@Composable
+internal fun rememberFindings(
+    logicMethodEvents: List<LogicMethodEvent>,
+    actionStateHistory: List<CapturedAction>,
+    initialStateJson: String,
+    stateReads: List<StateRead>,
+    networkEvents: List<NetworkRequestCapture>
+): List<Finding> {
+    val trace = LogicTrace.of(logicMethodEvents)
+    val started = trace.started
+    val completed = trace.completed
+    val failed = trace.failed
+    val sizes = remember(actionStateHistory, initialStateJson) {
+        StateSizeTracker().also { tracker ->
+            tracker.feedInitial(initialStateJson)
+            actionStateHistory.forEach { tracker.feed(it) }
+        }.snapshot()
+    }
+    val churn = remember(actionStateHistory, stateReads) {
+        aggregateChurn(actionStateHistory, stateReads)
+    }
+    return remember(started, completed, failed, sizes, churn, networkEvents) {
+        computeFindings(started, completed, sizes, churn, networkEvents, failed)
+    }
+}
+
+@Composable
+internal fun FindingsPanel(
+    view: ViewChoices = ViewChoices(),
+    onViewChange: (ViewChoices) -> Unit = {},
+    findings: List<Finding>,
+    onSeekTimestamp: (Long) -> Unit = {}
+) {
+    var severityFilter by storeBacked(view.findingSeverity) { onViewChange(view.copy(findingSeverity = it)) }
+    val criticalCount = findings.count { it.severity == FindingSeverity.CRITICAL }
+    val warningCount = findings.size - criticalCount
+    val visible = findings.filter { severityFilter == null || it.severity == severityFilter }
+
+    Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Findings",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "click a finding to jump",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+                selected = severityFilter == null,
+                onClick = { severityFilter = null },
+                label = { Text("All ${findings.size}", style = MaterialTheme.typography.labelSmall) }
+            )
+            FilterChip(
+                selected = severityFilter == FindingSeverity.CRITICAL,
+                onClick = { severityFilter = FindingSeverity.CRITICAL },
+                label = { Text("Critical $criticalCount", style = MaterialTheme.typography.labelSmall) }
+            )
+            FilterChip(
+                selected = severityFilter == FindingSeverity.WARNING,
+                onClick = { severityFilter = FindingSeverity.WARNING },
+                label = { Text("Warnings $warningCount", style = MaterialTheme.typography.labelSmall) }
+            )
+            CopyControl(
+                actions = listOf(
+                    CopyAction("all findings") {
+                        visible.joinToString(separator = "\n") { it.asClipboardText() }
+                    }
+                ),
+                enabled = visible.isNotEmpty()
+            )
+        }
+
+        if (visible.isEmpty() && findings.isNotEmpty()) {
+            FilteredEmptyState(
+                query = "",
+                hiddenCount = findings.size,
+                onClearFilters = { severityFilter = null }
+            )
+        } else if (visible.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "No findings in this session",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(visible) { finding ->
+                    FindingCard(finding, onSeekTimestamp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FindingCard(finding: Finding, onSeekTimestamp: (Long) -> Unit) {
+    val critical = finding.severity == FindingSeverity.CRITICAL
+    val containerColor = if (critical) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val timestamp = finding.timestampMs
+    Card(
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        modifier = if (timestamp != null) {
+            Modifier.clickable { onSeekTimestamp(timestamp) }
+        } else {
+            Modifier
+        }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = if (critical) Icons.Default.Error else Icons.Default.Warning,
+                contentDescription = finding.severity.name,
+                tint = if (critical) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.tertiary
+                }
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = finding.category,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = finding.title,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = finding.detail,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                val location = finding.sourceFile?.let { file ->
+                    finding.lineNumber?.let { line -> "$file:$line" } ?: file
+                }
+                if (location != null) {
+                    Text(
+                        text = location,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            CopyControl(
+                actions = listOf(CopyAction("finding") { finding.asClipboardText() }),
+                dense = true
+            )
+        }
+    }
+}
+

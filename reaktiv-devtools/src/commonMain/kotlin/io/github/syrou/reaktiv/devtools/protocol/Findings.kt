@@ -1,11 +1,16 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
+import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 
+@DevToolsInternalApi
 public enum class FindingSeverity { WARNING, CRITICAL }
 
+@DevToolsInternalApi
 public data class Finding(
     val severity: FindingSeverity,
     val category: String,
@@ -14,7 +19,90 @@ public data class Finding(
     val timestampMs: Long? = null,
     val sourceFile: String? = null,
     val lineNumber: Int? = null,
-    val githubUrl: String? = null
+    val githubUrl: String? = null,
+    val advice: FindingAdvice? = null,
+    val culprits: List<String> = emptyList(),
+    val stacks: List<FindingStack> = emptyList()
+)
+
+@DevToolsInternalApi
+public data class FindingAdvice(val meaning: String, val impact: String, val fix: String)
+
+@DevToolsInternalApi
+public data class FindingStack(val label: String, val stack: String)
+
+@DevToolsInternalApi
+public val PERFORMANCE_FINDING_CATEGORIES: Set<String> = setOf(
+    "stall",
+    "congestion",
+    "contention",
+    "dispatch-latency",
+    "dispatch-phase",
+    "dispatch-storm",
+    "state-size"
+)
+
+private val STALL_ADVICE = FindingAdvice(
+    meaning = "The main thread stopped making progress long enough to be noticed, so something ran a blocking " +
+        "or long operation on it instead of yielding. The stack is where the main thread was when the freeze " +
+        "was detected, so its topmost frames are what blocked the UI.",
+    impact = "While the main thread is blocked nothing renders and no input is handled, so the app looks " +
+        "frozen and Android can raise an ANR.",
+    fix = "Move the blocking work off Main: do it inside a ModuleLogic method wrapped in " +
+        "withContext(Dispatchers.Default), keep reducers pure, and dispatch a result action when it finishes so " +
+        "the UI only ever renders state, never computes it."
+)
+
+private val CONGESTION_ADVICE = FindingAdvice(
+    meaning = "A new call to this logic method started before the previous one finished, so several ran at once.",
+    impact = "Overlapping calls duplicate work and can race on shared resources, and when they interleave on one " +
+        "thread they starve each other, wasting time and risking inconsistent state.",
+    fix = "Conflate the trigger: debounce inside the logic method, collapse rapid updates into one action, or " +
+        "hold a Mutex in the ModuleLogic so calls serialize. Move IO onto Dispatchers.Default so genuinely " +
+        "parallel calls stop interleaving on one thread."
+)
+
+private val CONTENTION_ADVICE = FindingAdvice(
+    meaning = "Several different logic methods were running on the same thread at the same time.",
+    impact = "A single thread makes progress on only one at a time, so they take turns and each finishes later " +
+        "than it would alone, adding latency across unrelated features.",
+    fix = "Give the store a multi-threaded pool via createStore { coroutineContext(Dispatchers.Default) }, or " +
+        "move the competing ModuleLogic work into their own withContext(Dispatchers.IO) blocks so one thread is " +
+        "not oversubscribed."
+)
+
+private val QUEUE_ADVICE = FindingAdvice(
+    meaning = "Actions piled up in the store's single ordered dispatch channel faster than reducers drained them.",
+    impact = "Every dispatched action waits behind the backlog, so state updates and the UI lag behind input " +
+        "even when the reducers themselves are simple.",
+    fix = "Keep reducers pure and O(1), move side effects out of middleware into ModuleLogic, batch " +
+        "high-frequency dispatches into fewer actions, and avoid dispatchAndAwait in hot loops since it makes " +
+        "the producer wait for the reducer."
+)
+
+private val SLOW_REDUCER_ADVICE = FindingAdvice(
+    meaning = "A reducer took long enough to hold up every action queued behind it.",
+    impact = "Reducers run one at a time in the store's dispatch channel, so a slow one delays all state " +
+        "updates and the UI with them.",
+    fix = "Keep reducers to copying state. Move parsing, sorting and other work into ModuleLogic and dispatch " +
+        "the result."
+)
+
+private val STORM_ADVICE = FindingAdvice(
+    meaning = "The same action was dispatched many times within one second.",
+    impact = "Every dispatch runs the reducers, notifies observers and is captured, so a burst floods the " +
+        "pipeline and recomposes the UI again and again.",
+    fix = "Dispatch once for the burst: debounce or conflate the source in ModuleLogic, or batch the changes " +
+        "into one action."
+)
+
+private val GROWTH_ADVICE = FindingAdvice(
+    meaning = "This ModuleState has grown steadily all session, the signature of an append-only collection " +
+        "that is never trimmed.",
+    impact = "Reaktiv persists, replicates and captures full state, so unbounded growth inflates every " +
+        "snapshot, delta and crash file, slows serialization and eventually leaks memory.",
+    fix = "Cap or prune the collection in the reducer, or keep large data in a ModuleLogic-owned repository " +
+        "and store only ids in state."
 )
 
 @Deprecated(
@@ -28,6 +116,7 @@ public const val FINDING_CHURN_WARN_EVENTS: Int = 50
 public const val FINDING_STORM_EVENTS: Int = 20
 public const val FINDING_STORM_WINDOW_MS: Long = 1000L
 
+@DevToolsInternalApi
 public fun Finding.asClipboardText(): String = buildString {
     append('[').append(severity.name).append("] ")
     append(category).append(": ").append(title)
@@ -38,24 +127,26 @@ public fun Finding.asClipboardText(): String = buildString {
     }
 }
 
+@DevToolsInternalApi
 public fun computeFindings(
     starts: List<LogicMethodStart>,
     completions: List<LogicMethodCompleted>,
     sizes: List<ModuleSizeStats> = emptyList(),
     churn: List<ChurnEntry> = emptyList(),
-    network: List<NetworkRequestCapture> = emptyList()
+    network: List<NetworkRequestCapture> = emptyList(),
+    failures: List<LogicMethodFailed> = emptyList()
 ): List<Finding> {
     val findings = mutableListOf<Finding>()
     val completionsByCallId = completions.associateBy { it.callId }
 
     for (start in starts) {
-        if (start.logicClass != STALL_TRACE_CLASS || start.methodName != "stall") continue
+        if (start.kind != SpanKind.STALL || start.methodName != "stall") continue
         val completion = completionsByCallId[start.callId] ?: continue
         val stallEnd = completion.timestampMs
         val stallStart = stallEnd - completion.durationMs
         val culprit = starts
             .filter { candidate ->
-                candidate.logicClass !in SYNTHETIC_TRACE_CLASSES &&
+                !candidate.kind.pipeline &&
                     candidate.thread?.let { isMainThread(it) } == true &&
                     candidate.timestampMs <= stallEnd &&
                     (completionsByCallId[candidate.callId]?.timestampMs ?: stallEnd) >= stallStart
@@ -72,12 +163,50 @@ public fun computeFindings(
                 timestampMs = stallEnd,
                 sourceFile = culprit?.sourceFile,
                 lineNumber = culprit?.lineNumber,
-                githubUrl = culprit?.githubSourceUrl
+                githubUrl = culprit?.githubSourceUrl,
+                advice = STALL_ADVICE,
+                culprits = listOfNotNull(culprit?.let { "${it.logicClass}.${it.methodName}" }),
+                stacks = listOfNotNull(
+                    start.params["stack"]?.takeIf { it.isNotBlank() }?.let { FindingStack("Main thread when it froze", it) }
+                )
             )
         )
     }
 
-    starts.filter { it.logicClass == REDACTION_TRACE_CLASS }.forEach { start ->
+    aggregateLogicStats(starts, completions, failures)
+        .filter { it.isCongested && it.kind != SpanKind.DISPATCH && it.kind != SpanKind.STALL }
+        .forEach { stat ->
+            findings.add(
+                Finding(
+                    severity = FindingSeverity.WARNING,
+                    category = "congestion",
+                    title = "${stat.methodIdentifier} ran ${stat.maxConcurrent} calls at once",
+                    detail = stat.congestionReason ?: "${stat.maxConcurrent} concurrent calls",
+                    sourceFile = stat.sourceFile,
+                    lineNumber = stat.lineNumber,
+                    githubUrl = stat.githubSourceUrl,
+                    advice = CONGESTION_ADVICE,
+                    culprits = listOf(stat.methodIdentifier)
+                )
+            )
+        }
+
+    aggregateThreadStats(starts, completions, failures)
+        .filter { it.isCongested }
+        .forEach { thread ->
+            findings.add(
+                Finding(
+                    severity = FindingSeverity.WARNING,
+                    category = "contention",
+                    title = "${thread.thread} ran ${thread.maxConcurrent} logic calls at once",
+                    detail = thread.contentionReason ?: "${thread.maxConcurrent} overlapping calls",
+                    advice = CONTENTION_ADVICE,
+                    culprits = thread.contenders.toList()
+                )
+            )
+        }
+
+    starts.filter { it.kind == SpanKind.CAPTURE_ISSUE }.forEach { start ->
         findings.add(
             Finding(
                 severity = FindingSeverity.WARNING,
@@ -90,7 +219,7 @@ public fun computeFindings(
     }
 
     val slowWaits = starts.filter {
-        it.logicClass == DISPATCH_TRACE_CLASS &&
+        it.kind == SpanKind.DISPATCH &&
             (it.params["queueWaitMs"]?.toLongOrNull() ?: 0L) >= DISPATCH_QUEUE_WAIT_WARN_MS
     }
     slowWaits.maxByOrNull { it.params["queueWaitMs"]?.toLongOrNull() ?: 0L }?.let { worst ->
@@ -100,12 +229,13 @@ public fun computeFindings(
                 category = "dispatch-latency",
                 title = "${slowWaits.size} dispatches waited ${DISPATCH_QUEUE_WAIT_WARN_MS}ms or more",
                 detail = "Worst: ${worst.methodName} waited ${worst.params["queueWaitMs"]}ms",
-                timestampMs = worst.timestampMs
+                timestampMs = worst.timestampMs,
+                advice = QUEUE_ADVICE
             )
         )
     }
 
-    starts.filter { it.logicClass == PHASE_TRACE_CLASS && it.methodName == "reducer" }
+    starts.filter { it.kind == SpanKind.PHASE && it.methodName == "reducer" }
         .let { reducerStarts ->
             val worst = reducerStarts.maxByOrNull {
                 completionsByCallId[it.callId]?.durationMs ?: 0L
@@ -119,12 +249,13 @@ public fun computeFindings(
                     title = "Slow reducer",
                     detail = "Worst ${worstMs}ms on ${worst.params["actionType"]} " +
                         "across ${reducerStarts.size} occurrences at 4ms or more",
-                    timestampMs = worst.timestampMs
+                    timestampMs = worst.timestampMs,
+                    advice = SLOW_REDUCER_ADVICE
                 )
             )
         }
 
-    starts.filter { it.logicClass == DISPATCH_TRACE_CLASS }
+    starts.filter { it.kind == SpanKind.DISPATCH }
         .groupBy { it.methodName }
         .forEach { (actionType, dispatches) ->
             val sorted = dispatches.sortedBy { it.timestampMs }
@@ -151,7 +282,8 @@ public fun computeFindings(
                     category = "dispatch-storm",
                     title = "$actionType dispatched $maxInWindow times within a second",
                     detail = origin?.let { "Dispatched from $it" } ?: "No dispatch origin recorded",
-                    timestampMs = sorted[peakIndex].timestampMs
+                    timestampMs = sorted[peakIndex].timestampMs,
+                    advice = STORM_ADVICE
                 )
             )
         }
@@ -165,7 +297,8 @@ public fun computeFindings(
                 severity = FindingSeverity.CRITICAL,
                 category = "state-size",
                 title = "${size.shortName} grew ${size.growthPercent}% and keeps growing",
-                detail = fieldDetail
+                detail = fieldDetail,
+                advice = GROWTH_ADVICE
             )
         )
     }

@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.core.util.CopyOnWriteRegistry
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.fetchAndUpdate
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -41,11 +42,7 @@ public object StateReadTracker {
 
     public fun notifyStateRead(stateClass: String, composable: String) {
         val read = StateRead(stateClass, composable)
-        while (true) {
-            val current = seen.load()
-            if (read in current) return
-            if (seen.compareAndSet(current, current + read)) break
-        }
+        if (read in seen.fetchAndUpdate { current -> if (read in current) current else current + read }) return
         for (observer in observers.snapshot()) {
             notifyObserver(observer, read)
         }

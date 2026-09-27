@@ -6,7 +6,7 @@ import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
-import io.github.syrou.reaktiv.introspection.protocol.StateReconstructor
+import io.github.syrou.reaktiv.introspection.protocol.KeyframedReconstructor
 import io.github.syrou.reaktiv.introspection.protocol.mergeCapturedDeltas
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
@@ -88,9 +88,8 @@ class DeltaSyncTest {
         capture.flush()
 
         val history = capture.getSessionHistory()
-        val reconstructed = StateReconstructor.reconstructAtIndex(
-            history.initialStateJson, history.actions, history.actions.size - 1
-        )
+        val reconstructed = KeyframedReconstructor(history.initialStateJson, history.actions)
+            .stateAt(history.actions.size - 1)
         val module = reaktivJson().parseToJsonElement(reconstructed).jsonObject[DeltaTestState::class.qualifiedName!!]!!.jsonObject
         assertEquals(5, module["count"]?.jsonPrimitive?.content?.toInt())
         assertEquals("x", module["label"]?.jsonPrimitive?.content)

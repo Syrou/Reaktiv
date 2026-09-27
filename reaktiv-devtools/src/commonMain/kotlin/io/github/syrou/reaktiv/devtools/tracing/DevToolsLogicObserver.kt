@@ -21,6 +21,10 @@ import kotlinx.coroutines.launch
  * @param isConnected Gate consulted before sending
  * @param sendMessage Sink delivering the message over the active connection
  */
+@Deprecated(
+    "DevToolsService forwards logic events from the session capture, in order. Nothing installs this observer any more.",
+    level = DeprecationLevel.WARNING
+)
 public class DevToolsLogicObserver(
     private val clientId: String,
     private val scope: CoroutineScope,

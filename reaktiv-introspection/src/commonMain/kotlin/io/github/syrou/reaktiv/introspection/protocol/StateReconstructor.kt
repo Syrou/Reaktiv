@@ -16,6 +16,11 @@ import kotlinx.serialization.json.buildJsonObject
  * val stateAtIndex = StateReconstructor.reconstructAtIndex(initialStateJson, actions, 5)
  * ```
  */
+@Deprecated(
+    "KeyframedReconstructor answers the same question and keeps keyframes, so stepping through a long session does not replay it from the start each time.",
+    ReplaceWith("KeyframedReconstructor(initialStateJson, actions).stateAt(index)", "io.github.syrou.reaktiv.introspection.protocol.KeyframedReconstructor"),
+    DeprecationLevel.WARNING
+)
 public object StateReconstructor {
     private val json = reaktivJson()
 

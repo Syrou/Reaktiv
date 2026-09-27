@@ -7113,3 +7113,3369 @@ working because this class extends it. Use the fallback parameter of popUpTo whe
 legitimately be absent.
 
 ---
+
+### [BC-101] AnySerializer decodes fractions as Double and nested nulls as null
+
+**Type:** Behavioural
+
+**Grep:** `AnySerializer|StringAnyMap|getTyped<Float>`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// "lat" comes back as the Float 59.33459 and "tags" as listOf("a", "null")
+val restored = Json.decodeFromString(AnySerializer, """{"lat":59.334591,"tags":["a",null]}""") as Map<*, *>
+restored["lat"]
+restored["tags"]
+```
+
+**After:**
+```kotlin
+// "lat" comes back as the Double 59.334591 and "tags" as listOf("a", null)
+val restored = Json.decodeFromString(AnySerializer, """{"lat":59.334591,"tags":["a",null]}""") as Map<*, *>
+restored["lat"]
+restored["tags"]
+```
+
+**Notes:** A fractional number used to come back as a `Float`, so `59.334591` returned as
+`59.33459` and `1e300` as `Infinity`. It now comes back as a `Double` with full precision. A `null`
+nested in a list or map used to come back as the text `"null"` and now comes back as `null`. Whole
+numbers are unchanged: an `Int` when they fit, otherwise a `Long`. A JSON `null` at the top level is
+now reported as a `SerializationException` instead of becoming the text `"null"`, because the
+serializer produces non-null values. Code that cast a restored value to `Float` should read it as a
+`Number` or through `Params.getFloat`, which converts. This is what persisted navigation params,
+DevTools replication and session restore all decode through.
+
+---
+
+### [BC-102] Typed navigation params are stored as their JSON and compare by value
+
+**Type:** Behavioural
+
+**Grep:** `withTyped|putTyped|SerializableParam|getTyped`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// getTyped returns null because the param was written as its toString() text
+val params = Params.empty().withTyped("profile", Profile(id = 7, name = "Ada"))
+val restored = json.decodeFromString(Params.serializer(), json.encodeToString(Params.serializer(), params))
+restored.getTyped<Profile>("profile")
+```
+
+**After:**
+```kotlin
+// getTyped returns the Profile
+val params = Params.empty().withTyped("profile", Profile(id = 7, name = "Ada"))
+val restored = json.decodeFromString(Params.serializer(), json.encodeToString(Params.serializer(), params))
+restored.getTyped<Profile>("profile")
+```
+
+**Notes:** A typed param used to be written as its `toString()` text, so it could never be read back
+after persistence, DevTools replication or a browser reload, and `getTyped` returned `null`. It is
+now written as the JSON its serializer produces, and `getTyped` decodes it again. `getTyped` also
+converts numbers by the type asked for, so a `Long` that comes back as an `Int`, or a `Float` that
+comes back as a `Double`, no longer throws `ClassCastException`. `getString` on a typed param returns
+its JSON text instead of unreadable text. `SerializableParam` now compares by its value alone. It
+used to include the serializer instance, so two navigations with the same `List` or `Map` param got
+different `stableKey`s, which restarted the screen's lifecycle and defeated the "already the current
+entry" check. A param whose serializer cannot encode it is still written as text, with a warning.
+
+---
+
+### [BC-103] put() in the navigation parameter builder keeps primitives as they are
+
+**Type:** Behavioural
+
+**Grep:** `navigateTo\(.*\) \{`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// currentFullPath is "stats/[SerializableParam(value=weekly, ...)]"
+store.navigation {
+    navigateTo("stats/{type}") { put("type", "weekly") }
+}
+```
+
+**After:**
+```kotlin
+// currentFullPath is "stats/weekly"
+store.navigation {
+    navigateTo("stats/{type}") { put("type", "weekly") }
+}
+```
+
+**Notes:** Inside the `navigateTo` parameter block, `put` wrapped every value in a
+`SerializableParam`, including strings and numbers. `getString` then returned broken text, so the
+example above produced a `currentFullPath` of `stats/[SerializableParam(value=weekly, ...)]` instead
+of `stats/weekly`. `put` now stores `String`, `Int`, `Long`, `Double`, `Float` and `Boolean` as they
+are, the same way `Params.withTyped` always has, and wraps only other types. Code that read
+`params["type"] as SerializableParam<*>` should read the value directly or use `getTyped`.
+
+---
+
+### [BC-104] A screen declared inside intercept {} is guarded when reached by a concrete path
+
+**Type:** Behavioural
+
+**Grep:** `intercept\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// "user/31" skipped the guard, only the template "user/{id}" ran it
+rootGraph {
+    start(HomeScreen)
+    intercept(guard = { store -> if (isSignedIn(store)) GuardResult.Allow else GuardResult.RedirectTo("login") }) {
+        screens(ViewUserScreen)
+    }
+}
+store.navigation { navigateTo("user/31") }
+```
+
+**After:**
+```kotlin
+// "user/31" and "user/{id}" both run the guard
+rootGraph {
+    start(HomeScreen)
+    intercept(guard = { store -> if (isSignedIn(store)) GuardResult.Allow else GuardResult.RedirectTo("login") }) {
+        screens(ViewUserScreen)
+    }
+}
+store.navigation { navigateTo("user/31") }
+```
+
+**Notes:** This is a security fix. A screen or modal placed directly in an `intercept {}` block,
+rather than in a graph inside it, is protected by a guard registered under its template path, for
+example `user/{id}`. The guard lookup used the path exactly as requested, so a concrete path such as
+`user/31` found no guard and the screen opened without one. The lookup now falls back to the
+resolved screen's template when neither the requested path nor its graph has a guard, so the
+concrete path is guarded the same way the template is. Screens in a guarded graph were never
+affected, because their graph's guard was found either way. If a pending navigation was stored by
+this guard, it keeps the concrete path it was asked for, so `resumePendingNavigation()` returns to
+`user/31`. No code changes are needed, but an app that relied on reaching such a screen by a
+concrete path without signing in will now be redirected.
+
+---
+
+### [BC-105] Path values are decoded once, and callers pass links in their encoded form
+
+**Type:** Behavioural
+
+**Grep:** `navigateDeepLink\(|\.path\b.*navigateDeepLink|getPath\(\)|uri\.path`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A deep link to .../confirm/a%20b delivered the token "a%20b", and a "+" in a path became a space
+val route = listOfNotNull(uri.path, uri.query?.let { "?$it" }).joinToString("")
+store.navigateDeepLink(route)
+```
+
+**After:**
+```kotlin
+// The token is "a b", and a "+" in a path stays a "+"
+val route = listOfNotNull(uri.encodedPath, uri.encodedQuery?.let { "?$it" }).joinToString("")
+store.navigateDeepLink(route)
+```
+
+**Notes:** A value captured by a `{param}` in a route or in a deep link alias used to be handed over
+exactly as it appeared in the string, so `%20` stayed `%20`. Every captured path value is now
+decoded exactly once. A `+` in a path is a literal plus, as URLs define it, and only a `+` in the
+query string still means a space. A `#fragment` is no longer part of the path or the last query
+value. Pass links in their encoded form: on Android that is `Uri.encodedPath` and
+`Uri.encodedQuery` rather than `getPath()` and `getQuery()`, which return already-decoded text that
+would be decoded a second time. Values without `%` or `+`, such as ids, slugs and JWTs, are
+unaffected.
+
+---
+
+### [AD-122] Route matching follows web router rules
+
+**Type:** Addition
+
+**Grep:** `route = "\{`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object ArticleScreen : Screen {
+    override val route = "{slug}"
+    override val enterTransition = NavTransition.None
+    override val exitTransition = NavTransition.None
+
+    @Composable
+    override fun Content(params: Params) {
+        Text(params.getString("slug") ?: "")
+    }
+}
+
+rootGraph {
+    start(HomeScreen)
+    screens(SettingsScreen, ArticleScreen)
+}
+
+store.navigation { navigateTo("settings") }
+store.navigation { navigateTo("getting-started") }
+```
+
+**Notes:** A route may now start with a placeholder, such as `{slug}` or `{lang}/home`. Those
+templates never matched before. When more than one parameterized route matches a path, the one with
+a static segment earliest wins, so `en/{page}` beats `{lang}/home` for `en/home`. A route without
+placeholders always wins over a parameterized one, so `settings` above still opens
+`SettingsScreen`. Params are named from the whole template, and a segment can mix text and a
+placeholder, such as `item-{id}`. Two parameterized routes of the same shape, such as `user/{id}`
+and `user/{uid}`, now log a warning when the module is built, because a concrete path can only
+reach the first. Related: BC-105 for how captured values are decoded.
+
+---
+
+### [BC-106] A concrete path names one back stack entry, not the newest entry of its screen
+
+**Type:** Behavioural
+
+**Grep:** `popUpTo\(|dismissModal\(|clearAllModals\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Stack: start, player/1, stats, player/2, stats
+// popUpTo("player/1") landed on player/2, the newest entry of that screen
+store.navigation { popUpTo("player/1") }
+```
+
+**After:**
+```kotlin
+// Stack: start, player/1, stats, player/2, stats
+// popUpTo("player/1") lands on player/1
+store.navigation { popUpTo("player/1") }
+```
+
+**Notes:** `popUpTo` first looks for an entry whose `location` is the path it was given, so a
+concrete path such as `player/1` or `user/John%20Doe` pops to exactly that entry. A template
+(`player/{id}`), a screen type (`popUpTo<PlayerScreen>()`) or a short route still pops to the newest
+matching entry, as before. `dismissModal(entry)` and `clearAllModals()` pop by location too, so they
+remove the entry they were given instead of the newest modal built from the same template.
+
+Two related behaviours change with it. In `navigation { navigateTo("player/3"); popUpTo("stats") }`,
+the entry you navigated to used to be dropped when another entry of the same screen (for example
+`player/1`) survived the pop. It is now kept, because it is a different entry. A short route that is
+also the full path of a root screen, such as `settings`, now pops to that root screen even when a
+nested screen with the route `settings` sits higher in the stack. Pass the nested screen's full path
+to reach it.
+
+---
+
+### [BC-107] Replacing an entry with another entry of the same screen animates
+
+**Type:** Behavioural
+
+**Grep:** `replaceCurrent = true`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Replacing users/42 with users/43 swapped the content with no transition
+store.navigation { navigateTo("users/43", replaceCurrent = true) }
+```
+
+**After:**
+```kotlin
+// The screen's transition plays, because users/43 is a different entry
+store.navigation { navigateTo("users/43", replaceCurrent = true) }
+```
+
+**Notes:** The animation decision treated two entries as the same when they had the same template
+path and stack position, so moving from one value of a path param to another at the same depth
+never animated. It now compares locations. Entries whose path params are equal and only other params
+differ are still treated as the same entry. Set `NavTransition.None` on the screen if the swap
+should stay instant.
+
+---
+
+### [AD-123] NavigationEntry.location and assertCurrentLocation
+
+**Type:** Addition
+
+**Grep:** `\.location\b|assertCurrentLocation`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+store.navigation { navigateTo("user/John%20Doe") }
+
+val state = store.selectState<NavigationState>().first()
+val location = state.currentEntry.location
+val template = state.currentEntry.path
+val readable = state.currentFullPath
+
+reaktivTest(navigationModule) {
+    store.navigation { navigateTo("user/John%20Doe") }
+    assertCurrentLocation("user/John%20Doe")
+    assertCurrentPath("user/{id}")
+}
+```
+
+**Notes:** `location` is the entry's concrete path with every path param filled in and encoded,
+here `user/John%20Doe`. It is derived from `path` and `params`, never stored. `path` keeps meaning the
+template, `user/{id}`, and `currentFullPath` keeps its readable form, `user/John Doe`, for display
+and breadcrumbs. Navigating to a location lands on the same screen with the same path params, so it
+is the value to keep when you want to come back to an exact entry, for example with `popUpTo`. An
+entry missing a path param keeps the literal `{name}` in its location. `assertCurrentLocation` in
+`reaktiv-test-navigation` checks it. Related: BC-106.
+
+---
+
+### [BC-108] Navigating to a screen without all of its path params throws
+
+**Type:** Behavioural
+
+**Grep:** `navigateTo\(".*\{|navigateTo<`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Succeeded, and currentFullPath read "home/leaderboard/player/{playerId}"
+store.navigation { navigateTo("home/leaderboard/player/{playerId}") }
+```
+
+**After:**
+```kotlin
+store.navigation { navigateTo(PlayerProfileScreen, "playerId" to 7) }
+```
+
+**Notes:** A navigation whose destination route has a `{param}` with no value now throws
+`MissingPathParamsException`, which names the path and the missing keys, instead of landing on an
+entry whose path still contained the placeholder. The value can come from the path itself
+(`home/leaderboard/player/7`), from the query string, from `params(...)`, from the parameter block, or
+from the new `navigateTo(screen, "key" to value)` form. A pending navigation resumed after a guard is
+checked the same way. Parents synthesized under a deep link are not checked. Search for navigations
+to parameterized screens that relied on the placeholder staying in place and pass the value.
+
+---
+
+### [AD-124] Navigate to a screen and build its location from the screen object
+
+**Type:** Addition
+
+**Grep:** `navigateTo\([A-Za-z]+Screen, "|locationOf\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object PlayerProfileScreen : Screen {
+    override val route = "player/{playerId}"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+
+    @Composable
+    override fun Content(params: Params) {
+        Text("Player ${params.getString("playerId")}")
+    }
+}
+
+store.navigation { navigateTo(PlayerProfileScreen, "playerId" to 7) }
+
+store.navigation {
+    navigateTo(PlayerProfileScreen) { put("playerId", 7) }
+}
+
+val link = store.locationOf(PlayerProfileScreen, "playerId" to 7)
+```
+
+**Notes:** Callers no longer write the graph path by hand. `navigateTo(screen, "key" to value)`
+resolves the screen's full path from the graph and fills its path params, so moving the screen to
+another graph needs no change at the call site. Values may be strings or numbers, and any value not
+named in the route stays an ordinary param. The block form takes the same parameter builder as
+`navigateTo(path) { }`. `locationOf` on `StoreAccessor` and `NavigationModule` returns the encoded
+location the navigation would land on, here `home/leaderboard/player/7`, which is the same string as
+the entry's `location` afterwards. It throws `MissingPathParamsException` when a path param has no
+value and `RouteNotFoundException` when the screen is not registered. Path params are plain strings,
+as in every web router, and objects never go in a location. A path param given as a number is stored
+as its text, so `params["playerId"]` reads `"7"` whether the screen was reached from its object, a
+path, a deep link or a browser reload. Related: BC-108, AD-123.
+
+---
+
+### [BC-109] Parents synthesized under a deep link receive the link's path values
+
+**Type:** Behavioural
+
+**Grep:** `navigateDeepLink\(|synthesizeBackstack = true`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Deep link to user/42/edit gave the stack splash, user/{id} with no id, user/42/edit
+store.navigateDeepLink("user/42/edit")
+```
+
+**After:**
+```kotlin
+// The stack is splash, user/42, user/42/edit, and the parent has id = "42"
+store.navigateDeepLink("user/42/edit")
+```
+
+**Notes:** When a deep link, or any navigation with `synthesizeBackstack = true`, builds the screens
+beneath its destination, a parent whose route has path params used to be created with no params,
+so going back landed on a screen that could not render its content. A parent now takes its values
+from the matching part of the destination's location, so `user/42/edit` puts `user/42` beneath it.
+Which parents are synthesized is unchanged. Only their params are filled in.
+
+---
+
+### [BC-110] A navigation block that only goes back or dismisses a modal never waits
+
+**Type:** Behavioural
+
+**Grep:** `navigation \{ navigateBack\(\) \}|navigation \{ dismissModal\(\) \}`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Queued behind a navigation still evaluating its guard, and could pop while the loading modal showed
+store.navigation { navigateBack() }
+```
+
+**After:**
+```kotlin
+// Runs at once, and is refused while bootstrap or an evaluation is in flight, like store.navigateBack() was
+store.navigation { navigateBack() }
+```
+
+**Notes:** A `navigation { }` block whose only operation is `navigateBack()` or `dismissModal()` now
+behaves exactly like the old `store.navigateBack()` and `store.dismissModal()` shortcuts. It does not
+wait for a navigation that is still evaluating a guard. It follows the same rule the platform back
+button follows: nothing happens at the root, while bootstrap is unresolved, while an evaluation is in
+flight, or while a loading modal is on top. `navigateBack(expectedTopKey)` changes nothing when the
+top entry is not the one named. A block with more than one operation keeps its current behaviour and
+runs as one transaction behind any navigation in flight. This is what lets the shortcuts in AD-125 be
+replaced mechanically without a change in behaviour.
+
+---
+
+### [BC-111] NavigationOperation and NavigationStep gain members
+
+**Type:** Breaking
+
+**Grep:** `NavigationOperation\.|NavigationStep\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+when (step.operation) {
+    NavigationOperation.Navigate, NavigationOperation.Replace -> handleForward(step)
+    NavigationOperation.Back, NavigationOperation.PopUpTo -> handleBackward(step)
+    NavigationOperation.ClearBackStack, NavigationOperation.ResumePending -> handleReset(step)
+}
+```
+
+**After:**
+```kotlin
+when (step.operation) {
+    NavigationOperation.Navigate, NavigationOperation.Replace -> handleForward(step)
+    NavigationOperation.Back, NavigationOperation.PopUpTo -> handleBackward(step)
+    NavigationOperation.ClearBackStack, NavigationOperation.ResumePending -> handleReset(step)
+    NavigationOperation.DismissModal, NavigationOperation.ClearModals -> handleBackward(step)
+    NavigationOperation.DeepLink -> handleReset(step)
+}
+```
+
+**Notes:** `NavigationOperation` has three new values for the operations added in AD-125, so an
+exhaustive `when` over it no longer compiles until they are handled. `NavigationStep` has a new
+`expectedTopKey` property with a default, which keeps source calls compiling but changes the
+constructor signature for code compiled against an older release. Both types describe the inside of
+a `navigation { }` block, so most apps never touch them.
+
+---
+
+### [AD-125] The navigation block covers every single-operation shortcut
+
+**Type:** Replaces-deprecated
+
+**Grep:** `navigation \{`
+**File glob:** `**/*.kt`
+
+**Replaces:** the single-operation `StoreAccessor` extensions `navigateBack`, `navigate`,
+`navigate<T>`, `presentModal<T>`, `dismissModal`, `clearAllModals` and `navigateDeepLink`, which are
+now deprecated.
+
+**Example:**
+```kotlin
+store.navigation { navigateBack() }
+store.navigation { navigateTo("profile", params) }
+store.navigation { navigateTo<SettingsScreen>(params) }
+store.navigation { navigateTo<InviteModal>() }
+store.navigation { dismissModal() }
+store.navigation { dismissModal(modalEntry) }
+store.navigation { clearAllModals() }
+store.navigation { navigateDeepLink("workspace/invite/abc123") }
+```
+
+**Notes:** `navigation { }` is the one way to navigate. Each deprecated shortcut carries a
+`ReplaceWith`, so the IDE rewrites `store.navigateBack()` to `store.navigation { navigateBack() }`
+and the same for the others, and the rewrite behaves identically (BC-110). The new block operations
+are `navigateTo(path, params)`, `navigateTo<T>(params)`, `navigateBack(expectedTopKey)`,
+`dismissModal()`, `dismissModal(entry)`, `clearAllModals()` and `navigateDeepLink(route, params)`.
+`navigateDeepLink` replaces the whole back stack, so it must be the only operation in its block,
+and a block that mixes it with other operations throws `IllegalArgumentException`. `dismissModal`,
+`clearAllModals` and `navigateBack` can also be combined with other operations in one block, in
+which case they run as part of that transaction. `presentModal<T> { ... }` with a config block has no
+mechanical replacement: move the config operations into the same `navigation { }` block after
+`navigateTo<T>()`. The deprecated shortcuts keep working and are removed in a later release.
+Related: BC-110, BC-111.
+
+---
+
+### [BC-112] A modal's underlying screen is derived from the back stack
+
+**Type:** Behavioural
+
+**Grep:** `activeModalContexts|modalContext|navigatedAwayToRoute`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Stack workspace, notification (modal), videos
+store.navigation { navigateBack() }
+store.navigation { navigateBack() }
+// Showed the notification modal a second time, and a third back was needed to reach workspace
+```
+
+**After:**
+```kotlin
+// Stack workspace, notification (modal), videos
+store.navigation { navigateBack() }
+store.navigation { navigateBack() }
+// Shows the notification modal over workspace, then workspace
+```
+
+**Notes:** The screen a modal is shown over used to be remembered in a map that navigation kept
+rewriting, so it could fall out of step with the back stack. Going back twice after leaving a modal
+re-opened it, dismissing a modal that a screen covered brought it back on the next back, and
+replacing a modal on top left its record behind. It is now always the last screen below the modal
+in the back stack, which is what the record held when the modal was opened. Every stack now shows
+the modals it contains and nothing else. `NavigationState.activeModalContexts` is still filled in,
+now from the back stack, keyed by each modal's path. `NavigationAction.Navigate.modalContext` is
+ignored and deprecated, and `ModalContext.navigatedAwayToRoute` is always null and deprecated.
+
+---
+
+### [BC-113] popUpTo animates as a pop
+
+**Type:** Behavioural
+
+**Grep:** `popUpTo\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Stack home, cart, shipping, payment. Popping to home played the push animation
+store.navigation { popUpTo("home") }
+```
+
+**After:**
+```kotlin
+// The pop animation plays, the same one navigateBack() plays
+store.navigation { popUpTo("home") }
+```
+
+**Notes:** A `popUpTo` that removes entries and navigates nowhere new is now a backward navigation,
+so it plays the pop transitions: the revealed screen enters with its pop enter transition and the
+removed screen leaves with its pop exit. It used to play the push transitions whenever the target was
+the bottom of the stack. A `popUpTo` that follows a `navigateTo` in the same block, which re-adds the
+navigated entry on top, still animates forward. The renderer and the timing the navigation waits
+for before returning now use the same rule, taken from the last back-stack change in the block, so
+a block such as `navigateBack(); navigateTo("x")` no longer times a pop while it renders a push.
+
+---
+
+### [BC-114] Every user back follows the same dismissal rules
+
+**Type:** Behavioural
+
+**Grep:** `rememberNavigationChrome|dismissal|onDismissRequest`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+object EditorScreen : Screen {
+    override val route = "editor"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+    override val dismissal = Dismissal(back = DismissAction.Run { confirmDiscard() })
+
+    @Composable
+    override fun Content(params: Params) {
+        // The toolbar back button popped the editor without asking, only system back asked
+        val chrome = rememberNavigationChrome()
+        IconButton(onClick = { chrome.onBack?.invoke() }) { Icon(Icons.Default.ArrowBack, null) }
+    }
+}
+```
+
+**After:**
+```kotlin
+object EditorScreen : Screen {
+    override val route = "editor"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+    override val dismissal = Dismissal(back = DismissAction.Run { confirmDiscard() })
+
+    @Composable
+    override fun Content(params: Params) {
+        // The toolbar back button asks too
+        val chrome = rememberNavigationChrome()
+        IconButton(onClick = { chrome.onBack?.invoke() }) { Icon(Icons.Default.ArrowBack, null) }
+    }
+}
+```
+
+**Notes:** System back, predictive back, the edge swipe, the swipe to dismiss, a tap outside a modal
+and the toolbar back from `rememberNavigationChrome()` now reach one decision. Two things change as a
+result. The toolbar back used to pop directly, ignoring `DismissAction.Ignore` and
+`DismissAction.Run`. It now honours them like system back. System back used to read only the
+screen's own policy. When it would leave a presented graph, the graph's `dismissal.back` now applies
+first, as it already did for gestures. A tap outside a modal is also refused while bootstrap or a
+guard evaluation is in flight, as back is. A back your own code asks for, with
+`navigation { navigateBack() }`, is not a user gesture and still pops without consulting the policy.
+
+---
+
+### [BC-115] A cold-start deep link that does not land falls back to the start destination
+
+**Type:** Behavioural
+
+**Grep:** `navigateDeepLink\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// With a dynamic start and a guard that rejects the link, the app stayed on the loading modal
+store.navigation { navigateDeepLink("admin") }
+```
+
+**After:**
+```kotlin
+// The app lands on the start destination its start { } picks
+store.navigation { navigateDeepLink("admin") }
+```
+
+**Notes:** A deep link that arrives while the app is still starting takes over bootstrap, so the start
+destination is not navigated to on its own. When the link then led nowhere, because a guard
+rejected it or its navigation threw, nothing replaced the placeholder, and an app with a dynamic
+`start { }` stayed on its loading modal for good. The default bootstrap now runs in that case, so the
+app lands where it would have without the link. An exception from the link is still thrown to the
+caller after the fallback. A link that a guard redirects, or that lands normally, is unaffected, and
+so is a link that arrives after startup.
+
+---
+
+### [AD-126] The sensitive key list lives in reaktiv-core
+
+**Type:** Replaces-deprecated
+
+**Grep:** `DEFAULT_SENSITIVE_KEYS|isSensitiveKey`
+**File glob:** `**/*.kt`
+
+**Replaces:** `io.github.syrou.reaktiv.introspection.DEFAULT_SENSITIVE_KEYS`, which is now deprecated
+and points at the core list.
+
+**Example:**
+```kotlin
+import io.github.syrou.reaktiv.core.util.DEFAULT_SENSITIVE_KEYS
+import io.github.syrou.reaktiv.core.util.isSensitiveKey
+
+val redactor = sensitiveKeyRedactor(keys = DEFAULT_SENSITIVE_KEYS + "pin")
+
+isSensitiveKey("accessToken")
+isSensitiveKey("session-pin", DEFAULT_SENSITIVE_KEYS + "pin")
+```
+
+**Notes:** The list of key names treated as secrets moved from `reaktiv-introspection` to
+`io.github.syrou.reaktiv.core.util`, so navigation can apply the same rule when it decides which params
+may appear in a URL or be written to browser history. `isSensitiveKey` applies the matching rule the
+redactor has always used: case and `_` and `-` are ignored, and a key matches when it contains a
+listed name. The introspection constant keeps working and forwards to the core list.
+
+---
+
+### [BC-116] NavigationAction gains Traverse
+
+**Type:** Breaking
+
+**Grep:** `is NavigationAction\.`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val label = when (action) {
+    is NavigationAction.Navigate -> "push"
+    is NavigationAction.Back, is NavigationAction.PopUpTo -> "pop"
+    else -> "other"
+}
+val isStackChange = action is NavigationAction.Navigate || action is NavigationAction.Back ||
+    action is NavigationAction.Replace || action is NavigationAction.PopUpTo ||
+    action is NavigationAction.ClearBackstack
+```
+
+**After:**
+```kotlin
+val label = when (action) {
+    is NavigationAction.Navigate -> "push"
+    is NavigationAction.Back, is NavigationAction.PopUpTo -> "pop"
+    is NavigationAction.Traverse -> if (action.direction == TraverseDirection.Back) "pop" else "push"
+    else -> "other"
+}
+val isStackChange = action is NavigationAction.Navigate || action is NavigationAction.Back ||
+    action is NavigationAction.Replace || action is NavigationAction.PopUpTo ||
+    action is NavigationAction.ClearBackstack || action is NavigationAction.Traverse
+```
+
+**Notes:** `NavigationAction` has a new subclass, `Traverse` (AD-127), so an exhaustive `when` over
+`NavigationAction` without an `else` branch no longer compiles until it is handled. Code that lists
+the stack-changing actions by hand, for example a middleware or an analytics hook that reacts to
+`lastNavigationAction`, should add `Traverse` to that list, or it will miss changes that arrive from
+outside the app such as a browser back or forward. Nothing dispatches `Traverse` yet on Android, iOS
+or desktop.
+
+---
+
+### [AD-127] Traverse sets the whole back stack in one step
+
+**Type:** Addition
+
+**Grep:** `NavigationAction\.Traverse|TraverseDirection|TraversePresentation`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+import io.github.syrou.reaktiv.navigation.NavigationAction
+import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.TraverseDirection
+import io.github.syrou.reaktiv.navigation.TraversePresentation
+
+store.selectState<NavigationState>().collect { state ->
+    val action = state.lastNavigationAction
+    if (action is NavigationAction.Traverse) {
+        val wentBack = action.direction == TraverseDirection.Back
+        val browserAnimated = action.presentation == TraversePresentation.AlreadyPresented
+        analytics.track("traverse", mapOf("back" to wentBack, "animated" to !browserAnimated))
+    }
+}
+```
+
+**Notes:** `Traverse` replaces the back stack with `entries` in one reducer step. It is how the
+navigation module applies a change that happened outside the app, such as a browser back, forward or
+history menu jump, so it is dispatched by the library and has no public constructor. `direction` says
+which way the renderer animates, and `presentation` is `AlreadyPresented` when the platform has
+already played its own transition, in which case the destination is shown at rest with no enter or
+exit animation. Entries that are in both the old and the new stack keep their lifecycle, and only the
+dropped entries are removed. A SYSTEM layer entry on top of the old stack stays on top, and an active
+scrub is cleared. When `expectedTopKey` is set and no longer matches the top entry, the action changes
+nothing. Related: BC-116.
+
+---
+
+### [BC-117] Browser history is on by default for wasm apps in a top-level window
+
+**Type:** Behavioural
+
+**Grep:** `ComposeViewport|createNavigationModule`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val navigation = createNavigationModule {
+    rootGraph {
+        start(HomeScreen)
+        screens(HomeScreen, ProfileScreen)
+    }
+}
+```
+
+**After:**
+```kotlin
+val navigation = createNavigationModule {
+    browserHistory { mode = BrowserHistoryMode.Off }
+    rootGraph {
+        start(HomeScreen)
+        screens(HomeScreen, ProfileScreen)
+    }
+}
+```
+
+**Notes:** A wasm app running in a top-level browser window now keeps the address bar in step with
+navigation, writes one browser history entry per navigation, follows the browser back and forward
+buttons, restores the exact stack and params on reload, and opens a shared link on the screen it
+names. Clean path URLs are used by default (`/profile/7`), so the server must answer every app path with
+the app's page (see AD-128). Add `browserHistory { mode = BrowserHistoryMode.Off }`
+to keep the previous behaviour, which is the "After" shown above. Two things are visible on the first
+frame: a static root now opens on a blank placeholder while the browser location resolves, instead
+of rendering its start screen first, and `NavigationState.isBootstrapping` stays `true` until that
+location has landed. An app embedded in an iframe is unaffected unless it sets
+`mode = BrowserHistoryMode.Always`. Android, iOS and desktop are unaffected. Related: AD-128, AD-129.
+
+---
+
+### [BC-118] Dismissing a modal while another navigation lands keeps that navigation
+
+**Type:** Behavioural
+
+**Grep:** `dismissModal\(\)`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+launch { store.navigation { dismissModal() } }
+launch { store.navigation { navigateTo("upsell") } }
+```
+
+**After:**
+```kotlin
+launch { store.navigation { dismissModal() } }
+launch { store.navigation { navigateTo("upsell") } }
+```
+
+**Notes:** No code change is needed. When the modal on top was dismissed while another navigation
+committed a screen above it, the dismissal used to pop that new screen and leave the modal showing.
+The dismissal now removes the modal it was aimed at and keeps whatever landed on top of it.
+
+---
+
+### [AD-128] browserHistory configures browser history for wasm apps
+
+**Type:** Addition
+
+**Grep:** `browserHistory \{`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+import io.github.syrou.reaktiv.navigation.history.BrowserHistoryMode
+import io.github.syrou.reaktiv.navigation.history.UrlStyle
+
+val navigation = createNavigationModule {
+    browserHistory {
+        urlStyle = UrlStyle.Path
+        basePath = "/app/"
+        mode = BrowserHistoryMode.TopLevelOnly
+    }
+    rootGraph {
+        start(HomeScreen)
+        screens(HomeScreen, ProfileScreen)
+    }
+}
+```
+
+**Notes:** `urlStyle` chooses between clean paths (`UrlStyle.Path`, the default) and hash URLs
+(`UrlStyle.Hash`). Paths need the server to answer every app path with the app's page, for example
+nginx `try_files $uri $uri/ /index.html` or `historyApiFallback = true` for the Kotlin dev server in
+`webpack.config.d/devServer.js`. Without that a reload or a shared link gets a 404 from the server. In
+path mode the whole query string belongs to the screen. Hash URLs work on any static host, including
+ones that cannot rewrite such as GitHub Pages, and leave the page's own query string alone because
+the app only owns the part after `#`. Prefer paths when signing in through OAuth, since providers
+often refuse redirect addresses containing `#`. `basePath` is the path the app is served under. It defaults to the path of `document.baseURI`,
+so a `<base href>` in the page is usually enough. `mode` is `TopLevelOnly` by default, which leaves
+iframes alone, `Always` binds inside an iframe too and throws if another store on the page already owns
+the browser history, and `Off` disables it. Only one store per page drives the browser history. The
+config has no effect on Android, iOS or desktop. Related: BC-117, AD-129.
+
+---
+
+### [AD-129] hiddenUrlParams keeps chosen params out of the address bar
+
+**Type:** Addition
+
+**Grep:** `hiddenUrlParams`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object SearchScreen : Screen {
+    override val route = "search"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+    override val hiddenUrlParams = setOf("draftQuery")
+
+    @Composable
+    override fun Content(params: Params) {
+        SearchUi(params.getString("draftQuery"))
+    }
+}
+```
+
+**Notes:** Simple params (strings, numbers and booleans) that are not path params appear in the URL as
+query parameters by default. Keys listed in `hiddenUrlParams` stay out of the URL but are still kept in
+the browser history entry, so back, forward and reload restore them. Keys on the sensitive key list
+(AD-126), such as tokens and passwords, never appear in the URL or in the history entry, with or without
+this setting. Related: AD-128.
+
+---
+
+### [BC-119] Back gestures on the web leave the edges and the mouse to the browser
+
+**Type:** Behavioural
+
+**Grep:** `NavigationRender\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+NavigationRender()
+```
+
+**After:**
+```kotlin
+NavigationRender()
+```
+
+**Notes:** No code change is needed. In a wasm app a mouse drag no longer starts a back swipe, since
+desktop browsers already have back buttons, keys and trackpad gestures. On touch devices, detected with
+the `(pointer: coarse)` media query, the edge swipe is left to the browser, because iOS Safari and
+Android Chrome already navigate back from the screen edge, and the full screen swipe ignores drags that
+start within 32dp of the edge. A drag that starts further in still goes back as before. Android, iOS
+and desktop behave exactly as they did.
+
+---
+
+### [AD-130] documentTitle sets the page title from the current screen
+
+**Type:** Addition
+
+**Grep:** `documentTitle =`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val navigation = createNavigationModule {
+    browserHistory {
+        documentTitle = { title -> if (title == null) "My app" else "$title - My app" }
+    }
+    rootGraph {
+        start(HomeScreen)
+        screens(HomeScreen, ProfileScreen)
+    }
+}
+```
+
+**Notes:** While browser history is active, `NavigationRender` sets `document.title` from the
+`titleResource` of the screen or modal the address bar names, so the browser tab and the history menu
+show meaningful names. System layer entries such as alerts never change the title. The formatter
+receives `null` for a screen without a title, and returning `null` leaves the current title alone.
+The default passes the screen title through unchanged. Related: AD-128.
+
+---
+
+### [AD-131] A pending navigation survives leaving the page on the web
+
+**Type:** Addition
+
+**Grep:** `PendAndRedirectTo|resumePendingNavigation`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+intercept(guard = { store ->
+    if (store.selectState<AuthState>().value.signedIn) GuardResult.Allow
+    else GuardResult.PendAndRedirectTo(LoginScreen)
+}) {
+    graph("account") {
+        start(AccountScreen)
+        screens(AccountScreen, OrdersScreen)
+    }
+}
+
+store.navigation {
+    clearBackStack()
+    resumePendingNavigation()
+}
+```
+
+**Notes:** While browser history is active, the pending navigation a guard records is also kept in the
+tab's `sessionStorage`. A sign in flow that leaves the page, such as an OAuth redirect, therefore
+returns to an app that still knows where the visitor was going, and `resumePendingNavigation()` lands
+there as it would without the round trip. Params and metadata whose keys look like secrets are not
+kept, so carry such values through the sign in flow itself. Resuming, clearing the pending navigation
+or resetting the store removes the stored copy. Other platforms are unaffected. Related: AD-128.
+
+---
+### [BC-120] Uncaught browser errors are captured as crashes on wasm
+
+**Type:** Behavioural
+
+**Grep:** `installCrashHandler|createToolingModule`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// wasmJs: CrashHandler.install() did nothing, so an exception thrown from a click handler
+// or a rejected promise never reached the session or DevTools
+createToolingModule(config, PlatformContext())
+```
+
+**After:**
+```kotlin
+// wasmJs: the same call now listens for window error and unhandledrejection events and
+// reports each one to the session as an UNCAUGHT crash
+createToolingModule(config, PlatformContext())
+
+// opt out as on every other platform
+createToolingModule(config.copy(installCrashHandler = false), PlatformContext())
+```
+
+**Notes:** `installCrashHandler` defaults to `true`, so every wasm app with the tooling module now
+captures uncaught browser errors. The page keeps running after such an error, so unlike Android and
+iOS nothing is written to disk. The crash shows up in the live DevTools stream and in the next export.
+Installing again, for example after a store reset, reports to the newest capture without adding a
+second set of listeners. Crashes inside store coroutines are still reported through the store crash
+listener as before. Related: AD-134.
+
+---
+
+### [BC-121] The DevTools server keeps a client that reconnects under the same id
+
+**Type:** Behavioural
+
+**Grep:** `DevToolsServer.start|runDevToolsServer`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A client reconnected with the same clientId before the server noticed its old socket
+// closing. The late close then unregistered the new connection, and the device vanished
+// from the client list while it was still connected and publishing.
+```
+
+**After:**
+```kotlin
+// A socket closing only unregisters the client when it is still that client's current
+// connection, so the reconnected device stays listed.
+```
+
+**Notes:** This matters most for web clients using `browserIntrospectionConfig`, which keeps the
+same client id across a page reload, and for automatic reconnects. `ClientManager.unregisterClient`
+keeps its old behaviour for callers that remove a client explicitly. A publisher that reconnects
+under its own id also keeps the publisher role, where it used to be demoted to unassigned because
+"a publisher already exists" (itself). Another client still cannot take the role on its own.
+Related: AD-132.
+
+---
+
+### [AD-132] browserIntrospectionConfig names a browser tab as a DevTools device
+
+**Type:** Addition
+
+**Grep:** `browserIntrospectionConfig`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+fun main() {
+    val store = createStore {
+        module(
+            createToolingModule(
+                config = browserIntrospectionConfig(appVersion = "1.4.0"),
+                platformContext = PlatformContext()
+            ) {
+                install(DevToolsService(DevToolsConfig(serverUrl = devToolsServerUrlFromPage())))
+            }
+        )
+    }
+}
+```
+
+**Notes:** wasmJs only. Returns an `IntrospectionConfig` whose client name reads like
+`Chrome 140 on Windows`, whose platform is `Web` (so the DevTools device list shows the web icon), and
+whose metadata carries the operating system and the browser locale. The client id is kept in the tab's
+`sessionStorage` and reused only when the page is reloaded, so a reload stays the same device while a
+new tab or a duplicated tab becomes a new one. Use `copy()` to change any other setting, for example
+`browserIntrospectionConfig().copy(maxActions = 500)`. Related: AD-133, BC-121.
+
+---
+
+### [AD-133] devToolsServerUrlFromPage reads the DevTools server from the page address
+
+**Type:** Addition
+
+**Grep:** `devToolsServerUrlFromPage`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val serverUrl = devToolsServerUrlFromPage()
+
+createToolingModule(browserIntrospectionConfig(), PlatformContext()) {
+    install(
+        DevToolsService(
+            DevToolsConfig(
+                serverUrl = serverUrl,
+                autoConnect = serverUrl != null,
+                defaultRole = ClientRole.PUBLISHER
+            )
+        )
+    )
+}
+```
+
+**Notes:** wasmJs only. Open the app as `https://my.app/?devtools=192.168.1.20:8090` (or with a full
+`ws://` or `wss://` URL) and the function returns the websocket URL to connect to. A bare host and
+port gets `ws://` (or `wss://` on an https page) and the `/ws` path. The value is kept in the tab's
+`sessionStorage`, so it survives reloads and in-app navigation that rewrites the address. An empty
+`?devtools=` forgets it, and without the parameter or a stored value the function returns `null`.
+Pass another name to read a different parameter. In hash mode put the parameter before the `#`. In path
+mode the parameter also becomes a param of the first screen and leaves the address on the next navigation,
+which the stored copy covers.
+Related: AD-132.
+
+---
+
+### [AD-134] Session exports download in the browser
+
+**Type:** Addition
+
+**Grep:** `exportSessionToDownloads|exportCrashSessionToDownloads|SessionFileExport|gzipCompress`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+Button(onClick = {
+    scope.launch {
+        val fileName = store.selectLogic<ToolingLogic>().exportSessionToDownloads()
+        snackbarHostState.showSnackbar("Downloaded $fileName")
+    }
+}) {
+    Text("Export session")
+}
+```
+
+**Notes:** On wasmJs `SessionFileExport.saveToDownloads` used to throw and `gzipCompress` and
+`gzipDecompress` threw as well, so no export path worked in a browser. The browser now downloads the
+gzipped session under its suggested file name, and the function returns that name (the browser picks
+the folder). It throws `UnsupportedOperationException` when there is no document to download from, for
+example in a worker. Compression runs through the browser's `CompressionStream`. The download is typed
+from the file extension (`.gz`, `.json`, `.xml`, anything else as `application/octet-stream`), so a
+name without an extension such as `apple-app-site-association` is saved exactly as given. Related:
+BC-120.
+
+---
+
+### [BC-122] The DevTools UI attaches to a publisher that was already running
+
+**Type:** Behavioural
+
+**Grep:** `runDevToolsServer|DevToolsService`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Start a publisher (for example a web app opened with ?devtools=...), then open the DevTools UI.
+// The UI listed the device as publishing but never became its orchestrator, so no history arrived
+// and it kept showing "Waiting for a publisher" until the publisher reconnected.
+```
+
+**After:**
+```kotlin
+// The UI attaches as orchestrator as soon as it sees itself registered while a publisher is
+// running, and the publisher sends its session history as it does when it connects after the UI.
+```
+
+**Notes:** Only the order changed what happened. Opening the UI first and connecting the device
+afterwards always worked. Selecting a publisher in the Devices pane now goes through the same attach
+step. Related: AD-133.
+
+---
+
+### [AD-135] linkMap and openLink describe and open every place the app can navigate to
+
+**Type:** Addition
+
+**Grep:** `linkMap()|openLink(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val navigation = createNavigationModule {
+    rootGraph {
+        start(HomeScreen)
+        screens(HomeScreen, ProfileScreen)
+    }
+}
+
+val map: NavigationLinkMap = navigation.linkMap()
+map.routes
+    .filter { it.access == LinkAccess.Linkable }
+    .forEach { println("${it.path} opens ${it.screen}") }
+
+val outcome = store.openLink("profile/{userId}", mapOf("userId" to "42"))
+when (outcome) {
+    is LinkOutcome.Landed -> println("landed on ${outcome.location}")
+    is LinkOutcome.Redirected -> println("a guard sent the link to ${outcome.to}")
+    is LinkOutcome.MissingParams -> println("fill in ${outcome.names}")
+    else -> println(outcome)
+}
+```
+
+**Notes:** `NavigationModule.linkMap()` returns a serializable `NavigationLinkMap`, a flat
+description of every graph and route the module registers:
+- **Routes:** full path template, own route, graph, screen class name, screen or modal, path params,
+  guard chain and access.
+- **Graphs:** path, parent, how it starts, and its guard chain.
+- **Aliases:** each deep link alias with its pattern, target and params.
+- **`webPrefix`:** the browser address prefix when browser history is active.
+
+`access` says whether a link can land on a route:
+- `Linkable`
+- `Fallback`: the not found screen
+- `Internal`: system layer screens, the loading modal, the crash screen, the root graph and graphs
+  without a start
+- `Shadowed`: another route with the same shape wins
+
+Guards are anonymous lambdas, so each distinct guard gets a numeric id in the order it is met, and
+routes sharing a guard share its id.
+
+The map is useful without any tooling, for example to generate the files universal links and
+Android App Links need (see AD-139).
+
+`StoreAccessor.openLink(link, params)` opens a link the way a universal link is opened: parent screens
+are built beneath it, guards and aliases apply, and the back stack is replaced. The link can be:
+- a route template, whose placeholders are filled from `params`
+- a concrete path
+- a path with a query
+- an alias address such as `myapp://example.com/p/42`
+- a web address under the app's base path
+
+It returns a `LinkOutcome` saying what happened: `Landed`, `Redirected`, `Rejected`, `NotFound`,
+`MissingParams` or `Ignored`. A link that only reaches the not found screen reports `NotFound`.
+`navigateDeepLink` is unchanged. Related: AD-137.
+
+---
+### [AD-136] Tooling services can attach extensions to sessions and answer requests
+
+**Type:** Addition
+
+**Grep:** `publishExtension|onRequest|SessionHistory.extensions|SessionExport.extensions`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+class BuildInfoService : ToolingService {
+    override val name = "build-info"
+
+    override suspend fun start(context: ToolingServiceContext) {
+        context.publishExtension("build.info", buildJsonObject { put("commit", BuildConfig.COMMIT) })
+    }
+
+    override suspend fun stop() = Unit
+
+    override suspend fun onRequest(request: String, payload: JsonElement): JsonElement? = when (request) {
+        "ping" -> JsonPrimitive("pong")
+        else -> null
+    }
+}
+
+createToolingModule(config, platformContext) {
+    install(BuildInfoService())
+}
+```
+
+**Notes:** A tooling service can describe the app it runs in with
+`ToolingServiceContext.publishExtension(key, json)`.
+
+**Where extensions go:**
+- `SessionHistory.extensions`, which reaches DevTools with the first history message.
+- `SessionExport.extensions` in exported session files. The export format version is now `3.8`.
+- Readers that do not know a key ignore it, and files written before `3.8` decode with no extensions.
+- Publishing again under the same key replaces the value, which is what a service restarted by a
+  store reset does.
+
+**Requests:** `ToolingService.onRequest(request, payload)` lets a service answer a request addressed to
+it by name. Return `null` for a request the service does not handle. The default handles none.
+Related: AD-137, AD-138.
+
+---
+
+### [BC-123] Device logs survive a session history that is sent in chunks
+
+**Type:** Behavioural
+
+**Grep:** `SessionHistory.chunked|chunked(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val chunks = history.chunked()
+// chunks.flatMap { it.logs } was empty once the history needed more than one chunk
+```
+
+**After:**
+```kotlin
+val chunks = history.chunked()
+// chunks.flatMap { it.logs } == history.logs
+```
+
+**Notes:** `SessionHistory.chunked()` never passed the device logs on, so a history long enough to need
+more than one chunk (more than 250 actions by default) reached DevTools without any logs. Logs are now
+split across chunks by the same count as logic events, and together the chunks carry every log. A
+history that fits one chunk is unchanged. Related: AD-136.
+
+---
+### [AD-137] NavigationLinks shows the app's link map in DevTools and opens links on the device
+
+**Type:** Addition
+
+**Grep:** `NavigationLinks(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+// build.gradle.kts, usually for debug builds only
+debugImplementation("io.github.syrou:reaktiv-navigation-tooling:<version>")
+
+// where the tooling module is created
+createToolingModule(config, platformContext) {
+    install(DevToolsService(DevToolsConfig(serverUrl = "ws://192.168.1.20:8080/ws")))
+    install(NavigationLinks())
+}
+```
+
+**Notes:** `reaktiv-navigation-tooling` is a new optional artifact that connects navigation to the
+tooling module without either depending on the other.
+- **The map:** `NavigationLinks` publishes the navigation module's `linkMap()` as the
+  `"navigation.links"` session extension (see AD-135 and AD-136). The DevTools Nav tab draws it, and
+  exported session files carry it.
+- **Opening links:** it answers `"open"` requests with `openLink`, so the DevTools UI can open a route
+  on the device and see what happened.
+- **Turning opening off:** `NavigationLinks(allowOpening = false)` answers every open request with
+  `LinkOutcome.Ignored`.
+- **No navigation module:** in a store without one, the service reports a degraded status and
+  publishes nothing.
+
+Install it next to `DevToolsService` in the builds where DevTools is used. Related: AD-138.
+
+---
+### [BC-124] A connected DevTools UI can ask the publisher's tooling services to act
+
+**Type:** Behavioural
+
+**Grep:** `DevToolsConfig(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+DevToolsConfig(serverUrl = "ws://192.168.1.20:8080/ws")
+// The DevTools UI could observe the publisher, add markers and time travel, but not ask it to act.
+```
+
+**After:**
+```kotlin
+DevToolsConfig(serverUrl = "ws://192.168.1.20:8080/ws")
+// The DevTools UI can now send ServiceRequest messages that the publisher hands to the named
+// tooling service, for example NavigationLinks opening a link on the device.
+
+DevToolsConfig(serverUrl = "ws://192.168.1.20:8080/ws", allowRemoteRequests = false)
+// keeps the old behaviour: every request is answered with an error
+```
+
+**Notes:**
+- **How a request travels:** the new `DevToolsMessage.ServiceRequest` goes from an orchestrator
+  through the server to the publisher. The publisher runs it on the tooling service with the given
+  name (`ToolingService.onRequest`) and sends the result or an error back as a `ServiceReply`.
+- **Who can send requests:** any DevTools UI connected to the same server. This is the same trust
+  model as markers and time travel, and it only applies to builds that include `DevToolsService`.
+- **Turning it off:** set `allowRemoteRequests = false` on the device. `NavigationLinks` also has its
+  own `allowOpening` switch (AD-137).
+- **Version skew:** the server has to be updated with the UI, because an older server cannot decode the
+  new messages and drops them. The UI shows such a request as unanswered.
+- **Exhaustive `when`:** code with an exhaustive `when` over `DevToolsMessage` needs branches for the two
+  new messages. Related: AD-136, AD-138.
+
+---
+### [AD-138] The DevTools Nav tab maps every route, exports it as JSON and opens routes on the device
+
+**Type:** Addition
+
+**Grep:** `NavigationLinks(|ServiceRequest|ServiceReply|allowRemoteRequests`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+createToolingModule(config, platformContext) {
+    install(DevToolsService(DevToolsConfig(serverUrl = "ws://10.0.2.2:8080/ws")))
+    install(NavigationLinks())
+}
+
+// A tool of your own can ask a tooling service on the publisher to act
+connection.send(
+    DevToolsMessage.ServiceRequest(
+        targetClientId = publisherId,
+        requestId = "open-1",
+        service = "navigation-links",
+        request = "open",
+        payload = buildJsonObject { put("link", "news/feed") }
+    )
+)
+```
+
+**Notes:** With `NavigationLinks` installed (AD-137), the DevTools Nav tab opens on a Map view of the
+app's link map. It keeps the previous back stack and guard log one chip away, under Live.
+
+**What the map shows:**
+- Graphs are drawn as cards with their routes as rows.
+- Guarded zones are drawn as bands, with modals and start routes marked.
+- Routes a link cannot reach are dimmed.
+- The current screen and the back stack are marked as the app navigates.
+
+**Working with it:**
+- **Moving around:** it zooms at the cursor, pans, fits and folds graphs. Zoomed far out it becomes an
+  overview of graph names.
+- **Search:** search highlights routes by path or screen name.
+- **Export JSON:** the button and the command palette download the map as
+  `navigation-map_<client>.json`, in the format `NavigationModule.linkMap()` produces.
+
+**Inspecting and opening a route:** selecting a route shows its screen, kind, params, guards, aliases
+and web path, with copy buttons. "Open on device" fills its params, sends a `ServiceRequest` to the
+publisher and lists each attempt with its outcome:
+- landed
+- redirected
+- rejected
+- not found
+- missing params
+- refused
+- no answer within 20 seconds
+
+**New transport:** the generic `DevToolsMessage.ServiceRequest` and `ServiceReply` messages carry the
+request and its answer (see BC-124). `DevToolsConfig.allowRemoteRequests` turns them off on a device.
+
+**Sessions:** imported and re-exported session files keep the map, so a session file from any device
+is enough to share its routes. Related: AD-135, AD-136, AD-137, BC-124.
+
+---
+### [AD-139] appLinkFiles generates the files for iOS universal links and Android App Links
+
+**Type:** Addition
+
+**Grep:** `appLinkFiles|appLinkPaths|AppLinksConfig`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val files = navigationModule.linkMap().appLinkFiles(
+    AppLinksConfig(
+        host = "example.com",
+        appleAppIds = listOf("ABCDE12345.com.example.app"),
+        androidPackage = "com.example.app",
+        androidCertFingerprints = listOf("14:6D:E9:83:..."),
+        paths = setOf("home/leaderboard/player/*")
+    )
+)
+
+File("site/.well-known/apple-app-site-association").writeText(files.appleAppSiteAssociation!!)
+File("site/.well-known/assetlinks.json").writeText(files.assetLinks!!)
+println(files.androidManifestIntentFilter)
+```
+
+**Notes:** `NavigationLinkMap.appLinkFiles(config)` produces three files:
+
+| File | Contents | When it is generated |
+|---|---|---|
+| `apple-app-site-association` | Every chosen path for each iOS app ID | When at least one app ID is given |
+| `assetlinks.json` | The Android package and its signing certificate fingerprints | When a package is given |
+| `androidManifestIntentFilter` | The `<intent-filter android:autoVerify="true">` for the activity that handles the links | Always |
+
+`assetlinks.json` also lists the paths for Android 15 dynamic app links unless
+`androidDynamicPaths = false`.
+
+**Which paths are candidates:**
+- every linkable route
+- every graph with a start
+- every deep link alias whose pattern is a web address or a plain path
+
+Path params become `*`, and the web base path goes in front (`basePath`, or the base from
+`browserHistory`).
+
+**Choosing paths:** `paths` selects candidates by `AppLinkPath.path`, and `null` takes them all.
+`appLinkPaths()` and `files.candidates` list every candidate so a tool can offer the choice. Related:
+AD-135, AD-140.
+
+---
+
+### [AD-140] DevTools generates app link files for the routes you pick
+
+**Type:** Addition
+
+**Grep:** `NavigationLinks(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+createToolingModule(config, platformContext) {
+    install(DevToolsService(DevToolsConfig(serverUrl = "ws://10.0.2.2:8080/ws")))
+    install(NavigationLinks())
+}
+// DevTools, Nav tab, Map view: App links
+```
+
+**Notes:** The Nav map's App links button, also in the command palette, opens a dialog for the host,
+iOS app IDs, Android package and signing fingerprints. It then:
+- shows a Routes tab listing every candidate path with a checkbox, all ticked at first, with Select
+  all and Select none above the list
+- regenerates the files whenever the selection changes
+- shows `apple-app-site-association`, `assetlinks.json` and the manifest intent filter in a tab each,
+  with a preview, a download and a copy button
+
+The files are generated on the connected device by `appLinkFiles` (AD-139), through a new
+`"app-links"` request that `NavigationLinks` answers, so the UI and an app's own test produce the same
+output. It needs a live device, not an imported session. Related: AD-137, AD-138, AD-139.
+
+---
+
+### [BC-125] Every destination a navigation adds passes the guard of its zone
+
+**Type:** Behavioural
+
+**Grep:** `intercept(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Only the first navigateTo of a block was guarded, so the second one entered the zone unchecked.
+store.navigation {
+    navigateTo("about")
+    navigateTo("workspace/settings")
+}
+```
+
+**After:**
+```kotlin
+// The same block now asks the workspace guard, and a Reject or Redirect applies to the whole block.
+store.navigation {
+    navigateTo("about")
+    navigateTo("workspace/settings")
+}
+```
+
+**Notes:** A guard now runs for every entry a navigation adds, unless the app already passed that zone.
+Several paths used to skip it:
+- every Navigate and Replace in a block, not only the first
+- a `popUpTo` fallback, when the fallback is used
+- a dynamic `start(route = { ... })` that resolves into a different zone
+- screens declared directly inside an `intercept { }` that sits in a guarded graph, which now pass the
+  outer guard too
+- a static root start inside a guarded zone, which now opens on the empty cold-start placeholder and
+  runs the guard at cold start. Moving inside the zone after that does not ask again.
+
+Synthesized ancestors are only placed when they belong to the destination's own zone or to a zone
+already passed, so a public deep link no longer puts a guarded start one back press below it.
+
+Zones compare by value, so screens that share a guard chain share a zone. A guard that navigates
+while the app is starting no longer freezes navigation. A navigation now only lowers the loading
+overlay it raised itself.
+
+A screen registered in two graphs lands on the path that was asked for, see AD-141.
+
+---
+
+### [AD-141] RouteResolution carries the path it was resolved from
+
+**Type:** Addition
+
+**Grep:** `RouteResolution(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+fun requestedPath(resolution: RouteResolution): String =
+    resolution.path ?: resolution.targetNavigatable.route
+```
+
+**Notes:** `RouteResolution` has a new trailing `path: String? = null`. The resolver fills it with the
+full path template it matched, so a navigatable registered in several graphs keeps the path that was
+requested. Source compatible. Binary callers of the old constructor need a recompile. Related: BC-125.
+
+---
+
+### [BC-126] Navigation stack, link and lifecycle fixes
+
+**Type:** Behavioural
+
+**Grep:** `clearBackStack(|dismissModal(|replaceCurrent = true|onLifecycleCreated|invokeOnRemoval`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.navigation { clearBackStack() }             // left an empty back stack
+navigationLogic.clearBackStack("settings")        // navigated, then cleared: empty again
+```
+
+**After:**
+```kotlin
+store.navigation { clearBackStack() }             // keeps the current screen, drops the history
+navigationLogic.clearBackStack("settings")        // lands on settings alone
+```
+
+**Notes:** Each of these was a bug with a failing test before the fix.
+
+- **Stack:**
+  - A clear that nothing is navigated to after keeps what was current before it.
+  - Replace, `popUpTo`, `clearAllModals` and `dismissModals()` keep a SYSTEM entry such as an alert on top instead
+    of dropping it.
+  - `dismissModal()` on a modal covered by screens removes only that modal, not every screen above it.
+  - Navigating to the screen under a modal while dismissing modals no longer puts a second copy on the stack.
+  - `visibleLayers` keeps a modal and its screen when a SYSTEM entry sits on top, so they stay mounted.
+- **Dynamic starts:**
+  - A graph's start selection is remembered while the app is inside the graph, rather than guessed from the
+    first entry of that graph in the stack. Navigating to a graph entered somewhere else now runs its start.
+  - `start("graphId")` pointing at a graph with a dynamic start now resolves through any depth of references,
+    also at bootstrap.
+  - `replaceCurrent = true` into such a graph replaces instead of pushing, and a guard redirect of a replace
+    also replaces.
+- **Links:**
+  - A full hash style URL such as `https://host/#/profile` opens the route after the hash.
+  - A link to the site root opens the start destination.
+  - A path param now wins over a query param or an explicit param with the same name.
+- **Results:**
+  - `RouteResolver.resolve` returns null for a graph with no start instead of the notFound screen. Navigating
+    to such a graph still lands on the notFound screen.
+  - A navigation that a middleware blocks reports `NavigationOutcome.Dropped` instead of `Success`.
+- **Lifecycle:**
+  - `onLifecycleCreated` runs synchronously up to its first suspension and continues off the dispatch
+    pipeline, so a slow hook no longer holds up every dispatch.
+  - One failing removal handler no longer stops the others, and the lifecycle scope always ends.
+  - An entry re-added while its old copy is still leaving runs the old removal handlers first.
+  - The navigation crash listener is registered once per store generation, so a crash after resets runs
+    `onCrash` once.
+- **History:** browser snapshots and the stored pending navigation keep path params even when their name looks
+  sensitive (`invite/{token}`), because they are part of the location.
+- **Android:** the back handler stays enabled while the stack can pop. A press during a guard evaluation is
+  consumed instead of closing the Activity.
+
+---
+
+### [BC-127] Core, capture, network and tracing plugin fixes
+
+**Type:** Behavioural
+
+**Grep:** `createLogic|setDispatchInstrumentation|AnySerializer|maxActions|maxLogicEvents|prepareGet|prepareRequest`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A module whose createLogic throws left every dispatchAndAwait and selectState waiting forever.
+store.dispatchAndAwait(SomeAction)
+```
+
+**After:**
+```kotlin
+// The same call now fails: the queued dispatch completes with DispatchResult.Error, and later calls throw.
+store.dispatchAndAwait(SomeAction)
+```
+
+**Notes:** Each of these was a bug with a failing test before the fix.
+
+- **Store:**
+  - A `createLogic` that throws at construction closes the store's queues and fails pending and later
+    dispatches, and `selectState` throws the cause. After a reset whose `createLogic` throws, `selectLogic`
+    reports the failure instead of waiting.
+  - A `DispatchInstrumentation` that throws is logged and skipped for that dispatch instead of stopping the
+    dispatch loop.
+  - A crash listener's `CancellationException` is no longer swallowed.
+- **`AnySerializer`:** writes a top level `JsonElement` as JSON, as it already did for nested ones, instead of
+  as a quoted string.
+- **Session capture:**
+  - The baseline is taken again after `Store.reset()`, `clear()` and a stop then start, so it no longer holds
+    pre-reset state.
+  - Marker and crash `afterActionIndex` point into the retained actions when `maxActions` trims them.
+  - With `maxLogicEvents`, trimming drops whole calls, oldest first, so no completion is left without its
+    start.
+  - A dropped dispatch consumes its recorded origin and reports it.
+  - With `autoStart`, the capture starts while the tooling logic is created, so a crash right after the store
+    starts is captured instead of lost.
+- **Ktor plugin:**
+  - A response that ktor does not save (`prepareGet(...).execute { }` streaming) is no longer read by the
+    plugin, so the caller can read it. Its body is not captured.
+  - The retained exchange no longer keeps a second copy of the request headers.
+- **Tracing compiler plugin:** a traced Unit method that returns early now reports completion. It used to
+  look as if it was running forever and leaked its call entry.
+
+---
+
+### [BC-128] DevTools server routing, send results and session view fixes
+
+**Type:** Behavioural
+
+**Grep:** `DevToolsConnection|DevToolsService|ClientManager|attachWaitingObservers|broadcastToListeners`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// send returned Unit and swallowed every failure, so a caller could not tell a sent frame from a dropped one.
+connection.send(message)
+```
+
+**After:**
+```kotlin
+// send reports whether the frame reached the socket. Cancellation is rethrown.
+if (!connection.send(message)) {
+    showNotConnected()
+}
+```
+
+**Notes:** Each of these was a bug with a failing test before the fix.
+
+- **`DevToolsConnection.send` and `DevToolsService.send`** now return `Boolean`: false when there is no open
+  session or the frame could not be written. A `CancellationException` is rethrown instead of swallowed. Code
+  that ignores the result keeps compiling.
+- **Server routing:**
+  - Who receives a publisher's messages is read from each observer's `publisherClientId`. There was a second
+    subscription map that could disagree with it.
+  - A follower of a publisher that disconnects, or of a ghost that is removed, waits for the next publisher and is
+    attached to it with a fresh baseline. It used to stay stuck on the old id forever.
+  - A publisher replaced by another is sent `RoleAssignment(UNASSIGNED)` and its followers move to the new one. It
+    used to be demoted silently and kept publishing.
+  - A publisher that asks for another role gives up publishing, so another client can take over. A client never
+    follows itself.
+  - Removing a ghost hands the publisher slot back to a live device that is still publishing.
+  - Asking for the observer link you already have no longer requests a second baseline.
+  - The server no longer sends a `StateSync` next to every full delta. Followers applied each full delta twice.
+- **Publisher:** a delta that arrives while a batch is being sent is sent after it, instead of waiting for the
+  next action. Deltas held when the service stops are dropped, and the follower's shadow state is cleared.
+- **DevTools UI:**
+  - Leaving an imported session ends it, including its time travel, so a live device's network bodies, links and
+    markers work again.
+  - While an imported session is in view, a live publisher in the client list no longer takes the view back.
+  - Importing a session, or switching to another publisher, starts from an empty view instead of mixing the two
+    sessions.
+  - With several imported sessions, a client list change no longer flips the view to an older one.
+  - Clear history keeps the state at the moment of clearing as the new baseline, so later deltas rebuild correctly.
+  - A history resync no longer repeats log lines that are already shown.
+  - An unreadable session file shows the reason in the import dialog.
+  - A link or app links request fails at once when the server cannot be reached, instead of after 20 seconds.
+  - The DevTools UI itself is never listed or counted as a device.
+
+---
+
+### [AD-142] Outside state writes are a store capability
+
+**Type:** Replaces-deprecated
+
+**Grep:** `externalState\(|ExternalStatePolicy|ExternalStateRequester|HydrateSource|onHydrated`
+**File glob:** `**/*.kt`
+
+**Replaces:** `InternalStoreOperations`, `StoreAccessor.asInternalOperations()`, `markExternallyDriven()`,
+`StoreAction.Hydrate(states, origin)` and `NavigationLogic.adoptCurrentBackstack()` (see BC-130).
+
+**Example:**
+```kotlin
+val store = createStore {
+    module(counterModule)
+    externalState(ExternalStatePolicy.OnRequest)
+}
+
+val access = store.externalState()
+if (access != null) {
+    access.beginControl()
+    access.hydrate(
+        mapOf(CounterState::class.qualifiedName!! to CounterState(value = 42)),
+        HydrateSource.External("replay")
+    )
+    access.endControl()
+}
+
+object ReplicaModule : Module<ReplicaState, ReplicaAction>, ExternalStateRequester {
+    override fun startsUnderExternalControl(): Boolean = startAsFollower
+}
+
+class CounterLogic : ModuleLogic() {
+    override suspend fun onHydrated(source: HydrateSource) {
+        if (source == HydrateSource.Restore) resumeWork()
+    }
+}
+```
+
+**Notes:**
+- `ExternalStatePolicy` in `createStore { externalState(...) }`:
+  - `OnRequest` is the default. The store grants outside writes when a registered module implements
+    `ExternalStateRequester`. The tooling module does, so a build with tooling installed needs no extra line.
+  - `Allow` grants them without a requester, for example for a production replication feature.
+  - `Deny` refuses them even when tooling is installed. DevTools then refuses to follow and says why.
+- `StoreAccessor.externalState()` returns `ExternalStateAccess`, or null when the store does not grant it.
+  `hydrate` returns the `DispatchResult`.
+- `ExternalStateRequester.startsUnderExternalControl()` is asked before any logic is created, on
+  construction and after every reset. The answer no longer depends on module order.
+- `HydrateSource` is `Restore`, `Replication` or `External(origin)`. `Store.loadState()` hydrates with
+  `Restore`, which is never gated.
+- `ModuleLogic.onHydrated(source)` runs on the dispatch pipeline for each module whose state a hydrate
+  replaced. Navigation uses it to start the lifecycle of a restored back stack (see BC-131).
+- `DispatchDropReason.EXTERNAL_STATE_DENIED` names a hydrate the store refused.
+- This is a correctness guard, not a security boundary. Anyone who can modify the app can change any
+  code. Keep tooling out of release builds and validate what matters on the server.
+
+---
+
+### [BC-129] Outside state writes need a store that grants them
+
+**Type:** Behavioural
+
+**Grep:** `StoreAction.Hydrate\(|applyExternalStates|beginExternalControl|markExternallyDriven|DispatchDropReason`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Any store accepted a raw hydrate and external control.
+store.dispatchAndAwait(StoreAction.Hydrate(states, "Import"))
+```
+
+**After:**
+```kotlin
+val store = createStore {
+    module(counterModule)
+    externalState(ExternalStatePolicy.Allow)
+}
+store.externalState()?.hydrate(states, HydrateSource.External("Import"))
+```
+
+**Notes:**
+- A store with no `ExternalStateRequester` module and no `externalState(Allow)` now drops a raw
+  `StoreAction.Hydrate` with `DispatchResult.Blocked` and `DispatchDropReason.EXTERNAL_STATE_DENIED`, and
+  logs one warning naming the config line. The deprecated `beginExternalControl()` and
+  `markExternallyDriven()` do nothing there. Stores with the tooling module installed behave as before.
+- `Store.loadState()` is never affected.
+- `DispatchDropReason` has a new entry, so an exhaustive `when` over it needs a branch for
+  `EXTERNAL_STATE_DENIED`.
+- `StoreAction.Hydrate` now holds `source: HydrateSource`. `origin` is kept as a property, and the
+  `(states, origin)` constructor still works. `copy` and `component2` changed, so code that
+  destructures a `Hydrate` needs updating.
+- Bug fixed: a follower start used to depend on registering the tooling module before navigation. The
+  store now asks before creating any logic. See AD-142.
+- Bug fixed: `Store.saveState()` and `Store.loadState()` threw on Kotlin/Wasm and Kotlin/Native, because
+  the state map was encoded without an explicit polymorphic serializer.
+
+---
+
+### [BC-130] Deprecated: the old outside write API
+
+**Type:** Deprecation
+
+**Grep:** `asInternalOperations|InternalStoreOperations|markExternallyDriven|adoptCurrentBackstack|Hydrate\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+storeAccessor.asInternalOperations()?.beginExternalControl()
+storeAccessor.asInternalOperations()?.markExternallyDriven()
+storeAccessor.dispatchAndAwait(StoreAction.Hydrate(states, "DevTools"))
+store.loadState()
+store.selectLogic<NavigationLogic>().adoptCurrentBackstack()
+```
+
+**After:**
+```kotlin
+storeAccessor.externalState()?.beginControl()
+object FollowerModule : Module<FollowerState, FollowerAction>, ExternalStateRequester {
+    override fun startsUnderExternalControl(): Boolean = true
+}
+storeAccessor.externalState()?.hydrate(states, HydrateSource.External("DevTools"))
+store.loadState()
+```
+
+**Notes:** Deprecated with warnings and still working, removal is planned for the next release. The
+replacements are in AD-142. `adoptCurrentBackstack()` is no longer needed after `loadState()`, see BC-131.
+
+---
+
+### [BC-131] Restoring persisted navigation starts the restored back stack's lifecycle
+
+**Type:** Behavioural
+
+**Grep:** `loadState\(\)|adoptCurrentBackstack|onLifecycleCreated`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.loadState()
+store.selectLogic<NavigationLogic>().adoptCurrentBackstack()
+```
+
+**After:**
+```kotlin
+store.loadState()
+```
+
+**Notes:** `Store.loadState()` now runs `onLifecycleCreated` for the restored entries and adopts browser
+history, through `ModuleLogic.onHydrated(HydrateSource.Restore)`. Correctness no longer depends on an
+app remembering the second call. Calling `adoptCurrentBackstack()` as well is harmless, since entries
+with a live lifecycle are skipped. Replication (`HydrateSource.Replication`) still fires no lifecycle
+hooks.
+
+---
+
+### [BC-132] Deprecated: public API with no callers
+
+**Type:** Deprecation
+
+**Grep:** `ParamsBuilder|applyIf|requireFullPath|\.fullPath\b|rememberModalAnimationState|getAllNavigatables|findGraphContaining|findNestedGraph|resolveStartScreen|encodeSimple|decodeSimpleQueryString|screenRetentionDuration|toTraceString|getInitialStateJson|getClientId\(\)|captureAction|\bLogic\b|unregisterClient|getAllClients|getGhostDevice`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.navigation { navigateTo(store.requireFullPath(ToolsScreen)) }
+createNavigationModule {
+    rootGraph { start(HomeScreen) }
+    screenRetentionDuration(10.seconds)
+}
+```
+
+**After:**
+```kotlin
+store.navigation { navigateTo(ToolsScreen) }
+createNavigationModule {
+    rootGraph { start(HomeScreen) }
+}
+```
+
+**Notes:** Deprecated with warnings and still working, removal is planned for the next release. Nothing in the
+library, its tests or the example app used any of these.
+
+- **Core:** the `Logic` marker interface. Use `ModuleLogic`.
+- **Tracing runtime:** `Obfuscation.toTraceString`.
+- **Introspection:** `SessionCapture.getInitialStateJson()` (read `getSessionHistory().initialStateJson`),
+  `SessionCapture.getClientId()`, and `SessionCapture.captureAction()`, which only tests call and which becomes
+  internal.
+- **Navigation:**
+  - `ParamsBuilder`, `Modifier.applyIf`, `StoreAccessor.requireFullPath` (use `getFullPath`) and
+    `Navigatable.fullPath` inside `navigation { }` (navigate to the navigatable itself)
+  - `rememberModalAnimationState`, and the unread `LayerAnimationState` fields `currentEntry`, `aliveEntries`,
+    `isBackNavigation` and `hasAnimation`
+  - `NavigationGraph.getAllNavigatables`, `findGraphContaining`, `findNestedGraph` and `resolveStartScreen`
+  - `DualNavigationParameterEncoder.encodeSimple` and `decodeSimpleQueryString`, which only deprecated code
+    reached
+  - `screenRetentionDuration(...)` in the navigation builder and `NavigationState.screenRetentionDuration`.
+    They never had an effect: no code retained screen content after it left the back stack, whatever the
+    released guide said. Remove the call.
+- **DevTools server:** `ClientManager.unregisterClient`, `assignRole`, `attachWaitingObservers`,
+  `getAllClients` and `getGhostDevice`. The server uses internal versions, and these become internal.
+
+---
+
+### [BC-133] A dropped dispatch returns DispatchResult.Dropped with the reason
+
+**Type:** Breaking | Behavioural
+
+**Grep:** `DispatchResult.Blocked|is DispatchResult|when \(result\)`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+when (store.dispatchAndAwait(action)) {
+    DispatchResult.Processed -> onApplied()
+    DispatchResult.Blocked -> onNotApplied()
+    is DispatchResult.Error -> onFailed()
+}
+```
+
+**After:**
+```kotlin
+when (val result = store.dispatchAndAwait(action)) {
+    DispatchResult.Processed -> onApplied()
+    DispatchResult.Blocked -> onNotApplied()
+    is DispatchResult.Dropped -> onNotApplied(result.reason)
+    is DispatchResult.Error -> onFailed()
+}
+```
+
+**Notes:**
+- `Blocked` now only means a middleware did not pass the action on. An action the store discarded (queued
+  before a reset, sent under external control, or a `Hydrate` the store does not accept) returns
+  `Dropped(reason)` with the matching `DispatchDropReason`. Code that compared against `Blocked` to detect
+  "not applied" should compare against `Processed` instead.
+- An exhaustive `when` over `DispatchResult` needs the new branch.
+- Navigation now treats any result other than `Processed` as not committed. A reducer that throws while
+  committing a navigation used to count as committed and schedule a transition settle.
+
+---
+
+### [BC-134] A middleware that passes on a different action continues the chain
+
+**Type:** Behavioural
+
+**Grep:** `updatedState\(|next\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// The replacement was re-dispatched through the whole chain later. The original dispatch reported
+// Blocked and updatedState returned the original module's unchanged state.
+val rewrite = Middleware { action, _, _, next -> next(Mapped(action)) }
+```
+
+**After:**
+```kotlin
+// The replacement continues from this middleware to the reducer in the same dispatch. The dispatch reports
+// Processed and updatedState returns the replacement's module state.
+val rewrite = Middleware { action, _, _, next -> next(Mapped(action)) }
+```
+
+**Notes:** Middleware that pass the action they received are unaffected. To send a separate action through
+the whole chain, dispatch it with `storeAccessor.dispatch(...)`.
+
+---
+
+### [AD-143] Store.close, accessor members for tooling, emitSpan, anonymous modules
+
+**Type:** Addition
+
+**Grep:** `\.close\(\)|serializersModule|activeDispatchInstrumentation|setDispatchInstrumentation|emitSpan`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+store.close()
+
+val json = reaktivJson(storeAccessor.serializersModule)
+val instrumentation = storeAccessor.activeDispatchInstrumentation
+
+LogicTracer.emitSpan(
+    logicClass = "Sync",
+    methodName = "retry",
+    params = mapOf("attempt" to "2"),
+    result = "scheduled",
+    resultType = "Unit"
+)
+```
+
+**Notes:**
+- `Store.close()` runs every logic's `beforeReset()` on the dispatch pipeline, then does what `cleanup()`
+  does. Use it where the store's logic holds resources such as the tooling module's DevTools socket,
+  tracer observers and capture files. `cleanup()` is unchanged and still skips the teardown.
+- `StoreAccessor.serializersModule`, `activeDispatchInstrumentation` and `setDispatchInstrumentation` are
+  open members, so code holding an accessor no longer casts to `Store`. A custom accessor returns null and
+  ignores the setter.
+- `LogicTracer.emitSpan` records an instant span (start and completion together) in one call.
+- Fixed: a module declared as an anonymous object threw a `NullPointerException` when the store was built.
+  The store now keys modules and logic by class and uses names only for `Hydrate` and `getAllStates()`.
+- `DispatchOriginTracker` drops only the oldest recorded action when it is full, instead of forgetting every
+  one.
+
+---
+
+### [BC-135] dismissModal waits for a navigation in progress
+
+**Type:** Behavioural
+
+**Grep:** `dismissModal\(\)`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// Called while another navigation was still evaluating (for example behind a slow guard), the dismiss
+// could be refused and return having done nothing, leaving the modal under the new screen.
+store.dismissModal()
+```
+
+**After:**
+```kotlin
+// The dismiss queues behind the navigation in progress, like every other navigation, and then removes
+// the modal, also when that navigation has since covered it.
+store.dismissModal()
+```
+
+**Notes:** Bug fix with a failing test first. `navigateBack()` is unchanged, so a back press during an
+evaluation is still consumed without acting.
+
+---
+
+### [BC-136] Deprecated: PrecomputedNavigationData.availableNavigatables
+
+**Type:** Deprecation
+
+**Grep:** `availableNavigatables`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val screen = precomputedData.availableNavigatables["home"]
+```
+
+**After:**
+```kotlin
+val screen = precomputedData.routeToNavigatable["home"]
+```
+
+**Notes:** Nothing read it. A root navigatable's full path is its route, so `routeToNavigatable` already
+holds every entry it had. Removal is planned for the next release. The `availableNavigatables` parameter
+of `RouteResolver.resolve` was already scheduled for removal in BC-80.
+
+---
+
+### [BC-137] Deprecated: NavigationStep.shouldClearBackStack and shouldReplaceWith
+
+**Type:** Deprecation
+
+**Grep:** `shouldClearBackStack|shouldReplaceWith`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+if (step.shouldReplaceWith) { }
+```
+
+**After:**
+```kotlin
+if (step.operation == NavigationOperation.Replace) { }
+```
+
+**Notes:** Both always equalled a check on `operation`. They are still set until the next release removes them.
+
+---
+
+### [BC-138] Guard redirects hold a NavigationTarget
+
+**Type:** Breaking
+
+**Grep:** `GuardResult.RedirectTo|GuardResult.PendAndRedirectTo`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val redirect = GuardResult.RedirectTo(LoginScreen)
+val moved = redirect.copy(route = "auth/login")
+```
+
+**After:**
+```kotlin
+val redirect = GuardResult.RedirectTo(LoginScreen)
+val moved = redirect.copy(target = NavigationTarget.Path("auth/login"))
+```
+
+**Notes:**
+- `RedirectTo` and `PendAndRedirectTo` now store `target: NavigationTarget`. The `String` and `Navigatable`
+  constructors and the `route` property still work, so ordinary guards need no change.
+- Only `copy(route = ...)` and destructuring the first component change.
+- Fixed: a redirect to a screen object was equal to a redirect to its route string, and `copy()` dropped the
+  screen, so the copy navigated by short route instead of by the screen's full path.
+
+---
+
+### [BC-139] Params.getString returns a non-string value's own text
+
+**Type:** Behavioural
+
+**Grep:** `getString\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+Params.of("point" to Point(1, 2)).getString("point")
+```
+
+**After:**
+```kotlin
+Params.of("point" to Point(1, 2)).getString("point")
+```
+
+**Notes:** The value used to be URL-decoded and split on commas and colons, so the example returned
+`[Point(x=1, y=2)]`. It now returns `toString()`, here `Point(x=1, y=2)`. Numbers and booleans read the same
+as before. String values are unchanged.
+
+---
+
+### [BC-140] start() or layout() inside intercept { } is rejected
+
+**Type:** Behavioural
+
+**Grep:** `intercept\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+rootGraph {
+    intercept(guard = { GuardResult.Allow }) {
+        start(HomeScreen)
+        screens(HomeScreen)
+    }
+}
+```
+
+**After:**
+```kotlin
+rootGraph {
+    start(HomeScreen)
+    intercept(guard = { GuardResult.Allow }) {
+        screens(HomeScreen)
+    }
+}
+```
+
+**Notes:** Both calls were silently dropped. Building the module now throws an `IllegalStateException` that
+names the graph and says to declare them outside `intercept { }`.
+
+---
+
+### [AD-144] NavigationAction.PopUpTo carries the target entry's key
+
+**Type:** Addition
+
+**Grep:** `NavigationAction.PopUpTo\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+store.dispatch(NavigationAction.PopUpTo(route = "home", inclusive = false, entryToReAdd = null, targetKey = homeEntry.stableKey))
+```
+
+**Notes:** Navigation now records the `stableKey` of the entry it resolved, and the reducer pops to that exact
+entry instead of matching the route again by location, route, path, resolution and suffix. A `PopUpTo`
+without a key, such as one dispatched by app code, still matches by route. The three-argument constructor
+is kept. `copy` gains the parameter.
+
+---
+
+### [BC-145] Every navigate step resolves and is guarded the same way
+
+**Type:** Behavioural
+
+**Grep:** `resumePendingNavigation\(|synthesizeBackstack = true`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.navigation {
+    clearBackStack()
+    resumePendingNavigation()
+}
+```
+
+**After:**
+```kotlin
+store.navigation {
+    clearBackStack()
+    resumePendingNavigation()
+}
+```
+
+**Notes:**
+- `resumePendingNavigation()` now asks the guard of the pending route's zone again. It used to land without
+  asking, so resuming before the guard allowed opened the protected screen. Resume after the condition the
+  guard checks is met, as the guard KDoc already describes. A guard that still refuses stores the pending
+  navigation again and redirects.
+- A `navigateTo` of a graph with a dynamic `start(route = { ... })` lands on the selected start wherever it
+  appears in a block, and so does a guard redirect to such a graph. Only the first navigate step of a block
+  used to do this. The others fell back to the notFound screen or threw `RouteNotFoundException`.
+- `synthesizeBackstack = true` puts the root graph's start beneath the destination only when the stack holds
+  nothing but SYSTEM overlays, which is what `resumePendingNavigation()` already did. It used to insert the
+  root start above an occupied stack, so going back from the synthesized entries passed through it before
+  reaching the screens that were already there.
+
+---
+
+### [BC-146] A guard zone is the zone of the screen a navigation lands on
+
+**Type:** Behavioural
+
+**Grep:** `intercept\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+rootGraph {
+    intercept(guard = requireLogin) {
+        graph("ws") {
+            start("admin")
+            intercept(guard = requireAdmin) {
+                graph("admin") { start(AdminPanel) }
+            }
+        }
+    }
+}
+```
+
+**After:**
+```kotlin
+rootGraph {
+    intercept(guard = requireLogin) {
+        graph("ws") {
+            start("admin")
+            intercept(guard = requireAdmin) {
+                graph("admin") { start(AdminPanel) }
+            }
+        }
+    }
+}
+```
+
+**Notes:**
+- `navigateTo("ws")` in the example now runs `requireLogin` and then `requireAdmin`, because it lands on
+  `AdminPanel`. It used to run only `requireLogin`, the guard of the graph that was named, so the admin guard
+  was skipped.
+- A graph that is named but has nothing to land on, such as a graph without a start, is still guarded by its
+  own zone.
+- A guard redirect from a screen inside a guarded graph now stops synthesizing the redirect's history at that
+  zone's boundary, as it already did when a graph was named.
+- Guard trace spans are named after the zone's graph, for example `guard(ws)`, when the zone belongs to a graph.
+  They used to carry the screen path when a screen was the target.
+
+---
+
+### [AD-147] Back and PopUpTo carry a presentation
+
+**Type:** Addition
+
+**Grep:** `NavigationAction.Back\(|NavigationAction.PopUpTo\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val action = store.selectState<NavigationState>().first().lastNavigationAction
+val animated = when (action) {
+    is NavigationAction.Back -> action.presentation == TraversePresentation.Animate
+    is NavigationAction.PopUpTo -> action.presentation == TraversePresentation.Animate
+    else -> true
+}
+```
+
+**Notes:**
+- `presentation` says whether the renderer still has to animate the change. It is `Animate` unless the
+  change lands what an active back or dismiss scrub was showing, in which case the reducer records
+  `AlreadyPresented`. `Traverse` already had the same field.
+- Existing constructor calls keep compiling. Code compiled against the old `copy` or the all-defaults
+  constructor needs a recompile. See BC-148.
+
+---
+
+### [BC-148] A transition the user already saw is not animated or waited for again
+
+**Type:** Behavioural
+
+**Grep:** `NavigationAction.Back\(|NavigationAction.PopUpTo\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.navigation { popUpTo("home", inclusive = false) }
+```
+
+**After:**
+```kotlin
+store.navigation { popUpTo("home", inclusive = false) }
+```
+
+**Notes:**
+- A back swipe that leaves a graph used to make the navigation wait for the exit animation the swipe had
+  already played. It now returns as soon as the change commits. A back or dismiss that a custom back handler
+  performs after a swipe is recognised the same way.
+- A navigation whose guard raised the loading overlay no longer waits for a content animation, because the
+  renderer never played one under the overlay.
+- The renderer decides this from the committed state instead of remembering the previous frame, so a frame
+  skipped under load no longer turns the skipped animation back on.
+- Rebuild code that calls `copy` on `NavigationAction.Back` or `NavigationAction.PopUpTo`, or constructs
+  `Back()` with no arguments, against this version. Source code needs no change.
+
+---
+
+### [AD-149] A failed start is recorded in state and can be retried
+
+**Type:** Addition
+
+**Grep:** `startFailure|retryStart\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object AppLoading : LoadingModal {
+    override val route = "loading"
+
+    @Composable
+    override fun Content(params: Params) {
+        val state by selectState<NavigationState>().collectAsState()
+        val store = rememberStore()
+        val failure = state.startFailure
+        if (failure == null) {
+            CircularProgressIndicator()
+        } else {
+            Column {
+                Text("Could not start: ${failure.exceptionMessage}")
+                Button(onClick = { store.launch { store.selectLogic<NavigationLogic>().retryStart() } }) {
+                    Text("Retry")
+                }
+            }
+        }
+    }
+}
+```
+
+**Notes:**
+- `NavigationState.startFailure` holds a `StartFailure(exceptionType, exceptionMessage)` when the start
+  destination lambda, or the guard of a static start, failed. It is `null` otherwise.
+- `NavigationLogic.retryStart()` runs the start again. It does nothing when the last start did not fail.
+- `NavigationAction.SetStartFailure` is the action that sets and clears it. See BC-150.
+
+---
+
+### [BC-150] A failed start no longer freezes navigation
+
+**Type:** Behavioural
+
+**Grep:** `start\(route =|crashScreen\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+rootGraph {
+    start(route = { store -> loadStartDestination(store) })
+}
+```
+
+**After:**
+```kotlin
+rootGraph {
+    start(route = { store -> loadStartDestination(store) })
+}
+```
+
+**Notes:**
+- A start lambda that threw used to leave `isBootstrapping` set and every later `navigate()` call waiting
+  forever, which in a release build looked like a spinner that never ended. Bootstrap now always finishes,
+  the loading modal stays up, `NavigationState.startFailure` records the failure, and navigation works.
+  See AD-149 for showing a retry.
+- With a crash screen configured, the failure now goes through the store's crash handling like any other
+  logic crash. The `onCrash` handler runs once, and DevTools records the crash. When the handler returns
+  `CrashRecovery.RETHROW`, the failure now propagates as that value documents. It used to be dropped
+  silently, which also froze navigation.
+- The cold-start loading placeholder is replaced by whatever lands next. A navigation or replace used to go
+  beneath it, so a crash screen after a failed start stayed hidden under the loading modal.
+- `NavigationAction` has a new subclass, `SetStartFailure`, so an exhaustive `when` over it needs a branch.
+
+---
+
+### [AD-151] AnimationDecision.durationMillis
+
+**Type:** Addition
+
+**Grep:** `durationMillis`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val decision = determineAnimationDecision(previous, current, navModule)
+val settlesAfter = decision.durationMillis
+```
+
+**Notes:** The longer of the enter and exit transitions that actually play, and 0 when neither does. The
+renderer and the navigation logic both use it, so the time a screen stays composed and the time the next
+navigation waits for can no longer disagree.
+
+---
+
+### [BC-152] A dismissed modal's removal handlers follow its own exit transition
+
+**Type:** Behavioural
+
+**Grep:** `popExitTransition`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+object Sheet : Modal {
+    override val enterTransition = NavTransition.Custom(durationMillis = 400)
+    override val popExitTransition = NavTransition.Custom(durationMillis = 100)
+}
+```
+
+**After:**
+```kotlin
+object Sheet : Modal {
+    override val enterTransition = NavTransition.Custom(durationMillis = 400)
+    override val popExitTransition = NavTransition.Custom(durationMillis = 100)
+}
+```
+
+**Notes:** The renderer already played a modal's `popExitTransition` when the modal was dismissed, but
+`invokeOnRemoval` handlers waited for the reversed enter transition instead, so in the example they ran
+300 ms after the sheet was gone. Both now read the same rule.
+
+---
+
+### [AD-153] ScrubState carries a ScrubType
+
+**Type:** Replaces-deprecated
+
+**Grep:** `ScrubType|ScrubState\(`
+**File glob:** `**/*.kt`
+
+**Replaces:** the `kind: String` of `ScrubState`, which held one of three fixed wire names
+
+**Example:**
+```kotlin
+store.dispatch(NavigationAction.ScrubUpdate(ScrubState(ScrubType.Back, top.stableKey, revealed.stableKey, 0.4f)))
+val backScrub = state.activeScrub?.type == ScrubType.Back
+```
+
+**Notes:** The JSON is unchanged: `type` is still written as `"kind"` with the same values, so replicated
+state and recorded sessions decode as before. See BC-154.
+
+---
+
+### [BC-154] Deprecated: ScrubState(kind: String, ...) and ScrubState.kind
+
+**Type:** Deprecation
+
+**Grep:** `ScrubState\("|activeScrub\?\.kind|\.kind == "`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val scrub = ScrubState("back-scrub", top.stableKey, revealed.stableKey, 0.4f)
+if (state.activeScrub?.kind == "back-scrub") { }
+```
+
+**After:**
+```kotlin
+val scrub = ScrubState(ScrubType.Back, top.stableKey, revealed.stableKey, 0.4f)
+if (state.activeScrub?.type == ScrubType.Back) { }
+```
+
+**Notes:**
+- The string constructor and the `kind` property still work until the next release. The constructor
+  throws for a name that is not one of `back-scrub`, `dismiss-scrub` or `modal-dismiss-scrub`.
+- `copy(kind = ...)` no longer compiles. Use `copy(type = ...)`.
+- See AD-153.
+
+---
+
+### [AD-155] NavigationState.revealedEntry and titledEntry
+
+**Type:** Addition
+
+**Grep:** `revealedEntry|titledEntry`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val state = store.selectState<NavigationState>().first()
+val backGoesTo = state.revealedEntry?.route
+val documentTitleFrom = state.titledEntry?.navigatable?.titleResource
+```
+
+**Notes:** `revealedEntry` is the entry a back navigation reveals, the one beneath the top of the stack.
+`titledEntry` is the topmost entry that is neither a system overlay nor the loading modal, which is the entry
+a window or document title describes. Both are computed from `backStack` on read, so they cannot drift from
+it. The back gesture, the platform back handler, browser history and `previousTitle()` all read them. See
+BC-156.
+
+---
+
+### [BC-156] previousTitle() names the entry back reveals
+
+**Type:** Behavioural
+
+**Grep:** `previousTitle\(\)|backTitle`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val chrome = rememberNavigationChrome()
+Text(chrome.backTitle.orEmpty())
+```
+
+**After:**
+```kotlin
+val chrome = rememberNavigationChrome()
+Text(chrome.backTitle.orEmpty())
+```
+
+**Notes:** `previousTitle()`, and so `NavigationChromeState.backTitle`, used to skip every entry outside the
+content layer. With an overlay or a system alert on top of `[home, detail]` it named `home`, although back
+dismisses the alert and reveals `detail`. It now names `detail`. With plain screens on top nothing changes.
+
+---
+
+### [BC-157] Sensitive data is masked when a session is exported, not while it is captured
+
+**Type:** Behavioural
+
+**Grep:** `redactSensitiveKeys|redactor =|@Sensitive|@PII|redactedHeaders`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+ToolingModule(IntrospectionConfig(platform = "Android", redactSensitiveKeys = true))
+```
+
+**After:**
+```kotlin
+ToolingModule(IntrospectionConfig(platform = "Android"))
+```
+
+**Notes:**
+- Live DevTools and the capture now carry real values: module state, action payloads, parameters of traced
+  methods annotated `@Sensitive` or `@PII`, and network headers. They used to be masked as they were
+  captured, which also put two encodings on one stream, with raw baselines next to masked deltas.
+- Every export masks them in one pass: `exportSession`, `exportCrashSession` and the crash files the
+  platform handlers write. That pass covers module state (fields named by `IntrospectionConfig.sensitiveKeys`
+  and every `@Redacted` field), action payloads, traced parameters (`@Sensitive` becomes `[REDACTED]`, `@PII`
+  is partly masked, and parameters named by a sensitive key are masked too), return values, network headers,
+  URL query parameters, JSON and form bodies, and `key=value` pairs in log lines.
+- `@Redacted` fields are now masked in every export. `redactSensitiveKeys = false` used to switch that off
+  along with key-name matching.
+- A `StateRedactor` runs on exports only, and it can now receive a partial module object: the fields that
+  changed in one action.
+- The ktor plugin's `redactedHeaders` now names headers masked in exports, carried on each exchange as
+  `NetworkRequestCapture.sensitiveHeaders`. Captured headers keep their values.
+- Capture files on disk hold raw values. They stay in app-private storage and are deleted by `clear()` and
+  `stop()`.
+- See AD-158 and BC-159.
+
+---
+
+### [AD-158] Export redaction settings and markers
+
+**Type:** Addition
+
+**Grep:** `sensitiveKeys|ParamRedaction|sensitiveHeaders`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val tooling = ToolingModule(
+    IntrospectionConfig(
+        platform = "Android",
+        sensitiveKeys = DEFAULT_SENSITIVE_KEYS + "pin"
+    )
+)
+```
+
+**Notes:**
+- `IntrospectionConfig.sensitiveKeys` and `SessionCapture(sensitiveKeys = ...)` choose the key names an
+  export masks. `emptySet()` switches key-name matching off, while `@Redacted` still applies.
+- `LogicMethodStart.redactions` maps a parameter name to its `ParamRedaction` (`Sensitive` or `Pii`), which the
+  tracing plugin records instead of masking the value when the method is called.
+- `NetworkRequestCapture.sensitiveHeaders` names the headers an export masks for that exchange.
+- See BC-157.
+
+---
+
+### [BC-159] Deprecated: redactSensitiveKeys, sensitiveKeyRedactor and REDACTION_TRACE_CLASS
+
+**Type:** Deprecation
+
+**Grep:** `redactSensitiveKeys|sensitiveKeyRedactor|REDACTION_TRACE_CLASS`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+IntrospectionConfig(platform = "Android", redactSensitiveKeys = false, redactor = sensitiveKeyRedactor())
+```
+
+**After:**
+```kotlin
+IntrospectionConfig(platform = "Android", sensitiveKeys = emptySet())
+```
+
+**Notes:**
+- `redactSensitiveKeys` still works until the next release: `false` behaves like `sensitiveKeys = emptySet()`.
+- `sensitiveKeyRedactor()` still returns a working redactor, but every export already masks the same keys.
+- `SessionCapture.REDACTION_TRACE_CLASS` is no longer emitted, because capture no longer redacts. Problems an
+  export finds while masking are logged as warnings instead.
+- See BC-157.
+
+---
+
+### [AD-160] SessionCapture.encodeStateTree and stateJson
+
+**Type:** Addition
+
+**Grep:** `encodeStateTree|capture.stateJson`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val tree = capture.encodeStateTree(store.getAllStates())
+tree.failed.forEach { (module, reason) -> println("cannot publish $module: $reason") }
+send(tree.modules.toString())
+```
+
+**Notes:**
+- `encodeStateTree` encodes a state tree one module at a time with the encoder the capture uses for its
+  deltas, so a baseline built from it agrees with the deltas that follow, default values included. A module
+  that cannot be encoded is left out and named in `failed` instead of failing the whole tree.
+- `stateJson` is that encoder, with the store's serializers attached.
+- The capture's own baseline now uses it too, so one module whose type was never registered no longer
+  leaves the recorded baseline empty for every module.
+
+---
+
+### [AD-161] Network body providers declare their source
+
+**Type:** Addition
+
+**Grep:** `NetworkBodySource|originBody`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+NetworkTap.addBodyProvider(object : NetworkBodyProvider {
+    override val source = NetworkBodySource.Archive
+    override fun slice(requestId: String, part: NetworkBodyPart, offset: Int, maxBytes: Int) =
+        archive.body(requestId, part)?.encodeToByteArray()?.sliceOnCharBoundary(offset, maxBytes)
+})
+val full = NetworkTap.originBody(requestId, NetworkBodyPart.RESPONSE)
+```
+
+**Notes:** A provider is `NetworkBodySource.Origin` by default, meaning it holds the body of an exchange it
+emitted. The session capture registers itself as `Archive`. `NetworkTap.originBody` reads a whole body from
+the origin providers only, which is how the capture records a body before the plugin's retention window
+evicts it without ever reading its own archive.
+
+---
+
+### [BC-162] Crash handlers report to the current capture and keep the previous handler
+
+**Type:** Behavioural
+
+**Grep:** `NSSetUncaughtExceptionHandler|setUnhandledExceptionHook|setDefaultUncaughtExceptionHandler`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+NSSetUncaughtExceptionHandler(crashReporterHandler)
+ToolingModule(IntrospectionConfig(platform = "iOS"))
+```
+
+**After:**
+```kotlin
+NSSetUncaughtExceptionHandler(crashReporterHandler)
+ToolingModule(IntrospectionConfig(platform = "iOS"))
+```
+
+**Notes:**
+- iOS: the crash handler used to replace an uncaught exception handler installed earlier, such as the one a
+  crash reporter installs, so that reporter no longer saw the crash. It now saves the session and then calls
+  the previous handler. It also saves the session for an uncaught Kotlin exception, through
+  `setUnhandledExceptionHook`, and then calls the previous hook.
+- Android: the handler was installed once per process and kept the capture it was installed with. It now
+  saves the session of the most recently installed capture, so a second store or a recreated tooling module
+  no longer writes the first one's session.
+
+---
+
+### [BC-163] Session payload functions are common, and one MIME mapping for exported files
+
+**Type:** Behavioural
+
+**Grep:** `encodeSessionPayload|decodeSessionPayload|SessionFileExport`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val payload = encodeSessionPayload(json)
+SessionFileExport(PlatformContext(context)).saveToDownloads(bytes, "session")
+```
+
+**After:**
+```kotlin
+val payload = encodeSessionPayload(json)
+SessionFileExport(PlatformContext(context)).saveToDownloads(bytes, "session")
+```
+
+**Notes:**
+- Source compatible. `encodeSessionPayload` and `decodeSessionPayload` were `expect` functions with one
+  implementation per platform. They are now ordinary common functions over `gzipCompress` and
+  `gzipDecompress`, and the output is the same standard Base64. On the JVM they moved from the
+  `SessionPayload_jvmKt` facade class to `SessionCompressionKt`, so code compiled against an older Reaktiv
+  needs a recompile rather than a swapped artifact.
+- On Android, `gzipCompress` and `gzipDecompress` now live in the `SessionCompression_jvmKt` facade class that
+  the JVM uses, instead of `SessionCompression_androidKt`. Recompile for the same reason.
+- Android `saveToDownloads` now types the file the way the browser export does: `.gz` is `application/gzip`,
+  `.json` is `application/json`, `.xml` is `application/xml`, and anything else is
+  `application/octet-stream`. Before, every name that did not end in `.gz` was typed as JSON, so MediaStore
+  could add `.json` to a name without an extension.
+- In the browser, a gzip failure (for example a corrupt export) is still an `IllegalStateException` that
+  carries the browser's own error message. The browser calls are now awaited as promises, so cancelling the
+  coroutine that waits on them no longer leaves a callback behind.
+
+---
+
+### [AD-164] Each DevTools server owns its client bookkeeping, and targeted messages share one interface
+
+**Type:** Replaces-deprecated
+
+**Grep:** `RunningDevToolsServer|DevToolsMessage.Targeted|clientManager`
+**File glob:** `**/*.kt`
+
+**Replaces:** `DevToolsServer.getClientManager()` and `DevToolsServer.resetState()`, which reached one client
+manager shared by every server the process started.
+
+**Example:**
+```kotlin
+val server = DevToolsServer.startEmbedded(port = 0)
+val publisher = server.clientManager.currentPublisher()
+server.stop()
+
+fun isForMe(message: DevToolsMessage, myId: String): Boolean =
+    message !is DevToolsMessage.Targeted || message.targetClientId == myId
+```
+
+**Notes:** `RunningDevToolsServer.clientManager` is the bookkeeping of that server alone, so a test suite
+that starts one server per test no longer resets shared state between them. `DevToolsMessage.Targeted` is
+implemented by the messages addressed to one client: `RoleAssignment`, `FetchNetworkBody`,
+`AddMarkerRequest` and `ServiceRequest`. See BC-165.
+
+---
+
+### [BC-165] The DevTools server decides and routes each message in one step
+
+**Type:** Behavioural
+
+**Grep:** `DevToolsServer.resetState|DevToolsServer.getClientManager|broadcastToListeners|broadcastToObservers|broadcastToOrchestrators|sendToPublisher|registerGhostDevice|removeGhostDevice|setPublisher|registerClient`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+DevToolsServer.resetState()
+val server = DevToolsServer.startEmbedded(port = 0)
+DevToolsServer.getClientManager().currentPublisher()
+```
+
+**After:**
+```kotlin
+val server = DevToolsServer.startEmbedded(port = 0)
+server.clientManager.currentPublisher()
+```
+
+**Notes:**
+- Every started server has its own `ClientManager`. `DevToolsServer.resetState()` and
+  `DevToolsServer.getClientManager()` are deprecated and act on the most recently started server. The
+  `ClientManager` methods the server used to call one by one (`registerClient`, `setPublisher`,
+  `broadcastTo*`, `sendToPublisher`, `registerGhostDevice`, `removeGhostDevice`, `sendGhostSession`,
+  `isGhostDevice`, `reset`) are deprecated and become internal next release. `currentPublisher()` and
+  `getClient()` stay public.
+- A role request is decided under one lock together with everything it causes, so two clients asking at the
+  same moment can no longer interleave halfway through.
+- A client's messages are delivered as coming from that client. A message sent as another client is
+  dropped, unless the sender is an orchestrator observing that publisher, which is how time travel and a
+  recorded session's playback reach its followers.
+- Followers are sent actions and state only. Logic traces, crash reports, markers, session history, state
+  reads and body chunks go to orchestrators. Followers ignored them before, so only bandwidth changes.
+- The request for a recorded session's baseline goes to the orchestrators holding it, not to its followers.
+- The server logs through `ReaktivDebug` instead of printing every message. The startup banner still prints.
+
+---
+
+### [BC-166] A DevTools crash report carries the diagnosis instead of a whole session export
+
+**Type:** Breaking
+
+**Grep:** `CrashReport\(|\.sessionJson`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val diagnosis = report.sessionJson?.let { json.decodeFromString<SessionExport>(it).diagnosis }
+```
+
+**After:**
+```kotlin
+val diagnosis = report.diagnosis
+```
+
+**Notes:** `DevToolsMessage.CrashReport` used to carry a full session export on every crash, which the DevTools
+UI decoded only to read its diagnosis. It now carries the `CrashDiagnosis` itself, built on the device from
+the live capture, so a crash no longer sends megabytes over the socket. The device and the DevTools UI ship
+in the same artifact and must be updated together. An export with the full session is still available from
+the device's own export and from the DevTools UI. See AD-167.
+
+---
+
+### [AD-167] SessionCapture.diagnoseCrash
+
+**Type:** Addition
+
+**Grep:** `diagnoseCrash`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val capture = toolingLogic.getSessionCapture()
+val diagnosis = capture.diagnoseCrash(crash)
+println(diagnosis.summary)
+```
+
+**Notes:** Builds the same `CrashDiagnosis` an export embeds, from the captured actions and logic events,
+without encoding the session. Values are not redacted, since the diagnosis stays on the live path. See BC-166.
+
+---
+
+### [AD-168] SessionCapture streams logic events, logs and network exchanges
+
+**Type:** Addition
+
+**Grep:** `logicEvents|CapturedLogicEvent|capture.logs|capture.network`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+scope.launch {
+    capture.logicEvents.collect { event ->
+        when (event) {
+            is CapturedLogicEvent.Started -> println("start ${event.event.methodName}")
+            is CapturedLogicEvent.Completed -> println("done ${event.event.callId}")
+            is CapturedLogicEvent.Failed -> println("failed ${event.event.callId}")
+        }
+    }
+}
+```
+
+**Notes:** `logicEvents`, `logs` and `network` join `actions`, `crashes`, `stateReads` and `markers`. The capture
+worker emits each record after storing it, so a flow is in the order the capture recorded, and a call's start
+always comes before its completion. `network` carries the exchange as the tap reported it, with bounded body
+previews. The capture keeps the full bodies for export. Slow collectors lose the oldest records, as with the
+other flows. See BC-169.
+
+---
+
+### [BC-169] DevTools forwards logs, network and logic events from the session capture
+
+**Type:** Behavioural
+
+**Grep:** `DevToolsLogicObserver`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+LogicTracer.addObserver(DevToolsLogicObserver(clientId, scope, isConnected = { true }) { send(it) })
+```
+
+**After:**
+```kotlin
+capture.logicEvents.collect { event -> forward(event) }
+```
+
+**Notes:**
+- `DevToolsService` used to add its own log sink, network listener and logic observer next to the ones the
+  capture installs, and polled its buffers every 300 ms. It now forwards the capture's flows. Logic events
+  go out in order from one collector, where each used to be sent from its own coroutine and could arrive
+  out of order. Logs and network exchanges are batched when they arrive, so an idle device sends nothing.
+- Logs, network exchanges and logic events now reach DevTools while the capture is running, the same as
+  actions always did. Records produced while the device is not publishing are no longer held back and
+  replayed later, since the session history a new observer receives already contains them.
+- `DevToolsLogicObserver` is deprecated. Nothing installs it any more.
+- The Ktor plugin no longer reports a cancelled response decode as a decode failure, and no longer swallows
+  a cancellation while reading a body for the capture.
+
+---
+
+### [AD-170] DevTools protocol version handshake
+
+**Type:** Addition
+
+**Grep:** `DevToolsProtocol|protocolVersion|RegistrationRefused`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+DevToolsMessage.ClientRegistration(
+    clientName = "Pixel 8",
+    clientId = "pixel-8",
+    platform = "Android 15",
+    protocolVersion = DevToolsProtocol.VERSION
+)
+```
+
+**Notes:** `DevToolsConnection` sends the version itself. A registration without it is read as
+`DevToolsProtocol.LEGACY`. The server answers a client on another version with
+`DevToolsMessage.RegistrationRefused` and closes the socket, and the device service shows the reason in its
+status and stops reconnecting instead of retrying forever. See BC-171.
+
+---
+
+### [BC-171] Mixed DevTools versions are refused, and the wire drops its compatibility branches
+
+**Type:** Breaking
+
+**Grep:** `SessionHistorySync|NetworkBodyChunk|\.available|isGhost|\.success|crashException|eventCount|logicEventCount|moduleName`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+if (chunk.available) append(chunk.content)
+```
+
+**After:**
+```kotlin
+chunk.content?.let(::append)
+```
+
+**Notes:**
+- A device, a DevTools server and a DevTools UI must run the same Reaktiv version. A client on another
+  protocol version is refused at registration with a reason, where it used to connect and then fail to parse
+  whatever the other side sent. Session files are unaffected: older exports still import.
+- `NetworkBodyChunk.content` is null when the device no longer holds the body. `available` is deprecated and
+  reads `content != null`.
+- Session history always arrives as `SessionHistoryChunk`, a single chunk for a small history.
+  `SessionHistorySync` is deprecated.
+- Fields nothing reads any more are deprecated and no longer sent: `ClientRegistration.isGhost`,
+  `RoleAcknowledgment.success`, `GhostDeviceRegistration.crashException`, `eventCount` and `logicEventCount`,
+  and `StateSync.moduleName`.
+- The DevTools server command line enables `ReaktivDebug`, so it prints registrations, role changes,
+  disconnects and refusals. An embedded server stays quiet unless the host enables it.
+
+---
+
+### [BC-172] DevToolsCommand enum and string arguments deprecated
+
+**Type:** Deprecation-removal
+
+**Grep:** `DevToolsCommand\.|ServiceCommand\("devtools"`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.dispatch(
+    ToolingAction.ServiceCommand(
+        "devtools",
+        DevToolsCommand.CONNECT,
+        mapOf("url" to "ws://10.0.2.2:8080/ws", "role" to "PUBLISHER")
+    )
+)
+```
+
+**After:**
+```kotlin
+store.dispatch(DevToolsCommands.connect("ws://10.0.2.2:8080/ws", ClientRole.PUBLISHER))
+```
+
+**Notes:** The enum form keeps working and is mapped to the typed command. A role name that is not a
+`ClientRole` still means no role, as before. The builders on `DevToolsCommands` did not change. See AD-173.
+
+---
+
+### [AD-173] Typed DevTools commands
+
+**Type:** Replaces-deprecated
+
+**Grep:** `DevToolsCommands\.(Connect|Disconnect|Reconnect|Follow|Unfollow)`
+**File glob:** `**/*.kt`
+
+**Replaces:** `DevToolsCommand` enum values carried with a `Map<String, String>` of arguments.
+
+**Example:**
+```kotlin
+val command = DevToolsCommands.Follow(publisherClientId = "pixel-8")
+store.dispatch(ToolingAction.ServiceCommand(DevToolsCommands.SERVICE_NAME, command))
+
+when (command) {
+    is DevToolsCommands.Connect -> println("connect to ${command.url}")
+    is DevToolsCommands.Follow -> println("follow ${command.publisherClientId}")
+    DevToolsCommands.Disconnect, DevToolsCommands.Reconnect, DevToolsCommands.Unfollow -> Unit
+}
+```
+
+**Notes:** `DevToolsCommands.Command` is sealed, so a `when` over it is exhaustive. The builder functions return
+these values. See BC-172.
+
+---
+
+### [BC-174] The DevTools UI exports the device's own session
+
+**Type:** Behavioural
+
+**Grep:** `allowRemoteRequests`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+DevToolsConfig(serverUrl = url, allowRemoteRequests = true)
+```
+
+**After:**
+```kotlin
+DevToolsConfig(serverUrl = url, allowRemoteRequests = true)
+```
+
+**Notes:**
+- Exporting a live device from the DevTools UI used to rebuild a session file from what the UI had received,
+  which left out the device logs, all but the last crash, and the device's redaction. The UI now asks the
+  device for its own export, the same one `ToolingLogic.exportSessionJson()` produces, redacted the way the
+  device is configured.
+- An imported session is exported as it was imported, with the markers added in the UI since.
+- A device that cannot answer, for example one with `allowRemoteRequests = false`, is still exported from
+  what the UI observed, now including its logs. That file holds the values the live view showed, which are
+  not redacted.
+
+---
+
+### [BC-175] DevToolsService control methods deprecated in favour of commands
+
+**Type:** Deprecation-removal
+
+**Grep:** `devToolsService\.(connect|disconnect|reconnect|follow|unfollow)\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+devToolsService.connect("ws://10.0.2.2:8080/ws", ClientRole.PUBLISHER)
+devToolsService.follow()
+```
+
+**After:**
+```kotlin
+store.dispatch(DevToolsCommands.connect("ws://10.0.2.2:8080/ws", ClientRole.PUBLISHER))
+store.dispatch(DevToolsCommands.follow())
+```
+
+**Notes:** The methods still work and forward to the same code the commands reach. A command goes through
+the tooling module, so it is recorded like any other action and works from anywhere that can dispatch.
+`send` and `isConnected` are unchanged. See AD-173.
+
+---
+
+### [BC-176] DevTools internals ask for an opt-in before they become internal
+
+**Type:** Deprecation-removal
+
+**Grep:** `DevToolsMessage|DevToolsConnection|ClientInfo|computeFindings|aggregateLogicStats|parseNavigationState|StateSizeTracker|CurlFormatter|GhostDevice|ConnectedClient`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val findings = computeFindings(events)
+```
+
+**After:**
+```kotlin
+@OptIn(DevToolsInternalApi::class)
+val findings = computeFindings(events)
+```
+
+**Notes:** The wire messages, `ClientInfo`, `DevToolsProtocol`, `DevToolsConnection`, the analysis helpers
+(findings, logic, dispatch, thread and stall statistics, churn, state sizes, the navigation lens, the curl
+formatter) and the server's `GhostDevice` and `ConnectedClient` are marked `@DevToolsInternalApi`. Using them
+outside the DevTools module is a warning now and they become internal in the next release. `ClientRole`,
+`DevToolsConfig`, `DevToolsService`, `DevToolsCommands`, `DevToolsServer` and the reads on `ClientManager`
+stay public.
+
+---
+
+### [BC-177] StateReconstructor deprecated in favour of KeyframedReconstructor
+
+**Type:** Deprecation-removal
+
+**Grep:** `StateReconstructor`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val state = StateReconstructor.reconstructAtIndex(initialStateJson, actions, index)
+```
+
+**After:**
+```kotlin
+val state = KeyframedReconstructor(initialStateJson, actions).stateAt(index)
+```
+
+**Notes:** Both apply the same deltas through the same module shadow. `KeyframedReconstructor` keeps a
+snapshot every few hundred actions, so asking for many positions in a long session does not replay it from
+the start each time. The DevTools UI now reads every position through one of them.
+
+---
+
+### [BC-178] DevTools performance warnings are the performance findings
+
+**Type:** Behavioural
+
+**Grep:** `computeFindings|aggregateStalls|stallCulprits|StallGroup`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val groups = aggregateStalls(started, completed)
+val findings = computeFindings(started, completed, sizes, churn, network)
+```
+
+**After:**
+```kotlin
+val findings = computeFindings(started, completed, sizes, churn, network, failed)
+val warnings = findings.filter { it.category in PERFORMANCE_FINDING_CATEGORIES }
+```
+
+**Notes:**
+- The Performance tab's "Warnings" chip counted every finding but opened a list it derived separately, so the
+  number and the list could disagree. The list is now the performance findings themselves, and the chip
+  counts exactly those.
+- `computeFindings` takes the failed logic calls too and adds `congestion` (one method running three or more
+  calls at once) and `contention` (several methods crowding one thread) findings, which the Findings tab now
+  shows as well. The dispatch queue warning is the existing `dispatch-latency` finding, which used the same
+  threshold.
+- A `Finding` carries `advice` (meaning, impact and fix), the `culprits` it names and the `stacks` it was
+  caught with. A stall finding keeps its own main thread stack.
+- `aggregateStalls`, `stallCulprits` and `StallGroup` are deprecated. These are `@DevToolsInternalApi`.
+
+---
+
+### [BC-179] The tracing compiler plugin fails the build when its runtime does not match
+
+**Type:** Behavioural
+
+**Grep:** `io.github.syrou.reaktiv.tracing|reaktiv-tracing-compiler`
+**File glob:** `**/*.gradle.kts`
+
+**Before:**
+```kotlin
+// A missing or older reaktiv-tracing-runtime logged a warning and the module compiled untraced.
+```
+
+**After:**
+```kotlin
+// A missing or older reaktiv-tracing-runtime is a compile error naming the artifact or function.
+dependencies {
+    implementation("io.github.syrou:reaktiv-tracing-runtime:<the tracing plugin version>")
+}
+```
+
+**Notes:**
+- The Gradle plugin adds the runtime itself, so builds that apply it see no change. Only a build that wires the
+  compiler plugin by hand, or pins a runtime of another version, now gets an error instead of silently losing
+  its traces.
+- Only classes that extend `ModuleLogic` are traced. A class whose supertype merely had "ModuleLogic" in its
+  name was traced before.
+- A dispatch origin is recorded for every call of a `Dispatch` value (`(ModuleAction) -> Unit`), whatever the
+  variable is called. Before, only values named `dispatch` counted, and any one-argument function named
+  `dispatch` counted even when it did not dispatch.
+- The compiler plugin's `enabled` option is gone. The Gradle plugin only ever passed `true`, and a disabled
+  build does not apply the compiler plugin at all.
+
+---
+
+### [BC-180] The tracing Gradle plugin knows its own version
+
+**Type:** Behavioural
+
+**Grep:** `reaktiv.tracing.version`
+**File glob:** `**/*`
+
+**Before:**
+```kotlin
+// The version of the added runtime came from the jar manifest, then -Dreaktiv.tracing.version,
+// then `git describe` run in the consuming project, then 0.0.1-SNAPSHOT.
+```
+
+**After:**
+```kotlin
+// The runtime, annotations and compiler plugin always use the version the Gradle plugin was built with.
+```
+
+**Notes:**
+- The `reaktiv.tracing.version` system property no longer overrides the version. To use another runtime, apply
+  the Gradle plugin at that version.
+- The tracing dependencies are added lazily instead of in `afterEvaluate`, and git is queried through
+  `providers.exec`.
+
+---
+
+### [BC-181] The tooling's own methods are no longer traced
+
+**Type:** Behavioural
+
+**Grep:** `ToolingLogic`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// DevTools listed ToolingLogic.startCapture, stopCapture, addMarker and the export methods
+// as traced logic calls next to the app's own.
+```
+
+**After:**
+```kotlin
+// Only the app's logic is traced. reaktiv-introspection applies the tracing plugin to its tests only.
+```
+
+**Notes:** The published reaktiv-introspection was compiled with the tracing compiler plugin, so the tooling's
+own work showed up in the Performance tab and the logic trace. Nothing read those spans.
+
+---
+
+### [BC-182] Published dependencies match what each module exposes
+
+**Type:** Behavioural
+
+**Grep:** `kotlinx-datetime|components-resources|desktop.currentOs|ui-test-junit4|kotlinx-io`
+**File glob:** `**/*.gradle.kts`
+
+**Before:**
+```kotlin
+// reaktiv-navigation brought kotlinx-datetime, compose components-resources and, on the JVM, the Compose
+// Desktop natives of the machine that published it plus ui-test-junit4, all unused at runtime.
+// On the JVM, Android and wasm, reaktiv-core put coroutines and serialization on the runtime classpath only.
+```
+
+**After:**
+```kotlin
+dependencies {
+    // Only if the app uses these itself and relied on Reaktiv to bring them.
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:<version>")
+    implementation("org.jetbrains.compose.components:components-resources:<version>")
+}
+```
+
+**Notes:**
+- Types from a dependency that appear in a module's public API are now `api` dependencies, so they are on
+  the consumer's compile classpath: coroutines and kotlinx-serialization from reaktiv-core, reaktiv-core from
+  every module whose API uses it, and the Compose runtime (plus foundation for reaktiv-navigation). Before,
+  a JVM or Android app calling an API that returns a `StateFlow` failed to compile unless it declared
+  coroutines itself.
+- Removed because nothing used them: kotlinx-datetime and components-resources from reaktiv-navigation,
+  components-resources from reaktiv-compose, a direct serialization dependency from reaktiv-network-ktor,
+  and the explicit stdlib from reaktiv-tracing-annotations. The Android resource processing that
+  reaktiv-compose and reaktiv-navigation switched on is off, since neither has resources, and the empty
+  generated `Res` accessor classes are gone from their klib ABI.
+- reaktiv-navigation's JVM artifact no longer depends on `compose.desktop.currentOs` (which resolved to the
+  publishing machine's OS, for example `desktop-jvm-linux-x64`, on every consumer) or on `ui-test-junit4`.
+  Both are test dependencies now. A desktop app declares `compose.desktop.currentOs` itself, as Compose
+  Desktop requires.
+- reaktiv-introspection asks for kotlinx-io 0.6.0 instead of 0.8.2, the version the Ktor 3.1 line Reaktiv
+  targets uses, so it no longer upgrades kotlinx-io under an app that pins an older Ktor.
+- No published module declares a strict version or a platform constraint. Every dependency is a plain
+  minimum that Gradle resolves against the app's own versions.
+
+---
+
+### [BC-183] The DevTools UI left the published reaktiv-devtools artifact
+
+**Type:** Behavioural
+
+**Grep:** `reaktiv-devtools/build/dist|io.github.syrou.reaktiv.devtools.ui`
+**File glob:** `**/*`
+
+**Before:**
+```kotlin
+// reaktiv-devtools carried the DevTools web UI: every target depended on the Compose runtime, and the
+// wasm artifact brought material3, material-icons-extended, components-resources, kotlinx-datetime and
+// reaktiv-compose into any browser app that used the DevTools client.
+// The UI bundle was built at reaktiv-devtools/build/dist/wasmJs/productionExecutable.
+```
+
+**After:**
+```kotlin
+// reaktiv-devtools is the client, protocol and server, with no Compose dependency on any target.
+// The UI lives in the unpublished reaktiv-devtools-ui module:
+// ./gradlew :reaktiv-devtools-ui:wasmJsBrowserDistribution
+// reaktiv-devtools-ui/build/dist/wasmJs/productionExecutable
+```
+
+**Notes:**
+- `./gradlew :reaktiv-devtools:runDevToolsServer` and `buildDevToolsServer` build and serve the UI from its new
+  module as before. The bundle keeps its name (`reaktiv-devtools.js`), and the release packages copy it from
+  the new path.
+- The UI's classes were never meant as API. They were public in the wasm klib only because the UI compiled
+  with explicit API off, and the Compose compiler added `$stable` fields to the JVM classes. Both are gone.
+  An app that compiled Compose code against those `$stable` fields must recompile.
+- `SpanKind`, `LogicMethodStart.kind`, `MethodStats.kind` and `SESSION_EXPORT_REQUEST` are public behind
+  `@DevToolsInternalApi`, since the UI module reads them. They follow the other analysis helpers.
+- On the JVM, reaktiv-devtools still carries the embeddable server, so it still depends on the Ktor server,
+  CIO and kotlinx-io there. Moving the server into its own artifact would make server users add a
+  dependency, so it waits for a release that can announce it.
+
+---

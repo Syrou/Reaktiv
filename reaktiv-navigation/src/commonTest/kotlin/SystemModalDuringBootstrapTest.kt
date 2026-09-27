@@ -11,7 +11,8 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
-import io.github.syrou.reaktiv.navigation.ui.dispatchBackDismissal
+import io.github.syrou.reaktiv.navigation.util.performUserBack
+import io.github.syrou.reaktiv.navigation.definition.DismissSource
 import io.github.syrou.reaktiv.navigation.util.canHandleBack
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -264,7 +265,7 @@ class SystemModalDuringBootstrapTest {
             launch { store.navigation { navigateTo("system-alert") } }
             advanceTimeBy(1_000)
 
-            dispatchBackDismissal(store, navModule)
+            performUserBack(store, navModule, DismissSource.Back)
             advanceTimeBy(1_000)
 
             val state = store.selectState<NavigationState>().first()
@@ -288,7 +289,7 @@ class SystemModalDuringBootstrapTest {
             launch { store.navigation { navigateTo("blocking-alert") } }
             advanceTimeBy(1_000)
 
-            dispatchBackDismissal(store, navModule)
+            performUserBack(store, navModule, DismissSource.Back)
             advanceTimeBy(1_000)
 
             val state = store.selectState<NavigationState>().first()
@@ -313,7 +314,7 @@ class SystemModalDuringBootstrapTest {
             launch { store.navigation { navigateTo("handled-alert") } }
             advanceTimeBy(1_000)
 
-            dispatchBackDismissal(store, navModule)
+            performUserBack(store, navModule, DismissSource.Back)
             advanceTimeBy(1_000)
 
             val state = store.selectState<NavigationState>().first()

@@ -1,6 +1,7 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
+import io.github.syrou.reaktiv.core.ExternalStatePolicy
+import io.github.syrou.reaktiv.core.ExternalStateRequester
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
@@ -41,29 +42,21 @@ sealed class PreGateAction : ModuleAction(PreGateModule::class) {
 }
 
 /**
- * Stands in for `ToolingLogic`, which gates the store from its own constructor when a client
- * is configured to start as a follower. One-shot, like the real thing: logic is rebuilt on
- * every reset, and a standing gate would re-freeze the store the moment it recovers.
+ * Stands in for the tooling module, which asks the store to start as a follower when a client
+ * is configured to. One-shot, like the real thing: the store asks again on every reset, and a
+ * standing gate would re-freeze the store the moment it recovers.
  */
-@OptIn(ExperimentalReaktivApi::class)
-class PreGateLogic(storeAccessor: StoreAccessor) : ModuleLogic() {
-    init {
-        if (PreGateModule.gateOnConstruction) {
-            PreGateModule.gateOnConstruction = false
-            storeAccessor.asInternalOperations()?.markExternallyDriven()
-        }
-    }
-}
-
-object PreGateModule : Module<PreGateState, PreGateAction> {
+object PreGateModule : Module<PreGateState, PreGateAction>, ExternalStateRequester {
     var gateOnConstruction: Boolean = true
 
     override val initialState = PreGateState()
     override val reducer: (PreGateState, PreGateAction) -> PreGateState = { state, _ -> state }
-    override val createLogic: (StoreAccessor) -> ModuleLogic = { PreGateLogic(it) }
+    override val createLogic: (StoreAccessor) -> ModuleLogic = { object : ModuleLogic() {} }
+
+    override fun startsUnderExternalControl(): Boolean = gateOnConstruction.also { gateOnConstruction = false }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class, ExperimentalReaktivApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class FollowerBootstrapGateTest {
 
     @BeforeTest
@@ -105,6 +98,7 @@ class FollowerBootstrapGateTest {
                         screens(homeScreen, loginScreen)
                     }
                 })
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
@@ -114,7 +108,7 @@ class FollowerBootstrapGateTest {
                 "Bootstrap must still be pending while the entry selector suspends"
             )
 
-            store.beginExternalControl()
+            store.externalState()!!.beginControl()
             advanceUntilIdle()
 
             val state = store.selectState<NavigationState>().first()
@@ -133,11 +127,12 @@ class FollowerBootstrapGateTest {
                         screens(homeScreen, loginScreen)
                     }
                 })
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            store.beginExternalControl()
+            store.externalState()!!.beginControl()
             advanceUntilIdle()
 
             val outcome = store.selectLogic<NavigationLogic>().navigate { navigateTo("home") }
@@ -164,11 +159,12 @@ class FollowerBootstrapGateTest {
                         }
                     }
                 })
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            store.beginExternalControl()
+            store.externalState()!!.beginControl()
             advanceUntilIdle()
 
             store.selectLogic<NavigationLogic>().navigate { navigateTo("home") }
@@ -205,6 +201,30 @@ class FollowerBootstrapGateTest {
         }
 
     @Test
+    fun `a follower start is gated whichever order the modules are registered in`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            var selectorRuns = 0
+            val store = createStore {
+                module(createNavigationModule {
+                    loadingModal(overlay)
+                    rootGraph {
+                        start(route = {
+                            selectorRuns++
+                            homeScreen
+                        })
+                        screens(homeScreen, loginScreen)
+                    }
+                })
+                module(PreGateModule)
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceUntilIdle()
+
+            assertEquals(0, selectorRuns, "Entry selection must never begin on a follower")
+            assertTrue(store.selectState<NavigationState>().first().isBootstrapping)
+        }
+
+    @Test
     fun `leaving external control and resetting restores normal bootstrap`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             var selectorRuns = 0
@@ -225,7 +245,7 @@ class FollowerBootstrapGateTest {
             advanceUntilIdle()
             assertEquals(0, selectorRuns)
 
-            store.endExternalControl()
+            store.externalState()!!.endControl()
             store.reset()
             advanceUntilIdle()
 

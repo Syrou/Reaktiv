@@ -24,9 +24,7 @@ import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
-import io.github.syrou.reaktiv.navigation.util.canHandleBack
 import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 
 /**
@@ -41,6 +39,8 @@ public val LocalNavigationModule: ProvidableCompositionLocal<NavigationModule> =
 }
 
 internal val LocalRenderedEntry = compositionLocalOf<NavigationEntry?> { null }
+
+internal val LocalRenderedNavigationState = compositionLocalOf<NavigationState?> { null }
 
 /**
  * Returns the [Navigatable] bound to the current entry.
@@ -125,17 +125,21 @@ public fun NavigationRender(
     val store = rememberStore()
     val navigationState by composeState<NavigationState>()
     val latestNavigationState = rememberUpdatedState(navigationState)
-    val navModule = remember { store.getNavigationModule() }
-    val graphDefinitions = remember { navModule.getGraphDefinitions() }
+    val navModule = remember(store) { store.getNavigationModule() }
+    val graphDefinitions = remember(navModule) { navModule.getGraphDefinitions() }
 
     if (ReaktivDebug.isEnabled) {
         NavigationDebugger(navigationState, store)
     }
 
-    val interactiveController = remember { InteractiveTransitionController() }
+    val interactiveController = remember(store) { InteractiveTransitionController { action -> store.dispatch(action) } }
+    val gesturePolicy = LocalBackGesturePolicy.current ?: platformBackGesturePolicy()
+
+    navModule.documentTitle?.let { format ->
+        PlatformDocumentTitle(format(navigationState.titledEntry?.navigatable?.titleResource?.invoke()))
+    }
 
     LaunchedEffect(interactiveController) {
-        interactiveController.scrubDispatch = { action -> store.dispatch(action) }
         snapshotFlow { latestNavigationState.value }.collect { state ->
             driveControllerFromScrubState(interactiveController, state)
         }
@@ -143,16 +147,17 @@ public fun NavigationRender(
 
     CompositionLocalProvider(
         LocalNavigationModule provides navModule,
-        LocalInteractiveTransitionController provides interactiveController
+        LocalInteractiveTransitionController provides interactiveController,
+        LocalRenderedNavigationState provides navigationState
     ) {
         if (handlePlatformBack) {
-            val backCoordinator = remember(navModule) {
+            val backCoordinator = remember(store, navModule, interactiveController) {
                 PlatformBackCoordinator(store, navModule, interactiveController) {
                     latestNavigationState.value
                 }
             }
             PlatformBackHandler(
-                enabled = canHandleBack(navigationState),
+                enabled = navigationState.canGoBack,
                 coordinator = backCoordinator
             )
         }
@@ -161,9 +166,11 @@ public fun NavigationRender(
                 .fillMaxSize()
                 .onGloballyPositioned { interactiveController.rootCoordinates = it }
                 .let {
-                    if (platformEdgeSwipeBackEnabled()) {
-                        it.backGestureRecognizer(interactiveController)
-                            .fullSurfaceBackGestureRecognizer(interactiveController)
+                    if (gesturePolicy.edgeSwipe) it.backGestureRecognizer(interactiveController, gesturePolicy) else it
+                }
+                .let {
+                    if (gesturePolicy.fullSurfaceSwipe) {
+                        it.fullSurfaceBackGestureRecognizer(interactiveController, gesturePolicy)
                     } else {
                         it
                     }

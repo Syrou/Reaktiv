@@ -74,6 +74,18 @@ class CommonUrlEncoderTest {
         assertEquals("test%ZZinvalid", encoder.decode("test%ZZinvalid"))
         assertEquals("incomplete%2", encoder.decode("incomplete%2"))
         assertEquals("short%", encoder.decode("short%"))
+        assertEquals("signed%-1", encoder.decode("signed%-1"))
+    }
+
+    @Test
+    fun `a path segment keeps its plus signs while a query value turns them into spaces`() {
+        assertEquals("c+c", encoder.decodePathSegment("c+c"))
+        assertEquals("c c", encoder.decode("c+c"))
+    }
+
+    @Test
+    fun `raw emoji in the input survive decoding`() {
+        assertEquals("hi 🎉", encoder.decode("hi%20🎉"))
     }
 
     @Test

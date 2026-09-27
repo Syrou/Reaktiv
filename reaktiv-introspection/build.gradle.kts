@@ -1,10 +1,10 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
     id("com.android.kotlin.multiplatform.library")
-    id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
     id("io.github.syrou.reaktiv.tracing")
@@ -13,6 +13,7 @@ plugins {
 reaktivTracing {
     enabled.set(true)
     tracePrivateMethods.set(true)
+    buildTypes.set(setOf("test"))
 }
 
 centralPublisher {
@@ -21,11 +22,7 @@ centralPublisher {
 }
 
 kotlin {
-    android {
-        namespace = "io.github.syrou.reaktiv.introspection"
-        compileSdk = 37
-        minSdk = 23
-    }
+    android {}
 
     jvm()
 
@@ -42,23 +39,26 @@ kotlin {
         browser()
     }
 
-    applyDefaultHierarchyTemplate()
+    applyDefaultHierarchyTemplate {
+        common {
+            group("jvmShared") {
+                withJvm()
+                withCompilations { it.platformType == KotlinPlatformType.androidJvm }
+            }
+        }
+    }
 
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(project(":reaktiv-core"))
+                api(project(":reaktiv-core"))
                 api(project(":reaktiv-tracing-runtime"))
-                implementation(libs.kotlinx.coroutines.core)
-                implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.io.core)
             }
         }
 
         getByName("commonTest") {
             dependencies {
-                implementation(kotlin("test"))
-                implementation(libs.kotlinx.coroutines.test)
                 implementation(project(":reaktiv-tracing-annotations"))
             }
         }

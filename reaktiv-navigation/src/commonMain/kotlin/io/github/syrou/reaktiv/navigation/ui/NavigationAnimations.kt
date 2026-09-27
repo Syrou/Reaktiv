@@ -6,10 +6,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,29 +20,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.core.Store
-import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.NavigationModule
-import androidx.compose.runtime.rememberUpdatedState
-import io.github.syrou.reaktiv.compose.composeState
-import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
-import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.PopTransitionSpec
 import io.github.syrou.reaktiv.navigation.transition.ResolvedNavTransition
-import io.github.syrou.reaktiv.navigation.transition.popExitSpec
+import io.github.syrou.reaktiv.navigation.transition.modalExitSpec
 import io.github.syrou.reaktiv.navigation.transition.resolve
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import io.github.syrou.reaktiv.navigation.util.performUserBack
+import io.github.syrou.reaktiv.navigation.definition.DismissSource
 
 /**
  * Unified animation system for all navigation layers
@@ -101,16 +88,8 @@ public object NavigationAnimations {
         val scope = rememberCoroutineScope()
         val store = rememberStore()
         val controller = LocalInteractiveTransitionController.current
-        val navigationState by composeState<NavigationState>()
-        val latestState = rememberUpdatedState(navigationState)
 
-        val exitSpec: PopTransitionSpec? = when {
-            isEntering -> null
-            else -> navigatable.popExitTransition
-                ?.takeUnless { it == NavTransition.None }
-                ?.let { PopTransitionSpec(it, reversedProgress = false) }
-                ?: popExitSpec(navigatable)
-        }
+        val exitSpec: PopTransitionSpec? = if (isEntering) null else modalExitSpec(navigatable)
         val transition = when {
             isEntering -> navigatable.popEnterTransition ?: navigatable.enterTransition
             else -> exitSpec?.transition ?: NavTransition.None
@@ -163,7 +142,7 @@ public object NavigationAnimations {
             ?.let { it as? InteractiveTransitionController.ScrubKind.ModalDismiss }
             ?.takeIf {
                 controller.phase != InteractiveTransitionController.Phase.Idle &&
-                    it.modalEntry.stableKey == entry.stableKey
+                    it.top.stableKey == entry.stableKey
             }
         val scrubProgress = if (activeModalScrub != null) controller.progress else 0f
         val animationProgress = timedProgress * (1f - scrubProgress)
@@ -179,50 +158,18 @@ public object NavigationAnimations {
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(zIndex)
-                .let { modifier ->
+                .then(
                     if (modal != null && modal.dismissal.swipe.allowsDismiss && isEntering && controller != null) {
-                        modifier.pointerInput(entry.stableKey) {
-                            val velocityThresholdPx =
-                                InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
-                            awaitEachGesture {
-                                val down = awaitFirstDown(requireUnconsumed = false)
-                                val height = size.height.toFloat()
-                                if (height <= 0f) return@awaitEachGesture
-                                val slopChange = awaitVerticalTouchSlopOrCancellation(down.id) { change, overSlop ->
-                                    if (overSlop > 0f) {
-                                        change.consume()
-                                    }
-                                } ?: return@awaitEachGesture
-                                val kind = InteractiveTransitionController.ScrubKind.ModalDismiss(entry)
-                                if (!controller.beginScrub(kind)) return@awaitEachGesture
-
-                                val outcome = trackScrub(
-                                    controller = controller,
-                                    latestState = latestState,
-                                    top = entry,
-                                    down = down,
-                                    slopChange = slopChange,
-                                    axis = ScrubAxis.vertical(down, height),
-                                    velocityThresholdPx = velocityThresholdPx
-                                ) { onDrag -> verticalDrag(down.id, onDrag) }
-
-                                scope.launch {
-                                    completeInteractiveDismiss(
-                                        commit = outcome.commit,
-                                        progressVelocity = outcome.progressVelocity,
-                                        controller = controller,
-                                        store = store,
-                                        navModule = navModule,
-                                        top = entry,
-                                        revealed = null
-                                    )
-                                }
-                            }
-                        }
+                        Modifier.scrubRecognizer(
+                            controller = controller,
+                            vertical = true,
+                            pass = ScrubPass.Main,
+                            key = entry.stableKey
+                        ) { state -> armModalDismiss(state, entry) }
                     } else {
-                        modifier
+                        Modifier
                     }
-                }
+                )
         ) {
             // Background layer — always captures taps to prevent click pass-through.
             // Acts on the modal's tapOutside dismissal.
@@ -241,7 +188,7 @@ public object NavigationAnimations {
                     ) {
                         if (modal != null) {
                             scope.launch {
-                                modal.dismissal.tapOutside.perform(store) { store.navigateBack() }
+                                performUserBack(store, navModule, DismissSource.TapOutside)
                             }
                         }
                     }
@@ -250,21 +197,7 @@ public object NavigationAnimations {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .let { modifier ->
-                        if (shouldAnimate && resolved != null) {
-                            modifier.graphicsLayer {
-                                alpha = resolved.alpha(specProgress)
-                                scaleX = resolved.scaleX(specProgress)
-                                scaleY = resolved.scaleY(specProgress)
-                                translationX = resolved.translationX(specProgress)
-                                translationY = resolved.translationY(specProgress)
-                                rotationZ = resolved.rotationZ(specProgress)
-                                transformOrigin = TransformOrigin.Center
-                            }
-                        } else {
-                            modifier
-                        }
-                    },
+                    .then(if (resolved != null) Modifier.navTransitionGraphics(resolved) { specProgress } else Modifier),
                 contentAlignment = Alignment.Center
             ) {
                 content()

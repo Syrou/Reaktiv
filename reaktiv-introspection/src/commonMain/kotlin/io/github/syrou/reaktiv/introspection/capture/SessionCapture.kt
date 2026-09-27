@@ -5,26 +5,24 @@ import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
-import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import kotlin.math.abs
 import io.github.syrou.reaktiv.core.util.ReaktivLogSink
 import io.github.syrou.reaktiv.introspection.ClientMetadata
-import io.github.syrou.reaktiv.introspection.DEFAULT_SENSITIVE_KEYS
+import io.github.syrou.reaktiv.core.util.DEFAULT_SENSITIVE_KEYS
 import io.github.syrou.reaktiv.introspection.StateRedactor
 import io.github.syrou.reaktiv.introspection.WireBudget
 import io.github.syrou.reaktiv.introspection.approximateWireBytes
 import io.github.syrou.reaktiv.introspection.network.NetworkBodyPart
 import io.github.syrou.reaktiv.introspection.network.NetworkBodyProvider
 import io.github.syrou.reaktiv.introspection.network.NetworkBodySlice
+import io.github.syrou.reaktiv.introspection.network.NetworkBodySource
 import io.github.syrou.reaktiv.introspection.network.NetworkEventListener
 import io.github.syrou.reaktiv.introspection.network.sliceOnCharBoundary
 import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import io.github.syrou.reaktiv.introspection.network.NetworkTap
-import io.github.syrou.reaktiv.introspection.normalizeRedactionKey
-import io.github.syrou.reaktiv.introspection.redactModuleElement
-import io.github.syrou.reaktiv.introspection.restoreRedactedModuleElement
+import io.github.syrou.reaktiv.introspection.SessionRedaction
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -35,6 +33,7 @@ import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.CapturedLog
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
+import io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis
 import io.github.syrou.reaktiv.introspection.protocol.buildCrashDiagnosis
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.introspection.protocol.CrashOrigin
@@ -56,13 +55,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
+import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.random.Random
@@ -114,30 +114,36 @@ public class SessionCapture(
     private val maxLogicEvents: Int? = null,
     private val maxLogs: Int? = null,
     private val redactor: StateRedactor? = null,
-    private val redactSensitiveKeys: Boolean = true
+    private val redactSensitiveKeys: Boolean = true,
+    private val sensitiveKeys: Set<String> = DEFAULT_SENSITIVE_KEYS
 ) {
     private val storageId: String = nextStorageId()
 
-    private val actionsStorage: CaptureStorage = createCaptureStorage("$storageId-actions")
-    private val logicStartedStorage: CaptureStorage = createCaptureStorage("$storageId-logic_started")
-    private val logicCompletedStorage: CaptureStorage = createCaptureStorage("$storageId-logic_completed")
-    private val logicFailedStorage: CaptureStorage = createCaptureStorage("$storageId-logic_failed")
-    private val crashStorage: CaptureStorage = createCaptureStorage("$storageId-crashes")
-    private val stateReadStorage: CaptureStorage = createCaptureStorage("$storageId-state_reads")
-    private val markerStorage: CaptureStorage = createCaptureStorage("$storageId-markers")
-    private val networkStorage: CaptureStorage = createCaptureStorage("$storageId-network")
-    private val logStorage: CaptureStorage = createCaptureStorage("$storageId-logs")
+    private val json = reaktivJson(encodeDefaults = true)
 
-    private val allStorages: List<CaptureStorage> = listOf(
-        actionsStorage,
-        logicStartedStorage,
-        logicCompletedStorage,
-        logicFailedStorage,
-        crashStorage,
-        stateReadStorage,
-        markerStorage,
-        networkStorage,
-        logStorage,
+    private fun <T> lane(name: String, serializer: KSerializer<T>): CaptureLane<T> =
+        CaptureLane(createCaptureStorage("$storageId-$name"), serializer, json)
+
+    private val actionsLane = lane("actions", CapturedAction.serializer())
+    private val logicStartedLane = lane("logic_started", LogicMethodStart.serializer())
+    private val logicCompletedLane = lane("logic_completed", LogicMethodCompleted.serializer())
+    private val logicFailedLane = lane("logic_failed", LogicMethodFailed.serializer())
+    private val crashLane = lane("crashes", CrashInfo.serializer())
+    private val stateReadLane = lane("state_reads", StateRead.serializer())
+    private val markerLane = lane("markers", SessionMarker.serializer())
+    private val networkLane = lane("network", NetworkRequestCapture.serializer())
+    private val logLane = lane("logs", CapturedLog.serializer())
+
+    private val lanes: List<CaptureLane<*>> = listOf(
+        actionsLane,
+        logicStartedLane,
+        logicCompletedLane,
+        logicFailedLane,
+        crashLane,
+        stateReadLane,
+        markerLane,
+        networkLane,
+        logLane,
     )
 
     private var sessionStartTime: Long = 0
@@ -148,16 +154,24 @@ public class SessionCapture(
     private var started = false
     private var initialStateJson: String = "{}"
     private var capturedCrash: CrashInfo? = null
+
+    @Volatile
+    private var actionsTrimmed = 0
+
+    @Volatile
+    private var baselineWanted = true
     private val recentCrashes = ArrayDeque<Pair<Triple<String, String?, String>, Long>>()
     private val droppedCount = AtomicLong(0L)
 
-    private val json = reaktivJson(encodeDefaults = true)
-    private var stateJson: Json = reaktivJson()
+    public var stateJson: Json = reaktivJson(encodeDefaults = true)
+        private set
 
     private var networkListener: NetworkEventListener? = null
     private var logSink: ReaktivLogSink? = null
     private var networkBodyProvider: NetworkBodyProvider? = null
-    private val materialisingId = AtomicReference<String?>(null)
+
+    @Volatile
+    private var extensions: Map<String, JsonElement> = emptyMap()
     private val cachedBody = AtomicReference<CachedBody?>(null)
 
     private var workerScope: CoroutineScope? = null
@@ -201,6 +215,27 @@ public class SessionCapture(
 
     public val markers: SharedFlow<SessionMarker> = _markers
 
+    private val _logicEvents = MutableSharedFlow<CapturedLogicEvent>(
+        extraBufferCapacity = 1024,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
+    public val logicEvents: SharedFlow<CapturedLogicEvent> = _logicEvents
+
+    private val _logs = MutableSharedFlow<CapturedLog>(
+        extraBufferCapacity = 512,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
+    public val logs: SharedFlow<CapturedLog> = _logs
+
+    private val _network = MutableSharedFlow<NetworkRequestCapture>(
+        extraBufferCapacity = 256,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
+    public val network: SharedFlow<NetworkRequestCapture> = _network
+
     private sealed interface Record
     private class DispatchedAction(val action: ModuleAction, val state: ModuleState, val timestamp: Long) : Record
     private class PrebuiltAction(val event: CapturedAction) : Record
@@ -211,7 +246,7 @@ public class SessionCapture(
     private class CrashRecord(val info: CrashInfo) : Record
     private class StateReadRecord(val read: StateRead) : Record
     private class MarkerRecord(val marker: SessionMarker, val historical: Boolean) : Record
-    private class NetworkRecord(val capture: NetworkRequestCapture) : Record
+    private class NetworkRecord(val capture: NetworkRequestCapture, val preview: NetworkRequestCapture) : Record
     private class LogRecord(val log: CapturedLog) : Record
 
     private class CachedBody(
@@ -243,9 +278,11 @@ public class SessionCapture(
         this.sessionStartTime = currentTimeMillis()
         this.initialStateJson = "{}"
         this.capturedCrash = null
+        this.actionsTrimmed = 0
+        this.baselineWanted = true
         droppedCount.store(0L)
 
-        allStorages.forEach { it.clear() }
+        lanes.forEach { it.clear() }
 
         attachNetworkListener()
         attachLogSink()
@@ -267,36 +304,18 @@ public class SessionCapture(
      * pulled now rather than at export time, when it would already be gone.
      */
     public fun recordNetworkExchange(event: NetworkRequestCapture) {
-        materialisingId.store(event.id)
-        val enriched = try {
-            materialise(event)
-        } finally {
-            materialisingId.store(null)
-        }
-        enqueue(NetworkRecord(enriched))
+        enqueue(NetworkRecord(materialise(event), event))
     }
 
     private fun materialise(event: NetworkRequestCapture): NetworkRequestCapture {
-        val request = fullBody(event.id, NetworkBodyPart.REQUEST)
-        val response = fullBody(event.id, NetworkBodyPart.RESPONSE)
+        val request = NetworkTap.originBody(event.id, NetworkBodyPart.REQUEST)
+        val response = NetworkTap.originBody(event.id, NetworkBodyPart.RESPONSE)
         return event.copy(
             requestBody = request ?: event.requestBody,
             requestBodyTruncated = if (request != null) false else event.requestBodyTruncated,
             responseBody = response ?: event.responseBody,
             responseBodyTruncated = if (response != null) false else event.responseBodyTruncated
         )
-    }
-
-    private fun fullBody(requestId: String, part: NetworkBodyPart): String? {
-        val builder = StringBuilder()
-        var offset = 0
-        while (true) {
-            val slice = NetworkTap.bodySlice(requestId, part, offset, BODY_SLICE_BYTES) ?: return null
-            builder.append(slice.content)
-            if (slice.isLast || slice.nextOffset <= offset) break
-            offset = slice.nextOffset
-        }
-        return builder.toString().takeIf { it.isNotEmpty() }
     }
 
     /**
@@ -313,8 +332,6 @@ public class SessionCapture(
         offset: Int,
         maxBytes: Int
     ): NetworkBodySlice? {
-        if (materialisingId.load() == requestId) return null
-
         val cached = cachedBody.load()
         val bytes = if (cached != null && cached.requestId == requestId && cached.part == part) {
             cached.bytes
@@ -336,9 +353,8 @@ public class SessionCapture(
      */
     private fun findBody(requestId: String, part: NetworkBodyPart): String? {
         val needle = "\"id\":\"$requestId\""
-        val line = networkStorage.readLines().lastOrNull { it.contains(needle) } ?: return null
-        val exchange = runCatching { json.decodeFromString<NetworkRequestCapture>(line) }.getOrNull()
-            ?: return null
+        val line = networkLane.lines().lastOrNull { it.contains(needle) } ?: return null
+        val exchange = runCatching { networkLane.decode(line) }.getOrNull() ?: return null
         if (exchange.id != requestId) return null
         return when (part) {
             NetworkBodyPart.REQUEST -> exchange.requestBody
@@ -372,8 +388,11 @@ public class SessionCapture(
         networkListener = listener
         NetworkTap.addListener(listener)
 
-        val provider = NetworkBodyProvider { requestId, part, offset, maxBytes ->
-            sliceFromLane(requestId, part, offset, maxBytes)
+        val provider = object : NetworkBodyProvider {
+            override val source: NetworkBodySource = NetworkBodySource.Archive
+
+            override fun slice(requestId: String, part: NetworkBodyPart, offset: Int, maxBytes: Int): NetworkBodySlice? =
+                sliceFromLane(requestId, part, offset, maxBytes)
         }
         networkBodyProvider = provider
         NetworkTap.addBodyProvider(provider)
@@ -389,10 +408,14 @@ public class SessionCapture(
 
     /**
      * Provides the store's serializers so the worker can encode module states.
-     * Called by IntrospectionMiddleware during initialization.
+     * Called by ToolingLogic during initialization.
      */
     public fun attachStateSerializers(serializersModule: SerializersModule) {
         stateJson = reaktivJson(serializersModule, encodeDefaults = true)
+    }
+
+    internal fun putExtension(key: String, value: JsonElement) {
+        extensions = extensions + (key to value)
     }
 
     /**
@@ -406,6 +429,7 @@ public class SessionCapture(
     /**
      * Gets the captured initial state JSON.
      */
+    @Deprecated("Unused. Read initialStateJson from getSessionHistory().", level = DeprecationLevel.WARNING)
     public fun getInitialStateJson(): String = initialStateJson
 
     /**
@@ -416,6 +440,7 @@ public class SessionCapture(
     /**
      * Gets the client ID for this session.
      */
+    @Deprecated("Unused. The client id is the one passed to start().", level = DeprecationLevel.WARNING)
     public fun getClientId(): String = clientId
 
     /**
@@ -429,6 +454,10 @@ public class SessionCapture(
     /**
      * Captures a pre-built action event.
      */
+    @Deprecated(
+        "Only tests call this. It will become internal. Dispatch through the store instead.",
+        level = DeprecationLevel.WARNING
+    )
     public fun captureAction(event: CapturedAction) {
         enqueue(PrebuiltAction(event))
     }
@@ -553,7 +582,8 @@ public class SessionCapture(
             stateReads = readStateReads(),
             markers = readMarkers(),
             network = readNetwork(),
-            logs = readLogs()
+            logs = readLogs(),
+            extensions = extensions
         )
     }
 
@@ -567,11 +597,14 @@ public class SessionCapture(
     public suspend fun exportSession(crash: CrashInfo? = null): String {
         flush()
         val allCrashes = readCrashes()
-        val resolvedCrash = crash ?: capturedCrash ?: allCrashes.lastOrNull()
+        val resolvedCrash = crash
+            ?: capturedCrash?.let { it.copy(afterActionIndex = onLane(it.afterActionIndex)) }
+            ?: allCrashes.lastOrNull()
         val now = currentTimeMillis()
-        val actionsList = readActions()
-        val logicStartedList = readLogicStarted()
-        val logicCompletedList = readLogicCompleted()
+        val redaction = SessionRedaction(stateJson, if (redactSensitiveKeys) sensitiveKeys else emptySet(), redactor)
+        val actionsList = readActions().map(redaction::action)
+        val logicStartedList = readLogicStarted().map(redaction::logicStart)
+        val logicCompletedList = readLogicCompleted().map(redaction::logicCompleted)
         val logicFailedList = readLogicFailed()
         val stateReadsList = readStateReads()
         val diagnosis = resolvedCrash?.let {
@@ -592,20 +625,29 @@ public class SessionCapture(
             session = SessionData(
                 startTime = sessionStartTime,
                 endTime = now,
-                initialStateJson = initialStateJson,
+                initialStateJson = redaction.initialState(initialStateJson),
                 actions = actionsList,
                 logicStartedEvents = logicStartedList,
                 logicCompletedEvents = logicCompletedList,
                 logicFailedEvents = logicFailedList,
                 stateReads = stateReadsList,
                 markers = readMarkers(),
-                network = readNetwork(),
-                logs = readLogs()
+                network = readNetwork().map(redaction::exchange),
+                logs = readLogs().map(redaction::log)
             ),
             droppedRecords = droppedCount.load(),
-            diagnosis = diagnosis
+            diagnosis = diagnosis,
+            extensions = extensions
         )
+        redaction.issues.forEach { issue ->
+            ReaktivDebug.warn("SessionCapture: $issue, so an import cannot restore this field exactly")
+        }
         return json.encodeToString(export)
+    }
+
+    public suspend fun diagnoseCrash(crash: CrashInfo): CrashDiagnosis {
+        flush()
+        return buildCrashDiagnosis(crash, readActions(), readLogicStarted(), readLogicFailed())
     }
 
     /**
@@ -621,13 +663,20 @@ public class SessionCapture(
      * Clears all captured data but keeps the session active.
      */
     public suspend fun clear() {
+        baselineWanted = true
         if (!started) {
-            allStorages.forEach { it.clear() }
+            lanes.forEach { it.clear() }
             capturedCrash = null
             return
         }
         enqueue(ResetWorkerState)
         flush()
+    }
+
+    internal fun takeBaselineRequest(): Boolean {
+        if (!baselineWanted) return false
+        baselineWanted = false
+        return true
     }
 
     /**
@@ -640,7 +689,7 @@ public class SessionCapture(
         detachLogSink()
         flush()
         stopWorker()
-        allStorages.forEach { it.delete() }
+        lanes.forEach { it.clear() }
     }
 
     private fun stopWorker() {
@@ -684,9 +733,18 @@ public class SessionCapture(
 
     private val previousModuleJson = mutableMapOf<String, JsonObject>()
     private var actionCount = 0
-    private val normalizedSensitiveKeys = DEFAULT_SENSITIVE_KEYS.map { it.normalizeRedactionKey() }
-    private val reportedRedactionIssues = mutableSetOf<String>()
-    private val pendingRedactionIssues = ArrayList<String>()
+    private val callIdentities = LinkedHashMap<String, Pair<String, String>>()
+
+    private fun rememberCall(event: LogicMethodStart) {
+        callIdentities[event.callId] = event.logicClass to event.methodName
+        if (callIdentities.size > CALL_IDENTITY_LIMIT) callIdentities.remove(callIdentities.keys.first())
+    }
+
+    private fun CrashInfo.withLogicIdentity(): CrashInfo {
+        if (logicClass != null) return this
+        val identity = callId?.let { callIdentities.remove(it) } ?: return this
+        return copy(logicClass = identity.first, methodName = identity.second)
+    }
 
     private fun currentRouteFromShadow(): String? {
         val navKey = previousModuleJson.keys.firstOrNull { it.endsWith(".NavigationState") } ?: return null
@@ -694,61 +752,25 @@ public class SessionCapture(
         return (currentEntry["path"] as? JsonPrimitive)?.content
     }
 
-    private fun encodeModuleObject(moduleName: String, state: ModuleState): JsonObject {
-        val element = stateJson.encodeToJsonElement(PolymorphicSerializer(ModuleState::class), state)
-        var current: JsonElement = element
-        if (redactSensitiveKeys) {
-            val obj = current as? JsonObject
-            val strategy = stateJson.serializersModule.getPolymorphic(ModuleState::class, state)
-            if (obj != null && strategy != null) {
-                val outcome = redactModuleElement(
-                    stateJson.serializersModule, strategy.descriptor, obj, normalizedSensitiveKeys
-                )
-                current = outcome.element
-                outcome.unrestorablePaths.forEach { unsafePath ->
-                    queueRedactionIssue("unsafe redaction in $moduleName: $unsafePath")
+    private fun encodeModuleObject(state: ModuleState): JsonObject =
+        stateJson.encodeToJsonElement(PolymorphicSerializer(ModuleState::class), state) as? JsonObject
+            ?: buildJsonObject {}
+
+    /**
+     * Encodes a state tree one module at a time with the encoder the capture uses for its deltas.
+     */
+    public fun encodeStateTree(states: Map<String, ModuleState>): StateTree {
+        val failed = LinkedHashMap<String, String>()
+        val modules = buildJsonObject {
+            states.forEach { (moduleName, state) ->
+                try {
+                    put(moduleName, encodeModuleObject(state))
+                } catch (e: Exception) {
+                    failed[moduleName] = e.message ?: "encode failed"
                 }
             }
         }
-        val redacted = redactor?.redact(moduleName, current) ?: current
-        return redacted as? JsonObject ?: buildJsonObject {}
-    }
-
-    private fun verifyDecodable(moduleName: String, full: JsonObject) {
-        try {
-            val restored = restoreRedactedModuleElement(stateJson, full)
-            stateJson.decodeFromString(PolymorphicSerializer(ModuleState::class), restored.toString())
-        } catch (e: Exception) {
-            queueRedactionIssue("captured state for $moduleName does not decode: ${e.message}")
-        }
-    }
-
-    private fun queueRedactionIssue(detail: String) {
-        if (reportedRedactionIssues.add(detail)) {
-            pendingRedactionIssues.add(detail)
-        }
-    }
-
-    private suspend fun reportRedactionIssues() {
-        if (pendingRedactionIssues.isEmpty()) return
-        val issues = pendingRedactionIssues.toList()
-        pendingRedactionIssues.clear()
-        for (issue in issues) {
-            ReaktivDebug.error(SELF_LOG_CATEGORY, "RedactionWatchdog: $issue", null)
-            val callId = LogicTracer.notifyMethodStart(
-                logicClass = REDACTION_TRACE_CLASS,
-                methodName = "unsafeCapture",
-                params = mapOf("detail" to issue)
-            )
-            if (callId.isNotEmpty()) {
-                LogicTracer.notifyMethodCompleted(
-                    callId = callId,
-                    result = issue,
-                    resultType = "RedactionIssue",
-                    durationMs = 0L
-                )
-            }
-        }
+        return StateTree(modules, failed)
     }
 
     private fun diffAgainstShadow(moduleName: String, full: JsonObject): Pair<String, DeltaKind> {
@@ -769,27 +791,14 @@ public class SessionCapture(
     }
 
     private suspend fun process(batch: List<Record>) {
-        val actionLines = ArrayList<String>()
-        val startedLines = ArrayList<String>()
-        val completedLines = ArrayList<String>()
-        val failedLines = ArrayList<String>()
-        val crashLines = ArrayList<String>()
-        val stateReadLines = ArrayList<String>()
-        val markerLines = ArrayList<String>()
-        val networkLines = ArrayList<String>()
-        val logLines = ArrayList<String>()
-
         for (record in batch) {
             try {
                 when (record) {
                     is DispatchedAction -> {
                         val moduleName = record.state::class.qualifiedName
                             ?: record.state::class.simpleName ?: "Unknown"
-                        val full = encodeModuleObject(moduleName, record.state)
+                        val full = encodeModuleObject(record.state)
                         val (deltaJson, deltaKind) = diffAgainstShadow(moduleName, full)
-                        if (deltaKind == DeltaKind.FULL || actionCount % VERIFY_SAMPLE_INTERVAL == 0) {
-                            verifyDecodable(moduleName, full)
-                        }
                         val event = CapturedAction(
                             clientId = clientId,
                             timestamp = record.timestamp,
@@ -799,52 +808,57 @@ public class SessionCapture(
                             moduleName = moduleName,
                             deltaKind = deltaKind
                         )
-                        actionLines.add(json.encodeToString(event))
+                        actionsLane.add(event)
                         actionCount += 1
                         _actions.tryEmit(event)
                     }
                     is PrebuiltAction -> {
-                        actionLines.add(json.encodeToString(record.event))
+                        actionsLane.add(record.event)
                         actionCount += 1
                         _actions.tryEmit(record.event)
                     }
                     is InitialState -> {
-                        val objects = record.states.mapValues { (key, state) ->
-                            encodeModuleObject(key, state)
+                        val tree = encodeStateTree(record.states)
+                        tree.failed.forEach { (moduleName, reason) ->
+                            ReaktivDebug.warn("SessionCapture: cannot capture $moduleName - $reason")
                         }
-                        objects.forEach { (key, value) ->
-                            previousModuleJson[key] = value
-                            verifyDecodable(key, value)
-                        }
-                        initialStateJson = JsonObject(objects).toString()
+                        tree.modules.forEach { (key, value) -> (value as? JsonObject)?.let { previousModuleJson[key] = it } }
+                        initialStateJson = tree.modules.toString()
                     }
-                    is NetworkRecord -> networkLines.add(json.encodeToString(record.capture))
-                    is LogicStarted -> startedLines.add(json.encodeToString(record.event))
-                    is LogicCompleted -> completedLines.add(json.encodeToString(record.event))
-                    is LogicFailed -> failedLines.add(json.encodeToString(record.event))
+                    is NetworkRecord -> {
+                        networkLane.add(record.capture)
+                        _network.tryEmit(record.preview)
+                    }
+                    is LogicStarted -> {
+                        rememberCall(record.event)
+                        logicStartedLane.add(record.event)
+                        _logicEvents.tryEmit(CapturedLogicEvent.Started(record.event))
+                    }
+                    is LogicCompleted -> {
+                        callIdentities.remove(record.event.callId)
+                        logicCompletedLane.add(record.event)
+                        _logicEvents.tryEmit(CapturedLogicEvent.Completed(record.event))
+                    }
+                    is LogicFailed -> {
+                        logicFailedLane.add(record.event)
+                        _logicEvents.tryEmit(CapturedLogicEvent.Failed(record.event))
+                    }
                     is StateReadRecord -> {
-                        stateReadLines.add(json.encodeToString(record.read))
+                        stateReadLane.add(record.read)
                         _stateReads.tryEmit(record.read)
                     }
                     is ResetWorkerState -> {
                         previousModuleJson.clear()
+                        callIdentities.clear()
                         actionCount = 0
-                        reportedRedactionIssues.clear()
-                        pendingRedactionIssues.clear()
+                        actionsTrimmed = 0
+                        initialStateJson = "{}"
                         capturedCrash = null
-                        actionLines.clear()
-                        startedLines.clear()
-                        completedLines.clear()
-                        failedLines.clear()
-                        crashLines.clear()
-                        stateReadLines.clear()
-                        markerLines.clear()
-                        networkLines.clear()
-                        logLines.clear()
-                        allStorages.forEach { it.clear() }
+                        lanes.forEach { it.clear() }
                     }
                     is LogRecord -> {
-                        logLines.add(json.encodeToString(record.log))
+                        logLane.add(record.log)
+                        _logs.tryEmit(record.log)
                     }
                     is MarkerRecord -> {
                         val enriched = record.marker.copy(
@@ -856,12 +870,12 @@ public class SessionCapture(
                                 actionCount - 1
                             }
                         )
-                        markerLines.add(json.encodeToString(enriched))
+                        markerLane.add(enriched)
                         _markers.tryEmit(enriched)
                     }
                     is CrashRecord -> {
                         if (!isRepeatedCrash(record.info)) {
-                            val enriched = record.info.copy(
+                            val enriched = record.info.withLogicIdentity().copy(
                                 route = record.info.route ?: currentRouteFromShadow(),
                                 afterActionIndex = if (record.info.afterActionIndex >= 0) {
                                     record.info.afterActionIndex
@@ -869,7 +883,7 @@ public class SessionCapture(
                                     actionCount - 1
                                 }
                             )
-                            crashLines.add(json.encodeToString(enriched))
+                            crashLane.add(enriched)
                             capturedCrash = enriched
                             _crashes.tryEmit(enriched)
                         }
@@ -880,75 +894,64 @@ public class SessionCapture(
             }
         }
 
-        if (actionLines.isNotEmpty()) {
-            actionsStorage.appendLines(actionLines)
-            val cap = maxActions
-            if (cap != null && actionsStorage.lineCount() > cap + cap / 4) {
-                actionsStorage.trimTo(cap)
-            }
-        }
-        if (startedLines.isNotEmpty()) logicStartedStorage.appendLines(startedLines)
-        if (completedLines.isNotEmpty()) logicCompletedStorage.appendLines(completedLines)
-        if (failedLines.isNotEmpty()) logicFailedStorage.appendLines(failedLines)
-        if (crashLines.isNotEmpty()) crashStorage.appendLines(crashLines)
-        if (stateReadLines.isNotEmpty()) stateReadStorage.appendLines(stateReadLines)
-        if (markerLines.isNotEmpty()) markerStorage.appendLines(markerLines)
-        if (networkLines.isNotEmpty()) networkStorage.appendLines(networkLines)
-        if (logLines.isNotEmpty()) {
-            logStorage.appendLines(logLines)
-            val cap = maxLogs
-            if (cap != null && logStorage.lineCount() > cap + cap / 4) {
-                logStorage.trimTo(cap)
-            }
-        }
+        lanes.forEach { it.flush() }
+        actionsTrimmed += actionsLane.trimAbove(maxActions)
+        logLane.trimAbove(maxLogs)
         trimLogicEvents()
-        reportRedactionIssues()
     }
 
     private fun trimLogicEvents() {
         val maxLogicEvents = this.maxLogicEvents ?: return
-        val total = logicStartedStorage.lineCount() +
-                logicCompletedStorage.lineCount() +
-                logicFailedStorage.lineCount()
+        val total = logicStartedLane.lineCount() + logicCompletedLane.lineCount() + logicFailedLane.lineCount()
         if (total <= maxLogicEvents + maxLogicEvents / 4) return
 
-        var toRemove = total - maxLogicEvents
-        for (storage in listOf(logicStartedStorage, logicCompletedStorage, logicFailedStorage)) {
-            if (toRemove <= 0) break
-            val count = storage.lineCount()
-            if (count == 0) continue
-            val removeHere = minOf(toRemove, count)
-            storage.trimTo(count - removeHere)
-            toRemove -= removeHere
+        val started = logicStartedLane.lines()
+        val completed = logicCompletedLane.lines()
+        val failed = logicFailedLane.lines()
+        val startedIds = started.map { logicStartedLane.decode(it).callId }
+        val completedIds = completed.map { logicCompletedLane.decode(it).callId }
+        val failedIds = failed.map { logicFailedLane.decode(it).callId }
+        val endings = (completedIds + failedIds).groupingBy { it }.eachCount()
+
+        var excess = total - maxLogicEvents
+        val dropped = HashSet<String>()
+        for (callId in startedIds) {
+            if (excess <= 0) break
+            dropped += callId
+            excess -= 1 + (endings[callId] ?: 0)
         }
+
+        dropCalls(logicStartedLane, started, startedIds, dropped)
+        dropCalls(logicCompletedLane, completed, completedIds, dropped)
+        dropCalls(logicFailedLane, failed, failedIds, dropped)
     }
 
-    private fun readActions(): List<CapturedAction> =
-        actionsStorage.readLines().map { json.decodeFromString(it) }
+    private fun dropCalls(lane: CaptureLane<*>, lines: List<String>, callIds: List<String>, dropped: Set<String>) {
+        val kept = lines.filterIndexed { index, _ -> callIds[index] !in dropped }
+        if (kept.size != lines.size) lane.replace(kept)
+    }
 
-    private fun readLogicStarted(): List<LogicMethodStart> =
-        logicStartedStorage.readLines().map { json.decodeFromString(it) }
+    private fun onLane(index: Int): Int = if (index < 0) index else (index - actionsTrimmed).coerceAtLeast(-1)
 
-    private fun readLogicCompleted(): List<LogicMethodCompleted> =
-        logicCompletedStorage.readLines().map { json.decodeFromString(it) }
+    private fun readActions(): List<CapturedAction> = actionsLane.read()
 
-    private fun readLogicFailed(): List<LogicMethodFailed> =
-        logicFailedStorage.readLines().map { json.decodeFromString(it) }
+    private fun readLogicStarted(): List<LogicMethodStart> = logicStartedLane.read()
+
+    private fun readLogicCompleted(): List<LogicMethodCompleted> = logicCompletedLane.read()
+
+    private fun readLogicFailed(): List<LogicMethodFailed> = logicFailedLane.read()
 
     private fun readCrashes(): List<CrashInfo> =
-        crashStorage.readLines().map { json.decodeFromString(it) }
+        crashLane.read().map { it.copy(afterActionIndex = onLane(it.afterActionIndex)) }
 
-    private fun readNetwork(): List<NetworkRequestCapture> =
-        networkStorage.readLines().map { json.decodeFromString(it) }
+    private fun readNetwork(): List<NetworkRequestCapture> = networkLane.read()
 
-    private fun readStateReads(): List<StateRead> =
-        stateReadStorage.readLines().map { json.decodeFromString(it) }
+    private fun readStateReads(): List<StateRead> = stateReadLane.read()
 
-    private fun readLogs(): List<CapturedLog> =
-        logStorage.readLines().map { json.decodeFromString(it) }
+    private fun readLogs(): List<CapturedLog> = logLane.read()
 
     private fun readMarkers(): List<SessionMarker> =
-        markerStorage.readLines().map { json.decodeFromString(it) }
+        markerLane.read().map { it.copy(afterActionIndex = onLane(it.afterActionIndex)) }
 
     public companion object {
         /**
@@ -958,6 +961,10 @@ public class SessionCapture(
          * stream by name, so the name is part of this module's contract rather than an internal
          * detail.
          */
+        @Deprecated(
+            "Capture no longer redacts, so no watchdog spans are emitted. Removed in the next release.",
+            level = DeprecationLevel.WARNING
+        )
         public const val REDACTION_TRACE_CLASS: String = "RedactionWatchdog"
 
         /**
@@ -971,9 +978,13 @@ public class SessionCapture(
     }
 }
 
-private const val BODY_SLICE_BYTES: Int = 256 * 1024
 private const val HIGH_WATER_MARK: Long = 50_000L
-private const val VERIFY_SAMPLE_INTERVAL: Int = 100
+private const val CALL_IDENTITY_LIMIT: Int = 512
+
+/**
+ * A state tree encoded one module at a time, with the modules that could not be encoded and why.
+ */
+public class StateTree(public val modules: JsonObject, public val failed: Map<String, String>)
 
 /**
  * Represents the current session history.
@@ -989,7 +1000,8 @@ public data class SessionHistory(
     val stateReads: List<StateRead> = emptyList(),
     val markers: List<SessionMarker> = emptyList(),
     val network: List<NetworkRequestCapture> = emptyList(),
-    val logs: List<CapturedLog> = emptyList()
+    val logs: List<CapturedLog> = emptyList(),
+    val extensions: Map<String, JsonElement> = emptyMap()
 )
 
 /**
@@ -1035,6 +1047,7 @@ public fun SessionHistory.chunked(
         chunksNeeded(logicStarted.size, eventsPerChunk),
         chunksNeeded(logicCompleted.size, eventsPerChunk),
         chunksNeeded(logicFailed.size, eventsPerChunk),
+        chunksNeeded(logs.size, eventsPerChunk),
         networkGroups.size,
         1
     )
@@ -1053,7 +1066,9 @@ public fun SessionHistory.chunked(
             logicFailed = slice(logicFailed, index, eventsPerChunk),
             stateReads = if (index == 0) stateReads else emptyList(),
             markers = if (index == 0) markers else emptyList(),
-            network = networkGroups.getOrElse(index) { emptyList() }
+            network = networkGroups.getOrElse(index) { emptyList() },
+            logs = slice(logs, index, eventsPerChunk),
+            extensions = if (index == 0) extensions else emptyMap()
         )
     }
 }

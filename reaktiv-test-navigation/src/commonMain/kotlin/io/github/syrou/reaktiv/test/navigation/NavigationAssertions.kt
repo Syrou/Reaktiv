@@ -23,6 +23,14 @@ public suspend fun ReaktivTestScope.assertCurrentPath(expected: String) {
     }
 }
 
+public suspend fun ReaktivTestScope.assertCurrentLocation(expected: String) {
+    settle()
+    val actual = store.selectState<NavigationState>().first().currentEntry.location
+    if (actual != expected) {
+        throw AssertionError("Expected current location '$expected' but was '$actual'")
+    }
+}
+
 public suspend fun ReaktivTestScope.assertBackStack(vararg routes: String) {
     settle()
     val actual = store.selectState<NavigationState>().first().backStack.map { it.route }

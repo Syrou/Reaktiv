@@ -2,12 +2,13 @@ package io.github.syrou.reaktiv.navigation.util
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.navigation.NavigationState
 
 
 @Composable
-public fun NavigationDebugger(navigationState: NavigationState, store: io.github.syrou.reaktiv.core.Store) {
+public fun NavigationDebugger(navigationState: NavigationState, store: Store) {
     LaunchedEffect(navigationState) {
         val graphKeys = store.getNavigationModule().getGraphDefinitions().keys
         ReaktivDebug.nav("=== Simplified Navigation Debug ===")
@@ -20,16 +21,13 @@ public fun NavigationDebugger(navigationState: NavigationState, store: io.github
         ReaktivDebug.nav("Back stack: ${navigationState.backStack.map { it.path }}")
         ReaktivDebug.nav("Available graphs: $graphKeys")
         ReaktivDebug.nav("Can go back: ${navigationState.canGoBack}")
+        val layoutGraphs = findLayoutGraphsInHierarchy(currentGraphId, navModule.getGraphDefinitions())
+        if (layoutGraphs.isNotEmpty()) {
+            ReaktivDebug.nav("Layout hierarchy: ${layoutGraphs.map { it.route }}")
+        } else {
+            ReaktivDebug.nav("No custom layouts")
+        }
 
         ReaktivDebug.nav("=== End Debug Info ===")
-    }
-    val navModule = store.getNavigationModule()
-    val currentGraphId = navModule.getGraphId(navigationState.currentEntry) ?: "unknown"
-    val graphDefinitions = navModule.getGraphDefinitions()
-    val layoutGraphs = findLayoutGraphsInHierarchy(currentGraphId, graphDefinitions)
-    if (layoutGraphs.isNotEmpty()) {
-        ReaktivDebug.nav("Layout hierarchy: ${layoutGraphs.map { it.route }}")
-    } else {
-        ReaktivDebug.nav("No custom layouts")
     }
 }

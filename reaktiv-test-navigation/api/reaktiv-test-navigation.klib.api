@@ -7,6 +7,7 @@
 
 // Library unique name: <io.github.syrou:reaktiv-test-navigation>
 final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/assertBackStack(kotlin/Array<out kotlin/String>...) // io.github.syrou.reaktiv.test.navigation/assertBackStack|assertBackStack@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.Array<out|kotlin.String>...){}[0]
+final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/assertCurrentLocation(kotlin/String) // io.github.syrou.reaktiv.test.navigation/assertCurrentLocation|assertCurrentLocation@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.String){}[0]
 final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/assertCurrentPath(kotlin/String) // io.github.syrou.reaktiv.test.navigation/assertCurrentPath|assertCurrentPath@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.String){}[0]
 final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/assertCurrentRoute(kotlin/String) // io.github.syrou.reaktiv.test.navigation/assertCurrentRoute|assertCurrentRoute@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.String){}[0]
 final suspend fun (io.github.syrou.reaktiv.test/ReaktivTestScope).io.github.syrou.reaktiv.test.navigation/awaitRoute(kotlin/String): io.github.syrou.reaktiv.navigation/NavigationState // io.github.syrou.reaktiv.test.navigation/awaitRoute|awaitRoute@io.github.syrou.reaktiv.test.ReaktivTestScope(kotlin.String){}[0]

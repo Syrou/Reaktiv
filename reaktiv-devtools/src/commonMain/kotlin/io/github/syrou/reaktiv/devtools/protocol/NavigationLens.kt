@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import kotlinx.serialization.json.Json
@@ -23,6 +25,7 @@ public const val NAVIGATION_TRACE_CLASS: String = "Navigation"
  * @property route The last path segment, which is the destination's own route.
  * @property params Parameters attached to the entry, rendered as text.
  */
+@DevToolsInternalApi
 public data class NavigationEntrySnapshot(
     val path: String,
     val params: Map<String, String>
@@ -51,6 +54,7 @@ public data class NavigationEntrySnapshot(
  * @property isEvaluating Whether a guard or entry lambda was being evaluated.
  * @property modalContextPaths Paths that had an active modal context.
  */
+@DevToolsInternalApi
 public data class NavigationSnapshot(
     val moduleKey: String,
     val backStack: List<NavigationEntrySnapshot>,
@@ -81,6 +85,7 @@ private fun kotlinx.serialization.json.JsonPrimitive.contentOrNullSafe(): String
  *
  * @param stateJson A full state tree keyed by state class qualified name.
  */
+@DevToolsInternalApi
 public fun parseNavigationState(stateJson: String): NavigationSnapshot? {
     val root = runCatching { lensJson.parseToJsonElement(stateJson).jsonObject }.getOrNull() ?: return null
     val key = root.keys.firstOrNull { it.endsWith(".NavigationState") } ?: return null
@@ -127,6 +132,7 @@ public fun parseNavigationState(stateJson: String): NavigationSnapshot? {
  * @property durationMs How long it took, or null while still running.
  * @property isGuard Whether this was a guard or entry evaluation rather than a navigate call.
  */
+@DevToolsInternalApi
 public data class NavigationAttempt(
     val timestampMs: Long,
     val name: String,
@@ -151,13 +157,14 @@ public data class NavigationAttempt(
  * A navigation that is still in flight appears with a null outcome rather than being omitted, so
  * a guard that never returns is visible rather than silently absent.
  */
+@DevToolsInternalApi
 public fun buildNavigationLog(
     starts: List<LogicMethodStart>,
     completions: List<LogicMethodCompleted>
 ): List<NavigationAttempt> {
     val byCallId = completions.associateBy { it.callId }
     return starts
-        .filter { it.logicClass == NAVIGATION_TRACE_CLASS || it.logicClass == GUARD_TRACE_CLASS }
+        .filter { it.kind == SpanKind.NAVIGATION || it.kind == SpanKind.GUARD }
         .map { start ->
             val done = byCallId[start.callId]
             NavigationAttempt(
@@ -166,7 +173,7 @@ public fun buildNavigationLog(
                 target = start.params["target"] ?: "",
                 outcome = done?.result,
                 durationMs = done?.durationMs,
-                isGuard = start.logicClass == GUARD_TRACE_CLASS
+                isGuard = start.kind == SpanKind.GUARD
             )
         }
         .sortedBy { it.timestampMs }

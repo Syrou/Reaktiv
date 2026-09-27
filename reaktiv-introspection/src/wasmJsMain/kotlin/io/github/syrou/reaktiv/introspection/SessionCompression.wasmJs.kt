@@ -1,22 +1,35 @@
 package io.github.syrou.reaktiv.introspection
 
-/**
- * Browsers expose gzip only through the asynchronous Web Streams API, and marshalling a Kotlin
- * `ByteArray` across that boundary byte by byte is far slower than letting the host do the work.
- *
- * The DevTools UI therefore inflates a session while it reads the file, on the JavaScript side,
- * and hands Kotlin the JSON text that comes out. Nothing on wasm needs to compress, since exports
- * are written by the capturing device rather than by the UI.
- */
-public actual suspend fun gzipCompress(data: ByteArray): ByteArray {
-    throw UnsupportedOperationException(
-        "gzipCompress is not available on wasmJs. Sessions are compressed by the capturing device."
-    )
-}
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.js.Promise
+
+private fun gzipPipe(bytes: JsAny, compress: Boolean): Promise<JsString> = js("""
+    new Promise(function(resolve) {
+        var Stream = compress ? globalThis.CompressionStream : globalThis.DecompressionStream;
+        if (typeof Stream === 'undefined') {
+            throw new Error((compress ? 'CompressionStream' : 'DecompressionStream') + ' is unavailable in this browser');
+        }
+        var stream = new Blob([bytes]).stream().pipeThrough(new Stream('gzip'));
+        resolve(new Response(stream).arrayBuffer().then(function(buffer) {
+            var out = new Uint8Array(buffer);
+            var text = '';
+            var chunk = 0x8000;
+            for (var i = 0; i < out.length; i += chunk) {
+                text += String.fromCharCode.apply(null, out.subarray(i, Math.min(i + chunk, out.length)));
+            }
+            return btoa(text);
+        }));
+    })
+""")
+
+@OptIn(ExperimentalEncodingApi::class)
+private suspend fun pipe(data: ByteArray, compress: Boolean): ByteArray =
+    Base64.decode(gzipPipe(base64ToBytes(Base64.encode(data)), compress).awaitJs().toString())
+
+public actual suspend fun gzipCompress(data: ByteArray): ByteArray = pipe(data, compress = true)
 
 public actual suspend fun gzipDecompress(data: ByteArray): ByteArray {
-    throw UnsupportedOperationException(
-        "gzipDecompress is not available on wasmJs. Session files are inflated while they are read, " +
-            "see the DevTools UI file picker."
-    )
+    require(isGzip(data)) { "Input is not gzip data" }
+    return pipe(data, compress = false)
 }

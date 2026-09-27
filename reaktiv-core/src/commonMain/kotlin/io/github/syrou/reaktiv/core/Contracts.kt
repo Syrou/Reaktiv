@@ -79,6 +79,8 @@ public sealed class DispatchResult {
 
     /** Action processing failed with an error */
     public data class Error(val cause: Throwable) : DispatchResult()
+
+    public data class Dropped(val reason: DispatchDropReason) : DispatchResult()
 }
 
 /**

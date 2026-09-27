@@ -16,34 +16,33 @@ public class CommonUrlEncoder : UrlEncoder {
     }
 
     override fun decode(encoded: String): String {
-        return decodeSingle(encoded)
+        return decodeSingle(encoded, plusIsSpace = true)
     }
 
-    private fun decodeSingle(encoded: String): String {
+    internal fun decodePathSegment(encoded: String): String {
+        return decodeSingle(encoded, plusIsSpace = false)
+    }
+
+    private fun decodeSingle(encoded: String, plusIsSpace: Boolean): String {
         val bytes = mutableListOf<Byte>()
         var i = 0
 
         while (i < encoded.length) {
             when {
-                encoded[i] == '%' && i + 2 < encoded.length -> {
-                    try {
-                        val hex = encoded.substring(i + 1, i + 3)
-                        val byte = hex.toInt(16).toByte()
-                        bytes.add(byte)
-                        i += 3
-                    } catch (e: NumberFormatException) {
-                        // Invalid hex, treat as literal character
-                        bytes.addAll(encoded[i].toString().encodeToByteArray().toList())
-                        i++
-                    }
+                encoded[i] == '%' && i + 2 < encoded.length &&
+                    encoded[i + 1].digitToIntOrNull(16) != null && encoded[i + 2].digitToIntOrNull(16) != null -> {
+                    bytes.add(encoded.substring(i + 1, i + 3).toInt(16).toByte())
+                    i += 3
                 }
-                encoded[i] == '+' -> {
+                plusIsSpace && encoded[i] == '+' -> {
                     bytes.addAll(" ".encodeToByteArray().toList())
                     i++
                 }
                 else -> {
-                    bytes.addAll(encoded[i].toString().encodeToByteArray().toList())
-                    i++
+                    val width = if (encoded[i].isHighSurrogate() && i + 1 < encoded.length &&
+                        encoded[i + 1].isLowSurrogate()) 2 else 1
+                    bytes.addAll(encoded.substring(i, i + width).encodeToByteArray().toList())
+                    i += width
                 }
             }
         }
@@ -53,7 +52,6 @@ public class CommonUrlEncoder : UrlEncoder {
 
     private fun encodeString(value: String, safeChars: Set<Char>): String {
         val result = StringBuilder()
-        val bytes = value.encodeToByteArray()
         var i = 0
 
         while (i < value.length) {

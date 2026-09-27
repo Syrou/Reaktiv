@@ -4,7 +4,6 @@ plugins {
     kotlin("multiplatform")
     id("com.android.kotlin.multiplatform.library")
     kotlin("plugin.serialization")
-    id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
 }
@@ -16,11 +15,7 @@ centralPublisher {
 
 kotlin {
     jvm()
-    android {
-        namespace = "io.github.syrou.reaktiv.test"
-        compileSdk = 37
-        minSdk = 23
-    }
+    android {}
     macosArm64()
     iosArm64()
     iosSimulatorArm64()
@@ -40,12 +35,10 @@ kotlin {
             dependencies {
                 api(project(":reaktiv-core"))
                 api(libs.kotlinx.coroutines.test)
-                implementation(libs.kotlinx.coroutines.core)
             }
         }
         getByName("commonTest") {
             dependencies {
-                implementation(kotlin("test"))
                 implementation(libs.kotlinx.serialization.json)
             }
         }

@@ -18,11 +18,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.contentLength
 import io.ktor.http.contentType
+import io.ktor.client.plugins.isSaved
 import io.ktor.http.content.OutgoingContent
 import io.ktor.util.AttributeKey
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 
 public class ReaktivNetworkInspectionConfig {
@@ -61,6 +64,8 @@ public val ReaktivNetworkInspection: ClientPlugin<ReaktivNetworkInspectionConfig
     client.responsePipeline.intercept(HttpResponsePipeline.Receive) { container ->
         try {
             proceedWith(container)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (cause: Throwable) {
             reportDecodeFailure(retention, context.request.attributes.getOrNull(ReaktivRequestIdKey), cause)
             throw cause
@@ -103,11 +108,7 @@ private suspend fun captureExchange(
     retention.remember(
         RetainedExchange(
             id = id,
-            method = method,
-            url = urlString,
-            headers = requestHeaders.toCapturedMap(emptySet()),
-            bodyBytes = requestBodyBytes?.takeIf { it.size <= config.hardBodyLimitBytes },
-            contentType = requestContentType
+            bodyBytes = requestBodyBytes?.takeIf { it.size <= config.hardBodyLimitBytes }
         )
     )
 
@@ -117,11 +118,12 @@ private suspend fun captureExchange(
         durationMs = 0,
         method = method,
         url = urlString,
-        requestHeaders = requestHeaders.toCapturedMap(config.redactedHeaders),
+        requestHeaders = requestHeaders.toCapturedMap(),
         requestContentType = requestContentType,
         requestBody = requestBodyBytes?.let { decodeBounded(it, config.maxBodyBytes) },
         requestBodySize = requestBodyBytes?.size?.toLong() ?: 0L,
-        requestBodyTruncated = (requestBodyBytes?.size ?: 0) > config.maxBodyBytes
+        requestBodyTruncated = (requestBodyBytes?.size ?: 0) > config.maxBodyBytes,
+        sensitiveHeaders = config.redactedHeaders
     )
 
     val call = try {
@@ -140,12 +142,14 @@ private suspend fun captureExchange(
     val response = call.response
     val responseContentType = response.contentType()
     val responseLength = response.contentLength()
-    val shouldRead = config.captureBodies &&
+    val shouldRead = response.isSaved && config.captureBodies &&
         config.shouldCaptureBody(responseContentType) &&
         (responseLength == null || responseLength <= config.hardBodyLimitBytes)
     val responseText = if (shouldRead) {
         try {
             response.bodyAsText()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (_: Exception) {
             null
         }
@@ -176,7 +180,7 @@ private suspend fun captureExchange(
         durationMs = currentTimeMillis() - startedAt,
         responseStatus = response.status.value,
         responseStatusText = response.status.description,
-        responseHeaders = response.headers.toCapturedMap(config.redactedHeaders),
+        responseHeaders = response.headers.toCapturedMap(),
         responseContentType = responseContentType?.toString(),
         responseBody = previewBody,
         responseBodySize = measuredSize,
@@ -233,14 +237,7 @@ private fun installBodyProvider(retention: BodyRetention): NetworkBodyProvider {
     return provider
 }
 
-private fun Headers.toCapturedMap(redacted: Set<String>): Map<String, List<String>> =
-    entries().associate { (key, values) ->
-        key to if (redacted.any { it.equals(key, ignoreCase = true) }) {
-            listOf("<redacted>")
-        } else {
-            values
-        }
-    }
+private fun Headers.toCapturedMap(): Map<String, List<String>> = entries().associate { (key, values) -> key to values }
 
 private fun decodeBounded(bytes: ByteArray, maxBytes: Int): String =
     bytes.sliceOnCharBoundary(offset = 0, maxBytes = maxBytes).content
@@ -259,11 +256,7 @@ internal fun isTextualContent(contentType: ContentType?): Boolean {
 
 internal class RetainedExchange(
     val id: String,
-    val method: String,
-    val url: String,
-    val headers: Map<String, List<String>>,
     val bodyBytes: ByteArray?,
-    val contentType: String?,
     val responseBytes: ByteArray? = null,
     val capture: NetworkRequestCapture? = null
 ) {
@@ -271,10 +264,10 @@ internal class RetainedExchange(
         get() = (bodyBytes?.size?.toLong() ?: 0L) + (responseBytes?.size?.toLong() ?: 0L)
 
     fun withResponse(bytes: ByteArray?): RetainedExchange =
-        RetainedExchange(id, method, url, headers, bodyBytes, contentType, bytes, capture)
+        RetainedExchange(id, bodyBytes, bytes, capture)
 
     fun withCapture(capture: NetworkRequestCapture): RetainedExchange =
-        RetainedExchange(id, method, url, headers, bodyBytes, contentType, responseBytes, capture)
+        RetainedExchange(id, bodyBytes, responseBytes, capture)
 }
 
 @OptIn(ExperimentalAtomicApi::class)
@@ -285,10 +278,7 @@ internal class BodyRetention(
     private val retained = AtomicReference<List<RetainedExchange>>(emptyList())
 
     fun remember(request: RetainedExchange) {
-        while (true) {
-            val current = retained.load()
-            if (retained.compareAndSet(current, evict(current + request))) return
-        }
+        retained.update { current -> evict(current + request) }
     }
 
     fun attachResponse(requestId: String, bytes: ByteArray?) {
@@ -301,13 +291,13 @@ internal class BodyRetention(
     }
 
     private fun update(requestId: String, transform: (RetainedExchange) -> RetainedExchange) {
-        while (true) {
-            val current = retained.load()
+        retained.update { current ->
             val index = current.indexOfLast { it.id == requestId }
-            if (index < 0) return
-            val updated = current.toMutableList()
-            updated[index] = transform(updated[index])
-            if (retained.compareAndSet(current, evict(updated))) return
+            if (index < 0) {
+                current
+            } else {
+                evict(current.toMutableList().apply { this[index] = transform(this[index]) })
+            }
         }
     }
 

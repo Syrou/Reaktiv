@@ -13,6 +13,11 @@ package io.github.syrou.reaktiv.core
  * Using this in normal application logic defeats the purpose of the MVLI
  * architecture and should be avoided.
  */
+@Deprecated(
+    "Use StoreAccessor.externalState(), which is null when the store does not grant outside state.",
+    ReplaceWith("externalState()"),
+    DeprecationLevel.WARNING
+)
 @ExperimentalReaktivApi
 public interface InternalStoreOperations {
     /**

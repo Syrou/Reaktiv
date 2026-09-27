@@ -8,228 +8,44 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredWidth
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.DrawerState
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.drop
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import eu.syrou.androidexample.reaktiv.crashtest.CrashTestLogic
-import eu.syrou.androidexample.reaktiv.settings.SettingsModule
-import eu.syrou.androidexample.reaktiv.subscription.SubscriptionLogic
-import eu.syrou.androidexample.ui.components.NotificationPermissionHandler
-import eu.syrou.androidexample.ui.screen.SettingsScreen
-import eu.syrou.androidexample.ui.theme.ReaktivTheme
+import eu.syrou.example.ExampleApp
+import eu.syrou.example.ui.theme.ReaktivTheme
 import io.github.syrou.reaktiv.compose.StoreProvider
-import io.github.syrou.reaktiv.compose.composeState
-import io.github.syrou.reaktiv.compose.rememberStore
-import io.github.syrou.reaktiv.navigation.NavigationState
-import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
-import io.github.syrou.reaktiv.navigation.ui.NavigationBackgroundProvider
-import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleDeepLink(intent, "onNewIntent")
+        handleDeepLink(intent)
     }
 
-    private fun handleDeepLink(intent: Intent, source: String) {
+    private fun handleDeepLink(intent: Intent) {
         if (intent.action == Intent.ACTION_VIEW) {
             val uri = intent.data ?: return
             val route = when (uri.scheme) {
-                "poedex" -> uri.path?.replace("/navigation/", "") ?: ""
-                else -> listOfNotNull(uri.path, uri.query?.let { "?$it" }).joinToString("")
+                "poedex" -> uri.encodedPath?.removePrefix("/navigation/") ?: ""
+                else -> listOfNotNull(uri.encodedPath, uri.encodedQuery?.let { "?$it" }).joinToString("")
             }
             lifecycleScope.launch {
-                customApp.store.navigateDeepLink(route)
+                customApp.store.navigation { navigateDeepLink(route) }
             }
         }
     }
 
-    var blocking: Boolean = true
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //runBlocking { customApp.store.loadState() }
-        handleDeepLink(intent, "onCreate")
+        handleDeepLink(intent)
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
-
-        /*lifecycleScope.launch {
-            val newsState = customApp.store.selectState<NewsModule.NewsState>()
-            val videosState = customApp.store.selectState<VideosModule.VideosState>()
-            val hasNews = newsState.first { it.news.isNotEmpty() }.news.isNotEmpty()
-            val hasVideos = videosState.first { it.videos.isNotEmpty() }.videos.isNotEmpty()
-            blocking = if (hasNews && hasVideos) false else true
-        }*/
         setContent {
             ReaktivTheme {
                 StoreProvider(store = customApp.store) {
-                    NotificationPermissionHandler {
-                        MainRender()
-                    }
+                    ExampleApp(customApp.platform)
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MainRender() {
-    val store = rememberStore()
-    val settingsState by composeState<SettingsModule.SettingsState>()
-    val drawerState = rememberDrawerState(
-        initialValue = if (settingsState.drawerOpen) DrawerValue.Open else DrawerValue.Closed
-    )
-    val latestDrawerOpen by rememberUpdatedState(settingsState.drawerOpen)
-
-    LaunchedEffect(settingsState.drawerOpen) {
-        val target = if (settingsState.drawerOpen) DrawerValue.Open else DrawerValue.Closed
-        if (drawerState.targetValue != target) {
-            if (settingsState.drawerOpen) drawerState.open() else drawerState.close()
-        }
-    }
-
-    LaunchedEffect(drawerState) {
-        snapshotFlow { drawerState.currentValue }
-            .drop(1)
-            .collect { value ->
-                val open = value == DrawerValue.Open
-                if (open != latestDrawerOpen) {
-                    store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(open))
-                }
-            }
-    }
-
-    val items =
-        listOf(
-            "Settings" to Icons.Default.Settings,
-            "Reaktiv Plus" to Icons.Default.Star,
-            "DevTools" to Icons.Default.Build,
-            "Crash Test" to Icons.Default.Warning,
-            "Contact" to Icons.Default.Notifications,
-            "Reset Store" to Icons.Default.Refresh
-        )
-    val selectedItem = remember { mutableStateOf(items[0]) }
-
-    val navigationState by composeState<NavigationState>()
-
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            gesturesEnabled = drawerState.isOpen || !navigationState.canGoBack,
-            drawerContent = {
-                ModalDrawerSheet(
-                    modifier = Modifier
-                        .requiredWidth(300.dp)
-                        .fillMaxHeight()
-                        .padding(top = 65.dp)
-                ) {
-                    Column(Modifier.verticalScroll(rememberScrollState())) {
-                        Spacer(Modifier.height(12.dp))
-                        items.forEach { item ->
-                            NavigationDrawerItem(
-                                icon = { Icon(item.second, contentDescription = null) },
-                                label = { Text(item.first) },
-                                selected = item == selectedItem.value,
-                                onClick = {
-                                    store.dispatch.invoke(SettingsModule.SettingsAction.SetDrawerOpen(!settingsState.drawerOpen))
-                                    selectedItem.value = item
-                                    when (item.first) {
-                                        "Settings" -> {
-                                            store.launch {
-                                                store.navigation {
-                                                    navigateTo(SettingsScreen.route)
-                                                }
-                                            }
-                                        }
-
-                                        "Reaktiv Plus" -> {
-                                            store.launch {
-                                                store.selectLogic<SubscriptionLogic>().begin()
-                                            }
-                                        }
-
-                                        "DevTools" -> {
-                                            store.launch {
-                                                store.navigation {
-                                                    navigateTo("devtools")
-                                                }
-                                            }
-                                        }
-
-                                        "Crash Test" -> {
-                                            store.launch {
-                                                val crashLogic = store.selectLogic<CrashTestLogic>()
-                                                crashLogic.triggerCrashWithTracedOperations()
-                                            }
-                                        }
-
-                                        "Reset Store" -> {
-                                            store.launch {
-                                                store.reset()
-                                            }
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                            )
-                        }
-                    }
-                }
-            }
-        ) {
-            NavigationBackgroundProvider(
-                backgroundColor = MaterialTheme.colorScheme.background,
-                dismissIndicatorBackground = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.6f),
-                dismissIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-            ) {
-                NavigationRender(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .systemBarsPadding()
-                )
             }
         }
     }

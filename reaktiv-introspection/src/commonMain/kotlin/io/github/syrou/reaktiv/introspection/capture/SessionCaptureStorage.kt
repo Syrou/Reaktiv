@@ -3,7 +3,8 @@ package io.github.syrou.reaktiv.introspection.capture
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
-import kotlinx.io.readLine
+import kotlinx.io.files.SystemTemporaryDirectory
+import kotlinx.io.readString
 import kotlinx.io.writeString
 
 /**
@@ -16,18 +17,16 @@ import kotlinx.io.writeString
  * Usage:
  * ```kotlin
  * val storage = createCaptureStorage("actions")
- * storage.appendLine("""{"type":"TestAction"}""")
+ * storage.appendLines(listOf("""{"type":"TestAction"}"""))
  * val lines = storage.readLines()
  * storage.clear()
  * ```
  */
 internal interface CaptureStorage {
-    fun appendLine(line: String)
     fun appendLines(lines: List<String>)
     fun readLines(): List<String>
     fun lineCount(): Int
     fun clear()
-    fun delete()
 
     /**
      * Trims storage to keep only the most recent [keepCount] lines.
@@ -47,10 +46,6 @@ internal class FileCaptureStorage(
     private val filePath = Path(directory, fileName)
     private var count = 0
 
-    override fun appendLine(line: String) {
-        appendLines(listOf(line))
-    }
-
     override fun appendLines(lines: List<String>) {
         if (lines.isEmpty()) return
         val sink = SystemFileSystem.sink(filePath, append = true).buffered()
@@ -68,19 +63,13 @@ internal class FileCaptureStorage(
 
     override fun readLines(): List<String> {
         if (!SystemFileSystem.exists(filePath)) return emptyList()
-        val result = mutableListOf<String>()
         val source = SystemFileSystem.source(filePath).buffered()
-        try {
-            while (true) {
-                val line = source.readLine() ?: break
-                if (line.isNotEmpty()) {
-                    result.add(line)
-                }
-            }
+        val text = try {
+            source.readString()
         } finally {
             source.close()
         }
-        return result
+        return text.substringBeforeLast('\n', missingDelimiterValue = "").split('\n').filter { it.isNotEmpty() }
     }
 
     override fun lineCount(): Int = count
@@ -103,10 +92,6 @@ internal class FileCaptureStorage(
         }
         appendLines(trimmed)
     }
-
-    override fun delete() {
-        clear()
-    }
 }
 
 /**
@@ -114,10 +99,6 @@ internal class FileCaptureStorage(
  */
 internal class InMemoryCaptureStorage : CaptureStorage {
     private val lines = ArrayDeque<String>()
-
-    override fun appendLine(line: String) {
-        lines.addLast(line)
-    }
 
     override fun appendLines(lines: List<String>) {
         this.lines.addAll(lines)
@@ -136,10 +117,6 @@ internal class InMemoryCaptureStorage : CaptureStorage {
             lines.removeFirst()
         }
     }
-
-    override fun delete() {
-        lines.clear()
-    }
 }
 
 /**
@@ -150,3 +127,17 @@ internal class InMemoryCaptureStorage : CaptureStorage {
  * @return A [CaptureStorage] instance
  */
 internal expect fun createCaptureStorage(name: String): CaptureStorage
+
+internal fun fileCaptureStorage(name: String): CaptureStorage {
+    return try {
+        val dir = Path(SystemTemporaryDirectory, "reaktiv-introspection")
+        if (!SystemFileSystem.exists(dir)) {
+            SystemFileSystem.createDirectories(dir)
+        }
+        val storage = FileCaptureStorage(dir, "$name.jsonl")
+        storage.clear()
+        storage
+    } catch (_: Exception) {
+        InMemoryCaptureStorage()
+    }
+}

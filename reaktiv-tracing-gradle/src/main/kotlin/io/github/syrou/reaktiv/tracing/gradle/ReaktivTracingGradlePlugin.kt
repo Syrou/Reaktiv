@@ -69,11 +69,14 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         const val ANNOTATIONS_ARTIFACT_ID = "reaktiv-tracing-annotations"
         const val RUNTIME_ARTIFACT_ID = "reaktiv-tracing-runtime"
         const val XCODE_CONFIGURATION_ENV = "CONFIGURATION"
+        private val DEPENDENCY_CONFIGURATIONS = setOf("implementation", "commonMainImplementation")
     }
 
     private lateinit var extension: ReaktivTracingExtension
 
     private var conflictReported = false
+
+    private var disabledReported = false
 
     override fun apply(target: Project) {
         extension = target.extensions.create(
@@ -89,21 +92,22 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         extension.onConflict.convention(TracingConflictPolicy.DISABLE)
         extension.enabled.convention(activationProvider(target))
 
-        // Auto-detect git info with conventions
         extension.githubRepoUrl.convention(
-            target.provider { detectGitHubUrl(target) ?: "" }
+            target.provider { git(target, "remote", "get-url", "origin")?.let(::convertToGitHubUrl) ?: "" }
         )
         extension.githubBranch.convention(
-            target.provider { detectGitBranch(target) ?: "main" }
+            target.provider { git(target, "rev-parse", "--abbrev-ref", "HEAD")?.takeIf { it != "HEAD" } ?: "main" }
         )
 
-        target.afterEvaluate {
-            if (extension.enabled.get()) {
-                addDependencies(target)
-            } else {
-                warnWhenNoActivationCriteria(target)
+        val tracingDependencies = target.provider {
+            if (!extension.enabled.get()) return@provider emptyList()
+            listOf(ANNOTATIONS_ARTIFACT_ID, RUNTIME_ARTIFACT_ID).map { artifact ->
+                target.dependencies.create("$GROUP_ID:$artifact:$TRACING_VERSION")
             }
         }
+        target.configurations
+            .matching { it.name in DEPENDENCY_CONFIGURATIONS }
+            .configureEach { it.dependencies.addAllLater(tracingDependencies) }
     }
 
     private fun activationProvider(project: Project): Provider<Boolean> =
@@ -178,6 +182,8 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
     }
 
     private fun warnWhenNoActivationCriteria(project: Project) {
+        if (disabledReported) return
+        disabledReported = true
         if (extension.activatingTaskPatterns.get().isNotEmpty()) return
         if (extension.xcodeConfigurations.get().isNotEmpty()) return
         if (extension.buildTypes.get().isNotEmpty()) return
@@ -189,52 +195,9 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         )
     }
 
-    private fun addDependencies(project: Project) {
-        val version = getPluginVersion()
-
-        project.configurations.all { config ->
-            if (config.name == "implementation" || config.name == "commonMainImplementation") {
-                project.dependencies.add(
-                    config.name,
-                    "$GROUP_ID:$ANNOTATIONS_ARTIFACT_ID:$version"
-                )
-                project.dependencies.add(
-                    config.name,
-                    "$GROUP_ID:$RUNTIME_ARTIFACT_ID:$version"
-                )
-            }
-        }
-    }
-
-    private var cachedVersion: String? = null
-
-    private fun getPluginVersion(): String {
-        cachedVersion?.let { return it }
-
-        val version = javaClass.`package`.implementationVersion
-            ?: System.getProperty("reaktiv.tracing.version")
-            ?: getVersionFromGitTag()
-            ?: "0.0.1-SNAPSHOT"
-
-        cachedVersion = version
-        return version
-    }
-
-    private fun getVersionFromGitTag(): String? {
-        return try {
-            val process = ProcessBuilder("git", "describe", "--tags", "--abbrev=0")
-                .redirectErrorStream(true)
-                .start()
-            val result = process.inputStream.bufferedReader().readText().trim()
-            val exitCode = process.waitFor()
-            if (exitCode == 0 && result.isNotEmpty()) result else null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
     override fun isApplicable(kotlinCompilation: KotlinCompilation<*>): Boolean {
         if (!extension.enabled.get()) {
+            warnWhenNoActivationCriteria(kotlinCompilation.project)
             return false
         }
 
@@ -258,7 +221,7 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         return SubpluginArtifact(
             groupId = GROUP_ID,
             artifactId = COMPILER_ARTIFACT_ID,
-            version = getPluginVersion()
+            version = TRACING_VERSION
         )
     }
 
@@ -269,10 +232,6 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
 
         return project.provider {
             val options = mutableListOf(
-                SubpluginOption(
-                    key = "enabled",
-                    value = extension.enabled.get().toString()
-                ),
                 SubpluginOption(
                     key = "tracePrivateMethods",
                     value = extension.tracePrivateMethods.get().toString()
@@ -290,21 +249,17 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         }
     }
 
-    private fun detectGitHubUrl(project: Project): String? {
-        return try {
-            val process = ProcessBuilder("git", "remote", "get-url", "origin")
-                .directory(project.projectDir)
-                .redirectErrorStream(true)
-                .start()
-            val result = process.inputStream.bufferedReader().readText().trim()
-            val exitCode = process.waitFor()
-            if (exitCode == 0 && result.isNotEmpty()) {
-                convertToGitHubUrl(result)
-            } else null
-        } catch (e: Exception) {
-            project.logger.debug("Failed to detect git remote URL: ${e.message}")
-            null
+    private fun git(project: Project, vararg arguments: String): String? = try {
+        val execution = project.providers.exec { spec ->
+            spec.commandLine("git", *arguments)
+            spec.workingDir(project.projectDir)
+            spec.isIgnoreExitValue = true
         }
+        execution.standardOutput.asText.get().trim()
+            .takeIf { execution.result.get().exitValue == 0 && it.isNotEmpty() }
+    } catch (e: Exception) {
+        project.logger.debug("git ${arguments.joinToString(" ")} failed: ${e.message}")
+        null
     }
 
     private fun convertToGitHubUrl(remoteUrl: String): String? {
@@ -326,20 +281,5 @@ class ReaktivTracingGradlePlugin : KotlinCompilerPluginSupportPlugin {
         }
 
         return null
-    }
-
-    private fun detectGitBranch(project: Project): String? {
-        return try {
-            val process = ProcessBuilder("git", "rev-parse", "--abbrev-ref", "HEAD")
-                .directory(project.projectDir)
-                .redirectErrorStream(true)
-                .start()
-            val result = process.inputStream.bufferedReader().readText().trim()
-            val exitCode = process.waitFor()
-            if (exitCode == 0 && result.isNotEmpty() && result != "HEAD") result else null
-        } catch (e: Exception) {
-            project.logger.debug("Failed to detect git branch: ${e.message}")
-            null
-        }
     }
 }

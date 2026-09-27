@@ -1,7 +1,10 @@
 package io.github.syrou.reaktiv.devtools.client
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
 import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
+import io.github.syrou.reaktiv.devtools.protocol.DevToolsProtocol
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
@@ -10,6 +13,7 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -26,6 +30,7 @@ import kotlinx.serialization.encodeToString
  * The transport is shared across every platform. Only the underlying ktor engine
  * is platform specific, supplied by [devToolsHttpClientEngine].
  */
+@DevToolsInternalApi
 public class DevToolsConnection(private val serverUrl: String) {
 
     private val client = HttpClient(devToolsHttpClientEngine()) {
@@ -61,7 +66,14 @@ public class DevToolsConnection(private val serverUrl: String) {
 
             _connectionState.value = ConnectionState.CONNECTED
 
-            send(DevToolsMessage.ClientRegistration(clientName, clientId, platform))
+            send(
+                DevToolsMessage.ClientRegistration(
+                    clientName = clientName,
+                    clientId = clientId,
+                    platform = platform,
+                    protocolVersion = DevToolsProtocol.VERSION
+                )
+            )
 
             scope.launch {
                 receiveMessages()
@@ -76,13 +88,18 @@ public class DevToolsConnection(private val serverUrl: String) {
      * Sends a message to the server.
      *
      * @param message Message to send
+     * @return false when there is no open session or the frame could not be written
      */
-    public suspend fun send(message: DevToolsMessage) {
-        try {
-            val jsonString = json.encodeToString(message)
-            session?.send(Frame.Text(jsonString))
+    public suspend fun send(message: DevToolsMessage): Boolean {
+        val current = session ?: return false
+        return try {
+            current.send(Frame.Text(json.encodeToString(message)))
+            true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ReaktivDebug.warn("DevTools: Failed to send message - ${e.message}")
+            false
         }
     }
 
@@ -133,6 +150,7 @@ public class DevToolsConnection(private val serverUrl: String) {
     }
 }
 
+@DevToolsInternalApi
 public enum class ConnectionState {
     DISCONNECTED,
     CONNECTING,

@@ -9,7 +9,11 @@ Reaktiv is a Kotlin Multiplatform library implementing the MVLI (Model-View-Logi
 - **reaktiv-core**: Core MVLI architecture with Store, Module, State, Action, and Logic components
 - **reaktiv-navigation**: Type-safe navigation system with screen definitions, routing, and transitions
 - **reaktiv-compose**: Jetpack Compose integration with state observation utilities
-- **androidexample**: Example Android application demonstrating usage
+- **example-shared**: The example app itself (modules, screens, navigation graph, `ExampleApp`), shared by both example shells
+- **androidexample**: Android shell for the example app, adding Android-only features (Twitch WebView login, notifications, DevTools)
+- **webexample**: Browser (wasm) shell for the example app
+- **reaktiv-devtools-ui**: The DevTools web UI (wasm Compose app and its logic, unpublished), served by the DevTools server from `reaktiv-devtools-ui/build/dist/wasmJs/productionExecutable`. It holds the end-to-end DevTools tests that need Compose screens
+- **example-tooling**: DevTools wiring shared by both shells (DevTools screen, network probe, tooling module), used by androidexample debug builds and by webexample when built with `-PexampleDevtools=true`
 
 ## Build System & Commands
 
@@ -25,6 +29,13 @@ This project uses Gradle with Kotlin Multiplatform setup.
 
 # Run Android example
 ./gradlew :androidexample:assembleDebug
+
+# Run web example in a browser
+./gradlew :webexample:wasmJsBrowserDevelopmentRun
+
+# Run web example with DevTools, then open http://localhost:8080/?devtools=localhost:8090
+./gradlew :reaktiv-devtools:runDevToolsServer -Pport=8090
+./gradlew :webexample:wasmJsBrowserDevelopmentRun -PexampleDevtools=true
 
 # Clean build
 ./gradlew clean
@@ -67,7 +78,16 @@ These are separate Gradle builds and must be built/tested/published with `-p`:
 # Run introspection module tests
 ./gradlew :reaktiv-introspection:jvmTest
 
-# Verify devtools compilation (no JVM target)
+# Run navigation tooling plugin tests (NavigationLinks, the DevTools link map)
+./gradlew :reaktiv-navigation-tooling:jvmTest
+
+# Run DevTools client, protocol and server tests
+./gradlew :reaktiv-devtools:jvmTest
+
+# Run DevTools UI and end-to-end tests
+./gradlew :reaktiv-devtools-ui:jvmTest
+
+# Verify devtools native server compilation
 ./gradlew :reaktiv-devtools:compileKotlinMingwX64
 
 # Run Android tests
@@ -178,9 +198,14 @@ action, including replication and persistence restore.
 coroutine called it. The dispatch loop is a single ordered consumer, so those writes raced it,
 and state changed without instrumentation ever seeing it.
 
-**Enforcement:** [type]. `applyState` is private, `ModuleInfo.state` is internal, and
-`StoreAction.Hydrate` is the only way in. Note that hydrating from inside the pipeline
-deadlocks, because the single consumer would be waiting on itself.
+**Enforcement:** [type] and [runtime]. `applyState` is private, `ModuleInfo.state` is internal,
+and `StoreAction.Hydrate` is the only way in. Outside writes go through
+`StoreAccessor.externalState()`, which is `null` unless the store's `ExternalStatePolicy` grants
+them (`OnRequest` grants when a module implements `ExternalStateRequester`, as the tooling
+module does). A raw `Hydrate` in a store that does not grant them is dropped with
+`EXTERNAL_STATE_DENIED`. Persistence restore is applied by the store and never gated. Note that
+hydrating from inside the pipeline deadlocks, because the single consumer would be waiting on
+itself.
 
 ### I4. A function reports what happened
 
@@ -414,7 +439,9 @@ fun ExampleComponent() {
 - `reaktiv-core/src/commonMain/kotlin/`: Core MVLI implementation
 - `reaktiv-navigation/src/commonMain/kotlin/`: Navigation system
 - `reaktiv-compose/src/commonMain/kotlin/`: Compose integration
-- `androidexample/src/main/java/`: Example Android app
+- `example-shared/src/commonMain/kotlin/`: Example app shared by Android and web (platform pieces plug in through `ExamplePlatform`)
+- `androidexample/src/main/java/`: Android shell of the example app
+- `webexample/src/wasmJsMain/kotlin/`: Web shell of the example app
 - `**/src/commonTest/kotlin/`: Test files for each module
 
 ## Testing

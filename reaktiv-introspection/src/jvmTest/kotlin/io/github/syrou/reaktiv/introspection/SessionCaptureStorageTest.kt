@@ -4,7 +4,9 @@ import io.github.syrou.reaktiv.introspection.capture.CaptureStorage
 import io.github.syrou.reaktiv.introspection.capture.FileCaptureStorage
 import io.github.syrou.reaktiv.introspection.capture.InMemoryCaptureStorage
 import io.github.syrou.reaktiv.introspection.capture.createCaptureStorage
+import kotlinx.io.buffered
 import kotlinx.io.files.Path
+import kotlinx.io.writeString
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
 import kotlin.test.AfterTest
@@ -35,7 +37,7 @@ class SessionCaptureStorageTest {
 
     @AfterTest
     fun cleanup() {
-        storages.forEach { it.delete() }
+        storages.forEach { it.clear() }
         storages.clear()
     }
 
@@ -45,9 +47,9 @@ class SessionCaptureStorageTest {
     fun `file storage appends and reads lines`() {
         val storage = fileStorage()
 
-        storage.appendLine("""{"action":"A1"}""")
-        storage.appendLine("""{"action":"A2"}""")
-        storage.appendLine("""{"action":"A3"}""")
+        storage.appendLines(listOf("""{"action":"A1"}"""))
+        storage.appendLines(listOf("""{"action":"A2"}"""))
+        storage.appendLines(listOf("""{"action":"A3"}"""))
 
         val lines = storage.readLines()
         assertEquals(3, lines.size)
@@ -61,10 +63,10 @@ class SessionCaptureStorageTest {
         val storage = fileStorage()
 
         assertEquals(0, storage.lineCount())
-        storage.appendLine("line1")
+        storage.appendLines(listOf("line1"))
         assertEquals(1, storage.lineCount())
-        storage.appendLine("line2")
-        storage.appendLine("line3")
+        storage.appendLines(listOf("line2"))
+        storage.appendLines(listOf("line3"))
         assertEquals(3, storage.lineCount())
     }
 
@@ -72,8 +74,8 @@ class SessionCaptureStorageTest {
     fun `file storage clear removes all data`() {
         val storage = fileStorage()
 
-        storage.appendLine("line1")
-        storage.appendLine("line2")
+        storage.appendLines(listOf("line1"))
+        storage.appendLines(listOf("line2"))
         storage.clear()
 
         assertEquals(0, storage.lineCount())
@@ -85,7 +87,7 @@ class SessionCaptureStorageTest {
         val storage = fileStorage()
 
         for (i in 1..10) {
-            storage.appendLine("line$i")
+            storage.appendLines(listOf("line$i"))
         }
         assertEquals(10, storage.lineCount())
 
@@ -103,13 +105,22 @@ class SessionCaptureStorageTest {
     fun `file storage trimTo is no-op when count within limit`() {
         val storage = fileStorage()
 
-        storage.appendLine("line1")
-        storage.appendLine("line2")
+        storage.appendLines(listOf("line1"))
+        storage.appendLines(listOf("line2"))
 
         storage.trimTo(5)
 
         assertEquals(2, storage.lineCount())
         assertEquals(listOf("line1", "line2"), storage.readLines())
+    }
+
+    @Test
+    fun `file storage ignores a line still being written`() {
+        val storage = fileStorage("torn")
+        storage.appendLines(listOf("""{"a":1}""", """{"b":2}"""))
+        SystemFileSystem.sink(Path(testDir, "torn.jsonl"), append = true).buffered().use { it.writeString("""{"c":""") }
+
+        assertEquals(listOf("""{"a":1}""", """{"b":2}"""), storage.readLines())
     }
 
     @Test
@@ -123,7 +134,7 @@ class SessionCaptureStorageTest {
         val storage = fileStorage()
 
         val jsonLine = """{"key":"value with \"quotes\" and \\backslashes","num":42}"""
-        storage.appendLine(jsonLine)
+        storage.appendLines(listOf(jsonLine))
 
         val lines = storage.readLines()
         assertEquals(1, lines.size)
@@ -131,24 +142,13 @@ class SessionCaptureStorageTest {
     }
 
     @Test
-    fun `file storage delete cleans up`() {
-        val storage = fileStorage()
-
-        storage.appendLine("data")
-        storage.delete()
-
-        assertEquals(0, storage.lineCount())
-        assertEquals(emptyList(), storage.readLines())
-    }
-
-    @Test
     fun `file storage multiple instances use separate files`() {
         val storage1 = fileStorage("file1")
         val storage2 = fileStorage("file2")
 
-        storage1.appendLine("from-storage1")
-        storage2.appendLine("from-storage2-a")
-        storage2.appendLine("from-storage2-b")
+        storage1.appendLines(listOf("from-storage1"))
+        storage2.appendLines(listOf("from-storage2-a"))
+        storage2.appendLines(listOf("from-storage2-b"))
 
         assertEquals(1, storage1.lineCount())
         assertEquals(2, storage2.lineCount())
@@ -162,8 +162,8 @@ class SessionCaptureStorageTest {
     fun `memory storage appends and reads lines`() {
         val storage = memoryStorage()
 
-        storage.appendLine("line1")
-        storage.appendLine("line2")
+        storage.appendLines(listOf("line1"))
+        storage.appendLines(listOf("line2"))
 
         assertEquals(listOf("line1", "line2"), storage.readLines())
     }
@@ -173,8 +173,8 @@ class SessionCaptureStorageTest {
         val storage = memoryStorage()
 
         assertEquals(0, storage.lineCount())
-        storage.appendLine("a")
-        storage.appendLine("b")
+        storage.appendLines(listOf("a"))
+        storage.appendLines(listOf("b"))
         assertEquals(2, storage.lineCount())
     }
 
@@ -182,7 +182,7 @@ class SessionCaptureStorageTest {
     fun `memory storage clear removes all data`() {
         val storage = memoryStorage()
 
-        storage.appendLine("data")
+        storage.appendLines(listOf("data"))
         storage.clear()
 
         assertEquals(0, storage.lineCount())
@@ -194,7 +194,7 @@ class SessionCaptureStorageTest {
         val storage = memoryStorage()
 
         for (i in 1..10) {
-            storage.appendLine("line$i")
+            storage.appendLines(listOf("line$i"))
         }
 
         storage.trimTo(3)
@@ -210,8 +210,8 @@ class SessionCaptureStorageTest {
     fun `memory storage trimTo is no-op when count within limit`() {
         val storage = memoryStorage()
 
-        storage.appendLine("a")
-        storage.appendLine("b")
+        storage.appendLines(listOf("a"))
+        storage.appendLines(listOf("b"))
         storage.trimTo(5)
 
         assertEquals(2, storage.lineCount())
@@ -224,8 +224,8 @@ class SessionCaptureStorageTest {
         val storage = createCaptureStorage("factory-test-${kotlin.random.Random.nextInt()}")
         storages.add(storage)
 
-        storage.appendLine("test-line-1")
-        storage.appendLine("test-line-2")
+        storage.appendLines(listOf("test-line-1"))
+        storage.appendLines(listOf("test-line-2"))
 
         assertEquals(2, storage.lineCount())
         val lines = storage.readLines()
@@ -253,7 +253,7 @@ class SessionCaptureStorageTest {
         val storage = fileStorage("order-test")
 
         val expected = (1..50).map { """{"index":$it}""" }
-        expected.forEach { storage.appendLine(it) }
+        expected.forEach { storage.appendLines(listOf(it)) }
 
         assertEquals(expected, storage.readLines())
     }
@@ -263,7 +263,7 @@ class SessionCaptureStorageTest {
         val storage = memoryStorage()
 
         val expected = (1..50).map { """{"index":$it}""" }
-        expected.forEach { storage.appendLine(it) }
+        expected.forEach { storage.appendLines(listOf(it)) }
 
         assertEquals(expected, storage.readLines())
     }
@@ -272,11 +272,11 @@ class SessionCaptureStorageTest {
     fun `file storage clear then reuse works`() {
         val storage = fileStorage("reuse-test")
 
-        storage.appendLine("round1-a")
-        storage.appendLine("round1-b")
+        storage.appendLines(listOf("round1-a"))
+        storage.appendLines(listOf("round1-b"))
         storage.clear()
 
-        storage.appendLine("round2-a")
+        storage.appendLines(listOf("round2-a"))
         assertEquals(1, storage.lineCount())
         assertEquals(listOf("round2-a"), storage.readLines())
     }
@@ -285,11 +285,11 @@ class SessionCaptureStorageTest {
     fun `memory storage clear then reuse works`() {
         val storage = memoryStorage()
 
-        storage.appendLine("round1-a")
-        storage.appendLine("round1-b")
+        storage.appendLines(listOf("round1-a"))
+        storage.appendLines(listOf("round1-b"))
         storage.clear()
 
-        storage.appendLine("round2-a")
+        storage.appendLines(listOf("round2-a"))
         assertEquals(1, storage.lineCount())
         assertEquals(listOf("round2-a"), storage.readLines())
     }
@@ -299,7 +299,7 @@ class SessionCaptureStorageTest {
         val storage = fileStorage("large-trim")
 
         for (i in 1..500) {
-            storage.appendLine("event-$i")
+            storage.appendLines(listOf("event-$i"))
         }
         assertEquals(500, storage.lineCount())
 
@@ -319,8 +319,8 @@ class SessionCaptureStorageTest {
         val actionJson1 = """{"clientId":"client-1","timestamp":1700000001,"actionType":"Increment","actionData":"CounterAction.Increment","stateDeltaJson":"{\"count\":1}","moduleName":"CounterModule"}"""
         val actionJson2 = """{"clientId":"client-1","timestamp":1700000002,"actionType":"Navigate","actionData":"NavigationAction.Navigate(route=/home)","stateDeltaJson":"{\"currentRoute\":\"/home\",\"backStack\":[]}","moduleName":"NavigationModule"}"""
 
-        storage.appendLine(actionJson1)
-        storage.appendLine(actionJson2)
+        storage.appendLines(listOf(actionJson1))
+        storage.appendLines(listOf(actionJson2))
 
         val lines = storage.readLines()
         assertEquals(2, lines.size)

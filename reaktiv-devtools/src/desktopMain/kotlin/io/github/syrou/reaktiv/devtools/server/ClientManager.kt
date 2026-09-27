@@ -1,6 +1,10 @@
 package io.github.syrou.reaktiv.devtools.server
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
+import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.devtools.protocol.ClientInfo
 import io.github.syrou.reaktiv.devtools.protocol.ClientRole
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
@@ -14,12 +18,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
-import io.github.syrou.reaktiv.core.util.reaktivJson
-import kotlinx.serialization.json.Json
 
 /**
  * Represents a ghost device imported from a recorded session.
  */
+@DevToolsInternalApi
 public data class GhostDevice(
     val ghostClientId: String,
     val originalClientInfo: ClientInfo,
@@ -34,7 +37,6 @@ public class ClientManager {
     private val mutex = Mutex()
     private val clients = mutableMapOf<String, ConnectedClient>()
     private val outbound = mutableMapOf<String, Outbound>()
-    private val subscriptions = mutableMapOf<String, MutableSet<String>>()
     private val ghostDevices = mutableMapOf<String, GhostDevice>()
     private var currentPublisherId: String? = null
 
@@ -43,27 +45,46 @@ public class ClientManager {
 
     private class Outbound(val queue: Channel<DevToolsMessage>, val writer: Job)
 
-    /**
-     * Drops all clients, subscriptions, ghosts and the current publisher assignment.
-     *
-     * Only useful for a host process that runs more than one server over its lifetime, since
-     * [DevToolsServer] is an object and would otherwise carry state between them.
-     */
-    public suspend fun reset(): Unit = mutex.withLock {
-        outbound.keys.toList().forEach(::closeOutbound)
-        clients.clear()
-        subscriptions.clear()
-        ghostDevices.clear()
-        currentPublisherId = null
+    internal suspend fun receive(
+        senderId: String?,
+        session: WebSocketSession,
+        message: DevToolsMessage
+    ): Unit = mutex.withLock {
+        when (message) {
+            is DevToolsMessage.ClientRegistration -> register(session, message)
+            is DevToolsMessage.RoleAssignment -> decideRole(senderId, message)
+            is DevToolsMessage.GhostDeviceRegistration -> registerGhost(message)
+            is DevToolsMessage.GhostDeviceRemoval -> {
+                removeGhost(message.ghostClientId)
+                linkWaitingObservers()
+            }
+            is DevToolsMessage.GhostSessionRequest -> senderId?.let { restoreGhostTo(it, message.ghostClientId) }
+            is DevToolsMessage.ClientStatus -> orchestrators().forEach { enqueue(it, message) }
+            is DevToolsMessage.Targeted -> enqueue(message.targetClientId, message)
+            is DevToolsMessage.ActionDispatched,
+            is DevToolsMessage.StateSync,
+            is DevToolsMessage.FromClient -> senderId?.let { relay(it, message) }
+            else -> ReaktivDebug.general("DevTools Server: Ignored ${message::class.simpleName} from $senderId")
+        }
+    }
+
+    internal suspend fun unregisterSession(clientId: String, session: WebSocketSession): Unit = mutex.withLock {
+        if (clients[clientId]?.session === session) removeClient(clientId)
     }
 
     /**
-     * Registers a new client connection.
+     * The current publisher, or null when none is assigned.
      */
-    public suspend fun registerClient(
-        session: WebSocketSession,
-        registration: DevToolsMessage.ClientRegistration
-    ): Unit = mutex.withLock {
+    public suspend fun currentPublisher(): String? = mutex.withLock { currentPublisherId }
+
+    /**
+     * Gets information about a specific client.
+     */
+    public suspend fun getClient(clientId: String): ClientInfo? = mutex.withLock {
+        clients[clientId]?.info
+    }
+
+    private fun register(session: WebSocketSession, registration: DevToolsMessage.ClientRegistration) {
         closeOutbound(registration.clientId)
         clients[registration.clientId] = ConnectedClient(
             session = session,
@@ -77,191 +98,158 @@ public class ClientManager {
             )
         )
         openOutbound(registration.clientId, session)
-
-        println("DevTools Server: Client registered - ${registration.clientName} (${registration.platform})")
-
+        ReaktivDebug.general("DevTools Server: Client registered - ${registration.clientName} (${registration.platform})")
         broadcastClientList()
     }
 
-    /**
-     * Sends a ghost's session export to a single client, in answer to a request.
-     */
-    public suspend fun sendGhostSession(requesterId: String, ghostId: String): Unit = mutex.withLock {
-        val payload = ghostDevices[ghostId]?.sessionExportJson ?: return@withLock
-        enqueue(
-            requesterId,
-            DevToolsMessage.GhostSessionRestore(
-                ghostClientId = ghostId,
-                sessionExportJson = payload
-            )
-        )
-        println("DevTools Server: Sent ghost session for $ghostId to $requesterId")
-    }
-
-    /**
-     * Unregisters a client and removes all subscriptions.
-     */
-    public suspend fun unregisterClient(clientId: String): Unit = mutex.withLock {
-        val client = clients.remove(clientId) ?: return@withLock
+    private fun removeClient(clientId: String) {
+        val client = clients.remove(clientId) ?: return
         closeOutbound(clientId)
-
-        if (client.info.role == ClientRole.LISTENER || client.info.role == ClientRole.ORCHESTRATOR) {
-            subscriptions[client.info.publisherClientId]?.remove(clientId)
-        }
-        subscriptions.values.forEach { listeners -> listeners.remove(clientId) }
+        unlinkObserversOf(clientId)
 
         if (currentPublisherId == clientId) {
             currentPublisherId = null
-            println("DevTools Server: Publisher disconnected - $clientId")
+            ReaktivDebug.general("DevTools Server: Publisher disconnected - $clientId")
             broadcastPublisherChanged(null, clientId, "Publisher disconnected")
         }
 
-        println("DevTools Server: Client disconnected - ${client.info.clientName}")
+        ReaktivDebug.general("DevTools Server: Client disconnected - ${client.info.clientName}")
         broadcastClientList()
     }
 
-    /**
-     * Assigns a role to a client.
-     */
-    public suspend fun assignRole(
-        clientId: String,
-        role: ClientRole,
-        publisherClientId: String?
-    ): Unit = mutex.withLock {
-        val client = clients[clientId] ?: return@withLock
-
-        if ((client.info.role == ClientRole.LISTENER || client.info.role == ClientRole.ORCHESTRATOR) &&
-            client.info.publisherClientId != null
-        ) {
-            subscriptions[client.info.publisherClientId]?.remove(clientId)
+    private fun decideRole(senderId: String?, request: DevToolsMessage.RoleAssignment) {
+        val target = request.targetClientId
+        val publisher = currentPublisherId
+        val senderIsOrchestrator = senderId?.let { clients[it]?.info?.role } == ClientRole.ORCHESTRATOR
+        val role: ClientRole
+        val link: String?
+        when (request.role) {
+            ClientRole.PUBLISHER -> {
+                if (publisher == null || publisher == target || senderIsOrchestrator) {
+                    movePublisherTo(target, "Role assignment request")
+                    role = ClientRole.PUBLISHER
+                } else {
+                    ReaktivDebug.general("DevTools Server: Publisher already exists ($publisher), $target remains UNASSIGNED")
+                    role = ClientRole.UNASSIGNED
+                }
+                link = null
+            }
+            ClientRole.LISTENER, ClientRole.ORCHESTRATOR -> {
+                role = request.role
+                link = request.publisherClientId ?: publisher
+            }
+            ClientRole.UNASSIGNED -> {
+                role = ClientRole.UNASSIGNED
+                link = null
+            }
         }
+        applyRole(target, role, link)?.let { requestBaseline(it, target, role) }
+        linkWaitingObservers()
+    }
 
-        clients[clientId] = client.copy(
-            info = client.info.copy(role = role, publisherClientId = publisherClientId)
-        )
-
-        if ((role == ClientRole.LISTENER || role == ClientRole.ORCHESTRATOR) && publisherClientId != null) {
-            subscriptions.getOrPut(publisherClientId) { mutableSetOf() }.add(clientId)
+    private fun applyRole(clientId: String, role: ClientRole, publisherClientId: String?): String? {
+        val client = clients[clientId] ?: return null
+        if (currentPublisherId == clientId && role != ClientRole.PUBLISHER) {
+            currentPublisherId = null
+            unlinkObserversOf(clientId)
+            broadcastPublisherChanged(null, clientId, "Publisher took the $role role")
         }
+        val link = publisherClientId?.takeIf { role.isObserver && it != clientId }
+        val previous = client.info
+        clients[clientId] = client.copy(info = previous.copy(role = role, publisherClientId = link))
 
         enqueue(
             clientId,
             DevToolsMessage.RoleAssignment(
                 targetClientId = clientId,
                 role = role,
-                publisherClientId = publisherClientId
+                publisherClientId = link
             )
         )
 
-        println("DevTools Server: Assigned role $role to ${client.info.clientName}")
+        ReaktivDebug.general("DevTools Server: Assigned role $role to ${previous.clientName}")
 
+        broadcastClientList()
+        return link?.takeIf { previous.role != role || previous.publisherClientId != link }
+    }
+
+    private fun movePublisherTo(clientId: String, reason: String) {
+        val previousPublisher = currentPublisherId
+
+        if (previousPublisher != null && previousPublisher != clientId &&
+            ghostDevices.containsKey(previousPublisher) && !ghostDevices.containsKey(clientId)
+        ) {
+            ghostDevices.remove(previousPublisher)
+            unlinkObserversOf(previousPublisher)
+            ReaktivDebug.general("DevTools Server: Ghost device auto-removed due to real publisher - $previousPublisher")
+        }
+        clients.values
+            .filter { it.info.role == ClientRole.PUBLISHER && it.info.clientId != clientId }
+            .forEach { demoted ->
+                val demotedId = demoted.info.clientId
+                clients[demotedId] = demoted.copy(
+                    info = demoted.info.copy(role = ClientRole.UNASSIGNED, publisherClientId = null)
+                )
+                unlinkObserversOf(demotedId)
+                enqueue(demotedId, DevToolsMessage.RoleAssignment(targetClientId = demotedId, role = ClientRole.UNASSIGNED))
+            }
+
+        currentPublisherId = clientId
+
+        broadcastPublisherChanged(clientId, previousPublisher, reason)
         broadcastClientList()
     }
 
-    /**
-     * Links every observer that has no publisher to the current one and returns those newly
-     * linked, so each can be sent a baseline.
-     *
-     * Role assignments arrive concurrently, so a listener and a publisher registering at the
-     * same time can interleave such that neither sees the other: the listener is assigned while
-     * there is still no publisher, and the publisher runs its auto-attach before the listener's
-     * role has been recorded. Running this after every assignment makes the linkage
-     * self-healing, since whichever assignment lands last completes it.
-     *
-     * @return the observers linked by this call, empty when there was nothing to do
-     */
-    public suspend fun attachWaitingObservers(): List<Pair<String, ClientRole>> = mutex.withLock {
-        val publisherId = currentPublisherId ?: return@withLock emptyList()
-        val attached = mutableListOf<Pair<String, ClientRole>>()
-
-        clients.values.toList().forEach { connectedClient ->
-            val info = connectedClient.info
-            val isObserver = info.role == ClientRole.LISTENER || info.role == ClientRole.ORCHESTRATOR
-            if (isObserver && info.publisherClientId == null && info.clientId != publisherId) {
-                clients[info.clientId] = connectedClient.copy(
-                    info = info.copy(publisherClientId = publisherId)
-                )
-                subscriptions.getOrPut(publisherId) { mutableSetOf() }.add(info.clientId)
-                enqueue(
-                    info.clientId,
-                    DevToolsMessage.RoleAssignment(
-                        targetClientId = info.clientId,
-                        role = info.role,
-                        publisherClientId = publisherId
-                    )
-                )
-                attached.add(info.clientId to info.role)
-                println("DevTools Server: Attached waiting ${info.role} ${info.clientId} to $publisherId")
+    private fun linkWaitingObservers(): List<Pair<String, ClientRole>> {
+        val publisherId = currentPublisherId ?: return emptyList()
+        val linked = clients.values.toList().mapNotNull { client ->
+            val info = client.info
+            if (!info.role.isObserver || info.publisherClientId != null || info.clientId == publisherId) {
+                return@mapNotNull null
             }
+            clients[info.clientId] = client.copy(info = info.copy(publisherClientId = publisherId))
+            enqueue(
+                info.clientId,
+                DevToolsMessage.RoleAssignment(
+                    targetClientId = info.clientId,
+                    role = info.role,
+                    publisherClientId = publisherId
+                )
+            )
+            ReaktivDebug.general("DevTools Server: Attached waiting ${info.role} ${info.clientId} to $publisherId")
+            info.clientId to info.role
         }
-        attached
+        linked.forEach { (observerId, role) -> requestBaseline(publisherId, observerId, role) }
+        return linked
     }
 
-    /**
-     * The current publisher, or null when none is assigned.
-     */
-    public suspend fun currentPublisher(): String? = mutex.withLock { currentPublisherId }
+    private fun requestBaseline(publisherId: String, observerId: String, role: ClientRole) {
+        val notification = DevToolsMessage.ListenerAttached(listenerId = observerId, role = role)
+        if (ghostDevices.containsKey(publisherId)) {
+            observersOf(publisherId)
+                .filter { it.info.role == ClientRole.ORCHESTRATOR }
+                .forEach { enqueue(it.info.clientId, notification) }
+        } else {
+            enqueue(publisherId, notification)
+        }
+    }
 
-    /**
-     * Broadcasts a message to every connected orchestrator.
-     *
-     * Client status is not tied to a publisher subscription: a follower reporting that it cannot
-     * replicate needs to reach the UI regardless of which publisher, if any, it is following.
-     */
-    public suspend fun broadcastToOrchestrators(message: DevToolsMessage): Unit = mutex.withLock {
-        clients.values
-            .filter { it.info.role == ClientRole.ORCHESTRATOR }
+    private fun relay(senderId: String, message: DevToolsMessage) {
+        val origin = message.origin ?: return
+        if (origin != senderId && !orchestrates(senderId, origin)) {
+            ReaktivDebug.warn("DevTools Server: Dropped ${message::class.simpleName} from $senderId sent as $origin")
+            return
+        }
+        val reachesFollowers = message is DevToolsMessage.ActionDispatched || message is DevToolsMessage.StateSync
+        observersOf(origin)
+            .filter { reachesFollowers || it.info.role == ClientRole.ORCHESTRATOR }
             .forEach { enqueue(it.info.clientId, message) }
     }
 
-    /**
-     * Broadcasts a message to all listeners of a publisher.
-     */
-    public suspend fun broadcastToListeners(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
-        (subscriptions[publisherId] ?: emptySet()).forEach { enqueue(it, message) }
-    }
+    private fun orchestrates(clientId: String, publisherId: String): Boolean =
+        clients[clientId]?.info?.let { it.role == ClientRole.ORCHESTRATOR && it.publisherClientId == publisherId } == true
 
-    /**
-     * Broadcasts to the orchestrators subscribed to a publisher, skipping its listeners.
-     *
-     * Observability payloads such as network and log batches are only rendered by the UI. A
-     * listener replicates state and discards them, so delivering them there costs bandwidth on
-     * every attached device and, for a large batch, can exceed a platform websocket message limit.
-     */
-    public suspend fun broadcastToObservers(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
-        (subscriptions[publisherId] ?: emptySet()).forEach { clientId ->
-            if (clients[clientId]?.info?.role == ClientRole.ORCHESTRATOR) {
-                enqueue(clientId, message)
-            }
-        }
-    }
-
-    /**
-     * Sends a message to the publisher client.
-     */
-    public suspend fun sendToPublisher(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
-        enqueue(publisherId, message)
-    }
-
-    /**
-     * Gets information about a specific client.
-     */
-    public suspend fun getClient(clientId: String): ClientInfo? = mutex.withLock {
-        clients[clientId]?.info
-    }
-
-    /**
-     * Gets all connected clients including ghost devices.
-     */
-    public suspend fun getAllClients(): List<ClientInfo> = mutex.withLock { allClientInfos() }
-
-    /**
-     * Registers a ghost device from an imported session.
-     * Ghost devices can be played back and will broadcast events to listeners.
-     */
-    public suspend fun registerGhostDevice(
-        registration: DevToolsMessage.GhostDeviceRegistration
-    ): String = mutex.withLock {
+    private fun registerGhost(registration: DevToolsMessage.GhostDeviceRegistration): String {
         val ghostId = "ghost-${registration.sessionId}"
 
         ghostDevices[ghostId] = GhostDevice(
@@ -269,92 +257,64 @@ public class ClientManager {
             originalClientInfo = registration.originalClientInfo,
             sessionStartTime = registration.sessionStartTime,
             sessionEndTime = registration.sessionEndTime,
-            eventCount = registration.eventCount,
-            logicEventCount = registration.logicEventCount,
             sessionExportJson = registration.sessionExportJson
         )
 
-        println("DevTools Server: Ghost device registered - $ghostId (${registration.eventCount} events)")
+        ReaktivDebug.general("DevTools Server: Ghost device registered - $ghostId")
 
         val previousPublisher = currentPublisherId
         currentPublisherId = ghostId
 
         broadcastPublisherChanged(ghostId, previousPublisher, "Ghost device imported")
         broadcastClientList()
-
-        return@withLock ghostId
+        return ghostId
     }
 
-    /**
-     * Removes a ghost device.
-     */
-    public suspend fun removeGhostDevice(ghostId: String): Unit = mutex.withLock {
-        ghostDevices.remove(ghostId) ?: return@withLock
-        println("DevTools Server: Ghost device removed - $ghostId")
+    private fun removeGhost(ghostId: String) {
+        ghostDevices.remove(ghostId) ?: return
+        ReaktivDebug.general("DevTools Server: Ghost device removed - $ghostId")
 
-        subscriptions.remove(ghostId)
+        unlinkObserversOf(ghostId)
 
         if (currentPublisherId == ghostId) {
-            currentPublisherId = null
-            broadcastPublisherChanged(null, ghostId, "Ghost device removed")
+            val displaced = clients.values.firstOrNull { it.info.role == ClientRole.PUBLISHER }?.info?.clientId
+            currentPublisherId = displaced
+            broadcastPublisherChanged(displaced, ghostId, "Ghost device removed")
         }
 
         broadcastClientList()
     }
 
-    /**
-     * Gets a ghost device by ID.
-     */
-    public suspend fun getGhostDevice(ghostId: String): GhostDevice? = mutex.withLock {
-        ghostDevices[ghostId]
+    private fun restoreGhostTo(requesterId: String, ghostId: String) {
+        val payload = ghostDevices[ghostId]?.sessionExportJson ?: return
+        enqueue(
+            requesterId,
+            DevToolsMessage.GhostSessionRestore(
+                ghostClientId = ghostId,
+                sessionExportJson = payload
+            )
+        )
+        ReaktivDebug.general("DevTools Server: Sent ghost session for $ghostId to $requesterId")
     }
 
-    /**
-     * Checks if a client ID belongs to a ghost device.
-     */
-    public suspend fun isGhostDevice(clientId: String): Boolean = mutex.withLock {
-        ghostDevices.containsKey(clientId)
+    private fun resetLocked() {
+        outbound.keys.toList().forEach(::closeOutbound)
+        clients.clear()
+        ghostDevices.clear()
+        currentPublisherId = null
     }
 
-    /**
-     * Sets the current publisher. Only one publisher is allowed at a time.
-     * If the new publisher is a real device and there's a ghost publisher, the ghost is removed.
-     */
-    public suspend fun setPublisher(clientId: String, reason: String): Unit = mutex.withLock {
-        val previousPublisher = currentPublisherId
-
-        if (previousPublisher != null && previousPublisher != clientId) {
-            if (ghostDevices.containsKey(previousPublisher) && !ghostDevices.containsKey(clientId)) {
-                ghostDevices.remove(previousPublisher)
-                subscriptions.remove(previousPublisher)
-                println("DevTools Server: Ghost device auto-removed due to real publisher - $previousPublisher")
-            } else if (!ghostDevices.containsKey(previousPublisher)) {
-                clients[previousPublisher]?.let {
-                    clients[previousPublisher] = it.copy(
-                        info = it.info.copy(role = ClientRole.UNASSIGNED, publisherClientId = null)
-                    )
-                }
-            }
+    private fun unlinkObserversOf(publisherId: String) {
+        observersOf(publisherId).forEach { observer ->
+            clients[observer.info.clientId] = observer.copy(info = observer.info.copy(publisherClientId = null))
         }
-
-        currentPublisherId = clientId
-
-        // Linking waiting observers is deliberately not done here. It lives in
-        // attachWaitingObservers, which the server calls after every role assignment and whose
-        // return value drives the baseline request. Doing it in both places meant whichever ran
-        // first linked the observer silently, leaving the other with nothing to report and the
-        // observer subscribed but never seeded.
-
-        broadcastPublisherChanged(clientId, previousPublisher, reason)
-        broadcastClientList()
     }
 
-    @Deprecated(
-        "Duplicate of currentPublisher().",
-        ReplaceWith("currentPublisher()"),
-        DeprecationLevel.WARNING
-    )
-    public suspend fun getCurrentPublisher(): String? = currentPublisher()
+    private fun observersOf(publisherId: String): List<ConnectedClient> =
+        clients.values.filter { it.info.role.isObserver && it.info.publisherClientId == publisherId }
+
+    private fun orchestrators(): List<String> =
+        clients.values.filter { it.info.role == ClientRole.ORCHESTRATOR }.map { it.info.clientId }
 
     private fun allClientInfos(): List<ClientInfo> {
         val ghosts = ghostDevices.values.map { ghost ->
@@ -404,7 +364,7 @@ public class ClientManager {
                 try {
                     session.send(Frame.Text(json.encodeToString(message)))
                 } catch (e: Exception) {
-                    println("DevTools Server: Failed to send message to $clientId - ${e.message}")
+                    ReaktivDebug.warn("DevTools Server: Failed to send message to $clientId - ${e.message}")
                 }
             }
         }
@@ -417,11 +377,111 @@ public class ClientManager {
             it.writer.cancel()
         }
     }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun reset(): Unit = mutex.withLock { resetLocked() }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun registerClient(
+        session: WebSocketSession,
+        registration: DevToolsMessage.ClientRegistration
+    ): Unit = mutex.withLock { register(session, registration) }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun sendGhostSession(requesterId: String, ghostId: String): Unit =
+        mutex.withLock { restoreGhostTo(requesterId, ghostId) }
+
+    @Deprecated("Unused by the server. It will become internal.", level = DeprecationLevel.WARNING)
+    public suspend fun unregisterClient(clientId: String): Unit = mutex.withLock {
+        removeClient(clientId)
+    }
+
+    @Deprecated("Unused by the server. It will become internal.", level = DeprecationLevel.WARNING)
+    public suspend fun assignRole(
+        clientId: String,
+        role: ClientRole,
+        publisherClientId: String?
+    ): Unit = mutex.withLock {
+        applyRole(clientId, role, publisherClientId)
+    }
+
+    @Deprecated("Unused by the server. It will become internal.", level = DeprecationLevel.WARNING)
+    public suspend fun attachWaitingObservers(): List<Pair<String, ClientRole>> =
+        mutex.withLock { linkWaitingObservers() }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun broadcastToOrchestrators(message: DevToolsMessage): Unit = mutex.withLock {
+        orchestrators().forEach { enqueue(it, message) }
+    }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun broadcastToListeners(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
+        observersOf(publisherId).forEach { enqueue(it.info.clientId, message) }
+    }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun broadcastToObservers(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
+        observersOf(publisherId)
+            .filter { it.info.role == ClientRole.ORCHESTRATOR }
+            .forEach { enqueue(it.info.clientId, message) }
+    }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun sendToPublisher(publisherId: String, message: DevToolsMessage): Unit = mutex.withLock {
+        enqueue(publisherId, message)
+    }
+
+    @Deprecated("Unused by the server. It will become internal.", level = DeprecationLevel.WARNING)
+    public suspend fun getAllClients(): List<ClientInfo> = mutex.withLock { allClientInfos() }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun registerGhostDevice(
+        registration: DevToolsMessage.GhostDeviceRegistration
+    ): String = mutex.withLock { registerGhost(registration) }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun removeGhostDevice(ghostId: String): Unit = mutex.withLock { removeGhost(ghostId) }
+
+    @Deprecated("Unused by the server. It will become internal.", level = DeprecationLevel.WARNING)
+    public suspend fun getGhostDevice(ghostId: String): GhostDevice? = mutex.withLock {
+        ghostDevices[ghostId]
+    }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun isGhostDevice(clientId: String): Boolean = mutex.withLock {
+        ghostDevices.containsKey(clientId)
+    }
+
+    @Deprecated(SERVER_INTERNAL, level = DeprecationLevel.WARNING)
+    public suspend fun setPublisher(clientId: String, reason: String): Unit =
+        mutex.withLock { movePublisherTo(clientId, reason) }
+
+    @Deprecated(
+        "Duplicate of currentPublisher().",
+        ReplaceWith("currentPublisher()"),
+        DeprecationLevel.WARNING
+    )
+    public suspend fun getCurrentPublisher(): String? = currentPublisher()
 }
+
+private const val SERVER_INTERNAL: String =
+    "Server bookkeeping. The server routes every message through one decision, so this becomes internal in the next release."
+
+private val ClientRole.isObserver: Boolean
+    get() = this == ClientRole.LISTENER || this == ClientRole.ORCHESTRATOR
+
+private val DevToolsMessage.origin: String?
+    get() = when (this) {
+        is DevToolsMessage.ActionDispatched -> clientId
+        is DevToolsMessage.StateSync -> fromClientId
+        is DevToolsMessage.FromClient -> clientId
+        else -> null
+    }
 
 /**
  * Represents a connected client with their session and info.
  */
+@DevToolsInternalApi
 public data class ConnectedClient(
     val session: WebSocketSession,
     val info: ClientInfo

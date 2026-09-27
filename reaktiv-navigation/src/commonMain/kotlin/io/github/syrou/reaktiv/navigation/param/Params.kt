@@ -4,9 +4,15 @@ import io.github.syrou.reaktiv.core.serialization.AnySerializer
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.serializer
 import kotlinx.serialization.json.Json
-import kotlin.jvm.JvmName
+
+@PublishedApi
+internal fun <T> typedParamValue(value: T, serializer: KSerializer<T>): Any = when (value) {
+    is String, is Int, is Boolean, is Double, is Long, is Float -> value as Any
+    else -> SerializableParam(value, serializer)
+}
 
 /**
  * Type-safe parameter container for navigation.
@@ -29,8 +35,7 @@ import kotlin.jvm.JvmName
  */
 @Serializable
 public class Params private constructor(
-    @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-    @Serializable(with = AnySerializer::class)
+    @Serializable(with = ParamsValuesSerializer::class)
     private val values: Map<String, Any>
 ) {
     public val size: Int = values.size
@@ -53,7 +58,6 @@ public class Params private constructor(
             "Never used by navigation. Build a Params from the resolved route instead.",
             level = DeprecationLevel.WARNING
         )
-        @Suppress("DEPRECATION")
         public fun fromUrl(encodedQuery: String): Params {
             val encoder = DualNavigationParameterEncoder()
             val decoded = encoder.decodeSimpleQueryString(encodedQuery)
@@ -78,12 +82,7 @@ public class Params private constructor(
     
     // For complex types
     public fun <T : Any> withTyped(key: String, value: T, serializer: KSerializer<T>): Params {
-        val storedValue = when (value::class) {
-            String::class, Int::class, Boolean::class, 
-            Double::class, Long::class, Float::class -> value
-            else -> SerializableParam(value, serializer) // Complex objects get wrapped
-        }
-        return Params(values + (key to storedValue))
+        return Params(values + (key to typedParamValue(value, serializer)))
     }
     
     // Convenience inline version for reified types
@@ -93,8 +92,11 @@ public class Params private constructor(
     
     // Type-safe retrieval
     public fun getString(key: String): String? = when (val value = values[key]) {
+        null -> null
         is String -> value
-        else -> tryDecodeString(value?.toString())
+        is TypedParam<*> -> value.asText()
+        is Map<*, *>, is List<*> -> Json.encodeToString(AnySerializer, value)
+        else -> value.toString()
     }
     
     public fun getInt(key: String): Int? = when (val value = values[key]) {
@@ -135,11 +137,13 @@ public class Params private constructor(
     @Suppress("UNCHECKED_CAST")
     public fun <T> getTyped(key: String, serializer: KSerializer<T>): T? {
         return when (val value = values[key]) {
-            is TypedParam<*> -> {
-                @Suppress("UNCHECKED_CAST")
-                (value as? TypedParam<T>)?.value
-            }
+            null -> null
+            is TypedParam<*> -> (value as? TypedParam<T>)?.value
             is String -> tryDecodeJsonOrSimple(value, serializer)
+            is Number, is Boolean -> coerceScalar(value, serializer)
+                ?: decodeJsonValue(value, serializer)
+                ?: value as? T
+            is Map<*, *>, is List<*> -> decodeJsonValue(value, serializer) ?: value as? T
             else -> value as? T
         }
     }
@@ -196,17 +200,44 @@ public class Params private constructor(
     // Internal access to raw values (for migration compatibility)
     public fun toMap(): Map<String, Any> = values
     
-    private fun tryDecodeString(value: String?): String? {
-        if (value == null) return null
-        val encoder = DualNavigationParameterEncoder()
+    @Suppress("UNCHECKED_CAST")
+    private fun TypedParam<*>.asText(): String? {
+        val raw = value
+        if (raw == null || raw is String) return raw as String?
+        val typed = this as TypedParam<Any?>
         return try {
-            val decoded = encoder.decodeSimple(value)
-            decoded.toString()
-        } catch (e: Exception) {
-            value // Return as-is if decoding fails
+            Json.encodeToString(typed.serializer, typed.value)
+        } catch (e: SerializationException) {
+            raw.toString()
         }
     }
-    
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> coerceScalar(value: Any, serializer: KSerializer<T>): T? {
+        val number = value as? Number
+        return when (serializer.descriptor.serialName.removeSuffix("?")) {
+            "kotlin.String" -> value.toString() as T
+            "kotlin.Int" -> number?.toInt() as T?
+            "kotlin.Long" -> number?.toLong() as T?
+            "kotlin.Double" -> number?.toDouble() as T?
+            "kotlin.Float" -> number?.toFloat() as T?
+            "kotlin.Short" -> number?.toInt()?.toShort() as T?
+            "kotlin.Byte" -> number?.toInt()?.toByte() as T?
+            "kotlin.Boolean" -> value as? Boolean as T?
+            else -> null
+        }
+    }
+
+    private fun <T> decodeJsonValue(value: Any, serializer: KSerializer<T>): T? {
+        return try {
+            Json.decodeFromJsonElement(serializer, Json.encodeToJsonElement(AnySerializer, value))
+        } catch (e: SerializationException) {
+            null
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+    }
+
     private fun <T> tryDecodeJsonOrSimple(jsonString: String, serializer: KSerializer<T>): T? {
         return try {
             // Try JSON deserialization first
@@ -252,6 +283,7 @@ public class Params private constructor(
 /**
  * Helper builder for fluent parameter construction
  */
+@Deprecated("Unused. Removed in the next release. Build Params with Params.of or Params.empty().", level = DeprecationLevel.WARNING)
 public class ParamsBuilder {
     @PublishedApi
     internal var params: Params = Params.empty()

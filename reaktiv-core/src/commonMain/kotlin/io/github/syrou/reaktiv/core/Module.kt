@@ -5,6 +5,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+@Deprecated("Unused marker. Use ModuleLogic.", ReplaceWith("ModuleLogic"), DeprecationLevel.WARNING)
 public interface Logic
 
 
@@ -39,6 +40,7 @@ public interface Logic
  * }
  * ```
  */
+@Suppress("DEPRECATION")
 public open class ModuleLogic : Logic {
 
     /**
@@ -89,6 +91,8 @@ public open class ModuleLogic : Logic {
      * @param externallyDriven `true` when entering external control, `false` when leaving it
      */
     public open suspend fun onExternalControlChanged(externallyDriven: Boolean) {}
+
+    public open suspend fun onHydrated(source: HydrateSource) {}
 }
 
 /**

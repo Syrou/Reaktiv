@@ -11,9 +11,6 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
  * Configuration keys for the Reaktiv tracing compiler plugin.
  */
 object ReaktivTracingConfigurationKeys {
-    val ENABLED: CompilerConfigurationKey<Boolean> =
-        CompilerConfigurationKey.create("enabled")
-
     val TRACE_PRIVATE_METHODS: CompilerConfigurationKey<Boolean> =
         CompilerConfigurationKey.create("tracePrivateMethods")
 
@@ -38,14 +35,6 @@ class ReaktivTracingCommandLineProcessor : CommandLineProcessor {
 
     companion object {
         const val PLUGIN_ID = "io.github.syrou.reaktiv.tracing"
-
-        val OPTION_ENABLED = CliOption(
-            optionName = "enabled",
-            valueDescription = "<true|false>",
-            description = "Enable or disable logic tracing",
-            required = false,
-            allowMultipleOccurrences = false
-        )
 
         val OPTION_TRACE_PRIVATE = CliOption(
             optionName = "tracePrivateMethods",
@@ -83,7 +72,6 @@ class ReaktivTracingCommandLineProcessor : CommandLineProcessor {
     override val pluginId: String = PLUGIN_ID
 
     override val pluginOptions: Collection<AbstractCliOption> = listOf(
-        OPTION_ENABLED,
         OPTION_TRACE_PRIVATE,
         OPTION_GITHUB_REPO_URL,
         OPTION_GITHUB_BRANCH,
@@ -96,9 +84,6 @@ class ReaktivTracingCommandLineProcessor : CommandLineProcessor {
         configuration: CompilerConfiguration
     ) {
         when (option.optionName) {
-            OPTION_ENABLED.optionName -> {
-                configuration.put(ReaktivTracingConfigurationKeys.ENABLED, value.toBoolean())
-            }
             OPTION_TRACE_PRIVATE.optionName -> {
                 configuration.put(ReaktivTracingConfigurationKeys.TRACE_PRIVATE_METHODS, value.toBoolean())
             }

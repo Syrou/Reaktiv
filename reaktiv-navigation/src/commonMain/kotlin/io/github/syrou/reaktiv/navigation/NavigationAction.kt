@@ -2,10 +2,12 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
+import io.github.syrou.reaktiv.navigation.model.StartFailure
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -46,6 +48,7 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     @Serializable
     public data class Navigate(
         @Contextual val entry: NavigationEntry,
+        @Deprecated("Ignored. A modal's underlying screen is derived from the back stack.")
         val modalContext: ModalContext? = null,
         val dismissModals: Boolean = false
     ) : NavigationAction(), HighPriorityAction
@@ -54,7 +57,12 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     public data class Replace(@Contextual val entry: NavigationEntry) : NavigationAction(), HighPriorityAction
 
     @Serializable
-    public data class Back(val expectedTopKey: String? = null) : NavigationAction(), HighPriorityAction
+    public data class Back(
+        val expectedTopKey: String? = null,
+        val presentation: TraversePresentation = TraversePresentation.Animate
+    ) : NavigationAction(), HighPriorityAction {
+        public constructor(expectedTopKey: String?) : this(expectedTopKey, TraversePresentation.Animate)
+    }
 
     @Serializable
     public object ClearBackstack : NavigationAction(), HighPriorityAction
@@ -63,8 +71,16 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     public data class PopUpTo(
         val route: String,
         val inclusive: Boolean,
-        @Contextual val entryToReAdd: NavigationEntry? = null
-    ) : NavigationAction(), HighPriorityAction
+        @Contextual val entryToReAdd: NavigationEntry? = null,
+        val targetKey: String? = null,
+        val presentation: TraversePresentation = TraversePresentation.Animate
+    ) : NavigationAction(), HighPriorityAction {
+        public constructor(route: String, inclusive: Boolean, entryToReAdd: NavigationEntry?) :
+            this(route, inclusive, entryToReAdd, null)
+
+        public constructor(route: String, inclusive: Boolean, entryToReAdd: NavigationEntry?, targetKey: String?) :
+            this(route, inclusive, entryToReAdd, targetKey, TraversePresentation.Animate)
+    }
 
     @Serializable
     public data class SetPendingNavigation(
@@ -80,6 +96,9 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     @Serializable
     public object BootstrapComplete : NavigationAction(), HighPriorityAction
 
+    @Serializable
+    public data class SetStartFailure(val failure: StartFailure?) : NavigationAction(), HighPriorityAction
+
     /**
      * Sets [NavigationState.isEvaluatingNavigation] to [isEvaluating].
      *
@@ -94,6 +113,15 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
     public data class SetEvaluating(val isEvaluating: Boolean) : NavigationAction(), HighPriorityAction
 
     @Serializable
+    @ConsistentCopyVisibility
+    public data class Traverse internal constructor(
+        val entries: List<@Contextual NavigationEntry>,
+        val direction: TraverseDirection,
+        val presentation: TraversePresentation,
+        val expectedTopKey: String? = null
+    ) : NavigationAction(), HighPriorityAction
+
+    @Serializable
     public data class ScrubUpdate(val scrub: ScrubState) : NavigationAction(), HighPriorityAction
 
     @Serializable
@@ -101,9 +129,46 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 }
 
 @Serializable
+public enum class TraverseDirection { Back, Forward }
+
+@Serializable
+public enum class TraversePresentation { Animate, AlreadyPresented }
+
+@Serializable
+public enum class ScrubType {
+    @SerialName("back-scrub")
+    Back,
+
+    @SerialName("dismiss-scrub")
+    Dismiss,
+
+    @SerialName("modal-dismiss-scrub")
+    ModalDismiss
+}
+
+private val ScrubType.wireName: String
+    get() = ScrubType.serializer().descriptor.getElementName(ordinal)
+
+@Serializable
 public data class ScrubState(
-    val kind: String,
+    @SerialName("kind") val type: ScrubType,
     val topKey: String,
     val revealedKey: String? = null,
     val progress: Float = 0f
-)
+) {
+    @Deprecated(
+        "Pass a ScrubType instead of its wire name.",
+        ReplaceWith("ScrubState(ScrubType.Back, topKey, revealedKey, progress)"),
+        level = DeprecationLevel.WARNING
+    )
+    public constructor(kind: String, topKey: String, revealedKey: String? = null, progress: Float = 0f) : this(
+        ScrubType.entries.firstOrNull { it.wireName == kind }
+            ?: throw IllegalArgumentException("Unknown scrub kind '$kind'"),
+        topKey,
+        revealedKey,
+        progress
+    )
+
+    @Deprecated("Read type instead.", ReplaceWith("type"), level = DeprecationLevel.WARNING)
+    val kind: String get() = type.wireName
+}

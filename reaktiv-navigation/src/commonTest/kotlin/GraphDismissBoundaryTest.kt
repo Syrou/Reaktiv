@@ -11,7 +11,6 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
 import io.github.syrou.reaktiv.navigation.util.determineAnimationDecision
 import io.github.syrou.reaktiv.navigation.util.dismissableBoundary
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -143,7 +142,7 @@ class GraphDismissBoundaryTest {
 
             assertEquals(
                 "step-one",
-                revealedEntryForBack(state)?.navigatable?.route,
+                state.revealedEntry?.navigatable?.route,
                 "back still means back, one step at a time"
             )
             assertEquals(

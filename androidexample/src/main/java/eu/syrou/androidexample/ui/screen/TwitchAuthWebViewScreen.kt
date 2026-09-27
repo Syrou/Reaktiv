@@ -1,5 +1,6 @@
 package eu.syrou.androidexample.ui.screen
 
+import eu.syrou.example.domain.network.twitchstream.TWITCH_CLIENT_ID
 import android.annotation.SuppressLint
 import android.view.ViewGroup
 import android.webkit.WebSettings
@@ -14,14 +15,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import eu.syrou.androidexample.reaktiv.settings.SettingsLogic
+import eu.syrou.example.reaktiv.settings.SettingsLogic
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import kotlinx.coroutines.launch
+import eu.syrou.example.ui.screen.SettingsScreen
 
 object TwitchAuthWebViewScreen : Screen {
     override val route: String = "twitch_auth_webview"
@@ -74,7 +75,7 @@ object TwitchAuthWebViewScreen : Screen {
         }
         BackHandler(true) {
             store.launch {
-                store.navigateBack()
+                store.navigation { navigateBack() }
             }
         }
         Column(modifier = Modifier.fillMaxSize()) {
@@ -100,7 +101,7 @@ object TwitchAuthWebViewScreen : Screen {
                     }
                 },
                 update = { webView ->
-                    webView.loadUrl("https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=w1relgmm50jmppc69fqrhh2j6e86om&redirect_uri=https://localhost&scope")
+                    webView.loadUrl("https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=$TWITCH_CLIENT_ID&redirect_uri=https://localhost&scope")
                 }
             )
         }

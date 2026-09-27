@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.introspection
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.serialization.Serializable
+import io.github.syrou.reaktiv.core.util.DEFAULT_SENSITIVE_KEYS
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
@@ -46,6 +47,11 @@ public data class IntrospectionConfig @OptIn(ExperimentalUuidApi::class) constru
     val redactor: StateRedactor? = null,
     val maxActions: Int? = null,
     val maxLogicEvents: Int? = null,
+    @Deprecated(
+        "Sensitive keys are masked in exports only. Pass sensitiveKeys = emptySet() to stop masking by key name.",
+        level = DeprecationLevel.WARNING
+    )
     val redactSensitiveKeys: Boolean = true,
-    val installLogicTracing: Boolean = true
+    val installLogicTracing: Boolean = true,
+    val sensitiveKeys: Set<String> = DEFAULT_SENSITIVE_KEYS
 )

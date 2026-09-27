@@ -513,6 +513,49 @@ class ProtectedRoutesTest {
         }
 
     @Test
+    fun `modal directly inside intercept block is guarded when reached by a concrete path`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithProtectedModal())
+                coroutineContext(dispatcher)
+            }
+
+            store.navigation {
+                navigateTo("invitation/team")
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("login", state.currentEntry.route)
+            assertNotNull(state.pendingNavigation)
+            assertEquals("invitation/team", state.pendingNavigation.route)
+        }
+
+    @Test
+    fun `modal directly inside intercept block allows authenticated user by a concrete path`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(AuthModule)
+                module(moduleWithProtectedModal())
+                coroutineContext(dispatcher)
+            }
+            store.dispatch(AuthAction.Login)
+            advanceUntilIdle()
+
+            store.navigation {
+                navigateTo("invitation/team")
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("invitation/{type}", state.currentEntry.route)
+            assertEquals("team", state.currentEntry.params["type"] as? String)
+        }
+
+    @Test
     fun `modal directly inside intercept displayHint is preserved in pending navigation`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val dispatcher = StandardTestDispatcher(testScheduler)

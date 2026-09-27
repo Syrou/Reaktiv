@@ -23,6 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import io.github.syrou.reaktiv.core.util.DEFAULT_SENSITIVE_KEYS
 
 @Serializable
 enum class ClearanceLevel { LOW, HIGH }

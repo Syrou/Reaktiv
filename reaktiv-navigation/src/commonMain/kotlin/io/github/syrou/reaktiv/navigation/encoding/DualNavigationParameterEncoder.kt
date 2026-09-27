@@ -13,6 +13,7 @@ public class DualNavigationParameterEncoder(
     private val json: Json = reaktivJson(encodeDefaults = true)
 ) {
     
+    @Deprecated("Unused. Removed in the next release. Only reached from deprecated encoder methods.", level = DeprecationLevel.WARNING)
     public fun encodeSimple(value: Any): Any {
         return when (value) {
             is String -> urlEncoder.encodeQuery(value)
@@ -83,6 +84,7 @@ public class DualNavigationParameterEncoder(
     }
 
     
+    @Deprecated("Unused. Removed in the next release. Only reached from the deprecated Params.fromUrl.", level = DeprecationLevel.WARNING)
     public fun decodeSimpleQueryString(queryString: String): Map<String, Any> {
         if (queryString.isBlank()) return emptyMap()
 

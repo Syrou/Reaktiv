@@ -75,7 +75,7 @@ jobs:
 
             # Copy WASM UI to resources folder
             mkdir -p "${pkg_dir}/resources"
-            cp -r reaktiv-devtools/build/dist/wasmJs/productionExecutable/* "${pkg_dir}/resources/"
+            cp -r reaktiv-devtools-ui/build/dist/wasmJs/productionExecutable/* "${pkg_dir}/resources/"
 
             # Create README from the versioned template
             sed -e "s|{{VERSION}}|${VERSION}|g" -e "s|{{REPO}}|${{ github.repository }}|g" \

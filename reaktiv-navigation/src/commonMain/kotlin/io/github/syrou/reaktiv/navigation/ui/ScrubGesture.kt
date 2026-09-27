@@ -1,94 +1,105 @@
 package io.github.syrou.reaktiv.navigation.ui
 
-import io.github.syrou.reaktiv.navigation.definition.DismissSource
 import androidx.compose.runtime.State
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.extension.navigateBack
-import kotlinx.coroutines.flow.first
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.definition.DismissSource
+import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
-import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
 import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
+import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
+import io.github.syrou.reaktiv.navigation.util.canHandleBack
+import io.github.syrou.reaktiv.navigation.util.performUserBack
+import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
+import kotlinx.coroutines.flow.first
 
 internal class ScrubAxis(
-    private val extent: Float,
+    val extent: Float,
     private val origin: Float,
     private val sign: Float,
-    private val select: (Offset) -> Float
+    val isVertical: Boolean
 ) {
-    fun progressAt(position: Offset): Float = sign * (select(position) - origin) / extent
+    private fun select(offset: Offset): Float = if (isVertical) offset.y else offset.x
 
-    fun velocityFrom(velocity: Offset): Float = sign * select(velocity)
+    fun along(delta: Offset): Float = sign * select(delta)
+
+    fun across(delta: Offset): Float = if (isVertical) delta.x else delta.y
+
+    fun towards(amount: Float): Boolean = sign * amount > 0f
+
+    fun offsetOf(along: Float): Offset = if (isVertical) Offset(0f, sign * along) else Offset(sign * along, 0f)
+
+    fun progressAt(position: Offset): Float = sign * (select(position) - origin) / extent
 
     fun toProgressVelocity(axisVelocity: Float): Float = axisVelocity / extent
 
     companion object {
+        fun horizontal(width: Float, isLtr: Boolean, originX: Float = 0f): ScrubAxis =
+            ScrubAxis(width, originX, if (isLtr) 1f else -1f, isVertical = false)
+
+        fun vertical(height: Float, originY: Float = 0f): ScrubAxis =
+            ScrubAxis(height, originY, 1f, isVertical = true)
+
         fun horizontal(down: PointerInputChange, width: Float, isLtr: Boolean): ScrubAxis =
-            ScrubAxis(width, down.position.x, if (isLtr) 1f else -1f) { it.x }
+            horizontal(width, isLtr, down.position.x)
 
         fun vertical(down: PointerInputChange, height: Float): ScrubAxis =
-            ScrubAxis(height, down.position.y, 1f) { it.y }
+            vertical(height, down.position.y)
     }
 }
 
 internal class ScrubOutcome(val commit: Boolean, val progressVelocity: Float)
 
-/**
- * The entries a scrub would move, and the kind of scrub it is.
- *
- * Produced by [armContentBack] and [armContentDismiss] so that every gesture path asks the same
- * question in the same order. Six call sites previously repeated this decision inline, which is
- * how a rule change reaches five of them.
- */
-internal class ScrubArming(
-    val top: NavigationEntry,
-    val revealed: NavigationEntry,
-    val kind: InteractiveTransitionController.ScrubKind
-)
-
 internal fun armContentBack(
     state: NavigationState,
     navModule: NavigationModule,
     controller: InteractiveTransitionController
-): ScrubArming? {
+): InteractiveTransitionController.ScrubKind? {
     if (!canArmInteractiveBackGesture(state, navModule)) return null
     if (controller.contentTransitionActive) return null
-    val top = state.currentEntry
-    val revealed = revealedEntryForBack(state) ?: return null
-    return ScrubArming(top, revealed, InteractiveTransitionController.ScrubKind.ContentBack(top, revealed))
+    val revealed = state.revealedEntry ?: return null
+    return InteractiveTransitionController.ScrubKind.ContentBack(state.currentEntry, revealed)
 }
 
 internal fun armContentDismiss(
     state: NavigationState,
     navModule: NavigationModule,
     controller: InteractiveTransitionController
-): ScrubArming? {
+): InteractiveTransitionController.ScrubKind? {
     if (!canArmSwipeDismiss(state, navModule)) return null
     if (controller.contentTransitionActive) return null
-    val top = state.currentEntry
     val revealed = revealedEntryForDismiss(state, navModule) ?: return null
-    return ScrubArming(top, revealed, InteractiveTransitionController.ScrubKind.ContentDismiss(top, revealed))
+    return InteractiveTransitionController.ScrubKind.ContentDismiss(state.currentEntry, revealed)
 }
 
+internal fun armModalDismiss(
+    state: NavigationState,
+    modal: NavigationEntry
+): InteractiveTransitionController.ScrubKind? {
+    val navigatable = modal.navigatable as? Modal ?: return null
+    if (!navigatable.dismissal.swipe.allowsDismiss) return null
+    if (!canHandleBack(state)) return null
+    return InteractiveTransitionController.ScrubKind.ModalDismiss(modal)
+}
 
 internal suspend fun AwaitPointerEventScope.trackScrub(
     controller: InteractiveTransitionController,
     latestState: State<NavigationState>,
-    top: NavigationEntry,
     down: PointerInputChange,
     slopChange: PointerInputChange,
     axis: ScrubAxis,
     velocityThresholdPx: Float,
     pumpDrag: suspend AwaitPointerEventScope.(onDrag: (PointerInputChange) -> Unit) -> Unit
 ): ScrubOutcome {
+    val topKey = controller.scrubKind?.top?.stableKey
     val velocityTracker = VelocityTracker()
     velocityTracker.addPosition(down.uptimeMillis, down.position)
     velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
@@ -98,7 +109,7 @@ internal suspend fun AwaitPointerEventScope.trackScrub(
     var invalidated = false
     pumpDrag { change ->
         velocityTracker.addPosition(change.uptimeMillis, change.position)
-        if (latestState.value.currentEntry.stableKey != top.stableKey) {
+        if (latestState.value.currentEntry.stableKey != topKey) {
             invalidated = true
         }
         if (!invalidated) {
@@ -107,9 +118,7 @@ internal suspend fun AwaitPointerEventScope.trackScrub(
         change.consume()
     }
 
-    val axisVelocity = axis.velocityFrom(
-        velocityTracker.calculateVelocity().let { Offset(it.x, it.y) }
-    )
+    val axisVelocity = axis.along(velocityTracker.calculateVelocity().let { Offset(it.x, it.y) })
     val commit = !invalidated && InteractiveTransitionController.shouldCommit(
         progress = controller.progress,
         velocity = axisVelocity,
@@ -123,7 +132,7 @@ internal suspend fun AwaitPointerEventScope.pumpInitialPassDrag(
     onDrag: (PointerInputChange) -> Unit
 ) {
     while (true) {
-        val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+        val event = awaitPointerEvent(PointerEventPass.Initial)
         val change = event.changes.firstOrNull { it.id == down.id } ?: break
         if (!change.pressed) break
         onDrag(change)
@@ -135,38 +144,31 @@ internal suspend fun completeInteractiveDismiss(
     progressVelocity: Float,
     controller: InteractiveTransitionController,
     store: Store,
-    navModule: NavigationModule,
-    top: NavigationEntry,
-    revealed: NavigationEntry?
+    navModule: NavigationModule
 ) {
-    val source = when (controller.scrubKind) {
-        is InteractiveTransitionController.ScrubKind.ContentBack -> DismissSource.Back
-        else -> DismissSource.Swipe
-    }
     try {
-        if (commit && revealed != null) {
-            controller.markCommittedTarget(revealed)
+        val kind = controller.scrubKind ?: return
+        val top = kind.top
+        val source = if (kind is InteractiveTransitionController.ScrubKind.ContentBack) {
+            DismissSource.Back
+        } else {
+            DismissSource.Swipe
         }
         controller.settle(commit = commit, initialVelocity = progressVelocity)
         if (!commit) {
             return
         }
         val state = store.selectState<NavigationState>().first()
-        val stillValid = state.currentEntry.stableKey == top.stableKey &&
-            state.canGoBack &&
-            !state.isEvaluatingNavigation
+        val stillValid = state.currentEntry.stableKey == top.stableKey && canHandleBack(state)
         if (!stillValid) {
             return
         }
-        if (revealed != null) {
-            controller.armHandoff(poppedKey = top.stableKey, targetKey = revealed.stableKey)
-        } else {
-            controller.armModalHandoff(top.stableKey)
-        }
-        dismissSurface(store, navModule, top, revealed, source = source, expectedTopKey = top.stableKey)
+        performUserBack(store, navModule, top, kind.revealed, source = source, expectedTopKey = top.stableKey)
         val after = store.selectState<NavigationState>().first()
         if (after.currentEntry.stableKey == top.stableKey) {
             controller.settle(commit = false)
+        } else {
+            controller.markLanded()
         }
     } finally {
         controller.reset()

@@ -9,6 +9,7 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -61,6 +62,16 @@ class ReaktivNetworkInspectionTest {
     }
 
     @Test
+    fun aStreamedResponseIsLeftForTheCallerToRead() = runTest {
+        val client = jsonClient()
+
+        val body = client.prepareGet("https://api.example.com/stream").execute { it.bodyAsText() }
+
+        assertEquals("""{"ok":true}""", body)
+        assertEquals(1, events.size)
+    }
+
+    @Test
     fun capturesMethodUrlStatusAndBodies() = runTest {
         val client = jsonClient()
         val response = client.post("https://api.example.com/items?page=2") {
@@ -80,16 +91,18 @@ class ReaktivNetworkInspectionTest {
     }
 
     @Test
-    fun redactsSensitiveHeaders() = runTest {
-        val client = jsonClient()
+    fun capturesHeadersRawAndNamesTheSensitiveOnes() = runTest {
+        val client = jsonClient(configure = { redactedHeaders = redactedHeaders + "X-Session" })
         client.get("https://api.example.com/me") {
             header(HttpHeaders.Authorization, "Bearer secret-token")
             header("X-Custom", "visible")
         }
 
         val event = events.single()
-        assertEquals(listOf("<redacted>"), event.requestHeaders["Authorization"])
+        assertEquals(listOf("Bearer secret-token"), event.requestHeaders["Authorization"])
         assertEquals(listOf("visible"), event.requestHeaders["X-Custom"])
+        assertTrue("Authorization" in event.sensitiveHeaders)
+        assertTrue("X-Session" in event.sensitiveHeaders)
     }
 
     @Test

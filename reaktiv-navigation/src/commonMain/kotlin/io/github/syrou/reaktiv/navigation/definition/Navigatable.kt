@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.navigation.definition
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
 import io.github.syrou.reaktiv.core.ModuleState
@@ -180,7 +181,11 @@ public class BackstackLifecycle(
     internal fun runRemovalHandlers(reason: RemovalReason) {
         if (!removalHandlersRan.compareAndSet(expectedValue = false, newValue = true)) return
         removalHandlers.forEach { handler ->
-            handler(storeAccessor, reason)
+            try {
+                handler(storeAccessor, reason)
+            } catch (e: Exception) {
+                ReaktivDebug.warn("A removal handler for ${entry.path} failed: ${e.message}")
+            }
         }
     }
 }
@@ -242,6 +247,9 @@ public interface Navigatable : NavigationNode, TransitionSpec {
     @Suppress("DEPRECATION")
     public val dismissal: Dismissal
         get() = Dismissal.fromLegacy(onDismissRequest, swipeToDismiss)
+
+    public val hiddenUrlParams: Set<String>
+        get() = emptySet()
 
     /**
      * Called when this navigatable is added to the backstack.

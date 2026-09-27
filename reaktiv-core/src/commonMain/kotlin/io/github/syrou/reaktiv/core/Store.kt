@@ -39,39 +39,46 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KClass
 
 @OptIn(ExperimentalReaktivApi::class)
-public class Store private constructor(
+@Suppress("DEPRECATION")
+public class Store internal constructor(
     private val coroutineScope: CoroutineScope,
     private val middlewares: List<Middleware>,
     @PublishedApi
     internal val modules: List<Module<ModuleState, ModuleAction>>,
     private val persistenceManager: PersistenceManager?,
-    public val serializersModule: SerializersModule,
+    override val serializersModule: SerializersModule,
+    private val externalStateGranted: Boolean,
 ) : StoreAccessor(coroutineScope), InternalStoreOperations {
     private val resetMutex = Mutex()
     private val highPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
     private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
 
-    private val moduleInfo: Map<String, ModuleInfo> = buildMap {
-        modules.forEach { module ->
-            val info = ModuleInfo(module, MutableStateFlow(module.initialState))
-            put(module::class.qualifiedName!!, info)
-            put(module.initialState::class.qualifiedName!!, info)
+    private val moduleInfos: List<ModuleInfo> =
+        modules.map { module -> ModuleInfo(module, MutableStateFlow(module.initialState)) }
+
+    private val moduleInfo: Map<KClass<*>, ModuleInfo> = buildMap {
+        moduleInfos.forEach { info ->
+            put(info.module::class, info)
+            put(info.module.initialState::class, info)
         }
     }
 
-    private val logicIndex = AtomicReference<Map<String, ModuleInfo>>(emptyMap())
+    private val namedModuleInfo: Map<String, ModuleInfo> = buildMap {
+        moduleInfos.forEach { info ->
+            info.module::class.qualifiedName?.let { put(it, info) }
+            info.module.initialState::class.qualifiedName?.let { put(it, info) }
+        }
+    }
 
-    private val moduleInfos: List<ModuleInfo> = moduleInfo.values.distinct()
+    private val logicIndex = AtomicReference<Map<KClass<*>, ModuleInfo>>(emptyMap())
 
-    private fun info(key: KClass<*>): ModuleInfo? = key.qualifiedName?.let(::info)
-
-    private fun info(qualifiedName: String): ModuleInfo? =
-        moduleInfo[qualifiedName] ?: logicIndex.load()[qualifiedName]
+    private fun info(key: KClass<*>): ModuleInfo? = moduleInfo[key] ?: logicIndex.load()[key]
 
     private val _initialized: MutableStateFlow<Boolean> = MutableStateFlow(false)
     public val initialized: StateFlow<Boolean> = _initialized.asStateFlow()
 
     private val constructed = CompletableDeferred<Unit>()
+    private val initFailure = AtomicReference<Throwable?>(null)
     private val crashListeners = CopyOnWriteRegistry<CrashListener>()
 
     private val crashScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -102,7 +109,32 @@ public class Store private constructor(
 
     private val externalControlMutex = Mutex()
     private val externallyDriven = AtomicBoolean(false)
+    private val externalStateDeniedWarned = AtomicBoolean(false)
     private val dispatchInstrumentation = AtomicReference<DispatchInstrumentation?>(null)
+
+    private val externalStateAccess = object : ExternalStateAccess {
+        override val isUnderControl: Boolean
+            get() = externallyDriven.load()
+
+        override suspend fun hydrate(states: Map<String, ModuleState>, source: HydrateSource): DispatchResult =
+            dispatchAndAwait(StoreAction.Hydrate(states, source))
+
+        override suspend fun beginControl(): Unit = externalControlMutex.withLock {
+            if (externallyDriven.load()) return@withLock
+            notifyExternalControl(true)
+            externallyDriven.store(true)
+            traceExternalControl(true)
+        }
+
+        override suspend fun endControl(): Unit = externalControlMutex.withLock {
+            if (!externallyDriven.load()) return@withLock
+            externallyDriven.store(false)
+            traceExternalControl(false)
+            notifyExternalControl(false)
+        }
+    }
+
+    override fun externalState(): ExternalStateAccess? = externalStateAccess.takeIf { externalStateGranted }
 
     /**
      * `true` while a remote publisher authors this store's state.
@@ -112,9 +144,13 @@ public class Store private constructor(
     public val isExternallyDriven: Boolean
         get() = externallyDriven.load()
 
+    @Deprecated(
+        "Implement ExternalStateRequester on a module and return true from startsUnderExternalControl().",
+        level = DeprecationLevel.WARNING
+    )
     @ExperimentalReaktivApi
     override fun markExternallyDriven() {
-        externallyDriven.store(true)
+        if (grantedOrWarn("markExternallyDriven")) externallyDriven.store(true)
     }
 
     override val coroutineContext: CoroutineContext
@@ -158,24 +194,49 @@ public class Store private constructor(
         return completion.await()
     }
 
-    private fun initializeModules(resetState: Boolean) {
-        if (resetState) {
+    private fun initializeModules() {
+        try {
             moduleInfos.forEach { info -> info.state.update { info.module.initialState } }
+            if (externalStateGranted &&
+                modules.any { (it as? ExternalStateRequester)?.startsUnderExternalControl() == true }
+            ) {
+                externallyDriven.store(true)
+            }
+            val logicKeys = mutableMapOf<KClass<*>, ModuleInfo>()
+            moduleInfos.forEach { info ->
+                val logic = info.module.createLogic(this)
+                info.logic.store(logic)
+                logicKeys[logic::class] = info
+            }
+            logicIndex.store(logicKeys)
+            initFailure.store(null)
+            constructed.complete(Unit)
+        } catch (e: Throwable) {
+            initFailure.store(e)
+            throw e
+        } finally {
+            _initialized.update { true }
         }
-        val logicKeys = mutableMapOf<String, ModuleInfo>()
-        moduleInfos.forEach { info ->
-            val logic = info.module.createLogic(this)
-            info.logic.store(logic)
-            logic::class.qualifiedName?.let { logicKeys[it] = info }
-        }
-        logicIndex.store(logicKeys)
-        constructed.complete(Unit)
-        _initialized.update { true }
     }
 
     init {
-        launch { initializeModules(resetState = false) }
+        launch {
+            try {
+                initializeModules()
+            } catch (e: Throwable) {
+                failConstruction(e)
+                throw e
+            }
+        }
         CoroutineScope(baseContext + pipelineJob + PipelineMarker).launch { processActionChannel() }
+    }
+
+    private fun failConstruction(cause: Throwable) {
+        constructed.completeExceptionally(cause)
+        highPriorityChannel.close()
+        lowPriorityChannel.close()
+        failPending(highPriorityChannel)
+        failPending(lowPriorityChannel)
     }
 
     override suspend fun reset(): Boolean {
@@ -278,7 +339,13 @@ public class Store private constructor(
     }
 
     private suspend fun processActionChannel() {
-        constructed.await()
+        try {
+            constructed.await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            return
+        }
         var appliedEpoch = 0L
         val heldForNextGeneration = mutableListOf<DispatchEnvelope>()
         try {
@@ -291,6 +358,12 @@ public class Store private constructor(
                     ?: return
                 when {
                     envelope.epoch < appliedEpoch -> dropEnvelope(envelope, DispatchDropReason.RESET)
+                    envelope.action is CloseFence -> {
+                        envelope.completion?.complete(
+                            runBeforeReset()?.let { DispatchResult.Error(it) } ?: DispatchResult.Processed
+                        )
+                        dispatchProcessedCount.addAndFetch(1L)
+                    }
                     envelope.action is ResetFence -> {
                         processResetFence(envelope)
                         appliedEpoch = envelope.epoch
@@ -312,7 +385,7 @@ public class Store private constructor(
     private suspend fun processResetFence(envelope: DispatchEnvelope) {
         val cleanupFailure = runBeforeReset()
         val result = try {
-            initializeModules(resetState = true)
+            initializeModules()
             cleanupFailure?.let { DispatchResult.Error(it) } ?: DispatchResult.Processed
         } catch (e: Throwable) {
             DispatchResult.Error(e)
@@ -322,8 +395,10 @@ public class Store private constructor(
     }
 
     private suspend fun dropEnvelope(envelope: DispatchEnvelope, reason: DispatchDropReason) {
-        activeDispatchInstrumentation?.onDispatchDropped(envelope.action, reason)
-        envelope.completion?.complete(DispatchResult.Blocked)
+        activeDispatchInstrumentation?.let { instrumentation ->
+            guardInstrumentation("onDispatchDropped") { instrumentation.onDispatchDropped(envelope.action, reason) }
+        }
+        envelope.completion?.complete(DispatchResult.Dropped(reason))
         dispatchProcessedCount.addAndFetch(1L)
     }
 
@@ -336,14 +411,14 @@ public class Store private constructor(
      *
      * Usage:
      * ```kotlin
-     * val instrumentation = (storeAccessor as? Store)?.activeDispatchInstrumentation
+     * val instrumentation = storeAccessor.activeDispatchInstrumentation
      *     ?: return evaluate()
      * val token = instrumentation.onEvaluationStarted("MyScope", "evaluate", emptyMap())
      * ```
      *
      * @see setDispatchInstrumentation to install one
      */
-    public val activeDispatchInstrumentation: DispatchInstrumentation?
+    override val activeDispatchInstrumentation: DispatchInstrumentation?
         get() = dispatchInstrumentation.load()?.takeIf { it.isActive }
 
     private fun instrumentationActive(): Boolean = activeDispatchInstrumentation != null
@@ -354,13 +429,13 @@ public class Store private constructor(
      * @param instrumentation The implementation to install, replacing any previous one
      * @see activeDispatchInstrumentation
      */
-    public fun setDispatchInstrumentation(instrumentation: DispatchInstrumentation?) {
+    override fun setDispatchInstrumentation(instrumentation: DispatchInstrumentation?) {
         dispatchInstrumentation.store(instrumentation)
     }
 
     private suspend fun processEnvelope(envelope: DispatchEnvelope) {
-        if (externallyDriven.load() && envelope.action !is ExternalControlExempt) {
-            dropEnvelope(envelope, DispatchDropReason.EXTERNAL_CONTROL)
+        dropReason(envelope.action)?.let { reason ->
+            dropEnvelope(envelope, reason)
             return
         }
         val instrumentation = activeDispatchInstrumentation
@@ -373,24 +448,50 @@ public class Store private constructor(
             } else 0L
             val queueDepth = (dispatchEnqueuedCount.load() - dispatchProcessedCount.load())
                 .coerceAtLeast(1L)
-            token = instrumentation.onDispatchStarted(envelope.action, queueWaitMs, queueDepth)
+            token = guardInstrumentation("onDispatchStarted") {
+                instrumentation.onDispatchStarted(envelope.action, queueWaitMs, queueDepth)
+            } ?: ""
         }
         try {
             val wasApplied = processAction(envelope.action, instrumentation)
             if (token.isNotEmpty()) {
-                instrumentation?.onDispatchCompleted(token, wasApplied, currentTimeMillis() - processStartMs)
+                guardInstrumentation("onDispatchCompleted") {
+                    instrumentation?.onDispatchCompleted(token, wasApplied, currentTimeMillis() - processStartMs)
+                }
             }
             envelope.completion?.complete(
                 if (wasApplied) DispatchResult.Processed else DispatchResult.Blocked
             )
         } catch (e: Throwable) {
             if (token.isNotEmpty()) {
-                instrumentation?.onDispatchFailed(token, e, currentTimeMillis() - processStartMs)
+                guardInstrumentation("onDispatchFailed") {
+                    instrumentation?.onDispatchFailed(token, e, currentTimeMillis() - processStartMs)
+                }
             }
             envelope.completion?.complete(DispatchResult.Error(e))
         } finally {
             dispatchProcessedCount.addAndFetch(1L)
         }
+    }
+
+    private fun dropReason(action: ModuleAction): DispatchDropReason? = when {
+        action is StoreAction.Hydrate && action.source != HydrateSource.Restore &&
+            !grantedOrWarn("StoreAction.Hydrate from '${action.origin}'") ->
+            DispatchDropReason.EXTERNAL_STATE_DENIED
+        externallyDriven.load() && action !is ExternalControlExempt -> DispatchDropReason.EXTERNAL_CONTROL
+        else -> null
+    }
+
+    private fun grantedOrWarn(what: String): Boolean {
+        if (externalStateGranted) return true
+        if (!externalStateDeniedWarned.exchange(true)) {
+            ReaktivDebug.warn(
+                "Store: ignored $what because this store does not accept outside state. Install a module " +
+                    "that requests it, such as the tooling module, or add " +
+                    "externalState(ExternalStatePolicy.Allow) to createStore { }."
+            )
+        }
+        return false
     }
 
     /**
@@ -405,46 +506,44 @@ public class Store private constructor(
             applyStoreAction(action)
             return true
         }
-        var wasApplied = false
-        val chain = createMiddlewareChain(instrumentation?.newDispatchDecorator()) { wasApplied = true }
+        val decorator = instrumentation?.let { guardInstrumentation("newDispatchDecorator") { it.newDispatchDecorator() } }
+        val chain = if (decorator == null) plainChain else createMiddlewareChain(decorator)
+        appliedInDispatch = false
         chain(action)
-        return wasApplied
+        return appliedInDispatch
     }
 
-    private fun createMiddlewareChain(
-        decorator: DispatchStepDecorator?,
-        onActionApplied: () -> Unit
-    ): suspend (ModuleAction) -> Unit {
-        val baseHandler: suspend (ModuleAction) -> Unit = { action ->
-            val info = info(action.moduleTag) ?: throw IllegalArgumentException(
-                "No module found for action: ${action::class}"
-            )
+    private var appliedInDispatch = false
 
-            @Suppress("UNCHECKED_CAST")
-            val reducer = info.module.reducer as (ModuleState, ModuleAction) -> ModuleState
-            info.state.update { current -> reducer(current, action) }
+    private val reduce: suspend (ModuleAction) -> Unit = { action ->
+        val info = info(action.moduleTag) ?: throw IllegalArgumentException(
+            "No module found for action: ${action::class}"
+        )
 
-            onActionApplied()
-        }
+        @Suppress("UNCHECKED_CAST")
+        val reducer = info.module.reducer as (ModuleState, ModuleAction) -> ModuleState
+        info.state.update { current -> reducer(current, action) }
+        appliedInDispatch = true
+    }
 
-        val innermost = decorator?.decorate("reducer", baseHandler) ?: baseHandler
+    private val plainChain: suspend (ModuleAction) -> Unit by lazy { createMiddlewareChain(null) }
+
+    private fun createMiddlewareChain(decorator: DispatchStepDecorator?): suspend (ModuleAction) -> Unit {
+        val innermost = decorator?.let { guardInstrumentation("decorate") { it.decorate("reducer", reduce) } }
+            ?: reduce
         return middlewares.foldRightIndexed(innermost) { index, middleware, next ->
             val step: suspend (ModuleAction) -> Unit = { action ->
-                middleware(action, { getAllStates() }, this) { innerAction ->
-                    if (innerAction == action) {
-                        next(innerAction)
-                    } else {
-                        dispatch(innerAction)
-                    }
-                    info(action.moduleTag)?.state?.value
-                        ?: throw IllegalStateException("No state found for module: ${action.moduleTag}")
+                middleware(action, { getAllStates() }, this) { passedOn ->
+                    next(passedOn)
+                    info(passedOn.moduleTag)?.state?.value
+                        ?: throw IllegalStateException("No state found for module: ${passedOn.moduleTag}")
                 }
             }
             if (decorator == null) {
                 step
             } else {
                 val simpleName = middleware::class.simpleName?.takeIf { it.isNotBlank() } ?: "middleware"
-                decorator.decorate("$simpleName[$index]", step)
+                guardInstrumentation("decorate") { decorator.decorate("$simpleName[$index]", step) } ?: step
             }
         }
     }
@@ -460,32 +559,63 @@ public class Store private constructor(
                 if (result == CrashRecovery.NAVIGATE_TO_CRASH_SCREEN) {
                     recovery = CrashRecovery.NAVIGATE_TO_CRASH_SCREEN
                 }
-            } catch (_: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ReaktivDebug.warn("Store: a crash listener failed - ${e.message}")
             }
         }
         return recovery
     }
 
-    private fun applyStoreAction(action: StoreAction) {
+    private inline fun <T> guardInstrumentation(hook: String, block: () -> T): T? = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        ReaktivDebug.warn("Store: dispatch instrumentation failed in $hook - ${e.message}")
+        null
+    }
+
+    private suspend fun applyStoreAction(action: StoreAction) {
         when (action) {
-            is StoreAction.Hydrate ->
-                action.states.forEach { (name, state) -> applyState(name, state, action.origin) }
+            is StoreAction.Hydrate -> {
+                val hydrated = action.states.mapNotNull { (name, state) -> applyState(name, state, action.origin) }
+                hydrated.distinct().forEach { info -> notifyHydrated(info, action.source) }
+            }
         }
     }
 
-    private fun applyState(stateClassName: String, newState: ModuleState, source: String) {
-        val info = info(stateClassName)
-        when {
-            info == null ->
+    private fun applyState(stateClassName: String, newState: ModuleState, source: String): ModuleInfo? {
+        val info = namedModuleInfo[stateClassName]
+        return when {
+            info == null -> {
                 ReaktivDebug.warn("$source: Cannot apply state for unknown module: $stateClassName")
+                null
+            }
 
-            info.state.value::class != newState::class ->
+            info.state.value::class != newState::class -> {
                 ReaktivDebug.warn(
                     "$source: State type mismatch for $stateClassName - " +
                         "expected ${info.state.value::class.simpleName}, got ${newState::class.simpleName}"
                 )
+                null
+            }
 
-            else -> info.state.value = newState
+            else -> {
+                info.state.value = newState
+                info
+            }
+        }
+    }
+
+    private suspend fun notifyHydrated(info: ModuleInfo, source: HydrateSource) {
+        try {
+            info.logic.load()?.onHydrated(source)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            ReaktivDebug.warn("Store: onHydrated failed for ${info.module::class.simpleName} - ${e.message}")
         }
     }
 
@@ -493,30 +623,34 @@ public class Store private constructor(
         moduleInfos.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
 
     @Deprecated(
-        "Wrote state outside the dispatch pipeline, so it raced ordered dispatches. " +
-            "Dispatch StoreAction.Hydrate instead.",
-        ReplaceWith("dispatchAndAwait(StoreAction.Hydrate(states, \"DevTools\"))"),
+        "Use externalState()?.hydrate(states, HydrateSource.External(\"DevTools\")), which exists only " +
+            "when the store grants outside state.",
+        ReplaceWith("externalState()?.hydrate(states, HydrateSource.External(\"DevTools\"))"),
         DeprecationLevel.WARNING
     )
     @ExperimentalReaktivApi
     override suspend fun applyExternalStates(states: Map<String, ModuleState>) {
-        dispatchAndAwait(StoreAction.Hydrate(states, "DevTools"))
+        dispatchAndAwait(StoreAction.Hydrate(states, HydrateSource.External("DevTools")))
     }
 
+    @Deprecated(
+        "Use externalState()?.beginControl(), which exists only when the store grants outside state.",
+        ReplaceWith("externalState()?.beginControl()"),
+        DeprecationLevel.WARNING
+    )
     @ExperimentalReaktivApi
-    override suspend fun beginExternalControl(): Unit = externalControlMutex.withLock {
-        if (externallyDriven.load()) return@withLock
-        notifyExternalControl(true)
-        externallyDriven.store(true)
-        traceExternalControl(true)
+    override suspend fun beginExternalControl() {
+        if (grantedOrWarn("beginExternalControl")) externalStateAccess.beginControl()
     }
 
+    @Deprecated(
+        "Use externalState()?.endControl(), which exists only when the store grants outside state.",
+        ReplaceWith("externalState()?.endControl()"),
+        DeprecationLevel.WARNING
+    )
     @ExperimentalReaktivApi
-    override suspend fun endExternalControl(): Unit = externalControlMutex.withLock {
-        if (!externallyDriven.load()) return@withLock
-        externallyDriven.store(false)
-        traceExternalControl(false)
-        notifyExternalControl(false)
+    override suspend fun endExternalControl() {
+        externalStateAccess.endControl()
     }
 
     private suspend fun notifyExternalControl(enabled: Boolean) {
@@ -576,9 +710,29 @@ public class Store private constructor(
         } else {
             initialized.first { it }
         }
+        initFailure.load()?.let { cause ->
+            throw IllegalStateException("The store could not create its module logic: ${cause.message}", cause)
+        }
     }
 
     public suspend inline fun <reified L : ModuleLogic> selectLogic(): L = selectLogic(L::class)
+
+    public suspend fun close() {
+        if (currentCoroutineContext()[PipelineMarker] != null) {
+            throw IllegalStateException(
+                "close() cannot be awaited from inside the dispatch pipeline, because the pipeline runs it."
+            )
+        }
+        withContext(NonCancellable) {
+            if (constructed.isCompleted && initFailure.load() == null) {
+                val completion = CompletableDeferred<DispatchResult>()
+                runCatching { enqueue(CloseFence, completion) }.onSuccess {
+                    withTimeoutOrNull(RESET_DRAIN_TIMEOUT_MS) { completion.await() }
+                }
+            }
+            cleanup()
+        }
+    }
 
     public fun cleanup() {
         highPriorityChannel.close()
@@ -607,13 +761,15 @@ public class Store private constructor(
             ReaktivDebug.warn("No persistence strategy set when using loadState")
         }
         if (restoredState != null) {
-            dispatchAndAwait(StoreAction.Hydrate(restoredState, "Persistence"))
+            dispatchAndAwait(StoreAction.Hydrate(restoredState, HydrateSource.Restore))
         }
     }
 
     public suspend fun hasPersistedState(): Boolean = persistenceManager?.hasPersistedState() ?: false
 
     private data object ResetFence : ModuleAction(Store::class), HighPriorityAction, ExternalControlExempt
+
+    private data object CloseFence : ModuleAction(Store::class), HighPriorityAction, ExternalControlExempt
 
     private object PipelineMarker : CoroutineContext.Element, CoroutineContext.Key<PipelineMarker> {
         override val key: CoroutineContext.Key<*>
@@ -622,21 +778,5 @@ public class Store private constructor(
 
     public companion object {
         private const val RESET_DRAIN_TIMEOUT_MS: Long = 5_000L
-
-        internal fun create(
-            coroutineScope: CoroutineScope,
-            middlewares: List<Middleware>,
-            modules: List<Module<ModuleState, ModuleAction>>,
-            persistenceManager: PersistenceManager?,
-            serializersModule: SerializersModule,
-        ): Store {
-            return Store(
-                coroutineScope = coroutineScope,
-                middlewares = middlewares,
-                modules = modules.toList(),
-                persistenceManager = persistenceManager,
-                serializersModule = serializersModule,
-            )
-        }
     }
 }

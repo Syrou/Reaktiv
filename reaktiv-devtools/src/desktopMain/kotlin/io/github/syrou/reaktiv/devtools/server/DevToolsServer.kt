@@ -1,8 +1,7 @@
 package io.github.syrou.reaktiv.devtools.server
 
-import io.github.syrou.reaktiv.devtools.protocol.ClientRole
-import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage
+import io.github.syrou.reaktiv.devtools.protocol.DevToolsProtocol
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
@@ -11,8 +10,8 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.reaktivJson
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
@@ -37,7 +36,8 @@ import kotlin.time.Duration.Companion.seconds
  * ```
  */
 public class RunningDevToolsServer internal constructor(
-    private val engine: EmbeddedServer<*, *>
+    private val engine: EmbeddedServer<*, *>,
+    public val clientManager: ClientManager
 ) {
     public suspend fun port(): Int = engine.engine.resolvedConnectors().first().port
 
@@ -47,7 +47,7 @@ public class RunningDevToolsServer internal constructor(
 }
 
 public object DevToolsServer {
-    private val clientManager = ClientManager()
+    private var latestClientManager = ClientManager()
 
     private val json = reaktivJson()
 
@@ -69,9 +69,10 @@ public object DevToolsServer {
             println("DevTools Server: No UI path provided, WebSocket only")
         }
 
+        val clientManager = ClientManager().also { latestClientManager = it }
         try {
             embeddedServer(CIO, port = port, host = host) {
-                configureServer(uiPath)
+                configureServer(clientManager, uiPath)
             }.start(wait = true)
         } catch (e: Throwable) {
             val addressInUse = generateSequence(e) { it.cause }.any {
@@ -117,25 +118,24 @@ public object DevToolsServer {
         host: String = "127.0.0.1",
         uiPath: String? = null
     ): RunningDevToolsServer {
+        val clientManager = ClientManager().also { latestClientManager = it }
         val engine = embeddedServer(CIO, port = port, host = host) {
-            configureServer(uiPath)
+            configureServer(clientManager, uiPath)
         }
         engine.start(wait = false)
-        return RunningDevToolsServer(engine)
+        return RunningDevToolsServer(engine, clientManager)
     }
 
-    /**
-     * Resets all client bookkeeping.
-     *
-     * The server is an object, so a host process that starts more than one embedded server
-     * over its lifetime (notably a test suite) would otherwise inherit stale clients and
-     * publisher assignments from the previous one.
-     */
+    @Deprecated(
+        "Every started server owns its own client bookkeeping, so there is nothing shared to reset.",
+        level = DeprecationLevel.WARNING
+    )
     public suspend fun resetState() {
-        clientManager.reset()
+        @Suppress("DEPRECATION")
+        latestClientManager.reset()
     }
 
-    private fun Application.configureServer(uiPath: String?) {
+    private fun Application.configureServer(clientManager: ClientManager, uiPath: String?) {
         install(WebSockets) {
             pingPeriod = 15.seconds
             timeout = 15.seconds
@@ -149,7 +149,7 @@ public object DevToolsServer {
 
         routing {
             webSocket("/ws") {
-                handleWebSocketConnection()
+                handleWebSocketConnection(clientManager)
             }
 
             if (uiPath != null) {
@@ -158,229 +158,44 @@ public object DevToolsServer {
         }
     }
 
-    private suspend fun DefaultWebSocketServerSession.handleWebSocketConnection() {
+    private suspend fun DefaultWebSocketServerSession.refuse(registration: DevToolsMessage.ClientRegistration) {
+        val reason = "${registration.clientName} speaks DevTools protocol ${registration.protocolVersion} and this " +
+            "server speaks ${DevToolsProtocol.VERSION}. Use the same Reaktiv version on the device and the server."
+        ReaktivDebug.warn("DevTools Server: Refused ${registration.clientId} - $reason")
+        send(Frame.Text(json.encodeToString<DevToolsMessage>(DevToolsMessage.RegistrationRefused(reason))))
+        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "protocol version"))
+    }
+
+    private suspend fun DefaultWebSocketServerSession.handleWebSocketConnection(clientManager: ClientManager) {
         var clientId: String? = null
-        val remoteAddress = try {
-            call.request.local.remoteAddress
-        } catch (e: Exception) {
-            "unknown"
-        }
-
-        println("DevTools Server: New WebSocket connection from $remoteAddress")
-
         try {
             for (frame in incoming) {
-                if (frame is Frame.Text) {
-                    val text = frame.readText()
-                    println("DevTools Server: Received message: ${text.take(200)}...")
-
-                    try {
-                        val message = json.decodeFromString<DevToolsMessage>(text)
-                        println("DevTools Server: Parsed message type: ${message::class.simpleName}")
-                        handleMessage(this, message, clientId)
-
-                        if (message is DevToolsMessage.ClientRegistration) {
-                            clientId = message.clientId
-                            println("DevTools Server: Client registered with ID: $clientId")
-                        }
-                    } catch (e: Exception) {
-                        println("DevTools Server: Failed to parse message - ${e.message}")
-                        e.printStackTrace()
-                    }
+                if (frame !is Frame.Text) continue
+                val message = try {
+                    json.decodeFromString<DevToolsMessage>(frame.readText())
+                } catch (e: Exception) {
+                    ReaktivDebug.warn("DevTools Server: Failed to parse message - ${e.message}")
+                    continue
                 }
+                if (message is DevToolsMessage.ClientRegistration) {
+                    if (message.protocolVersion != DevToolsProtocol.VERSION) {
+                        refuse(message)
+                        return
+                    }
+                    clientId = message.clientId
+                }
+                clientManager.receive(clientId, this, message)
             }
         } catch (e: Exception) {
-            println("DevTools Server: Connection error - ${e.message}")
-            e.printStackTrace()
+            ReaktivDebug.warn("DevTools Server: Connection error - ${e.message}")
         } finally {
-            if (clientId != null) {
-                println("DevTools Server: Client disconnected: $clientId")
-                clientManager.unregisterClient(clientId)
-            } else {
-                println("DevTools Server: Unknown client disconnected")
-            }
+            clientId?.let { clientManager.unregisterSession(it, this) }
         }
     }
 
-    private suspend fun handleMessage(
-        session: WebSocketSession,
-        message: DevToolsMessage,
-        currentClientId: String?
-    ) {
-        when (message) {
-            is DevToolsMessage.ClientRegistration -> {
-                clientManager.registerClient(session, message)
-            }
-
-            is DevToolsMessage.ActionDispatched -> {
-                println("DevTools Server: Action from ${message.clientId} - ${message.event.actionType}")
-                clientManager.broadcastToListeners(message.clientId, message)
-
-                if (message.event.deltaKind != DeltaKind.FULL) return
-                val stateSync = DevToolsMessage.StateSync(
-                    fromClientId = message.clientId,
-                    timestamp = message.event.timestamp,
-                    stateJson = message.event.stateDeltaJson,
-                    moduleName = message.event.moduleName
-                )
-                clientManager.broadcastToListeners(message.clientId, stateSync)
-            }
-
-            is DevToolsMessage.StateSync -> {
-                println("DevTools Server: StateSync from ${message.fromClientId}")
-                clientManager.broadcastToListeners(message.fromClientId, message)
-            }
-
-            is DevToolsMessage.RoleAssignment -> {
-                println("DevTools Server: Role assignment request - ${message.role} for ${message.targetClientId}")
-
-                // currentPublisher covers both real devices and ghost devices
-                val currentPublisher = clientManager.currentPublisher()
-                val senderRole = if (currentClientId != null) clientManager.getClient(currentClientId)?.role else null
-                val isFromOrchestrator = senderRole == ClientRole.ORCHESTRATOR
-                val effectiveRole: ClientRole
-                val effectivePublisherId: String?
-
-                when (message.role) {
-                    ClientRole.PUBLISHER -> {
-                        if (currentPublisher == null || isFromOrchestrator) {
-                            // First publisher wins, or orchestrator can reassign
-                            effectiveRole = ClientRole.PUBLISHER
-                            effectivePublisherId = null
-                            clientManager.setPublisher(message.targetClientId, "Role assignment request")
-                        } else {
-                            // A publisher already exists and sender is not orchestrator — demote to UNASSIGNED
-                            effectiveRole = ClientRole.UNASSIGNED
-                            effectivePublisherId = null
-                            println("DevTools Server: Publisher already exists ($currentPublisher), ${message.targetClientId} remains UNASSIGNED")
-                        }
-                    }
-
-                    ClientRole.LISTENER -> {
-                        effectiveRole = ClientRole.LISTENER
-                        effectivePublisherId = message.publisherClientId ?: currentPublisher
-                    }
-
-                    ClientRole.ORCHESTRATOR -> {
-                        effectiveRole = ClientRole.ORCHESTRATOR
-                        effectivePublisherId = message.publisherClientId ?: currentPublisher
-                    }
-
-                    ClientRole.UNASSIGNED -> {
-                        effectiveRole = ClientRole.UNASSIGNED
-                        effectivePublisherId = null
-                    }
-                }
-
-                clientManager.assignRole(
-                    clientId = message.targetClientId,
-                    role = effectiveRole,
-                    publisherClientId = effectivePublisherId
-                )
-
-                // Notify about a new observer so it can be given a baseline. Orchestrators need
-                // this as much as listeners: without it the UI has no initial state to
-                // reconstruct the full application state from, and can only show deltas.
-                val isObserver =
-                    effectiveRole == ClientRole.LISTENER || effectiveRole == ClientRole.ORCHESTRATOR
-                if (isObserver && effectivePublisherId != null) {
-                    val notification = DevToolsMessage.ListenerAttached(
-                        listenerId = message.targetClientId,
-                        role = effectiveRole
-                    )
-                    if (clientManager.isGhostDevice(effectivePublisherId)) {
-                        // Ghost can't respond — notify orchestrator/subscribers so they can send state
-                        clientManager.broadcastToListeners(effectivePublisherId, notification)
-                        println("DevTools Server: Notified ghost subscribers of new listener ${message.targetClientId}")
-                    } else {
-                        clientManager.sendToPublisher(effectivePublisherId, notification)
-                        println("DevTools Server: Notified publisher $effectivePublisherId of new listener ${message.targetClientId}")
-                    }
-                }
-
-                // Link anyone who was waiting without a publisher and give each a baseline.
-                // Runs after every assignment because the two can interleave: a listener may be
-                // assigned while no publisher exists yet, and the publisher may run before the
-                // listener's role is recorded. It also has to run after assignRole, since a
-                // publisher ignores an attach notification until it knows it is the publisher.
-                val nowAttached = clientManager.attachWaitingObservers()
-                if (nowAttached.isNotEmpty()) {
-                    val publisherId = clientManager.currentPublisher()
-                    if (publisherId != null) {
-                        val ghost = clientManager.isGhostDevice(publisherId)
-                        nowAttached.forEach { (observerId, role) ->
-                            val notification = DevToolsMessage.ListenerAttached(observerId, role)
-                            if (ghost) {
-                                clientManager.broadcastToListeners(publisherId, notification)
-                            } else {
-                                clientManager.sendToPublisher(publisherId, notification)
-                            }
-                            println("DevTools Server: Requested baseline for waiting $observerId")
-                        }
-                    }
-                }
-            }
-
-            is DevToolsMessage.ClientStatus -> {
-                println("DevTools Server: Status from ${message.clientId} - ${message.status}")
-                clientManager.broadcastToOrchestrators(message)
-            }
-
-            is DevToolsMessage.RoleAcknowledgment -> {
-                println("DevTools Server: Role acknowledged by ${message.clientId} - ${message.role}")
-            }
-
-            is DevToolsMessage.AddMarkerRequest -> {
-                clientManager.sendToPublisher(message.targetClientId, message)
-            }
-
-            is DevToolsMessage.FetchNetworkBody -> {
-                clientManager.sendToPublisher(message.targetClientId, message)
-            }
-
-            is DevToolsMessage.GhostDeviceRegistration -> {
-                println("DevTools Server: Ghost device registration for session ${message.sessionId}")
-                val ghostId = clientManager.registerGhostDevice(message)
-                println("DevTools Server: Ghost device registered with ID: $ghostId")
-            }
-
-            is DevToolsMessage.GhostDeviceRemoval -> {
-                println("DevTools Server: Ghost device removal request for ${message.ghostClientId}")
-                clientManager.removeGhostDevice(message.ghostClientId)
-            }
-
-            is DevToolsMessage.PublisherChanged -> {
-                println("DevTools Server: PublisherChanged - ${message.previousPublisherId} -> ${message.newPublisherId}")
-            }
-
-            is DevToolsMessage.ListenerAttached -> {
-                // Server-generated, should not be received from clients
-            }
-
-            is DevToolsMessage.ClientListUpdate -> {
-                println("DevTools Server: ClientListUpdate received (${message.clients.size} clients)")
-            }
-
-            is DevToolsMessage.GhostSessionRequest -> {
-                currentClientId?.let { clientManager.sendGhostSession(it, message.ghostClientId) }
-            }
-
-            is DevToolsMessage.GhostSessionRestore -> {
-                // Server-generated, should not be received from clients
-            }
-
-            is DevToolsMessage.ObservabilityOnly -> {
-                clientManager.broadcastToObservers(message.clientId, message)
-            }
-
-            is DevToolsMessage.FromClient -> {
-                clientManager.broadcastToListeners(message.clientId, message)
-            }
-        }
-    }
-
-    /**
-     * Gets the client manager instance.
-     */
-    public fun getClientManager(): ClientManager = clientManager
+    @Deprecated(
+        "Every started server owns its own client bookkeeping. Use the clientManager of the RunningDevToolsServer you started.",
+        level = DeprecationLevel.WARNING
+    )
+    public fun getClientManager(): ClientManager = latestClientManager
 }

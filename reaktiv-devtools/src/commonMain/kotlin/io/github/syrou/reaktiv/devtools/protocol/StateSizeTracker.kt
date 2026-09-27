@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.ModuleShadow
 import kotlinx.serialization.json.JsonObject
@@ -8,6 +10,7 @@ public const val SIZE_GROWTH_STREAK_THRESHOLD: Int = 10
 
 public const val SIZE_GROWTH_PERCENT_THRESHOLD: Int = 50
 
+@DevToolsInternalApi
 public data class ModuleSizeStats(
     val moduleName: String,
     val currentBytes: Int,
@@ -25,6 +28,7 @@ public data class ModuleSizeStats(
         get() = growthStreak >= SIZE_GROWTH_STREAK_THRESHOLD && growthPercent >= SIZE_GROWTH_PERCENT_THRESHOLD
 }
 
+@DevToolsInternalApi
 public class StateSizeTracker {
 
     private class MutableSize(

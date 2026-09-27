@@ -1,0 +1,54 @@
+public final class io/github/syrou/reaktiv/navigation/tooling/NavigationLinks : io/github/syrou/reaktiv/introspection/tooling/ToolingService {
+	public static final field $stable I
+	public static final field APP_LINKS_REQUEST Ljava/lang/String;
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/tooling/NavigationLinks$Companion;
+	public static final field EXTENSION_KEY Ljava/lang/String;
+	public static final field OPEN_REQUEST Ljava/lang/String;
+	public static final field SERVICE_NAME Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun createMiddleware ()Lio/github/syrou/reaktiv/core/Middleware;
+	public fun getName ()Ljava/lang/String;
+	public fun getStartsExternallyDriven ()Z
+	public fun onCommand (Lio/github/syrou/reaktiv/introspection/tooling/ToolingCommand;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onRequest (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun start (Lio/github/syrou/reaktiv/introspection/tooling/ToolingServiceContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stop (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/syrou/reaktiv/navigation/tooling/NavigationLinks$Companion {
+}
+
+public final class io/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/util/Map;)Lio/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLink ()Ljava/lang/String;
+	public final fun getParams ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/tooling/OpenLinkPayload$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+

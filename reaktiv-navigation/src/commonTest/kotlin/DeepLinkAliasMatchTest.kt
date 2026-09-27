@@ -19,6 +19,12 @@ class DeepLinkAliasMatchTest {
     }
 
     @Test
+    fun placeholderValuesAreDecodedOnce() {
+        val params = assertNotNull(invitation.matchAndExtract("invitations/team/confirm/a%20b%2Bc"))
+        assertEquals("a b+c", params.getString("token"))
+    }
+
+    @Test
     fun placeholderMatchesNumericId() {
         val params = assertNotNull(release.matchAndExtract("releases/1234"))
         assertEquals("1234", params.getString("release-id"))

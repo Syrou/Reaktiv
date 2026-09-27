@@ -97,4 +97,10 @@ class UrlParsingTest {
         assertEquals("test", queryParams["name"])
         assertEquals("123", queryParams["value"])
     }
+
+    @Test
+    fun `a fragment is not part of the path or the query`() {
+        assertEquals("home/news" to emptyMap(), parseUrlWithQueryParams("home/news#top"))
+        assertEquals("search" to mapOf("q" to "1"), parseUrlWithQueryParams("search?q=1#results"))
+    }
 }

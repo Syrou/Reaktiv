@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.PrecomputedNavigationData
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import kotlinx.serialization.Serializable
+import io.github.syrou.reaktiv.navigation.util.normalizePath
 
 
 @Serializable
@@ -18,7 +19,7 @@ public sealed class NavigationTarget {
     
     public fun resolve(precomputedData: PrecomputedNavigationData): String {
         return when (this) {
-            is Path -> path.trim('/')
+            is Path -> normalizePath(path)
 
             is NavigatableObject -> {
                 precomputedData.navigatableToFullPath[navigatable]
@@ -38,7 +39,7 @@ public sealed class NavigationTarget {
                     )
                 val navigatableGraphId = precomputedData.navigatableToGraph[navigatable]
                 if (navigatableGraphId != null) {
-                    val graphHierarchy = precomputedData.graphHierarchies[navigatableGraphId] ?: emptyList()
+                    val graphHierarchy = precomputedData.graphIndex.chain(navigatableGraphId)
                     if (!graphHierarchy.contains(preferredGraphId) && navigatableGraphId != preferredGraphId) {
                         throw RouteNotFoundException(
                             "Navigatable '${navigatable.route}' not found in preferred graph '$preferredGraphId'. " +

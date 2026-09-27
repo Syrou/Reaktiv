@@ -1,7 +1,7 @@
 plugins {
-    kotlin("jvm")
+    alias(libs.plugins.kotlin.jvm)
     `maven-publish`
-    id("org.jetbrains.dokka")
+    alias(libs.plugins.dokka)
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
 }
@@ -20,10 +20,10 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.4.10")
+    compileOnly(libs.kotlin.compiler.embeddable)
 
     testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.4.10")
+    testImplementation(libs.kotlin.compiler.embeddable)
 }
 
 kotlin {
@@ -32,4 +32,9 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    val pluginJar = tasks.jar.flatMap { it.archiveFile }
+    dependsOn(tasks.jar)
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        listOf("-Dreaktiv.tracing.pluginJar=${pluginJar.get().asFile.absolutePath}")
+    })
 }

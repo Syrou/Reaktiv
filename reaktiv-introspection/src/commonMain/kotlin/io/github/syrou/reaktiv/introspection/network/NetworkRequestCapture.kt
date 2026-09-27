@@ -24,7 +24,8 @@ public data class NetworkRequestCapture(
     val error: String? = null,
     val waitMs: Long? = null,
     val downloadMs: Long? = null,
-    val decodeError: String? = null
+    val decodeError: String? = null,
+    val sensitiveHeaders: Set<String> = emptySet()
 ) {
     val isFailure: Boolean
         get() = error != null || decodeError != null || (responseStatus ?: 0) >= 400

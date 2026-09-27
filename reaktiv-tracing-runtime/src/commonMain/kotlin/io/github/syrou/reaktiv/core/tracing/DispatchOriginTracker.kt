@@ -2,6 +2,8 @@ package io.github.syrou.reaktiv.core.tracing
 
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.fetchAndUpdate
+import kotlin.concurrent.atomics.update
 
 public object DispatchOriginTracker {
 
@@ -17,12 +19,6 @@ public object DispatchOriginTracker {
     }
 }
 
-internal expect object OriginRegistry {
-    fun record(action: Any, origin: String)
-    fun consume(action: Any): String?
-    fun clear()
-}
-
 internal const val ORIGIN_CAPACITY: Int = 256
 
 internal class OriginIdentityKey(val ref: Any) {
@@ -31,29 +27,24 @@ internal class OriginIdentityKey(val ref: Any) {
 }
 
 @OptIn(ExperimentalAtomicApi::class)
-internal class CowOriginRegistry {
+internal object OriginRegistry {
     private val origins = AtomicReference<Map<OriginIdentityKey, List<String>>>(emptyMap())
 
     fun record(action: Any, origin: String) {
         val key = OriginIdentityKey(action)
-        while (true) {
-            val current = origins.load()
-            val base = if (current.size >= ORIGIN_CAPACITY && key !in current) emptyMap() else current
-            val updated = base + (key to (base[key].orEmpty() + origin))
-            if (origins.compareAndSet(current, updated)) return
+        origins.update { current ->
+            val base = if (current.size >= ORIGIN_CAPACITY && key !in current) current - current.keys.first() else current
+            base + (key to (base[key].orEmpty() + origin))
         }
     }
 
     fun consume(action: Any): String? {
         val key = OriginIdentityKey(action)
-        while (true) {
-            val current = origins.load()
-            val queue = current[key] ?: return null
-            val origin = queue.first()
-            val rest = queue.drop(1)
-            val updated = if (rest.isEmpty()) current - key else current + (key to rest)
-            if (origins.compareAndSet(current, updated)) return origin
+        val previous = origins.fetchAndUpdate { current ->
+            val rest = current[key]?.drop(1) ?: return@fetchAndUpdate current
+            if (rest.isEmpty()) current - key else current + (key to rest)
         }
+        return previous[key]?.first()
     }
 
     fun clear() {

@@ -26,43 +26,36 @@ class ReaktivTracingIrGenerationExtension(
 ) : IrGenerationExtension {
 
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
-        val transformer = LogicMethodTransformer(
-            pluginContext = pluginContext,
-            tracePrivateMethods = tracePrivateMethods,
-            githubRepoUrl = githubRepoUrl,
-            githubBranch = githubBranch,
-            projectDir = projectDir,
-            messageCollector = messageCollector
+        val symbols = RuntimeSymbols(pluginContext, messageCollector)
+
+        moduleFragment.transform(
+            LogicMethodTransformer(
+                pluginContext = pluginContext,
+                symbols = symbols,
+                tracePrivateMethods = tracePrivateMethods,
+                githubRepoUrl = githubRepoUrl,
+                githubBranch = githubBranch,
+                projectDir = projectDir,
+                messageCollector = messageCollector
+            ),
+            null
         )
 
-        moduleFragment.transform(transformer, null)
-
-        val readTransformer = ComposableStateReadTransformer(
-            pluginContext = pluginContext,
-            messageCollector = messageCollector
-        )
-
+        val readTransformer = ComposableStateReadTransformer(pluginContext, symbols, messageCollector)
         moduleFragment.transform(readTransformer, null)
 
-        val originTransformer = DispatchOriginTransformer(
-            pluginContext = pluginContext,
-            messageCollector = messageCollector
-        )
-
+        val originTransformer = DispatchOriginTransformer(pluginContext, symbols, messageCollector)
         moduleFragment.transform(originTransformer, null)
 
         if (originTransformer.instrumentedCount > 0) {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
+            messageCollector.info {
                 "ReaktivTracing: Recorded ${originTransformer.instrumentedCount} dispatch origins in ${moduleFragment.name}"
-            )
+            }
         }
-
         if (readTransformer.instrumentedCount > 0) {
-            messageCollector.report(
-                org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.INFO,
+            messageCollector.info {
                 "ReaktivTracing: Instrumented ${readTransformer.instrumentedCount} composable state reads in ${moduleFragment.name}"
-            )
+            }
         }
     }
 }

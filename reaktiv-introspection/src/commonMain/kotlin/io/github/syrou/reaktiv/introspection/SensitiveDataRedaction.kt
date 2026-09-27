@@ -1,6 +1,8 @@
 package io.github.syrou.reaktiv.introspection
 
 import io.github.syrou.reaktiv.core.tracing.Obfuscation
+import io.github.syrou.reaktiv.core.util.normalizeSensitiveKey
+import io.github.syrou.reaktiv.core.util.DEFAULT_SENSITIVE_KEYS as CoreSensitiveKeys
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -11,23 +13,11 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-public val DEFAULT_SENSITIVE_KEYS: Set<String> = setOf(
-    "password",
-    "passwd",
-    "pwd",
-    "secret",
-    "token",
-    "apikey",
-    "accesstoken",
-    "refreshtoken",
-    "authorization",
-    "credential",
-    "privatekey",
-    "cvv",
-    "creditcard",
-    "cardnumber",
-    "ssn"
+@Deprecated(
+    "Moved to reaktiv-core so navigation can keep sensitive params out of URLs as well.",
+    ReplaceWith("DEFAULT_SENSITIVE_KEYS", "io.github.syrou.reaktiv.core.util.DEFAULT_SENSITIVE_KEYS")
 )
+public val DEFAULT_SENSITIVE_KEYS: Set<String> = CoreSensitiveKeys
 
 public const val REDACTED_PLACEHOLDER: String = Obfuscation.REDACTED
 
@@ -39,8 +29,12 @@ public const val REDACTED_PLACEHOLDER: String = Obfuscation.REDACTED
  */
 public const val CLASS_DISCRIMINATOR_KEY: String = "type"
 
+@Deprecated(
+    "Exports mask sensitive keys by default, and capture stays raw. Set IntrospectionConfig.sensitiveKeys instead.",
+    level = DeprecationLevel.WARNING
+)
 public fun sensitiveKeyRedactor(
-    keys: Set<String> = DEFAULT_SENSITIVE_KEYS,
+    keys: Set<String> = CoreSensitiveKeys,
     mask: String = REDACTED_PLACEHOLDER,
     discriminator: String = CLASS_DISCRIMINATOR_KEY
 ): StateRedactor {
@@ -48,7 +42,7 @@ public fun sensitiveKeyRedactor(
     return StateRedactor { _, state -> redactSensitive(state, normalizedKeys, mask, discriminator) }
 }
 
-private fun redactSensitive(
+internal fun redactSensitive(
     element: JsonElement,
     normalizedKeys: List<String>,
     mask: String,
@@ -129,8 +123,7 @@ private fun maskLeaves(
     }
 }
 
-internal fun String.normalizeRedactionKey(): String =
-    lowercase().replace("_", "").replace("-", "")
+internal fun String.normalizeRedactionKey(): String = normalizeSensitiveKey(this)
 
 internal fun String.isSensitiveRedactionKey(normalizedKeys: List<String>): Boolean {
     val normalized = normalizeRedactionKey()

@@ -117,6 +117,71 @@ class ModalNavigationContextTest {
         }
 
     @Test
+    fun `a second back after returning to a modal lands on the screen beneath it`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val store = createStore {
+                module(createTestNavigationModule())
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            store.navigation { navigateTo("notification") }
+            store.navigation { navigateTo("videos") }
+            advanceUntilIdle()
+
+            store.navigation { navigateBack() }
+            advanceUntilIdle()
+            assertEquals("notification", store.selectState<NavigationState>().first().currentEntry.route)
+
+            store.navigation { navigateBack() }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("workspace", state.currentEntry.route)
+            assertEquals(listOf("workspace"), state.backStack.map { it.route })
+            assertTrue(state.activeModalContexts.isEmpty())
+        }
+
+    @Test
+    fun `a covered modal that was dismissed does not come back`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val store = createStore {
+                module(createTestNavigationModule())
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            store.navigation { navigateTo("notification") }
+            store.navigation { navigateTo("videos") }
+            advanceUntilIdle()
+
+            store.navigation { dismissModal() }
+            advanceUntilIdle()
+            assertEquals(listOf("workspace", "videos"), store.selectState<NavigationState>().first().backStack.map { it.route })
+
+            store.navigation { navigateBack() }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("workspace", state.currentEntry.route)
+            assertFalse(state.isCurrentModal)
+        }
+
+    @Test
+    fun `replacing a modal on top leaves no context behind`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val store = createStore {
+                module(createTestNavigationModule())
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            store.navigation { navigateTo("notification") }
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("videos", replaceCurrent = true) }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals(listOf("workspace", "videos"), state.backStack.map { it.route })
+            assertTrue(state.activeModalContexts.isEmpty())
+        }
+
+    @Test
     fun `test dismissModals removes active modal`() =
         runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
             val testDispatcher = StandardTestDispatcher(testScheduler)

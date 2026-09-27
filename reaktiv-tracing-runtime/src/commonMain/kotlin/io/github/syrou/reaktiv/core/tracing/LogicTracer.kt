@@ -109,7 +109,8 @@ public object LogicTracer {
         sourceFile: String? = null,
         lineNumber: Int? = null,
         githubSourceUrl: String? = null,
-        startedAtMs: Long? = null
+        startedAtMs: Long? = null,
+        redactions: Map<String, String>? = null
     ): String {
         if (!active) return ""
         val timestampMs = startedAtMs ?: currentTimeMillis()
@@ -127,10 +128,26 @@ public object LogicTracer {
             githubSourceUrl = githubSourceUrl,
             thread = currentThreadName(),
             dispatcher = coroutineContext[ContinuationInterceptor]?.toString(),
-            parentCallId = parentCallId
+            parentCallId = parentCallId,
+            redactions = redactions.orEmpty().mapNotNull { (name, strategy) ->
+                ParamRedaction.entries.firstOrNull { it.name == strategy }?.let { name to it }
+            }.toMap()
         )
         notifyObservers { it.onMethodStart(event) }
         return event.callId
+    }
+
+    public suspend fun emitSpan(
+        logicClass: String,
+        methodName: String,
+        params: Map<String, String>,
+        result: String?,
+        resultType: String,
+        durationMs: Long = 0L,
+        startedAtMs: Long? = null
+    ) {
+        val callId = notifyMethodStart(logicClass, methodName, params, startedAtMs = startedAtMs)
+        if (callId.isNotEmpty()) notifyMethodCompleted(callId, result, resultType, durationMs)
     }
 
     private fun popCall(callId: String) {

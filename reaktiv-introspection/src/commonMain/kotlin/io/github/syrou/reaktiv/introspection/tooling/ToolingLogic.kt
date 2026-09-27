@@ -5,7 +5,6 @@ import io.github.syrou.reaktiv.core.CrashRecovery
 import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
-import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.tracing.DispatchOriginTracker
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
@@ -18,7 +17,7 @@ import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.StallWatchdog
 import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.SessionFileExport
-import io.github.syrou.reaktiv.introspection.gzipCompress
+import io.github.syrou.reaktiv.introspection.saveSession
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.introspection.protocol.CrashOrigin
 import io.github.syrou.reaktiv.introspection.tracing.IntrospectionLogicObserver
@@ -40,11 +39,8 @@ public class ToolingLogic internal constructor(
     private val fileExport = SessionFileExport(platformContext)
 
     init {
-        if (services.any { it.startsExternallyDriven }) {
-            storeAccessor.asInternalOperations()?.markExternallyDriven()
-        }
         if (config.enabled) {
-            (storeAccessor as? Store)?.serializersModule?.let { capture.attachStateSerializers(it) }
+            storeAccessor.serializersModule?.let { capture.attachStateSerializers(it) }
             crashListener = object : CrashListener {
                 override suspend fun onLogicCrash(exception: Throwable, action: ModuleAction?): CrashRecovery {
                     capture.reportCrash(exception, CrashOrigin.UNCAUGHT)
@@ -53,14 +49,14 @@ public class ToolingLogic internal constructor(
             }.also { storeAccessor.addCrashListener(it) }
             if (config.installLogicTracing) {
                 logicObserver = IntrospectionLogicObserver(capture).also { LogicTracer.addObserver(it) }
-                (storeAccessor as? Store)?.setDispatchInstrumentation(DispatchTracingInstrumentation())
+                storeAccessor.setDispatchInstrumentation(DispatchTracingInstrumentation())
             }
             stateReadObserver = { read: StateRead -> capture.captureStateRead(read) }
                 .also { StateReadTracker.addObserver(it) }
             if (config.installCrashHandler) {
                 CrashHandler(platformContext, capture).install()
             }
-            if (config.installStallWatchdog && storeAccessor is Store) {
+            if (config.installStallWatchdog) {
                 stallWatchdog = StallWatchdog(
                     scope = storeAccessor,
                     thresholdMs = config.stallThresholdMs
@@ -69,6 +65,9 @@ public class ToolingLogic internal constructor(
                         stallWatchdog = null
                     }
                 }
+            }
+            if (config.autoStart && !capture.isStarted()) {
+                capture.start(config.clientId, config.clientName, config.platform, config.clientMetadata)
             }
             storeAccessor.launch {
                 if (config.autoStart) {
@@ -121,21 +120,11 @@ public class ToolingLogic internal constructor(
     public suspend fun exportCrashSessionJson(throwable: Throwable): String =
         capture.exportCrashSession(throwable)
 
-    public suspend fun exportSessionToDownloads(fileName: String? = null): String {
-        val json = capture.exportSession()
-        return fileExport.saveToDownloads(
-            gzipCompress(json.encodeToByteArray()),
-            fileName ?: capture.suggestFileName()
-        )
-    }
+    public suspend fun exportSessionToDownloads(fileName: String? = null): String =
+        fileExport.saveSession(capture, fileName = fileName)
 
-    public suspend fun exportCrashSessionToDownloads(throwable: Throwable, fileName: String? = null): String {
-        val json = capture.exportCrashSession(throwable)
-        return fileExport.saveToDownloads(
-            gzipCompress(json.encodeToByteArray()),
-            fileName ?: capture.suggestFileName("crash")
-        )
-    }
+    public suspend fun exportCrashSessionToDownloads(throwable: Throwable, fileName: String? = null): String =
+        fileExport.saveSession(capture, throwable, fileName)
 
     override suspend fun beforeReset() {
         services.forEach { service ->
@@ -146,7 +135,7 @@ public class ToolingLogic internal constructor(
             }
         }
         capture.clear()
-        (storeAccessor as? Store)?.setDispatchInstrumentation(null)
+        storeAccessor.setDispatchInstrumentation(null)
         DispatchOriginTracker.clear()
         logicObserver?.let { LogicTracer.removeObserver(it) }
         logicObserver = null

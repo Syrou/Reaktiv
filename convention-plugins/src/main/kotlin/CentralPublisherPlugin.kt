@@ -1,20 +1,3 @@
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.forms.formData
-import io.ktor.client.request.forms.submitFormWithBinaryData
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.parameter
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
@@ -44,7 +27,14 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import java.io.File
-import java.util.*
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.time.Duration
+import java.util.Base64
+import java.util.Properties
+import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -495,23 +485,25 @@ abstract class UploadToCentralTask : DefaultTask() {
     @get:Input
     abstract val publishingType: Property<String>
 
+    @get:Input
+    abstract val deploymentName: Property<String>
+
     @get:InputFile
     abstract val bundleFile: RegularFileProperty
 
     @TaskAction
     fun upload() {
-        // Validate that credentials are provided
         if (username.get().isBlank() || password.get().isBlank()) {
             throw GradleException(
                 """
                 Missing Central Portal credentials!
-                
+
                 Configure in your build.gradle.kts:
                 centralPublisher {
                     username.set(CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_TOKEN"))
                     password.set(CentralPublisherCredentials.getRequiredCredential(project, "CENTRAL_PASSWORD"))
                 }
-                
+
                 Get credentials at: https://central.sonatype.com/account
             """.trimIndent()
             )
@@ -526,68 +518,41 @@ abstract class UploadToCentralTask : DefaultTask() {
         logger.lifecycle("Bundle: ${bundleZipFile.absolutePath}")
         logger.lifecycle("Size: ${bundleZipFile.length() / 1024}KB")
 
-        runBlocking {
-            uploadBundle(bundleZipFile)
-        }
+        uploadBundle(bundleZipFile)
     }
 
-    private suspend fun uploadBundle(bundleFile: File) {
-        // Validate bundle size first
+    private fun uploadBundle(bundleFile: File) {
         val fileSizeGB = bundleFile.length() / (1024.0 * 1024.0 * 1024.0)
         if (fileSizeGB > 1.0) {
             throw GradleException("Bundle size (${String.format("%.2f", fileSizeGB)}GB) exceeds 1GB limit")
         }
 
-        // Create Bearer token from username:password
-        val credentials = "${username.get()}:${password.get()}"
-        val bearerToken = java.util.Base64.getEncoder().encodeToString(credentials.toByteArray())
-
-        val client = HttpClient(CIO) {
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    prettyPrint = true
-                })
-            }
-
-            install(HttpTimeout) {
-                requestTimeoutMillis = 600_000 // 10 minutes
-                connectTimeoutMillis = 60_000  // 1 minute
-                socketTimeoutMillis = 600_000  // 10 minutes
-            }
+        val bearerToken = Base64.getEncoder().encodeToString("${username.get()}:${password.get()}".toByteArray())
+        val client = HttpClient.newBuilder().connectTimeout(Duration.ofMinutes(1)).build()
+        val boundary = "reaktiv-${UUID.randomUUID()}"
+        val fields = buildMap {
+            if (publishingType.isPresent) put("publishingType", publishingType.get())
+            put("name", deploymentName.get())
         }
 
         try {
             logger.lifecycle("Uploading to Central Portal...")
 
-            val response = client.submitFormWithBinaryData(
-                url = "https://central.sonatype.com/api/v1/publisher/upload",
-                formData = formData {
-                    append("bundle", bundleFile.readBytes(), Headers.build {
-                        append(HttpHeaders.ContentType, "application/zip")
-                        append(HttpHeaders.ContentDisposition, "filename=\"bundle.zip\"")
-                    })
+            val request = HttpRequest.newBuilder(URI.create("$CENTRAL_API/upload"))
+                .timeout(Duration.ofMinutes(10))
+                .header("Authorization", "Bearer $bearerToken")
+                .header("Content-Type", "multipart/form-data; boundary=$boundary")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(multipartBody(boundary, bundleFile, fields)))
+                .build()
+            val response = client.send(request, HttpResponse.BodyHandlers.ofString())
 
-                    if (publishingType.isPresent) {
-                        append("publishingType", publishingType.get())
-                    }
-
-                    // Add deployment name for better tracking
-                    append("name", "${project.name}-${project.version}")
-                }
-            ) {
-                // Set Bearer token authentication
-                header(HttpHeaders.Authorization, "Bearer $bearerToken")
-            }
-
-            when (response.status) {
-                HttpStatusCode.Created -> {
-                    val deploymentId = response.bodyAsText().trim()
+            when (response.statusCode()) {
+                201 -> {
+                    val deploymentId = response.body().trim()
                     logger.lifecycle("Successfully uploaded to Central Portal!")
                     logger.lifecycle("Deployment ID: $deploymentId")
                     logger.lifecycle("View at: https://central.sonatype.com/publishing/deployments")
 
-                    // Check deployment status
                     checkDeploymentStatus(client, deploymentId, bearerToken)
 
                     if (publishingType.get() == "USER_MANAGED") {
@@ -597,79 +562,77 @@ abstract class UploadToCentralTask : DefaultTask() {
                     }
                 }
 
-                HttpStatusCode.Unauthorized -> {
-                    throw GradleException("Authentication failed. Check your username and password.")
-                }
-
-                HttpStatusCode.BadRequest -> {
-                    val errorBody = response.bodyAsText()
-                    throw GradleException("Bad request: $errorBody")
-                }
-
-                HttpStatusCode.PayloadTooLarge -> {
-                    throw GradleException("Bundle too large. Maximum size is 1GB.")
-                }
-
-                else -> {
-                    val errorBody = response.bodyAsText()
-                    throw GradleException("Upload failed (${response.status}): $errorBody")
-                }
+                401 -> throw GradleException("Authentication failed. Check your username and password.")
+                400 -> throw GradleException("Bad request: ${response.body()}")
+                413 -> throw GradleException("Bundle too large. Maximum size is 1GB.")
+                else -> throw GradleException("Upload failed (${response.statusCode()}): ${response.body()}")
             }
-
         } catch (e: Exception) {
             if (e is GradleException) throw e
             throw GradleException("Upload failed: ${e.message}", e)
-        } finally {
-            client.close()
         }
     }
 
-    private suspend fun checkDeploymentStatus(client: HttpClient, deploymentId: String, bearerToken: String) {
+    private fun multipartBody(boundary: String, bundle: File, fields: Map<String, String>): ByteArray {
+        val body = java.io.ByteArrayOutputStream()
+        fun line(text: String) = body.write("$text\r\n".toByteArray())
+        line("--$boundary")
+        line("Content-Disposition: form-data; name=\"bundle\"; filename=\"bundle.zip\"")
+        line("Content-Type: application/zip")
+        line("")
+        body.write(bundle.readBytes())
+        line("")
+        fields.forEach { (name, value) ->
+            line("--$boundary")
+            line("Content-Disposition: form-data; name=\"$name\"")
+            line("")
+            line(value)
+        }
+        line("--$boundary--")
+        return body.toByteArray()
+    }
+
+    private fun checkDeploymentStatus(client: HttpClient, deploymentId: String, bearerToken: String) {
         try {
             logger.lifecycle("Checking deployment status...")
 
-            val statusResponse = client.get("https://central.sonatype.com/api/v1/publisher/status") {
-                parameter("id", deploymentId)
-                header(HttpHeaders.Authorization, "Bearer $bearerToken")
-            }
+            val request = HttpRequest.newBuilder(URI.create("$CENTRAL_API/status?id=$deploymentId"))
+                .timeout(Duration.ofMinutes(1))
+                .header("Authorization", "Bearer $bearerToken")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build()
+            val response = client.send(request, HttpResponse.BodyHandlers.ofString())
 
-            if (statusResponse.status == HttpStatusCode.OK) {
-                try {
-                    val statusBody = statusResponse.bodyAsText()
-                    logger.info("Raw status response: $statusBody")
-
-                    val json = Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
+            if (response.statusCode() == 200) {
+                logger.info("Raw status response: ${response.body()}")
+                when (val state = DEPLOYMENT_STATE.find(response.body())?.groupValues?.get(1)) {
+                    "PENDING" -> logger.lifecycle("Status: Pending validation")
+                    "VALIDATING" -> logger.lifecycle("Status: Validating artifacts")
+                    "VALIDATED" -> logger.lifecycle("Status: Validation passed!")
+                    "PUBLISHING" -> logger.lifecycle("Status: Publishing to Maven Central")
+                    "PUBLISHED" -> logger.lifecycle("Status: Published to Maven Central!")
+                    "FAILED" -> {
+                        logger.lifecycle("Status: Validation failed")
+                        logger.lifecycle("Check the portal for validation errors: https://central.sonatype.com/publishing/deployments")
                     }
-                    val statusInfo = json.decodeFromString<DeploymentStatus>(statusBody)
 
-                    when (statusInfo.deploymentState) {
-                        "PENDING" -> logger.lifecycle("Status: Pending validation")
-                        "VALIDATING" -> logger.lifecycle("Status: Validating artifacts")
-                        "VALIDATED" -> logger.lifecycle("Status: Validation passed!")
-                        "PUBLISHING" -> logger.lifecycle("Status: Publishing to Maven Central")
-                        "PUBLISHED" -> logger.lifecycle("Status: Published to Maven Central!")
-                        "FAILED" -> {
-                            logger.lifecycle("Status: Validation failed")
-                            logger.lifecycle("Check the portal for validation errors: https://central.sonatype.com/publishing/deployments")
-                        }
-
-                        else -> logger.lifecycle("Status: ${statusInfo.deploymentState}")
-                    }
-                } catch (e: Exception) {
-                    logger.warn("Could not parse deployment status response: ${e.message}")
-                    logger.lifecycle("Status check completed - check the portal for details")
+                    null -> logger.lifecycle("Status check completed - check the portal for details")
+                    else -> logger.lifecycle("Status: $state")
                 }
             } else {
-                logger.warn("Status check failed with HTTP ${statusResponse.status}")
-                logger.warn("Status body: ${statusResponse.bodyAsText()}")
+                logger.warn("Status check failed with HTTP ${response.statusCode()}")
+                logger.warn("Status body: ${response.body()}")
                 logger.lifecycle("Check status manually at: https://central.sonatype.com/publishing/deployments")
             }
         } catch (e: Exception) {
             logger.warn("Could not check deployment status: ${e.message}")
             logger.lifecycle("Check status manually at: https://central.sonatype.com/publishing/deployments")
         }
+    }
+
+    private companion object {
+        const val CENTRAL_API = "https://central.sonatype.com/api/v1/publisher"
+        val DEPLOYMENT_STATE = Regex(""""deploymentState"\s*:\s*"([^"]+)"""")
     }
 }
 
@@ -766,6 +729,7 @@ class CentralPublisherPlugin : Plugin<Project> {
             username.set(extension.username)
             password.set(extension.password)
             publishingType.set(extension.publishingType.map { it.apiValue })
+            deploymentName.set("${project.name}-${project.version}")
             bundleFile.set(project.layout.buildDirectory.file("central-bundle.zip"))
 
             dependsOn("validateCentralBundle")
@@ -802,75 +766,17 @@ class CentralPublisherPlugin : Plugin<Project> {
         publishing: PublishingExtension,
         extension: CentralPublisherExtension
     ) {
-        // Create ONE shared javadoc jar for KMP and JVM publications
-        val sharedJavadocJar = if (project.plugins.hasPlugin("org.jetbrains.dokka")) {
-            project.tasks.register<Jar>("javadocJar") {
-                group = "documentation"
-                archiveClassifier.set("javadoc")
-                from(project.tasks.named("dokkaGeneratePublicationHtml"))
-                archiveBaseName.set(project.name)
+        publishing.publications.withType<MavenPublication> {
+            val getsJavadoc = name == "kotlinMultiplatform" ||
+                name.contains("jvm", ignoreCase = true) ||
+                name.endsWith("-java") ||
+                artifactId.contains("jvm", ignoreCase = true) ||
+                artifactId.endsWith("-java")
+            if (getsJavadoc) {
+                artifact(javadocJar(project, name))
             }
-        } else {
-            // Create empty javadoc jar for Maven Central compliance
-            project.tasks.register<Jar>("javadocJar") {
-                group = "documentation"
-                archiveClassifier.set("javadoc")
-                archiveBaseName.set(project.name)
-
-                // Create minimal HTML content for empty javadoc
-                doFirst {
-                    val tempDir = File(project.layout.buildDirectory.asFile.get(), "tmp/javadoc")
-                    tempDir.mkdirs()
-                    File(tempDir, "index.html").writeText(
-                        """
-                        <!DOCTYPE html>
-                        <html>
-                        <head><title>${project.name} Documentation</title></head>
-                        <body>
-                            <h1>${project.name}</h1>
-                            <p>Documentation for ${project.name} version ${project.version}</p>
-                            <p>For detailed API documentation, please refer to the source code and KDoc comments.</p>
-                            <p>To generate rich documentation, apply the Dokka plugin: <code>id("org.jetbrains.dokka")</code></p>
-                        </body>
-                        </html>
-                    """.trimIndent()
-                    )
-                    from(tempDir)
-                }
-            }
+            configurePom(this, extension)
         }
-
-        project.afterEvaluate {
-            publishing.publications.withType<MavenPublication> {
-                when {
-                    name == "kotlinMultiplatform" -> {
-                        // Main KMP publication gets javadoc
-                        artifact(sharedJavadocJar.get())
-                        project.logger.lifecycle("   Added javadoc to main kotlinMultiplatform publication")
-                    }
-
-                    name.contains("jvm", ignoreCase = true) ||
-                            name.endsWith("-java") ||
-                            artifactId.contains("jvm", ignoreCase = true) ||
-                            artifactId.endsWith("-java") -> {
-                        // JVM target publications also get javadoc (Central Portal requires this)
-                        artifact(sharedJavadocJar.get())
-                        project.logger.lifecycle("   Added javadoc to JVM publication: $name")
-                    }
-
-                    else -> {
-                        // Other target publications: skip javadoc to avoid conflicts
-                        project.logger.info("   Skipping javadoc for non-JVM target publication: $name")
-                    }
-                }
-
-                // Configure POM for all publications
-                configurePom(this, extension)
-            }
-        }
-
-        // Fix signing and checksum generation
-        configureSigningDependencies(project)
 
         project.logger.lifecycle("Configured Kotlin Multiplatform publishing (javadoc for KMP + JVM publications)")
     }
@@ -880,65 +786,38 @@ class CentralPublisherPlugin : Plugin<Project> {
         publishing: PublishingExtension,
         extension: CentralPublisherExtension
     ) {
-        // Create javadocJar task
-        val javadocJar = if (project.plugins.hasPlugin("org.jetbrains.dokka")) {
-            project.tasks.register<Jar>("javadocJar") {
-                group = "documentation"
-                archiveClassifier.set("javadoc")
-                from(project.tasks.named("dokkaGeneratePublicationHtml"))
-                archiveBaseName.set("${project.name}")
-            }
-        } else {
-            project.tasks.register<Jar>("javadocJar") {
-                group = "documentation"
-                archiveClassifier.set("javadoc")
-                archiveBaseName.set("${project.name}")
-                // Empty jar for Maven Central compliance
-            }
-        }
-
-        // Create sources jar task
         val sourcesJar = project.tasks.register<Jar>("sourcesJar") {
             archiveClassifier.set("sources")
             from(project.extensions.getByType<SourceSetContainer>()["main"].allSource)
         }
 
-        // Check if java-gradle-plugin is applied (creates its own publications)
-        val hasGradlePlugin = project.plugins.hasPlugin("java-gradle-plugin")
-
-        if (hasGradlePlugin) {
-            // Configure existing publications created by java-gradle-plugin
-            project.afterEvaluate {
-                publishing.publications.withType<MavenPublication> {
-                    // Skip plugin marker publications (they don't need javadoc)
-                    if (!name.endsWith("PluginMarkerMaven")) {
-                        artifact(javadocJar.get())
-                        artifact(sourcesJar.get())
-                        configurePom(this, extension)
-                        project.logger.lifecycle("   Added javadoc/sources to gradle plugin publication: $name")
-                    } else {
-                        // Plugin markers still need POM metadata
-                        configurePom(this, extension)
-                    }
+        if (project.plugins.hasPlugin("java-gradle-plugin")) {
+            publishing.publications.withType<MavenPublication> {
+                if (!name.endsWith("PluginMarkerMaven")) {
+                    artifact(javadocJar(project, name))
+                    artifact(sourcesJar)
                 }
+                configurePom(this, extension)
             }
             project.logger.lifecycle("Configured Gradle plugin publishing with javadoc")
         } else {
-            // Create standard maven publication for regular JVM projects
             publishing.publications.create<MavenPublication>("maven") {
                 from(project.components["java"])
-
                 artifact(sourcesJar)
-                artifact(javadocJar.get())
-
+                artifact(javadocJar(project, name))
                 configurePom(this, extension)
             }
             project.logger.lifecycle("Configured regular Kotlin publishing")
         }
-
-        // Configure signing dependencies for regular projects too
-        configureSigningDependencies(project)
     }
+
+    private fun javadocJar(project: Project, publicationName: String) =
+        project.tasks.register<Jar>("${publicationName}JavadocJar") {
+            group = "documentation"
+            archiveClassifier.set("javadoc")
+            archiveBaseName.set("${project.name}-$publicationName")
+            from(project.tasks.named("dokkaGeneratePublicationHtml"))
+        }
 
     private fun configurePom(publication: MavenPublication, extension: CentralPublisherExtension) {
         publication.pom {
@@ -970,77 +849,31 @@ class CentralPublisherPlugin : Plugin<Project> {
     }
 
     private fun configureSigning(project: Project, extension: CentralPublisherExtension) {
-        project.afterEvaluate {
-            val signingKeyId = extension.signingKeyId.orNull
-            val signingPassword = extension.signingPassword.orNull
-            val signingSecretKey = extension.signingSecretKey.orNull
+        val signingPassword = extension.signingPassword.orNull?.takeIf { it.isNotBlank() }
+        val signingSecretKey = extension.signingSecretKey.orNull?.takeIf { it.isNotBlank() }
 
-            if (signingPassword != null && signingSecretKey != null) {
-                project.extensions.configure<SigningExtension> {
-                    // Make signing required so it doesn't get skipped
-                    setRequired { true }
-
-                    var processedKey = signingSecretKey
-
-                    // Check for and fix literal \n characters
-                    if (signingSecretKey.contains("\\n")) {
-                        project.logger.lifecycle("Detected literal \\n in key, converting to actual newlines")
-                        processedKey = processedKey.replace("\\n", "\n")
-                    }
-
-                    // Check for and fix Windows line endings
-                    if (processedKey.contains("\r\n")) {
-                        project.logger.lifecycle("Detected Windows line endings, converting to Unix format")
-                        processedKey = processedKey.replace("\r\n", "\n")
-                    }
-
-                    // Use in-memory keys with fallback to 2-parameter version
-                    if (signingKeyId != null) {
-                        useInMemoryPgpKeys(signingKeyId, processedKey, signingPassword)
-                    } else {
-                        useInMemoryPgpKeys(processedKey, signingPassword)
-                    }
-
-                    // Sign all publications via the live container so publications
-                    // registered after this afterEvaluate block (e.g. Apple targets
-                    // under lazy KMP registration) also get signing tasks
-                    val publishingExtension = project.extensions.findByType<PublishingExtension>()
-                    publishingExtension?.let { publishing ->
-                        sign(publishing.publications)
-                        project.logger.lifecycle("Configured automatic GPG signing for all publications")
-                    }
-                }
-
-                // Configure task dependencies after signing is set up
-                configureSigningDependencies(project)
-            } else {
-                project.logger.warn("GPG signing not configured - missing signing credentials")
-                project.logger.warn("   Add SIGNING_PASSWORD and SIGNING_SECRET_KEY")
-                if (signingKeyId == null) project.logger.warn("   SIGNING_KEY_ID is optional but recommended")
-            }
-        }
-    }
-
-    /**
-     * Configure proper task dependencies for signing in KMP projects
-     */
-    private fun configureSigningDependencies(project: Project) {
-        project.tasks.configureEach {
-            // Make all publishToMavenLocal tasks depend on signing tasks
-            if (this.name.startsWith("publish") && this.name.contains("ToMavenLocal")) {
-                // Get all signing tasks and make this publish task depend on them
-                val signingTasks = project.tasks.withType<Sign>()
-                this.dependsOn(signingTasks)
-
-                project.logger.info("Task ${this.name} now depends on ${signingTasks.size} signing tasks")
-            }
+        if (signingPassword == null || signingSecretKey == null) {
+            project.logger.warn("GPG signing not configured - missing signing credentials")
+            project.logger.warn("   Add SIGNING_PASSWORD and SIGNING_SECRET_KEY")
+            return
         }
 
-        // Also ensure publishToMavenLocal (the aggregate task) depends on all signing
-        project.tasks.matching { it.name == "publishToMavenLocal" }.configureEach {
-            val signingTasks = project.tasks.withType<Sign>()
-            this.dependsOn(signingTasks)
-            project.logger.info("Main publishToMavenLocal task now depends on ${signingTasks.size} signing tasks")
+        project.extensions.configure<SigningExtension> {
+            setRequired { true }
+
+            var processedKey = signingSecretKey
+            if (processedKey.contains("\\n")) {
+                project.logger.lifecycle("Detected literal \\n in key, converting to actual newlines")
+                processedKey = processedKey.replace("\\n", "\n")
+            }
+            if (processedKey.contains("\r\n")) {
+                project.logger.lifecycle("Detected Windows line endings, converting to Unix format")
+                processedKey = processedKey.replace("\r\n", "\n")
+            }
+            useInMemoryPgpKeys(processedKey, signingPassword)
+
+            sign(project.extensions.getByType<PublishingExtension>().publications)
+            project.logger.lifecycle("Configured automatic GPG signing for all publications")
         }
     }
 }
@@ -1152,10 +985,8 @@ interface CentralPublisherExtension {
     val username: Property<String>
     val password: Property<String>
     val publishingType: Property<PublishingType>
-    val timeout: Property<Int>
 
     // GPG Signing properties
-    val signingKeyId: Property<String>
     val signingPassword: Property<String>
     val signingSecretKey: Property<String>
 
@@ -1178,17 +1009,3 @@ interface CentralPublisherExtension {
     val scmConnection: Property<String>
     val scmDeveloperConnection: Property<String>
 }
-
-@Serializable
-data class UploadResponse(
-    val deploymentId: String? = null,
-    val message: String? = null
-)
-
-@Serializable
-data class DeploymentStatus(
-    val deploymentId: String,
-    val deploymentName: String? = null,
-    val deploymentState: String,
-    val purls: List<String>? = null
-)

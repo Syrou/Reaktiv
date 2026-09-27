@@ -13,6 +13,7 @@ import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.ScrubState
+import io.github.syrou.reaktiv.navigation.ScrubType
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import kotlinx.coroutines.flow.first
@@ -45,7 +46,7 @@ class StateScrubUiTest {
         val state = runBlocking { store.selectState<NavigationState>().first() }
         val top = state.orderedBackStack.last()
         val revealed = state.orderedBackStack[state.orderedBackStack.size - 2]
-        val scrub = ScrubState("back-scrub", top.stableKey, revealed.stableKey, 0.4f)
+        val scrub = ScrubState(ScrubType.Back, top.stableKey, revealed.stableKey, 0.4f)
 
         store.dispatch(NavigationAction.ScrubUpdate(scrub))
         waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
@@ -79,7 +80,7 @@ class StateScrubUiTest {
         }
         val navigationState = runBlocking { store.selectState<NavigationState>() }
         waitUntil(timeoutMillis = UI_TEST_WAIT_MS) {
-            navigationState.value.activeScrub?.kind == "back-scrub"
+            navigationState.value.activeScrub?.type == ScrubType.Back
         }
         assertTrue(navigationState.value.activeScrub!!.progress > 0f)
 
@@ -108,7 +109,7 @@ class StateScrubUiTest {
         val top = state.orderedBackStack.last()
         val revealed = state.orderedBackStack[state.orderedBackStack.size - 2]
         store.dispatch(
-            NavigationAction.ScrubUpdate(ScrubState("back-scrub", top.stableKey, revealed.stableKey, 0.9f))
+            NavigationAction.ScrubUpdate(ScrubState(ScrubType.Back, top.stableKey, revealed.stableKey, 0.9f))
         )
         waitUntilExactlyOneExists(hasText("UI Home"), timeoutMillis = UI_TEST_WAIT_MS)
 

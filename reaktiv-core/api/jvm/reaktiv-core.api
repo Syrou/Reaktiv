@@ -12,6 +12,7 @@ public final class io/github/syrou/reaktiv/core/CrashRecovery : java/lang/Enum {
 
 public final class io/github/syrou/reaktiv/core/DispatchDropReason : java/lang/Enum {
 	public static final field EXTERNAL_CONTROL Lio/github/syrou/reaktiv/core/DispatchDropReason;
+	public static final field EXTERNAL_STATE_DENIED Lio/github/syrou/reaktiv/core/DispatchDropReason;
 	public static final field RESET Lio/github/syrou/reaktiv/core/DispatchDropReason;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/core/DispatchDropReason;
@@ -52,6 +53,17 @@ public final class io/github/syrou/reaktiv/core/DispatchResult$Blocked : io/gith
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/syrou/reaktiv/core/DispatchResult$Dropped : io/github/syrou/reaktiv/core/DispatchResult {
+	public fun <init> (Lio/github/syrou/reaktiv/core/DispatchDropReason;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/core/DispatchDropReason;
+	public final fun copy (Lio/github/syrou/reaktiv/core/DispatchDropReason;)Lio/github/syrou/reaktiv/core/DispatchResult$Dropped;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/core/DispatchResult$Dropped;Lio/github/syrou/reaktiv/core/DispatchDropReason;ILjava/lang/Object;)Lio/github/syrou/reaktiv/core/DispatchResult$Dropped;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Lio/github/syrou/reaktiv/core/DispatchDropReason;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/syrou/reaktiv/core/DispatchResult$Error : io/github/syrou/reaktiv/core/DispatchResult {
 	public fun <init> (Ljava/lang/Throwable;)V
 	public final fun component1 ()Ljava/lang/Throwable;
@@ -80,7 +92,61 @@ public abstract interface annotation class io/github/syrou/reaktiv/core/Experime
 public abstract interface class io/github/syrou/reaktiv/core/ExternalControlExempt {
 }
 
+public abstract interface class io/github/syrou/reaktiv/core/ExternalStateAccess {
+	public abstract fun beginControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun endControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun hydrate (Ljava/util/Map;Lio/github/syrou/reaktiv/core/HydrateSource;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun isUnderControl ()Z
+}
+
+public final class io/github/syrou/reaktiv/core/ExternalStatePolicy : java/lang/Enum {
+	public static final field Allow Lio/github/syrou/reaktiv/core/ExternalStatePolicy;
+	public static final field Deny Lio/github/syrou/reaktiv/core/ExternalStatePolicy;
+	public static final field OnRequest Lio/github/syrou/reaktiv/core/ExternalStatePolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/core/ExternalStatePolicy;
+	public static fun values ()[Lio/github/syrou/reaktiv/core/ExternalStatePolicy;
+}
+
+public abstract interface class io/github/syrou/reaktiv/core/ExternalStateRequester {
+	public fun startsUnderExternalControl ()Z
+}
+
+public final class io/github/syrou/reaktiv/core/ExternalStateRequester$DefaultImpls {
+	public static fun startsUnderExternalControl (Lio/github/syrou/reaktiv/core/ExternalStateRequester;)Z
+}
+
 public abstract interface class io/github/syrou/reaktiv/core/HighPriorityAction {
+}
+
+public abstract class io/github/syrou/reaktiv/core/HydrateSource {
+	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getLabel ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/core/HydrateSource$External : io/github/syrou/reaktiv/core/HydrateSource {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/syrou/reaktiv/core/HydrateSource$External;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/core/HydrateSource$External;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/core/HydrateSource$External;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOrigin ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/core/HydrateSource$Replication : io/github/syrou/reaktiv/core/HydrateSource {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/core/HydrateSource$Replication;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/core/HydrateSource$Restore : io/github/syrou/reaktiv/core/HydrateSource {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/core/HydrateSource$Restore;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class io/github/syrou/reaktiv/core/InternalStoreOperations {
@@ -129,6 +195,7 @@ public class io/github/syrou/reaktiv/core/ModuleLogic : io/github/syrou/reaktiv/
 	public fun <init> ()V
 	public fun beforeReset (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun onExternalControlChanged (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onHydrated (Lio/github/syrou/reaktiv/core/HydrateSource;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class io/github/syrou/reaktiv/core/ModuleState {
@@ -160,14 +227,15 @@ public final class io/github/syrou/reaktiv/core/StateSelector$Companion {
 
 public final class io/github/syrou/reaktiv/core/Store : io/github/syrou/reaktiv/core/StoreAccessor, io/github/syrou/reaktiv/core/InternalStoreOperations {
 	public static final field Companion Lio/github/syrou/reaktiv/core/Store$Companion;
-	public synthetic fun <init> (Lkotlinx/coroutines/CoroutineScope;Ljava/util/List;Ljava/util/List;Lio/github/syrou/reaktiv/core/persistance/PersistenceManager;Lkotlinx/serialization/modules/SerializersModule;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun addCrashListener (Lio/github/syrou/reaktiv/core/CrashListener;)V
 	public fun applyExternalStates (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun beginExternalControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun cleanup ()V
+	public final fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun dispatchAndAwait (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun endExternalControl (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun getActiveDispatchInstrumentation ()Lio/github/syrou/reaktiv/core/DispatchInstrumentation;
+	public fun externalState ()Lio/github/syrou/reaktiv/core/ExternalStateAccess;
+	public fun getActiveDispatchInstrumentation ()Lio/github/syrou/reaktiv/core/DispatchInstrumentation;
 	public fun getAllStates ()Ljava/util/Map;
 	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
 	public fun getDispatch ()Lkotlin/jvm/functions/Function1;
@@ -176,7 +244,7 @@ public final class io/github/syrou/reaktiv/core/Store : io/github/syrou/reaktiv/
 	public fun getModule (Lkotlin/reflect/KClass;)Ljava/lang/Object;
 	public final fun getModules ()Ljava/util/List;
 	public fun getRegisteredModules ()Ljava/util/List;
-	public final fun getSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
+	public fun getSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
 	public fun getStateFlowForModule (Lio/github/syrou/reaktiv/core/Module;)Lkotlinx/coroutines/flow/StateFlow;
 	public final fun hasPersistedState (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun isExternallyDriven ()Z
@@ -189,7 +257,7 @@ public final class io/github/syrou/reaktiv/core/Store : io/github/syrou/reaktiv/
 	public fun selectLogic (Lkotlin/reflect/KClass;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun selectState (Lkotlin/reflect/KClass;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun selectStateNonSuspend (Lkotlin/reflect/KClass;)Lkotlinx/coroutines/flow/StateFlow;
-	public final fun setDispatchInstrumentation (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;)V
+	public fun setDispatchInstrumentation (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;)V
 }
 
 public final class io/github/syrou/reaktiv/core/Store$Companion {
@@ -200,18 +268,22 @@ public abstract class io/github/syrou/reaktiv/core/StoreAccessor : kotlinx/corou
 	public abstract fun addCrashListener (Lio/github/syrou/reaktiv/core/CrashListener;)V
 	public final fun asInternalOperations ()Lio/github/syrou/reaktiv/core/InternalStoreOperations;
 	public abstract fun dispatchAndAwait (Lio/github/syrou/reaktiv/core/ModuleAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun externalState ()Lio/github/syrou/reaktiv/core/ExternalStateAccess;
+	public fun getActiveDispatchInstrumentation ()Lio/github/syrou/reaktiv/core/DispatchInstrumentation;
 	public abstract fun getAllStates ()Ljava/util/Map;
 	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
 	public abstract fun getDispatch ()Lkotlin/jvm/functions/Function1;
 	public abstract fun getLogicForModule (Lio/github/syrou/reaktiv/core/Module;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getModule (Lkotlin/reflect/KClass;)Ljava/lang/Object;
 	public abstract fun getRegisteredModules ()Ljava/util/List;
+	public fun getSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
 	public abstract fun getStateFlowForModule (Lio/github/syrou/reaktiv/core/Module;)Lkotlinx/coroutines/flow/StateFlow;
 	public abstract fun removeCrashListener (Lio/github/syrou/reaktiv/core/CrashListener;)V
 	public abstract fun reset (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun resetAsync ()Lkotlinx/coroutines/Job;
 	public abstract fun selectLogic (Lkotlin/reflect/KClass;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun selectState (Lkotlin/reflect/KClass;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setDispatchInstrumentation (Lio/github/syrou/reaktiv/core/DispatchInstrumentation;)V
 }
 
 public abstract class io/github/syrou/reaktiv/core/StoreAction : io/github/syrou/reaktiv/core/ModuleAction, io/github/syrou/reaktiv/core/ExternalControlExempt, io/github/syrou/reaktiv/core/HighPriorityAction {
@@ -220,11 +292,10 @@ public abstract class io/github/syrou/reaktiv/core/StoreAction : io/github/syrou
 public final class io/github/syrou/reaktiv/core/StoreAction$Hydrate : io/github/syrou/reaktiv/core/StoreAction {
 	public fun <init> (Ljava/util/Map;Ljava/lang/String;)V
 	public final fun component1 ()Ljava/util/Map;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun copy (Ljava/util/Map;Ljava/lang/String;)Lio/github/syrou/reaktiv/core/StoreAction$Hydrate;
-	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/core/StoreAction$Hydrate;Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/core/StoreAction$Hydrate;
+	public final fun component2 ()Lio/github/syrou/reaktiv/core/HydrateSource;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getOrigin ()Ljava/lang/String;
+	public final fun getSource ()Lio/github/syrou/reaktiv/core/HydrateSource;
 	public final fun getStates ()Ljava/util/Map;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -233,6 +304,7 @@ public final class io/github/syrou/reaktiv/core/StoreAction$Hydrate : io/github/
 public final class io/github/syrou/reaktiv/core/StoreDSL {
 	public fun <init> ()V
 	public final fun coroutineContext (Lkotlin/coroutines/CoroutineContext;)V
+	public final fun externalState (Lio/github/syrou/reaktiv/core/ExternalStatePolicy;)V
 	public final fun middlewares ([Lio/github/syrou/reaktiv/core/Middleware;)V
 	public final fun module (Lkotlin/reflect/KClass;Lio/github/syrou/reaktiv/core/Module;)V
 	public final fun moduleErased (Lio/github/syrou/reaktiv/core/Module;)V
@@ -292,6 +364,13 @@ public final class io/github/syrou/reaktiv/core/util/ReaktivDebug {
 
 public abstract interface class io/github/syrou/reaktiv/core/util/ReaktivLogSink {
 	public abstract fun log (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+}
+
+public final class io/github/syrou/reaktiv/core/util/SensitiveKeysKt {
+	public static final fun getDEFAULT_SENSITIVE_KEYS ()Ljava/util/Set;
+	public static final fun isSensitiveKey (Ljava/lang/String;Ljava/util/Collection;)Z
+	public static synthetic fun isSensitiveKey$default (Ljava/lang/String;Ljava/util/Collection;ILjava/lang/Object;)Z
+	public static final fun normalizeSensitiveKey (Ljava/lang/String;)Ljava/lang/String;
 }
 
 public final class io/github/syrou/reaktiv/core/util/SharedKt {

@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.devtools.server
 
+import io.github.syrou.reaktiv.core.util.ReaktivDebug
+
 /**
  * Entry point for the DevTools server.
  *
@@ -21,6 +23,7 @@ public fun main(args: Array<String>) {
     println("=".repeat(60))
     println()
 
+    ReaktivDebug.enable()
     val uiPath = args.getOrNull(0)?.takeIf { it.isNotBlank() }
     val port = args.getOrNull(1)?.toIntOrNull() ?: 8080
 

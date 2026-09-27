@@ -2,7 +2,9 @@ package io.github.syrou.reaktiv.navigation
 
 import androidx.compose.runtime.Stable
 import io.github.syrou.reaktiv.core.ModuleState
+import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.model.StartFailure
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationProjection
@@ -10,6 +12,7 @@ import io.github.syrou.reaktiv.navigation.model.PendingNavigation
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
+import io.github.syrou.reaktiv.navigation.util.normalizePath
 
 /**
  * Immutable snapshot of the navigation system's runtime state.
@@ -34,6 +37,10 @@ public data class NavigationState(
     val backStack: List<@Contextual NavigationEntry>,
 
     /** How long rendered screen content is retained in memory after being popped from the stack. */
+    @Deprecated(
+        "Has no effect. Screen content is not retained after it leaves the back stack.",
+        level = DeprecationLevel.WARNING
+    )
     val screenRetentionDuration: Duration,
 
     /** Values computed from [backStack] and [activeModalContexts] by the reducer. */
@@ -71,7 +78,9 @@ public data class NavigationState(
      * captures can replicate interactive gestures. Cleared by any other
      * navigation action.
      */
-    val activeScrub: ScrubState? = null
+    val activeScrub: ScrubState? = null,
+
+    val startFailure: StartFailure? = null
 ) : ModuleState {
 
     @Deprecated(
@@ -197,6 +206,11 @@ public data class NavigationState(
     /** [backStack] with each entry's [NavigationEntry.stackPosition] set to its index. */
     val orderedBackStack: List<NavigationEntry> get() = backStack.mapIndexed { i, e -> e.copy(stackPosition = i) }
 
+    val revealedEntry: NavigationEntry? get() = orderedBackStack.let { it.getOrNull(it.size - 2) }
+
+    val titledEntry: NavigationEntry?
+        get() = backStack.lastOrNull { it.navigatable.renderLayer != RenderLayer.SYSTEM && it.navigatable !is LoadingModal }
+
     @Deprecated("Alias for visibleLayers.", ReplaceWith("visibleLayers"), DeprecationLevel.WARNING)
     val renderableEntries: List<NavigationEntry> get() = visibleLayers
 
@@ -231,9 +245,9 @@ public data class NavigationState(
      *   or any entry in [visibleLayers].
      */
     public fun isAtPath(path: String): Boolean {
-        val cleanPath = path.trimStart('/').trimEnd('/')
+        val cleanPath = normalizePath(path)
         return currentFullPath == cleanPath ||
-                visibleLayers.any { it.route == cleanPath || it.path == cleanPath }
+                visibleLayers.any { it.route == cleanPath || it.path == cleanPath || it.location == cleanPath }
     }
 }
 

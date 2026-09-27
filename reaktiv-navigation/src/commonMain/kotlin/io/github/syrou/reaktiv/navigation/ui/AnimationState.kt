@@ -8,12 +8,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import io.github.syrou.reaktiv.compose.composeState
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.determineContentAnimationDecision
+import io.github.syrou.reaktiv.navigation.util.impliesBackNavigation
+import io.github.syrou.reaktiv.navigation.util.animatesInto
+import io.github.syrou.reaktiv.navigation.util.wasAlreadyPresented
 import kotlinx.coroutines.delay
+
+@Composable
+private fun renderedNavigationState(): NavigationState =
+    LocalRenderedNavigationState.current ?: composeState<NavigationState>().value
 
 /**
  * Animation state for content layer rendering
@@ -27,12 +33,16 @@ import kotlinx.coroutines.delay
  * @property isBackNavigation Whether this is a back navigation (for disposal logic)
  */
 public data class LayerAnimationState(
+    @Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
     val currentEntry: NavigationEntry,
     val previousEntry: NavigationEntry?,
     val animationDecision: AnimationDecision?,
+    @Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
     val aliveEntries: List<NavigationEntry>,
+    @Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
     val isBackNavigation: Boolean
 ) {
+    @Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
     val hasAnimation: Boolean = previousEntry != null && animationDecision != null
 }
 
@@ -54,26 +64,19 @@ public fun rememberLayerAnimationState(
     currentEntry: NavigationEntry
 ): LayerAnimationState {
     val navModule = LocalNavigationModule.current
-    val navigationState by composeState<NavigationState>()
-    val isExplicitBackNavigation = navigationState.lastNavigationAction is NavigationAction.Back
+    val navigationState = renderedNavigationState()
+    val isExplicitBackNavigation = navigationState.lastNavigationAction.impliesBackNavigation()
     val interactiveController = LocalInteractiveTransitionController.current
 
     val previousEntryState = remember { mutableStateOf<NavigationEntry?>(null) }
     val currentEntryState = remember { mutableStateOf(currentEntry) }
-    val previousRenderWasEvaluating = remember { mutableStateOf(false) }
-    val isCurrentlyEvaluating = navigationState.isEvaluatingNavigation
 
     if (currentEntryState.value.stableKey != currentEntry.stableKey) {
-        val gestureHandled = interactiveController?.consumeHandoff(
-            oldKey = currentEntryState.value.stableKey,
-            newKey = currentEntry.stableKey
-        ) == true
-        if (!previousRenderWasEvaluating.value && !gestureHandled) {
+        if (navigationState.animatesInto(currentEntry)) {
             previousEntryState.value = currentEntryState.value
         }
         currentEntryState.value = currentEntry
     }
-    previousRenderWasEvaluating.value = isCurrentlyEvaluating
 
     val activeScrubKind = interactiveController?.scrubKind
     val contentScrubActive = interactiveController != null &&
@@ -100,9 +103,7 @@ public fun rememberLayerAnimationState(
 
     LaunchedEffect(currentEntry.stableKey) {
         if (previousEntry != null && animationDecision != null) {
-            val exitDuration = animationDecision.exitTransition.durationMillis
-            val enterDuration = animationDecision.enterTransition.durationMillis
-            val animationDuration = maxOf(exitDuration, enterDuration).toLong()
+            val animationDuration = animationDecision.durationMillis.toLong()
             if (animationDuration > 0) {
                 delay(animationDuration)
             }
@@ -137,6 +138,7 @@ public fun rememberLayerAnimationState(
  * @param entries The list of currently active modal entries
  * @return List of modal states with enter/exit animation tracking
  */
+@Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
 @Composable
 public fun rememberModalAnimationState(
     entries: List<NavigationEntry>
@@ -161,7 +163,8 @@ internal fun rememberModalStackStates(
 ): ModalStackStates {
     val entryStates = remember { mutableStateOf<Map<String, ModalEntryState>>(emptyMap()) }
     val previousEntries = remember { mutableStateOf<Set<String>>(emptySet()) }
-    val interactiveController = LocalInteractiveTransitionController.current
+    val navigationState = renderedNavigationState()
+    val alreadyPresented = navigationState.lastNavigationAction.wasAlreadyPresented()
 
     val currentEntryIds = entries.map { it.stableKey }.toSet()
 
@@ -174,7 +177,7 @@ internal fun rememberModalStackStates(
             entry?.let {
                 newStates[id] = ModalEntryState(
                     entry = it,
-                    isEntering = true,
+                    isEntering = !alreadyPresented,
                     isExiting = false
                 )
             }
@@ -182,7 +185,7 @@ internal fun rememberModalStackStates(
 
         val removed = previousEntries.value - currentEntryIds
         removed.forEach { id ->
-            if (interactiveController?.consumeModalHandoff(id) == true) {
+            if (alreadyPresented) {
                 newStates.remove(id)
             } else {
                 newStates[id]?.let { state ->

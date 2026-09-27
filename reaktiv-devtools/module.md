@@ -68,6 +68,36 @@ val httpClient = HttpClient(OkHttp) {
 
 See the `reaktiv-network-ktor` module documentation for configuration, redaction and replay.
 
+### 4. Optional: the navigation map
+
+Add `reaktiv-navigation-tooling` next to the DevTools dependency and install `NavigationLinks`
+beside `DevToolsService`:
+
+```kotlin
+createToolingModule(config, platformContext) {
+    install(DevToolsService(DevToolsConfig(serverUrl = "ws://10.0.2.2:8080/ws")))
+    install(NavigationLinks())
+}
+```
+
+The Nav tab then opens on a map of every route the app can navigate to:
+- Graphs are cards, their routes are rows, and guarded zones are drawn as dashed bands.
+- The current screen and the back stack are marked as the app moves.
+- The wheel or W and S zoom, dragging or the arrow keys pan, and F fits the whole map. Zoomed out it
+  becomes an overview of graph names.
+- Double click a graph to fold it, and search to highlight routes by path or screen name.
+- Click a route to see its screen, params, guards, aliases and web path, copy them, and open it on the
+  device. Opening runs the same plan as a universal link and shows the outcome.
+- Export JSON downloads the map for sharing, in the format `NavigationModule.linkMap()` produces.
+- App links asks for the host, the iOS app IDs, the Android package and its signing fingerprints.
+  Its Routes tab lets you tick the routes that should open the app (Select all and Select none help
+  when only a few should), and `apple-app-site-association`, `assetlinks.json` and the
+  `AndroidManifest.xml` intent filter each get a tab to preview, copy or download the file. The files
+  are generated on the device by `appLinkFiles`, the same function an app can call in a test.
+
+Opening links on the device can be turned off with `NavigationLinks(allowOpening = false)`, and every
+remote request with `DevToolsConfig(allowRemoteRequests = false)`.
+
 ---
 
 ## Running the Server and UI
@@ -188,6 +218,7 @@ values in the trace output — see `reaktiv-tracing-annotations` for details.
 
 - `createToolingModule` builds the Reaktiv module that hosts the tooling services
 - `DevToolsService` is the service that connects your app to the server
+- `NavigationLinks` (from `reaktiv-navigation-tooling`) publishes the navigation map and opens links
 - `DevToolsConfig` — configuration (server URL, role, capture flags)
 - `IntrospectionConfig` sets client identity and what gets captured
 - `SessionCapture` — records actions and logic events for export or crash reports

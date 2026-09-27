@@ -1,7 +1,10 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import io.github.syrou.reaktiv.core.ExternalStatePolicy
+import io.github.syrou.reaktiv.core.HydrateSource
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.createStore
+import io.github.syrou.reaktiv.core.persistance.PersistenceStrategy
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.navigation.NavigationAction
@@ -47,7 +50,16 @@ class ProjectionLifecycleTest {
 
     private val navStateKey = NavigationState::class.qualifiedName!!
 
-    private fun TestScope.buildStore(): io.github.syrou.reaktiv.core.Store {
+    private class InMemoryPersistence : PersistenceStrategy {
+        var saved: String? = null
+        override suspend fun saveState(serializedState: String) {
+            saved = serializedState
+        }
+        override suspend fun loadState(): String? = saved
+        override suspend fun hasPersistedState(): Boolean = saved != null
+    }
+
+    private fun TestScope.buildStore(persistence: PersistenceStrategy? = null): io.github.syrou.reaktiv.core.Store {
         val home = trackingScreen("proj-home")
         val profile = trackingScreen("proj-profile")
         val settings = trackingScreen("proj-settings")
@@ -59,6 +71,8 @@ class ProjectionLifecycleTest {
                 }
             })
             coroutineContext(StandardTestDispatcher(testScheduler))
+            externalState(ExternalStatePolicy.Allow)
+            persistence?.let { persistenceManager(it) }
         }
     }
 
@@ -73,8 +87,9 @@ class ProjectionLifecycleTest {
             advanceUntilIdle()
             lifecycleEvents.clear()
 
-            store.asInternalOperations()!!.applyExternalStates(
-                mapOf<String, ModuleState>(navStateKey to homeState)
+            store.externalState()!!.hydrate(
+                mapOf<String, ModuleState>(navStateKey to homeState),
+                HydrateSource.Replication
             )
             advanceUntilIdle()
 
@@ -92,8 +107,9 @@ class ProjectionLifecycleTest {
             store.navigation { navigateTo("proj-profile") }
             advanceUntilIdle()
 
-            store.asInternalOperations()!!.applyExternalStates(
-                mapOf<String, ModuleState>(navStateKey to homeState)
+            store.externalState()!!.hydrate(
+                mapOf<String, ModuleState>(navStateKey to homeState),
+                HydrateSource.Replication
             )
             advanceUntilIdle()
             lifecycleEvents.clear()
@@ -119,15 +135,36 @@ class ProjectionLifecycleTest {
             advanceUntilIdle()
             lifecycleEvents.clear()
 
-            store.asInternalOperations()!!.applyExternalStates(
-                mapOf<String, ModuleState>(navStateKey to twoDeepState)
+            store.externalState()!!.hydrate(
+                mapOf<String, ModuleState>(navStateKey to twoDeepState),
+                HydrateSource.Replication
             )
             advanceUntilIdle()
             assertTrue(lifecycleEvents.isEmpty(), "projection fired lifecycle: $lifecycleEvents")
 
+            @Suppress("DEPRECATION")
             store.selectLogic<NavigationLogic>().adoptCurrentBackstack()
             advanceUntilIdle()
 
+            assertEquals(listOf("proj-profile:created"), lifecycleEvents)
+        }
+
+    @Test
+    fun `restoring persisted navigation starts the lifecycle of the restored entries`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            val store = buildStore(InMemoryPersistence())
+            advanceUntilIdle()
+            store.navigation { navigateTo("proj-profile") }
+            advanceUntilIdle()
+            store.saveState(store.getAllStates())
+            store.navigateBack()
+            advanceUntilIdle()
+            lifecycleEvents.clear()
+
+            store.loadState()
+            advanceUntilIdle()
+
+            assertEquals("proj-profile", store.selectState<NavigationState>().first().currentEntry.route)
             assertEquals(listOf("proj-profile:created"), lifecycleEvents)
         }
 

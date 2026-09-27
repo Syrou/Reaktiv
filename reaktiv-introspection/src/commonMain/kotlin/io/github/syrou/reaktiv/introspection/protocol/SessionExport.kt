@@ -7,12 +7,13 @@ import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.introspection.ClientMetadata
 import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  * JSON export format version for captured sessions.
  */
 public object SessionExportFormat {
-    public const val VERSION: String = "3.7"
+    public const val VERSION: String = "3.8"
 }
 
 @Serializable
@@ -54,7 +55,8 @@ public data class SessionExport(
     val session: SessionData,
     val droppedRecords: Long = 0,
     val crashes: List<CrashInfo> = emptyList(),
-    val diagnosis: CrashDiagnosis? = null
+    val diagnosis: CrashDiagnosis? = null,
+    val extensions: Map<String, JsonElement> = emptyMap()
 )
 
 /**

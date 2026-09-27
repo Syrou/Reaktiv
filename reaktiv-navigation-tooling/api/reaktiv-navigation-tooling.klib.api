@@ -1,0 +1,68 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, macosArm64, wasmJs]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <io.github.syrou:reaktiv-navigation-tooling>
+final class io.github.syrou.reaktiv.navigation.tooling/NavigationLinks : io.github.syrou.reaktiv.introspection.tooling/ToolingService { // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks|null[0]
+    constructor <init>(kotlin/Boolean = ...) // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.<init>|<init>(kotlin.Boolean){}[0]
+
+    final val name // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.name|{}name[0]
+        final fun <get-name>(): kotlin/String // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun onRequest(kotlin/String, kotlinx.serialization.json/JsonElement): kotlinx.serialization.json/JsonElement? // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.onRequest|onRequest(kotlin.String;kotlinx.serialization.json.JsonElement){}[0]
+    final suspend fun start(io.github.syrou.reaktiv.introspection.tooling/ToolingServiceContext) // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.start|start(io.github.syrou.reaktiv.introspection.tooling.ToolingServiceContext){}[0]
+    final suspend fun stop() // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.stop|stop(){}[0]
+
+    final object Companion { // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion|null[0]
+        final const val APP_LINKS_REQUEST // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion.APP_LINKS_REQUEST|{}APP_LINKS_REQUEST[0]
+            final fun <get-APP_LINKS_REQUEST>(): kotlin/String // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion.APP_LINKS_REQUEST.<get-APP_LINKS_REQUEST>|<get-APP_LINKS_REQUEST>(){}[0]
+        final const val EXTENSION_KEY // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion.EXTENSION_KEY|{}EXTENSION_KEY[0]
+            final fun <get-EXTENSION_KEY>(): kotlin/String // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion.EXTENSION_KEY.<get-EXTENSION_KEY>|<get-EXTENSION_KEY>(){}[0]
+        final const val OPEN_REQUEST // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion.OPEN_REQUEST|{}OPEN_REQUEST[0]
+            final fun <get-OPEN_REQUEST>(): kotlin/String // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion.OPEN_REQUEST.<get-OPEN_REQUEST>|<get-OPEN_REQUEST>(){}[0]
+        final const val SERVICE_NAME // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion.SERVICE_NAME|{}SERVICE_NAME[0]
+            final fun <get-SERVICE_NAME>(): kotlin/String // io.github.syrou.reaktiv.navigation.tooling/NavigationLinks.Companion.SERVICE_NAME.<get-SERVICE_NAME>|<get-SERVICE_NAME>(){}[0]
+    }
+}
+
+final class io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload { // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload|null[0]
+    constructor <init>(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String> = ...) // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.<init>|<init>(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+
+    final val link // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.link|{}link[0]
+        final fun <get-link>(): kotlin/String // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.link.<get-link>|<get-link>(){}[0]
+    final val params // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.params|{}params[0]
+        final fun <get-params>(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.params.<get-params>|<get-params>(){}[0]
+
+    final fun component1(): kotlin/String // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.component1|component1(){}[0]
+    final fun component2(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.component2|component2(){}[0]
+    final fun copy(kotlin/String = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...): io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.copy|copy(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.toString|toString(){}[0]
+
+    final object $serializer : kotlinx.serialization.internal/GeneratedSerializer<io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload> { // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.$serializer|null[0]
+        final val descriptor // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.$serializer.descriptor|{}descriptor[0]
+            final fun <get-descriptor>(): kotlinx.serialization.descriptors/SerialDescriptor // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.$serializer.descriptor.<get-descriptor>|<get-descriptor>(){}[0]
+
+        final fun childSerializers(): kotlin/Array<kotlinx.serialization/KSerializer<*>> // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.$serializer.childSerializers|childSerializers(){}[0]
+        final fun deserialize(kotlinx.serialization.encoding/Decoder): io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.$serializer.deserialize|deserialize(kotlinx.serialization.encoding.Decoder){}[0]
+        final fun serialize(kotlinx.serialization.encoding/Encoder, io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload) // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.$serializer.serialize|serialize(kotlinx.serialization.encoding.Encoder;io.github.syrou.reaktiv.navigation.tooling.OpenLinkPayload){}[0]
+    }
+
+    final object Companion { // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.Companion|null[0]
+        final val $childSerializers // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.Companion.$childSerializers|{}$childSerializers[0]
+
+        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload> // io.github.syrou.reaktiv.navigation.tooling/OpenLinkPayload.Companion.serializer|serializer(){}[0]
+    }
+}
+
+final val io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_NavigationLinks$stableprop // io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_NavigationLinks$stableprop|#static{}io_github_syrou_reaktiv_navigation_tooling_NavigationLinks$stableprop[0]
+final val io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload$stableprop // io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload$stableprop|#static{}io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload$stableprop[0]
+final val io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload_$serializer$stableprop // io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload_$serializer$stableprop|#static{}io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload_$serializer$stableprop[0]
+
+final fun io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_NavigationLinks$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_NavigationLinks$stableprop_getter|io_github_syrou_reaktiv_navigation_tooling_NavigationLinks$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload$stableprop_getter|io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload$stableprop_getter(){}[0]
+final fun io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload_$serializer$stableprop_getter(): kotlin/Int // io.github.syrou.reaktiv.navigation.tooling/io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload_$serializer$stableprop_getter|io_github_syrou_reaktiv_navigation_tooling_OpenLinkPayload_$serializer$stableprop_getter(){}[0]

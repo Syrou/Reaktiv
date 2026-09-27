@@ -1,7 +1,11 @@
 package io.github.syrou.reaktiv.navigation.util
 
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationModule
+import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.TraverseDirection
+import io.github.syrou.reaktiv.navigation.TraversePresentation
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
@@ -24,8 +28,39 @@ public data class AnimationDecision(
     val exitTransition: NavTransition,
     val enterReversed: Boolean = false,
     val exitReversed: Boolean = false
-)
+) {
+    val durationMillis: Int
+        get() = maxOf(
+            if (shouldAnimateEnter) enterTransition.durationMillis else 0,
+            if (shouldAnimateExit) exitTransition.durationMillis else 0
+        )
+}
 
+
+internal fun NavigationAction?.impliesBackNavigation(): Boolean = when (this) {
+    is NavigationAction.Back -> true
+    is NavigationAction.PopUpTo -> entryToReAdd == null
+    is NavigationAction.Traverse -> direction == TraverseDirection.Back
+    else -> false
+}
+
+internal fun NavigationAction?.wasAlreadyPresented(): Boolean = when (this) {
+    is NavigationAction.Traverse -> presentation == TraversePresentation.AlreadyPresented
+    is NavigationAction.Back -> presentation == TraversePresentation.AlreadyPresented
+    is NavigationAction.PopUpTo -> presentation == TraversePresentation.AlreadyPresented
+    else -> false
+}
+
+internal fun NavigationState.animatesInto(entry: NavigationEntry): Boolean = when {
+    lastNavigationAction.wasAlreadyPresented() -> false
+    entry.navigatable.renderLayer == RenderLayer.CONTENT -> !isEvaluatingNavigation
+    else -> true
+}
+
+internal fun List<NavigationAction>.lastStackChange(): NavigationAction? = lastOrNull {
+    it is NavigationAction.Navigate || it is NavigationAction.Replace || it is NavigationAction.Back ||
+        it is NavigationAction.ClearBackstack || it is NavigationAction.PopUpTo || it is NavigationAction.Traverse
+}
 
 /**
  * Centralized function to determine what animations should run for a navigation transition
@@ -45,8 +80,8 @@ public fun determineAnimationDecision(
     graphDefinitions: Map<String, NavigationGraph>,
     isExplicitBackNavigation: Boolean = false
 ): AnimationDecision {
-    val previousId = "${previousEntry.path}@${previousEntry.stackPosition}"
-    val currentId = "${currentEntry.path}@${currentEntry.stackPosition}"
+    val previousId = "${previousEntry.location}@${previousEntry.stackPosition}"
+    val currentId = "${currentEntry.location}@${currentEntry.stackPosition}"
 
     if (previousId == currentId) {
         return AnimationDecision(false, false, true, NavTransition.None, NavTransition.None)

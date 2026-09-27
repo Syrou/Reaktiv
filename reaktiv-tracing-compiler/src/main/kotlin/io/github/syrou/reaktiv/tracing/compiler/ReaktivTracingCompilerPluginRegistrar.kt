@@ -19,16 +19,10 @@ class ReaktivTracingCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
     override val supportsK2: Boolean = true
 
-    override val pluginId: String = "io.github.syrou.reaktiv.tracing"
+    override val pluginId: String = ReaktivTracingCommandLineProcessor.PLUGIN_ID
 
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
         val messageCollector = configuration.get(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
-
-        val enabled = configuration.get(ReaktivTracingConfigurationKeys.ENABLED, true)
-
-        if (!enabled) {
-            return
-        }
 
         val tracePrivateMethods = configuration.get(
             ReaktivTracingConfigurationKeys.TRACE_PRIVATE_METHODS,

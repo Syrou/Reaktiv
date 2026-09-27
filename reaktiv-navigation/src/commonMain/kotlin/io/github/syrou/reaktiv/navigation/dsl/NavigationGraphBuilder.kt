@@ -24,7 +24,7 @@ public class NavigationGraphBuilder(
 ) {
     private var startDestination: StartDestination? = null
     private val navigatables = mutableListOf<Navigatable>()
-    private val nestedGraphs = mutableListOf<NavigationGraph>()
+    private val nestedGraphs = mutableListOf<MutableNavigationGraph>()
     private var graphLayout: (@Composable (@Composable () -> Unit) -> Unit)? = null
     private var graphDeclaration: Graph? = null
     private var pendingEntryDefinition: EntryDefinition? = null
@@ -218,8 +218,16 @@ public class NavigationGraphBuilder(
         block: NavigationGraphBuilder.() -> Unit
     ) {
         val interceptDef = InterceptDefinition(guard, loadingThreshold, cacheKey)
-        val innerBuilder = NavigationGraphBuilder("_intercept_")
+        val innerBuilder = NavigationGraphBuilder(route)
         innerBuilder.apply(block)
+        check(
+            innerBuilder.startDestination == null &&
+                innerBuilder.pendingEntryDefinition == null &&
+                innerBuilder.graphLayout == null
+        ) {
+            "start() and layout() inside intercept { } of graph '$route' have no effect. Declare them on the " +
+                "graph itself, outside intercept { }."
+        }
 
         for (navigatable in innerBuilder.navigatables) {
             val existing = innerBuilder.navigatableIntercepts[navigatable]
@@ -231,12 +239,11 @@ public class NavigationGraphBuilder(
         for (nestedGraph in innerBuilder.nestedGraphs) {
             val existing = nestedGraph.interceptDefinition
             val mergedIntercept = if (existing != null) existing.prependOuter(interceptDef) else interceptDef
-            val interceptedGraph = (nestedGraph as MutableNavigationGraph).copy(interceptDefinition = mergedIntercept)
-            nestedGraphs.add(interceptedGraph)
+            nestedGraphs.add(nestedGraph.copy(interceptDefinition = mergedIntercept))
         }
     }
 
-    internal fun build(): NavigationGraph {
+    internal fun build(): MutableNavigationGraph {
         return MutableNavigationGraph(
             route = this.route,
             startDestination = this.startDestination,

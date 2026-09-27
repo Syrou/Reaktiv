@@ -1,11 +1,11 @@
 package io.github.syrou.reaktiv.introspection.tooling
 
 import io.github.syrou.reaktiv.core.ExternalControlExempt
+import io.github.syrou.reaktiv.core.ExternalStateRequester
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.ModuleWithLogic
-import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
@@ -64,13 +64,16 @@ public class ToolingModule internal constructor(
     private val config: IntrospectionConfig,
     private val platformContext: PlatformContext,
     private val services: List<ToolingService>
-) : ModuleWithLogic<ToolingState, ToolingAction, ToolingLogic> {
+) : ModuleWithLogic<ToolingState, ToolingAction, ToolingLogic>, ExternalStateRequester {
+
+    override fun startsUnderExternalControl(): Boolean = services.any { it.startsExternallyDriven }
 
     internal val capture: SessionCapture = SessionCapture(
         maxActions = config.maxActions,
         maxLogicEvents = config.maxLogicEvents,
         redactor = config.redactor,
-        redactSensitiveKeys = config.redactSensitiveKeys
+        redactSensitiveKeys = @Suppress("DEPRECATION") config.redactSensitiveKeys,
+        sensitiveKeys = config.sensitiveKeys
     )
 
     override val initialState: ToolingState = ToolingState()
@@ -124,9 +127,6 @@ internal class CaptureMiddleware(
     private val config: IntrospectionConfig,
     private val capture: SessionCapture
 ) : Middleware {
-    private var initialized = false
-    private var initialStateCaptured = false
-
     override suspend fun invoke(
         action: ModuleAction,
         getAllStates: suspend () -> Map<String, ModuleState>,
@@ -137,14 +137,7 @@ internal class CaptureMiddleware(
             updatedState(action)
             return
         }
-        if (!initialized) {
-            initialized = true
-            (storeAccessor as? Store)?.serializersModule?.let {
-                capture.attachStateSerializers(it)
-            }
-        }
-        if (!initialStateCaptured && capture.isStarted() && action !is ToolingAction) {
-            initialStateCaptured = true
+        if (capture.isStarted() && action !is ToolingAction && capture.takeBaselineRequest()) {
             capture.captureInitialState(getAllStates())
         }
         val result = updatedState(action)

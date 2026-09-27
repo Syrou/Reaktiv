@@ -60,7 +60,11 @@ public fun StoreAccessor.getFullPath(navigatable: Navigatable): String? {
  * @return The full path
  * @throws IllegalStateException if the navigatable is not registered
  */
+@Deprecated("Unused. Removed in the next release. Use getFullPath and handle null.", ReplaceWith("getFullPath(navigatable)"), DeprecationLevel.WARNING)
 public fun StoreAccessor.requireFullPath(navigatable: Navigatable): String {
     return getFullPath(navigatable)
         ?: error("Navigatable '${navigatable.route}' is not registered in any navigation graph")
 }
+
+public fun StoreAccessor.locationOf(navigatable: Navigatable, vararg params: Pair<String, Any>): String =
+    getNavigationModule().locationOf(navigatable, *params)

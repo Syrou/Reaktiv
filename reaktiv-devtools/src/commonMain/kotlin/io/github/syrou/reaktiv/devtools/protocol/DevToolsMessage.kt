@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
 import io.github.syrou.reaktiv.introspection.protocol.CapturedLog
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted as CoreLogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed as CoreLogicMethodFailed
@@ -7,6 +9,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodStart as CoreLogicMethodS
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
+import io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis
 import io.github.syrou.reaktiv.introspection.protocol.CrashException
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo
@@ -18,6 +21,8 @@ import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import io.github.syrou.reaktiv.introspection.protocol.SessionMarker
 import io.github.syrou.reaktiv.introspection.tooling.ServiceStatus
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 
 /**
  * DevTools network protocol messages.
@@ -26,6 +31,7 @@ import kotlinx.serialization.Serializable
  * Data capture types (CapturedAction, etc.) are imported from reaktiv-crash-capture.
  */
 @Serializable
+@DevToolsInternalApi
 public sealed class DevToolsMessage {
 
     public sealed interface FromClient {
@@ -34,20 +40,31 @@ public sealed class DevToolsMessage {
 
     public sealed interface ObservabilityOnly : FromClient
 
+    public sealed interface Targeted {
+        public val targetClientId: String
+    }
+
     @Serializable
     public data class ClientRegistration(
         val clientName: String,
         val clientId: String,
         val platform: String,
-        val isGhost: Boolean = false
+        @Deprecated("Unused on the wire. It becomes internal with the other DevTools messages in the next release.", level = DeprecationLevel.WARNING)
+        val isGhost: Boolean = false,
+        val protocolVersion: Int = DevToolsProtocol.LEGACY
+    ) : DevToolsMessage()
+
+    @Serializable
+    public data class RegistrationRefused(
+        val reason: String
     ) : DevToolsMessage()
 
     @Serializable
     public data class RoleAssignment(
-        val targetClientId: String,
+        override val targetClientId: String,
         val role: ClientRole,
         val publisherClientId: String? = null
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), Targeted
 
     /**
      * Sent when an action is dispatched. Wraps CapturedAction from introspection.
@@ -64,6 +81,7 @@ public sealed class DevToolsMessage {
         val fromClientId: String,
         val timestamp: Long,
         val stateJson: String,
+        @Deprecated("Unused on the wire. It becomes internal with the other DevTools messages in the next release.", level = DeprecationLevel.WARNING)
         val moduleName: String = ""
     ) : DevToolsMessage()
 
@@ -76,7 +94,8 @@ public sealed class DevToolsMessage {
     public data class RoleAcknowledgment(
         val clientId: String,
         val role: ClientRole,
-        val success: Boolean,
+        @Deprecated("Unused on the wire. It becomes internal with the other DevTools messages in the next release.", level = DeprecationLevel.WARNING)
+        val success: Boolean = true,
         val message: String? = null
     ) : DevToolsMessage()
 
@@ -119,8 +138,11 @@ public sealed class DevToolsMessage {
     public data class GhostDeviceRegistration(
         val sessionId: String,
         val originalClientInfo: ClientInfo,
+        @Deprecated("Unused on the wire. It becomes internal with the other DevTools messages in the next release.", level = DeprecationLevel.WARNING)
         val crashException: CrashException? = null,
+        @Deprecated("Unused on the wire. It becomes internal with the other DevTools messages in the next release.", level = DeprecationLevel.WARNING)
         val eventCount: Int = 0,
+        @Deprecated("Unused on the wire. It becomes internal with the other DevTools messages in the next release.", level = DeprecationLevel.WARNING)
         val logicEventCount: Int = 0,
         val sessionStartTime: Long,
         val sessionEndTime: Long,
@@ -200,13 +222,13 @@ public sealed class DevToolsMessage {
 
     /**
      * Sent when a crash is reported on the publisher.
-     * Carries the canonical crash envelope and an optional session snapshot.
+     * Carries the canonical crash envelope and the diagnosis built from the session.
      */
     @Serializable
     public data class CrashReport(
         override val clientId: String,
         val crash: CrashInfo,
-        val sessionJson: String?
+        val diagnosis: CrashDiagnosis? = null
     ) : DevToolsMessage(), FromClient
 
     @Serializable
@@ -232,25 +254,27 @@ public sealed class DevToolsMessage {
 
     @Serializable
     public data class FetchNetworkBody(
-        val targetClientId: String,
+        override val targetClientId: String,
         val requestId: String,
         val part: NetworkBodyPart,
         val offset: Int = 0,
         val maxBytes: Int = 64 * 1024
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), Targeted
 
     @Serializable
     public data class NetworkBodyChunk(
         override val clientId: String,
         val requestId: String,
         val part: NetworkBodyPart,
-        val content: String,
+        val content: String?,
         val offset: Int,
         val nextOffset: Int,
         val totalBytes: Int,
-        val isLast: Boolean,
-        val available: Boolean = true
-    ) : DevToolsMessage(), FromClient
+        val isLast: Boolean
+    ) : DevToolsMessage(), FromClient {
+        @Deprecated("A body the device no longer holds arrives with null content.", ReplaceWith("content != null"))
+        val available: Boolean get() = content != null
+    }
 
     /**
      * A marker captured on the publisher, relayed to observers.
@@ -266,17 +290,40 @@ public sealed class DevToolsMessage {
      */
     @Serializable
     public data class AddMarkerRequest(
-        val targetClientId: String,
+        override val targetClientId: String,
         val label: String,
         val note: String = "",
         val timestampMs: Long? = null,
         val afterActionIndex: Int = -1
-    ) : DevToolsMessage()
+    ) : DevToolsMessage(), Targeted
+
+    @Serializable
+    public data class ServiceRequest(
+        override val targetClientId: String,
+        val requestId: String,
+        val service: String,
+        val request: String,
+        val payload: JsonElement = JsonNull
+    ) : DevToolsMessage(), Targeted
+
+    @Serializable
+    public data class ServiceReply(
+        override val clientId: String,
+        val requestId: String,
+        val service: String,
+        val result: JsonElement? = null,
+        val error: String? = null
+    ) : DevToolsMessage(), ObservabilityOnly
 
     /**
      * Sent by a publisher to sync its session history on connect.
      * Allows the WASM orchestrator to track and export the session.
      */
+    @Deprecated(
+        "History always arrives as SessionHistoryChunk, one chunk for a small history.",
+        ReplaceWith("SessionHistoryChunk"),
+        DeprecationLevel.WARNING
+    )
     @Serializable
     public data class SessionHistorySync(
         override val clientId: String,
@@ -303,12 +350,19 @@ public sealed class DevToolsMessage {
     ReplaceWith("CapturedLog", "io.github.syrou.reaktiv.introspection.protocol.CapturedLog"),
     DeprecationLevel.WARNING
 )
+@DevToolsInternalApi
 public data class DeviceLogEntry(
     val level: String,
     val category: String,
     val message: String,
     val timestampMs: Long
 )
+
+@DevToolsInternalApi
+public object DevToolsProtocol {
+    public const val VERSION: Int = 2
+    public const val LEGACY: Int = 1
+}
 
 @Serializable
 public enum class ClientRole {
@@ -319,6 +373,7 @@ public enum class ClientRole {
 }
 
 @Serializable
+@DevToolsInternalApi
 public data class ClientInfo(
     val clientId: String,
     val clientName: String,
@@ -330,5 +385,7 @@ public data class ClientInfo(
 )
 
 // Re-export types from introspection for convenience
+@DevToolsInternalApi
 public typealias GhostSessionExport = SessionExport
+@DevToolsInternalApi
 public typealias GhostSessionFormat = SessionExportFormat

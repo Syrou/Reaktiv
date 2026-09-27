@@ -32,3 +32,6 @@ internal fun popEnterSpec(
 internal fun popExitSpec(popped: TransitionSpec): PopTransitionSpec? =
     popped.enterTransition.specOrNull(reversedProgress = true)
         ?: popped.exitTransition.specOrNull(reversedProgress = false)
+
+internal fun modalExitSpec(modal: TransitionSpec): PopTransitionSpec? =
+    modal.popExitTransition.specOrNull(reversedProgress = false) ?: popExitSpec(modal)

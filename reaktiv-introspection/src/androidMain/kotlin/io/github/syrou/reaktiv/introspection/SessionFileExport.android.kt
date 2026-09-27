@@ -16,7 +16,7 @@ public actual class SessionFileExport actual constructor(private val platformCon
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val contentValues = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                put(MediaStore.Downloads.MIME_TYPE, mimeTypeFor(fileName))
+                put(MediaStore.Downloads.MIME_TYPE, sessionFileMimeType(fileName))
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
 
@@ -43,7 +43,4 @@ public actual class SessionFileExport actual constructor(private val platformCon
             return file.absolutePath
         }
     }
-
-    private fun mimeTypeFor(fileName: String): String =
-        if (fileName.endsWith(".gz")) "application/gzip" else "application/json"
 }

@@ -9,10 +9,9 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
-import io.github.syrou.reaktiv.navigation.ui.dismissSurface
+import io.github.syrou.reaktiv.navigation.util.performUserBack
 import io.github.syrou.reaktiv.navigation.util.canArmInteractiveBackGesture
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForBack
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -73,11 +72,11 @@ class GestureCommitTargetTest {
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
 
-            dismissSurface(
+            performUserBack(
                 store = store,
                 navModule = navModule,
                 top = state.currentEntry,
-                revealed = revealedEntryForBack(state),
+                revealed = state.revealedEntry,
                 source = DismissSource.Back
             )
             advanceUntilIdle()
@@ -102,7 +101,7 @@ class GestureCommitTargetTest {
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
 
-            dismissSurface(
+            performUserBack(
                 store = store,
                 navModule = navModule,
                 top = state.currentEntry,
@@ -130,11 +129,11 @@ class GestureCommitTargetTest {
             advanceUntilIdle()
             val state = store.selectState<NavigationState>().first()
 
-            dismissSurface(
+            performUserBack(
                 store = store,
                 navModule = navModule,
                 top = state.currentEntry,
-                revealed = revealedEntryForBack(state),
+                revealed = state.revealedEntry,
                 source = DismissSource.Back
             )
             advanceUntilIdle()

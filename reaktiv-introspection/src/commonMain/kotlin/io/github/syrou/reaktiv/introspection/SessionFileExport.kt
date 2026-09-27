@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.introspection
 
+import io.github.syrou.reaktiv.introspection.capture.SessionCapture
+
 /**
  * Platform-specific session file export.
  *
@@ -18,4 +20,24 @@ package io.github.syrou.reaktiv.introspection
  */
 public expect class SessionFileExport(platformContext: PlatformContext) {
     public fun saveToDownloads(bytes: ByteArray, fileName: String): String
+}
+
+internal fun sessionFileMimeType(fileName: String): String =
+    when (fileName.substringAfterLast('.', "").lowercase()) {
+        "gz" -> "application/gzip"
+        "json" -> "application/json"
+        "xml" -> "application/xml"
+        else -> "application/octet-stream"
+    }
+
+internal suspend fun SessionFileExport.saveSession(
+    capture: SessionCapture,
+    crash: Throwable? = null,
+    fileName: String? = null
+): String {
+    val json = if (crash == null) capture.exportSession() else capture.exportCrashSession(crash)
+    return saveToDownloads(
+        gzipCompress(json.encodeToByteArray()),
+        fileName ?: capture.suggestFileName(if (crash == null) null else "crash")
+    )
 }

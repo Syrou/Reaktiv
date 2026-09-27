@@ -20,12 +20,13 @@ import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.transition.BackGesturePlan
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.computeBackGesturePlan
 import io.github.syrou.reaktiv.navigation.transition.computeDismissGesturePlan
+import io.github.syrou.reaktiv.navigation.util.GraphIndex
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
-import io.github.syrou.reaktiv.navigation.util.findLayoutGraphsInHierarchy
 import io.github.syrou.reaktiv.navigation.util.dismissIndicatorAnchor
 import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
 import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
@@ -115,6 +116,7 @@ private fun ContentLayerRenderer(
     graphDefinitions: Map<String, NavigationGraph>
 ) {
     val navModule = LocalNavigationModule.current
+    val graphIndex = remember(graphDefinitions) { GraphIndex.of(graphDefinitions) }
     val contentModals = entries.filter { it.navigatable is Modal }
     val screenEntries = entries.filter { it.navigatable !is Modal }
     if (screenEntries.isEmpty()) {
@@ -132,47 +134,52 @@ private fun ContentLayerRenderer(
     val windowInfoForScrub = LocalWindowInfo.current
     val navigationState by composeState<NavigationState>()
 
+    fun previewOf(revealed: NavigationEntry?, plan: BackGesturePlan): ContentScrubPreview? =
+        interactiveController?.let { controller ->
+            ContentScrubPreview(
+                revealedEntry = revealed,
+                topDriver = TransitionProgressDriver.External(
+                    progress = { controller.progress },
+                    resolved = plan.top.resolved,
+                    reversedProgress = plan.top.reversedProgress
+                ),
+                revealedDriver = TransitionProgressDriver.External(
+                    progress = { controller.progress },
+                    resolved = plan.revealed.resolved,
+                    reversedProgress = plan.revealed.reversedProgress
+                )
+            )
+        }
+
     val backPreview: ContentScrubPreview? = if (
         interactiveController != null &&
         interactiveController.phase != InteractiveTransitionController.Phase.Idle &&
         activeKind is InteractiveTransitionController.ScrubKind.ContentBack &&
-        activeKind.topEntry.stableKey == currentEntry.stableKey
+        activeKind.top.stableKey == currentEntry.stableKey
     ) {
         val topSource = presentationSourceFor(
-            from = activeKind.revealedEntry,
-            to = activeKind.topEntry,
-            navigatable = activeKind.topEntry.navigatable,
+            from = activeKind.revealed,
+            to = activeKind.top,
+            navigatable = activeKind.top.navigatable,
             navModule = navModule
         )
         val revealedSource = presentationSourceFor(
-            from = activeKind.topEntry,
-            to = activeKind.revealedEntry,
-            navigatable = activeKind.revealedEntry.navigatable,
+            from = activeKind.top,
+            to = activeKind.revealed,
+            navigatable = activeKind.revealed.navigatable,
             navModule = navModule
         )
         val width = windowInfoForScrub.containerSize.width.toFloat()
         val height = windowInfoForScrub.containerSize.height.toFloat()
         val plan = remember(
-            activeKind.topEntry.stableKey,
-            activeKind.revealedEntry.stableKey,
+            activeKind.top.stableKey,
+            activeKind.revealed.stableKey,
             width,
             height
         ) {
             computeBackGesturePlan(topSource, revealedSource, width, height)
         }
-        ContentScrubPreview(
-            revealedEntry = activeKind.revealedEntry,
-            topDriver = TransitionProgressDriver.External(
-                progress = { interactiveController.progress },
-                resolved = plan.top.resolved,
-                reversedProgress = plan.top.reversedProgress
-            ),
-            revealedDriver = TransitionProgressDriver.External(
-                progress = { interactiveController.progress },
-                resolved = plan.revealed.resolved,
-                reversedProgress = plan.revealed.reversedProgress
-            )
-        )
+        previewOf(activeKind.revealed, plan)
     } else null
 
     val dismissPair: Pair<NavigationEntry, NavigationEntry?>? = when {
@@ -180,9 +187,9 @@ private fun ContentLayerRenderer(
         interactiveController.phase != InteractiveTransitionController.Phase.Idle -> {
             if (
                 activeKind is InteractiveTransitionController.ScrubKind.ContentDismiss &&
-                activeKind.topEntry.stableKey == currentEntry.stableKey
+                activeKind.top.stableKey == currentEntry.stableKey
             ) {
-                activeKind.topEntry to activeKind.revealedEntry
+                activeKind.top to activeKind.revealed
             } else null
         }
 
@@ -228,38 +235,22 @@ private fun ContentLayerRenderer(
         ) {
             computeDismissGesturePlan(dismissTopSource, dismissRevealedSource, width, height)
         }
-        ContentScrubPreview(
-            revealedEntry = dismissRevealed,
-            topDriver = TransitionProgressDriver.External(
-                progress = { interactiveController.progress },
-                resolved = plan.top.resolved,
-                reversedProgress = plan.top.reversedProgress
-            ),
-            revealedDriver = TransitionProgressDriver.External(
-                progress = { interactiveController.progress },
-                resolved = plan.revealed.resolved,
-                reversedProgress = plan.revealed.reversedProgress
-            )
-        )
+        previewOf(dismissRevealed, plan)
     } else null
 
     val scrubPreview: ContentScrubPreview? = backPreview ?: dismissPreview
     val revealedAtRest = interactiveController?.phase == InteractiveTransitionController.Phase.Idle
 
-    val currentGraphId = navModule.getGraphId(currentEntry) ?: currentEntry.route
-    val currentLayouts = findLayoutGraphsInHierarchy(currentGraphId, graphDefinitions)
+    fun layoutsFor(entry: NavigationEntry): List<NavigationGraph> =
+        if (navModule.getGraphId(entry) == null) emptyList() else graphIndex.layoutsAround(entry.graphId)
+
+    val currentLayouts = layoutsFor(currentEntry)
     val prevEntry = animationState.previousEntry?.takeIf { it.stableKey != currentEntry.stableKey }
-    val prevLayouts = prevEntry?.let {
-        val prevGraphId = navModule.getGraphId(it) ?: it.route
-        findLayoutGraphsInHierarchy(prevGraphId, graphDefinitions)
-    }
+    val prevLayouts = prevEntry?.let(::layoutsFor)
     val revealedEntry = scrubPreview?.revealedEntry?.takeIf { revealed ->
         revealed.stableKey != currentEntry.stableKey && revealed.stableKey != prevEntry?.stableKey
     }
-    val revealedLayouts = revealedEntry?.let {
-        val revealedGraphId = navModule.getGraphId(it) ?: it.route
-        findLayoutGraphsInHierarchy(revealedGraphId, graphDefinitions)
-    }
+    val revealedLayouts = revealedEntry?.let(::layoutsFor)
 
     val currentLayoutRoutes = currentLayouts.map { it.route }
     val placement = decideTransitionPlacement(
@@ -621,7 +612,7 @@ private fun SystemLayerRenderer(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .zIndex(9001f + navigatable.elevation)
+                            .zIndex(NavigationZIndex.SYSTEM_BASE + navigatable.elevation)
                     ) {
                         HostedEntry(entry) {
                             NavigatableContent(navigatable, entry.params)

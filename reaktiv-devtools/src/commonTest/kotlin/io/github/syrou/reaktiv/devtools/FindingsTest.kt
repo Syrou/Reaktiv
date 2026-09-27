@@ -12,6 +12,10 @@ import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import io.github.syrou.reaktiv.devtools.protocol.DISPATCH_TRACE_CLASS
+import kotlin.test.assertNotNull
+import io.github.syrou.reaktiv.devtools.protocol.DISPATCH_QUEUE_WAIT_WARN_MS
+import io.github.syrou.reaktiv.devtools.protocol.PERFORMANCE_FINDING_CATEGORIES
 import kotlin.test.assertTrue
 
 class FindingsTest {
@@ -79,6 +83,75 @@ class FindingsTest {
         assertTrue(stall.detail.contains("NewsLogic.countDown"))
         assertEquals("NewsLogic.kt", stall.sourceFile)
         assertEquals(42, stall.lineNumber)
+    }
+
+    @Test
+    fun `a stall carries the main thread stack it was caught with`() {
+        val starts = listOf(
+            start("MainThreadWatchdog", "stall", "stall-1", 1000, params = mapOf("stack" to "at Blocker.run"))
+        )
+        val completions = listOf(completed("stall-1", 700, 1700))
+
+        val stall = computeFindings(starts, completions).single { it.category == "stall" }
+
+        assertEquals(listOf("at Blocker.run"), stall.stacks.map { it.stack })
+    }
+
+    @Test
+    fun `a method running three calls at once is a congestion finding naming it`() {
+        val starts = listOf(
+            start("SyncLogic", "sync", "a1", 0, thread = "w1"),
+            start("SyncLogic", "sync", "a2", 10, thread = "w1"),
+            start("SyncLogic", "sync", "a3", 20, thread = "w1")
+        )
+        val completions = listOf(completed("a1", 100, 100), completed("a2", 100, 110), completed("a3", 100, 120))
+
+        val congestion = computeFindings(starts, completions).single { it.category == "congestion" }
+
+        assertEquals(listOf("SyncLogic.sync"), congestion.culprits)
+        assertTrue(congestion.detail.contains("interleaving on w1"))
+    }
+
+    @Test
+    fun `different methods crowding one thread are a contention finding naming them`() {
+        val starts = listOf(
+            start("UserLogic", "fetchUser", "a1", 0, thread = "main"),
+            start("SyncLogic", "sync", "a2", 5, thread = "main"),
+            start("NewsLogic", "load", "a3", 10, thread = "main")
+        )
+        val completions = listOf(completed("a1", 100, 100), completed("a2", 100, 105), completed("a3", 100, 110))
+
+        val contention = computeFindings(starts, completions).single { it.category == "contention" }
+
+        assertEquals(setOf("UserLogic.fetchUser", "SyncLogic.sync", "NewsLogic.load"), contention.culprits.toSet())
+    }
+
+    @Test
+    fun `every performance finding explains its meaning impact and fix`() {
+        val starts = listOf(
+            start("MainThreadWatchdog", "stall", "stall-1", 1000),
+            start("SyncLogic", "sync", "a1", 0, thread = "w1"),
+            start("SyncLogic", "sync", "a2", 10, thread = "w1"),
+            start("SyncLogic", "sync", "a3", 20, thread = "w1"),
+            start(
+                DISPATCH_TRACE_CLASS, "Tick", "d1", 30,
+                params = mapOf("queueWaitMs" to "${DISPATCH_QUEUE_WAIT_WARN_MS + 1}")
+            )
+        )
+        val completions = listOf(
+            completed("stall-1", 700, 1700),
+            completed("a1", 100, 100),
+            completed("a2", 100, 110),
+            completed("a3", 100, 120)
+        )
+
+        val performance = computeFindings(starts, completions).filter { it.category in PERFORMANCE_FINDING_CATEGORIES }
+
+        assertTrue(performance.map { it.category }.containsAll(listOf("stall", "congestion", "contention", "dispatch-latency")))
+        performance.forEach { finding ->
+            val advice = assertNotNull(finding.advice, "${finding.category} has no advice")
+            assertTrue(advice.meaning.isNotBlank() && advice.impact.isNotBlank() && advice.fix.isNotBlank())
+        }
     }
 
     @Test

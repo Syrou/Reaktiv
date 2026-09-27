@@ -1,5 +1,8 @@
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MonotonicFrameClock
+import io.github.syrou.reaktiv.navigation.NavigationAction
+import io.github.syrou.reaktiv.navigation.ScrubState
+import io.github.syrou.reaktiv.navigation.ScrubType
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
@@ -10,9 +13,11 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -37,8 +42,8 @@ class InteractiveTransitionControllerTest {
     )
 
     private fun contentBack() = InteractiveTransitionController.ScrubKind.ContentBack(
-        topEntry = start("detail", 1),
-        revealedEntry = start("home", 0)
+        top = start("detail", 1),
+        revealed = start("home", 0)
     )
 
     @Test
@@ -46,7 +51,7 @@ class InteractiveTransitionControllerTest {
         val controller = InteractiveTransitionController()
         assertTrue(controller.beginScrub(contentBack()))
         assertFalse(controller.beginScrub(contentBack()))
-        assertEquals(InteractiveTransitionController.Phase.Scrubbing, controller.phase)
+        assertIs<InteractiveTransitionController.Phase.Scrubbing>(controller.phase)
     }
 
     @Test
@@ -77,7 +82,7 @@ class InteractiveTransitionControllerTest {
             controller.settle(commit = true)
         }
         assertEquals(1f, controller.progress)
-        assertEquals(InteractiveTransitionController.Phase.Settling, controller.phase)
+        assertIs<InteractiveTransitionController.Phase.Settling>(controller.phase)
     }
 
     @Test
@@ -118,45 +123,6 @@ class InteractiveTransitionControllerTest {
     }
 
     @Test
-    fun `handoff consumes exactly once with matching keys`() =
-        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val controller = InteractiveTransitionController()
-            controller.armHandoff(poppedKey = "detail@1", targetKey = "home@0")
-            assertTrue(controller.consumeHandoff(oldKey = "detail@1", newKey = "home@0"))
-            assertFalse(controller.consumeHandoff(oldKey = "detail@1", newKey = "home@0"))
-        }
-
-    @Test
-    fun `handoff is cleared by the next transition even when keys mismatch`() =
-        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val controller = InteractiveTransitionController()
-            controller.armHandoff(poppedKey = "detail@1", targetKey = "home@0")
-            assertFalse(controller.consumeHandoff(oldKey = "other@2", newKey = "home@0"))
-            assertFalse(controller.consumeHandoff(oldKey = "detail@1", newKey = "home@0"))
-        }
-
-    @Test
-    fun `reset does not clear a pending handoff`() =
-        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val controller = InteractiveTransitionController()
-            controller.armHandoff(poppedKey = "detail@1", targetKey = "home@0")
-            controller.reset()
-            assertTrue(controller.consumeHandoff(oldKey = "detail@1", newKey = "home@0"))
-        }
-
-    @Test
-    fun `modal handoff consumes once and clears on mismatch`() =
-        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val controller = InteractiveTransitionController()
-            controller.armModalHandoff("modal@2")
-            assertTrue(controller.consumeModalHandoff("modal@2"))
-            assertFalse(controller.consumeModalHandoff("modal@2"))
-            controller.armModalHandoff("modal@2")
-            assertFalse(controller.consumeModalHandoff("other@3"))
-            assertFalse(controller.consumeModalHandoff("modal@2"))
-        }
-
-    @Test
     fun `controller recovers when a settle is cancelled mid animation and reset runs`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val controller = InteractiveTransitionController()
@@ -175,7 +141,7 @@ class InteractiveTransitionControllerTest {
                 }
             }
             testScheduler.runCurrent()
-            assertEquals(InteractiveTransitionController.Phase.Settling, controller.phase)
+            assertIs<InteractiveTransitionController.Phase.Settling>(controller.phase)
 
             job.cancelAndJoin()
 
@@ -184,6 +150,74 @@ class InteractiveTransitionControllerTest {
             assertEquals(null, controller.scrubKind)
             assertTrue(controller.beginScrub(contentBack()))
         }
+
+    @Test
+    fun `a local scrub that ends without landing sends one ScrubEnd`() {
+        val sent = mutableListOf<NavigationAction>()
+        val controller = InteractiveTransitionController { sent += it }
+        controller.beginScrub(contentBack())
+        controller.scrubTo(0.5f)
+        controller.reset()
+        controller.reset()
+        assertEquals(1, sent.count { it == NavigationAction.ScrubEnd })
+    }
+
+    @Test
+    fun `a cancelled settle and the reset after it send one ScrubEnd`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val sent = mutableListOf<NavigationAction>()
+            val controller = InteractiveTransitionController { sent += it }
+            controller.beginScrub(contentBack())
+            controller.scrubTo(0.2f)
+            withContext(TestFrameClock()) {
+                controller.settle(commit = false)
+            }
+            controller.reset()
+            assertEquals(1, sent.count { it == NavigationAction.ScrubEnd })
+        }
+
+    @Test
+    fun `a scrub whose change landed sends no ScrubEnd`() {
+        val sent = mutableListOf<NavigationAction>()
+        val controller = InteractiveTransitionController { sent += it }
+        controller.beginScrub(contentBack())
+        controller.markLanded()
+        controller.reset()
+        assertEquals(0, sent.count { it == NavigationAction.ScrubEnd })
+    }
+
+    @Test
+    fun `a replicated scrub never dispatches`() {
+        val sent = mutableListOf<NavigationAction>()
+        val controller = InteractiveTransitionController { sent += it }
+        controller.beginScrub(contentBack(), InteractiveTransitionController.Source.Replicated)
+        controller.scrubTo(0.6f)
+        controller.reset()
+        assertTrue(sent.isEmpty())
+    }
+
+    @Test
+    fun `the committed target is the revealed entry only while a commit settles`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val controller = InteractiveTransitionController()
+            val kind = contentBack()
+            controller.beginScrub(kind)
+            assertEquals(null, controller.committedTarget)
+            withContext(TestFrameClock()) {
+                controller.settle(commit = true)
+                assertEquals(kind.revealed, controller.committedTarget)
+                controller.settle(commit = false)
+            }
+            assertEquals(null, controller.committedTarget)
+        }
+
+    @Test
+    fun `scrub state keeps its wire form`() {
+        val state = ScrubState(ScrubType.Back, "top", "revealed", 0.5f)
+        val wire = """{"kind":"back-scrub","topKey":"top","revealedKey":"revealed","progress":0.5}"""
+        assertEquals(wire, Json.encodeToString(ScrubState.serializer(), state))
+        assertEquals(state, Json.decodeFromString(ScrubState.serializer(), wire))
+    }
 
     @Test
     fun `shouldCommit decision matrix`() {

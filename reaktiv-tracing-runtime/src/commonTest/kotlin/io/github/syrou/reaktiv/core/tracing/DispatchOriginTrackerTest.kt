@@ -35,6 +35,17 @@ class DispatchOriginTrackerTest {
     }
 
     @Test
+    fun `a full registry forgets only the oldest action`() {
+        LogicTracer.addObserver(NoOpObserver)
+        val actions = List(ORIGIN_CAPACITY + 1) { Any() }
+        actions.forEachIndexed { index, action -> DispatchOriginTracker.record(action, "origin-$index") }
+
+        assertNull(DispatchOriginTracker.consume(actions.first()))
+        assertEquals("origin-1", DispatchOriginTracker.consume(actions[1]))
+        assertEquals("origin-$ORIGIN_CAPACITY", DispatchOriginTracker.consume(actions.last()))
+    }
+
+    @Test
     fun `record without an active tracer is a no-op`() {
         val action = Any()
         DispatchOriginTracker.record(action, "ignored")

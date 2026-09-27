@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.navigation.model
 
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
+import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 
 /**
  * The decision returned by a navigation guard or access check.
@@ -32,13 +33,17 @@ public sealed class GuardResult {
      *
      * @param route The route to redirect to
      */
-    public data class RedirectTo(val route: String) : GuardResult() {
+    public data class RedirectTo(val target: NavigationTarget) : GuardResult() {
+        public constructor(route: String) : this(NavigationTarget.Path(route))
+
         /**
          * Redirect to a typed screen object.
          *
          * @param navigatable The screen or modal to redirect to
          */
-        public constructor(navigatable: Navigatable) : this(navigatable.route)
+        public constructor(navigatable: Navigatable) : this(NavigationTarget.NavigatableObject(navigatable))
+
+        val route: String get() = target.shortRoute()
     }
 
     /**
@@ -52,10 +57,18 @@ public sealed class GuardResult {
      * @param displayHint Optional human-readable hint shown during the auth flow
      */
     public data class PendAndRedirectTo(
-        val route: String,
+        val target: NavigationTarget,
         val metadata: Map<String, String> = emptyMap(),
         val displayHint: String? = null
     ) : GuardResult() {
+        public constructor(
+            route: String,
+            metadata: Map<String, String> = emptyMap(),
+            displayHint: String? = null
+        ) : this(NavigationTarget.Path(route), metadata, displayHint)
+
+        val route: String get() = target.shortRoute()
+
         /**
          * Store the original navigation and redirect to a typed screen.
          *
@@ -67,6 +80,12 @@ public sealed class GuardResult {
             navigatable: Navigatable,
             metadata: Map<String, String> = emptyMap(),
             displayHint: String? = null
-        ) : this(navigatable.route, metadata, displayHint)
+        ) : this(NavigationTarget.NavigatableObject(navigatable), metadata, displayHint)
     }
+}
+
+private fun NavigationTarget.shortRoute(): String = when (this) {
+    is NavigationTarget.Path -> path
+    is NavigationTarget.NavigatableObject -> navigatable.route
+    is NavigationTarget.NavigatableObjectWithGraph -> navigatable.route
 }

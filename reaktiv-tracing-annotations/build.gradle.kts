@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform")
-    id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
 }
@@ -28,15 +27,5 @@ kotlin {
     applyDefaultHierarchyTemplate()
 
     sourceSets {
-        getByName("commonMain") {
-            dependencies {
-                implementation(kotlin("stdlib"))
-            }
-        }
-        getByName("commonTest") {
-            dependencies {
-                implementation(kotlin("test"))
-            }
-        }
     }
 }

@@ -1,15 +1,7 @@
 package eu.syrou.androidexample.tooling
 
 import android.content.Context
-import io.github.syrou.reaktiv.core.Module
-import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.ktor.client.HttpClientConfig
+import eu.syrou.androidexample.ui.screen.TwitchAuthWebViewScreen
+import eu.syrou.example.ExamplePlatform
 
-fun toolingModule(context: Context): Module<*, *>? = null
-
-fun toolingScreens(): List<Screen> = emptyList()
-
-fun HttpClientConfig<*>.attachNetworkInspection() = Unit
-
-suspend fun exportCapturedSession(store: StoreAccessor): String? = null
+fun examplePlatform(context: Context): ExamplePlatform = ExamplePlatform(twitchLogin = TwitchAuthWebViewScreen)

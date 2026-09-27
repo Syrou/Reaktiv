@@ -28,19 +28,30 @@ public sealed class StoreAction : ModuleAction(StoreAction::class), HighPriority
      *
      * Usage:
      * ```kotlin
-     * store.dispatchAndAwait(
-     *     StoreAction.Hydrate(
-     *         states = mapOf("com.example.CounterState" to CounterState(value = 42)),
-     *         origin = "DevTools"
-     *     )
+     * store.externalState()?.hydrate(
+     *     states = mapOf("com.example.CounterState" to CounterState(value = 42)),
+     *     source = HydrateSource.External("DevTools")
      * )
      * ```
      *
      * @param states New state per module, keyed by the state class's qualified name.
-     * @param origin Short label naming what produced this state, used in diagnostics.
+     * @param source What produced this state. Only [HydrateSource.Restore] is applied by a store
+     *   that does not grant outside state.
      */
-    public data class Hydrate(
+    @ConsistentCopyVisibility
+    public data class Hydrate internal constructor(
         val states: Map<String, ModuleState>,
-        val origin: String
-    ) : StoreAction()
+        val source: HydrateSource
+    ) : StoreAction() {
+        @Deprecated(
+            "Write outside state through StoreAccessor.externalState(), which exists only when the store " +
+                "grants it. A raw Hydrate is dropped by a store that does not.",
+            ReplaceWith("externalState()?.hydrate(states, HydrateSource.External(origin))"),
+            DeprecationLevel.WARNING
+        )
+        public constructor(states: Map<String, ModuleState>, origin: String) :
+            this(states, HydrateSource.External(origin))
+
+        val origin: String get() = source.label
+    }
 }

@@ -2,12 +2,12 @@ package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.verticalDrag
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -18,8 +18,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -30,257 +33,184 @@ import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.core.Store
-import io.github.syrou.reaktiv.core.util.selectState
-import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
-import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
-import io.github.syrou.reaktiv.navigation.model.NavigationEntry
-import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
-import io.github.syrou.reaktiv.navigation.util.canHandleBack
-import io.github.syrou.reaktiv.navigation.util.revealedEntryForDismiss
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 private const val EDGE_WIDTH_DP = 20
+private const val EDGE_EXCLUSION_DP = 32
 private const val TOP_DISMISS_EDGE_DP = 32
 
+internal enum class ScrubPass { Initial, Main }
+
 @Composable
-internal fun Modifier.backGestureRecognizer(controller: InteractiveTransitionController): Modifier {
+internal fun Modifier.scrubRecognizer(
+    controller: InteractiveTransitionController,
+    vertical: Boolean,
+    pass: ScrubPass,
+    key: Any?,
+    accepts: PointerInputScope.(down: PointerInputChange) -> Boolean = { true },
+    arm: (NavigationState) -> InteractiveTransitionController.ScrubKind?
+): Modifier {
     val store = rememberStore()
     val navModule = LocalNavigationModule.current
     val navigationState by composeState<NavigationState>()
     val latestState = rememberUpdatedState(navigationState)
+    val latestAccepts = rememberUpdatedState(accepts)
+    val latestArm = rememberUpdatedState(arm)
     val layoutDirection = LocalLayoutDirection.current
     val scope = rememberCoroutineScope()
+    val downPass = if (pass == ScrubPass.Initial) PointerEventPass.Initial else PointerEventPass.Main
 
-    return this.pointerInput(navModule, layoutDirection) {
-        val edgePx = EDGE_WIDTH_DP.dp.toPx()
-        val velocityThresholdPx =
-            InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
+    return this.pointerInput(navModule, layoutDirection, key) {
+        val velocityThresholdPx = InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
         val slop = viewConfiguration.touchSlop
         awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            val width = size.width.toFloat()
-            if (width <= 0f) return@awaitEachGesture
-            val isLtr = layoutDirection == LayoutDirection.Ltr
-            val inEdge = if (isLtr) {
-                down.position.x <= edgePx
+            val down = awaitFirstDown(requireUnconsumed = false, pass = downPass)
+            val extent = if (vertical) size.height.toFloat() else size.width.toFloat()
+            if (extent <= 0f) return@awaitEachGesture
+            if (!latestAccepts.value(this@pointerInput, down)) return@awaitEachGesture
+            val kind = latestArm.value(latestState.value) ?: return@awaitEachGesture
+            val axis = if (vertical) {
+                ScrubAxis.vertical(down, extent)
             } else {
-                down.position.x >= width - edgePx
+                ScrubAxis.horizontal(down, extent, layoutDirection == LayoutDirection.Ltr)
             }
-            if (!inEdge) return@awaitEachGesture
-            val arming = armContentBack(latestState.value, navModule, controller)
-                ?: return@awaitEachGesture
-            val top = arming.top
-            val revealed = arming.revealed
+            val slopChange = when (pass) {
+                ScrubPass.Initial -> awaitInitialPassSlop(down, axis, slop)
+                ScrubPass.Main -> awaitMainPassSlop(down, axis)
+            } ?: return@awaitEachGesture
 
-            var slopChange: PointerInputChange? = null
-            while (slopChange == null) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
-                if (!change.pressed) return@awaitEachGesture
-                val delta = change.position - down.position
-                val backDelta = if (isLtr) delta.x else -delta.x
-                val verticalDominates = abs(delta.y) > slop && abs(delta.y) >= abs(delta.x)
-                if (verticalDominates) return@awaitEachGesture
-                if (-backDelta > slop) return@awaitEachGesture
-                if (backDelta > slop && abs(delta.x) > abs(delta.y)) {
-                    slopChange = change
+            if (!controller.beginScrub(kind)) return@awaitEachGesture
+            if (pass == ScrubPass.Initial) slopChange.consume()
+
+            val outcome = trackScrub(controller, latestState, down, slopChange, axis, velocityThresholdPx) { onDrag ->
+                when {
+                    pass == ScrubPass.Initial -> pumpInitialPassDrag(down, onDrag)
+                    vertical -> verticalDrag(down.id, onDrag)
+                    else -> horizontalDrag(down.id, onDrag)
                 }
             }
 
-            if (!controller.beginScrub(arming.kind)) return@awaitEachGesture
-            slopChange.consume()
-
-            val outcome = trackScrub(
-                controller = controller,
-                latestState = latestState,
-                top = top,
-                down = down,
-                slopChange = slopChange,
-                axis = ScrubAxis.horizontal(down, width, isLtr),
-                velocityThresholdPx = velocityThresholdPx
-            ) { onDrag -> pumpInitialPassDrag(down, onDrag) }
-
             scope.launch {
-                completeInteractiveDismiss(
-                    outcome.commit, outcome.progressVelocity, controller, store, navModule, top, revealed
-                )
+                completeInteractiveDismiss(outcome.commit, outcome.progressVelocity, controller, store, navModule)
             }
         }
     }
 }
 
-@Composable
-internal fun Modifier.fullSurfaceBackGestureRecognizer(controller: InteractiveTransitionController): Modifier {
-    val store = rememberStore()
-    val navModule = LocalNavigationModule.current
-    val navigationState by composeState<NavigationState>()
-    val latestState = rememberUpdatedState(navigationState)
-    val layoutDirection = LocalLayoutDirection.current
-    val scope = rememberCoroutineScope()
-
-    return this.pointerInput(navModule, layoutDirection) {
-        val velocityThresholdPx =
-            InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            val width = size.width.toFloat()
-            if (width <= 0f) return@awaitEachGesture
-            val isLtr = layoutDirection == LayoutDirection.Ltr
-            val arming = armContentBack(latestState.value, navModule, controller)
-                ?: return@awaitEachGesture
-            val top = arming.top
-            val revealed = arming.revealed
-
-            val slopChange = awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
-                val towardsBack = if (isLtr) overSlop > 0f else overSlop < 0f
-                if (towardsBack) {
-                    change.consume()
-                }
-            } ?: return@awaitEachGesture
-
-            if (!controller.beginScrub(arming.kind)) return@awaitEachGesture
-
-            val outcome = trackScrub(
-                controller = controller,
-                latestState = latestState,
-                top = top,
-                down = down,
-                slopChange = slopChange,
-                axis = ScrubAxis.horizontal(down, width, isLtr),
-                velocityThresholdPx = velocityThresholdPx
-            ) { onDrag -> horizontalDrag(down.id, onDrag) }
-
-            scope.launch {
-                completeInteractiveDismiss(
-                    outcome.commit, outcome.progressVelocity, controller, store, navModule, top, revealed
-                )
-            }
-        }
+private suspend fun AwaitPointerEventScope.awaitInitialPassSlop(
+    down: PointerInputChange,
+    axis: ScrubAxis,
+    slop: Float
+): PointerInputChange? {
+    while (true) {
+        val event = awaitPointerEvent(PointerEventPass.Initial)
+        val change = event.changes.firstOrNull { it.id == down.id } ?: return null
+        if (!change.pressed) return null
+        val delta = change.position - down.position
+        val along = axis.along(delta)
+        val across = abs(axis.across(delta))
+        if (across > slop && across >= abs(along)) return null
+        if (-along > slop) return null
+        if (along > slop && abs(along) > across) return change
     }
+}
+
+private suspend fun AwaitPointerEventScope.awaitMainPassSlop(
+    down: PointerInputChange,
+    axis: ScrubAxis
+): PointerInputChange? = if (axis.isVertical) {
+    awaitVerticalTouchSlopOrCancellation(down.id) { change, overSlop ->
+        if (axis.towards(overSlop)) change.consume()
+    }
+} else {
+    awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
+        if (axis.towards(overSlop)) change.consume()
+    }
+}
+
+private fun BackGesturePolicy.admits(down: PointerInputChange): Boolean =
+    down.type != PointerType.Mouse || mouseStartsBack
+
+@Composable
+internal fun Modifier.backGestureRecognizer(
+    controller: InteractiveTransitionController,
+    policy: BackGesturePolicy
+): Modifier {
+    val navModule = LocalNavigationModule.current
+    val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+    return scrubRecognizer(
+        controller = controller,
+        vertical = false,
+        pass = ScrubPass.Initial,
+        key = policy,
+        accepts = { down ->
+            val edgePx = EDGE_WIDTH_DP.dp.toPx()
+            val inEdge = if (isLtr) down.position.x <= edgePx else down.position.x >= size.width - edgePx
+            policy.admits(down) && inEdge
+        }
+    ) { state -> armContentBack(state, navModule, controller) }
+}
+
+@Composable
+internal fun Modifier.fullSurfaceBackGestureRecognizer(
+    controller: InteractiveTransitionController,
+    policy: BackGesturePolicy
+): Modifier {
+    val navModule = LocalNavigationModule.current
+    val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+    return scrubRecognizer(
+        controller = controller,
+        vertical = false,
+        pass = ScrubPass.Main,
+        key = policy,
+        accepts = { down ->
+            val exclusionPx = EDGE_EXCLUSION_DP.dp.toPx()
+            val fromEdge = if (isLtr) down.position.x <= exclusionPx else down.position.x >= size.width - exclusionPx
+            policy.admits(down) && !(policy.fullSurfaceSkipsEdge && fromEdge)
+        }
+    ) { state -> armContentBack(state, navModule, controller) }
 }
 
 @Composable
 internal fun Modifier.dismissGestureRecognizer(controller: InteractiveTransitionController): Modifier {
-    val store = rememberStore()
     val navModule = LocalNavigationModule.current
-    val navigationState by composeState<NavigationState>()
-    val latestState = rememberUpdatedState(navigationState)
-    val scope = rememberCoroutineScope()
-
-    return this.pointerInput(navModule) {
-        val velocityThresholdPx =
-            InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            val height = size.height.toFloat()
-            if (height <= 0f) return@awaitEachGesture
-            val arming = armContentDismiss(latestState.value, navModule, controller)
-                ?: return@awaitEachGesture
-            val top = arming.top
-            val revealed = arming.revealed
-
-            val slopChange = awaitVerticalTouchSlopOrCancellation(down.id) { change, overSlop ->
-                if (overSlop > 0f) {
-                    change.consume()
-                }
-            } ?: return@awaitEachGesture
-
-            if (!controller.beginScrub(arming.kind)) return@awaitEachGesture
-
-            val outcome = trackScrub(
-                controller = controller,
-                latestState = latestState,
-                top = top,
-                down = down,
-                slopChange = slopChange,
-                axis = ScrubAxis.vertical(down, height),
-                velocityThresholdPx = velocityThresholdPx
-            ) { onDrag -> verticalDrag(down.id, onDrag) }
-
-            scope.launch {
-                completeInteractiveDismiss(
-                    outcome.commit, outcome.progressVelocity, controller, store, navModule, top, revealed
-                )
-            }
-        }
-    }
+    return scrubRecognizer(
+        controller = controller,
+        vertical = true,
+        pass = ScrubPass.Main,
+        key = Unit
+    ) { state -> armContentDismiss(state, navModule, controller) }
 }
 
 @Composable
 internal fun Modifier.topEdgeDismissRecognizer(controller: InteractiveTransitionController): Modifier {
-    val store = rememberStore()
     val navModule = LocalNavigationModule.current
-    val navigationState by composeState<NavigationState>()
-    val latestState = rememberUpdatedState(navigationState)
-    val scope = rememberCoroutineScope()
     val statusBarInsets = WindowInsets.statusBars
-
-    return this.pointerInput(navModule) {
-        val edgePx = TOP_DISMISS_EDGE_DP.dp.toPx()
-        val velocityThresholdPx =
-            InteractiveTransitionController.COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
-        val slop = viewConfiguration.touchSlop
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            val height = size.height.toFloat()
-            if (height <= 0f) return@awaitEachGesture
-            val zoneTop: Float
-            val zoneBottom: Float
+    return scrubRecognizer(
+        controller = controller,
+        vertical = true,
+        pass = ScrubPass.Initial,
+        key = Unit,
+        accepts = { down ->
             val rootCoordinates = controller.rootCoordinates?.takeIf { it.isAttached }
             val indicatorCoordinates = controller.indicatorCoordinates?.takeIf { it.isAttached }
+            val zoneTop: Float
+            val zoneBottom: Float
             if (rootCoordinates != null && indicatorCoordinates != null) {
                 val zone = rootCoordinates.localBoundingBoxOf(indicatorCoordinates, clipBounds = false)
                 zoneTop = zone.top
                 zoneBottom = zone.bottom
             } else {
                 zoneTop = statusBarInsets.getTop(this).toFloat()
-                zoneBottom = zoneTop + edgePx
+                zoneBottom = zoneTop + TOP_DISMISS_EDGE_DP.dp.toPx()
             }
-            if (down.position.y < zoneTop || down.position.y > zoneBottom) return@awaitEachGesture
-            val arming = armContentDismiss(latestState.value, navModule, controller)
-                ?: return@awaitEachGesture
-            val top = arming.top
-            val revealed = arming.revealed
-
-            var slopChange: PointerInputChange? = null
-            while (slopChange == null) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
-                if (!change.pressed) return@awaitEachGesture
-                val delta = change.position - down.position
-                val horizontalDominates = abs(delta.x) > slop && abs(delta.x) >= abs(delta.y)
-                if (horizontalDominates) return@awaitEachGesture
-                if (-delta.y > slop) return@awaitEachGesture
-                if (delta.y > slop && abs(delta.y) > abs(delta.x)) {
-                    slopChange = change
-                }
-            }
-
-            if (!controller.beginScrub(arming.kind)) return@awaitEachGesture
-            slopChange.consume()
-
-            val outcome = trackScrub(
-                controller = controller,
-                latestState = latestState,
-                top = top,
-                down = down,
-                slopChange = slopChange,
-                axis = ScrubAxis.vertical(down, height),
-                velocityThresholdPx = velocityThresholdPx
-            ) { onDrag -> pumpInitialPassDrag(down, onDrag) }
-
-            scope.launch {
-                completeInteractiveDismiss(
-                    outcome.commit, outcome.progressVelocity, controller, store, navModule, top, revealed
-                )
-            }
+            down.position.y in zoneTop..zoneBottom
         }
-    }
+    ) { state -> armContentDismiss(state, navModule, controller) }
 }
 
 @Composable
@@ -322,157 +252,74 @@ internal class GestureNestedScrollConnection(
     private val stateProvider: () -> NavigationState
 ) : NestedScrollConnection {
 
-    private enum class ScrubAxis { Vertical, Horizontal }
-
     var containerWidthPx: Float = 0f
     var containerHeightPx: Float = 0f
 
-    private var scrubbing = false
-    private var scrubAxis = ScrubAxis.Vertical
-    private var scrubTop: NavigationEntry? = null
-    private var scrubRevealed: NavigationEntry? = null
-    private var scrubModal = false
+    private var axis: ScrubAxis? = null
 
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-        if (!scrubbing || source != NestedScrollSource.UserInput) return Offset.Zero
-        return when (scrubAxis) {
-            ScrubAxis.Vertical -> {
-                if (available.y >= 0f) return Offset.Zero
-                val height = containerHeightPx.takeIf { it > 0f } ?: return Offset.Zero
-                val current = controller.progress
-                val target = (current + available.y / height).coerceAtLeast(0f)
-                controller.scrubTo(target)
-                Offset(0f, (target - current) * height)
-            }
-
-            ScrubAxis.Horizontal -> {
-                val width = containerWidthPx.takeIf { it > 0f } ?: return Offset.Zero
-                val backDelta = if (isLtr()) available.x else -available.x
-                if (backDelta >= 0f) return Offset.Zero
-                val current = controller.progress
-                val target = (current + backDelta / width).coerceAtLeast(0f)
-                controller.scrubTo(target)
-                val consumedBack = (target - current) * width
-                Offset(if (isLtr()) consumedBack else -consumedBack, 0f)
-            }
-        }
+        val axis = axis ?: return Offset.Zero
+        if (source != NestedScrollSource.UserInput) return Offset.Zero
+        val back = axis.along(available)
+        if (back >= 0f) return Offset.Zero
+        val current = controller.progress
+        val target = (current + back / axis.extent).coerceAtLeast(0f)
+        controller.scrubTo(target)
+        return axis.offsetOf((target - current) * axis.extent)
     }
 
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
         if (source != NestedScrollSource.UserInput) return Offset.Zero
-        if (scrubbing) {
-            return when (scrubAxis) {
-                ScrubAxis.Vertical -> {
-                    if (available.y <= 0f) return Offset.Zero
-                    val height = containerHeightPx.takeIf { it > 0f } ?: return Offset.Zero
-                    controller.scrubTo(controller.progress + available.y / height)
-                    Offset(0f, available.y)
-                }
-
-                ScrubAxis.Horizontal -> {
-                    val width = containerWidthPx.takeIf { it > 0f } ?: return Offset.Zero
-                    val backDelta = if (isLtr()) available.x else -available.x
-                    if (backDelta <= 0f) return Offset.Zero
-                    controller.scrubTo(controller.progress + backDelta / width)
-                    Offset(available.x, 0f)
-                }
-            }
+        val active = axis
+        if (active != null) {
+            val back = active.along(available)
+            if (back <= 0f) return Offset.Zero
+            controller.scrubTo(controller.progress + back / active.extent)
+            return active.offsetOf(back)
         }
 
-        val state = stateProvider()
         if (controller.contentTransitionActive) return Offset.Zero
+        val state = stateProvider()
 
         if (available.y > 0f && containerHeightPx > 0f) {
             val kind = dismissKindFor(state) ?: return Offset.Zero
-            if (!controller.beginScrub(kind)) return Offset.Zero
-            scrubbing = true
-            scrubAxis = ScrubAxis.Vertical
-            when (kind) {
-                is InteractiveTransitionController.ScrubKind.ContentDismiss -> {
-                    scrubTop = kind.topEntry
-                    scrubRevealed = kind.revealedEntry
-                    scrubModal = false
-                }
-
-                is InteractiveTransitionController.ScrubKind.ModalDismiss -> {
-                    scrubTop = kind.modalEntry
-                    scrubRevealed = null
-                    scrubModal = true
-                }
-
-                else -> Unit
-            }
-            controller.scrubTo(available.y / containerHeightPx)
-            return Offset(0f, available.y)
+            return arm(kind, ScrubAxis.vertical(containerHeightPx), available)
         }
 
-        val backDelta = if (isLtr()) available.x else -available.x
-        if (backDelta > 0f && containerWidthPx > 0f) {
-            val arming = armContentBack(state, navModule, controller) ?: return Offset.Zero
-            val top = arming.top
-            val revealed = arming.revealed
-            if (!controller.beginScrub(arming.kind)) return Offset.Zero
-            scrubbing = true
-            scrubAxis = ScrubAxis.Horizontal
-            scrubTop = top
-            scrubRevealed = revealed
-            scrubModal = false
-            controller.scrubTo(backDelta / containerWidthPx)
-            return Offset(available.x, 0f)
+        val horizontal = ScrubAxis.horizontal(containerWidthPx, isLtr())
+        if (horizontal.along(available) > 0f && containerWidthPx > 0f) {
+            val kind = armContentBack(state, navModule, controller) ?: return Offset.Zero
+            return arm(kind, horizontal, available)
         }
 
         return Offset.Zero
     }
 
+    private fun arm(kind: InteractiveTransitionController.ScrubKind, axis: ScrubAxis, available: Offset): Offset {
+        if (!controller.beginScrub(kind)) return Offset.Zero
+        this.axis = axis
+        val back = axis.along(available)
+        controller.scrubTo(back / axis.extent)
+        return axis.offsetOf(back)
+    }
+
     override suspend fun onPreFling(available: Velocity): Velocity {
-        if (!scrubbing) return Velocity.Zero
-        scrubbing = false
-        val top = scrubTop
-        val revealed = scrubRevealed
-        val modal = scrubModal
-        val axis = scrubAxis
-        scrubTop = null
-        scrubRevealed = null
-        scrubModal = false
-        val extent = when (axis) {
-            ScrubAxis.Vertical -> containerHeightPx
-            ScrubAxis.Horizontal -> containerWidthPx
-        }.takeIf { it > 0f }
-        if (top == null || extent == null) {
-            controller.reset()
-            return available
-        }
-        val axisVelocity = when (axis) {
-            ScrubAxis.Vertical -> available.y
-            ScrubAxis.Horizontal -> if (isLtr()) available.x else -available.x
-        }
+        val axis = axis ?: return Velocity.Zero
+        this.axis = null
+        val axisVelocity = axis.along(Offset(available.x, available.y))
         val commit = InteractiveTransitionController.shouldCommit(
             progress = controller.progress,
             velocity = axisVelocity,
             velocityThreshold = velocityThresholdPx
         )
-        val progressVelocity = axisVelocity / extent
-        if (modal) {
-            completeInteractiveDismiss(commit, progressVelocity, controller, store, navModule, top, revealed = null)
-        } else if (revealed != null) {
-            completeInteractiveDismiss(commit, progressVelocity, controller, store, navModule, top, revealed)
-        } else {
-            controller.reset()
-        }
+        completeInteractiveDismiss(commit, axis.toProgressVelocity(axisVelocity), controller, store, navModule)
         return available
     }
 
-    private fun dismissKindFor(state: NavigationState): InteractiveTransitionController.ScrubKind? {
-        val navigatable = state.currentEntry.navigatable
-        if (navigatable is Modal) {
-            if (!navigatable.dismissal.swipe.allowsDismiss) return null
-            if (!canHandleBack(state)) return null
-            return InteractiveTransitionController.ScrubKind.ModalDismiss(state.currentEntry)
+    private fun dismissKindFor(state: NavigationState): InteractiveTransitionController.ScrubKind? =
+        if (state.currentEntry.navigatable is Modal) {
+            armModalDismiss(state, state.currentEntry)
+        } else {
+            armContentDismiss(state, navModule, controller)
         }
-        if (!canArmSwipeDismiss(state, navModule)) return null
-        val revealed = revealedEntryForDismiss(state, navModule) ?: return null
-        return InteractiveTransitionController.ScrubKind.ContentDismiss(state.currentEntry, revealed)
-    }
 }
-
-

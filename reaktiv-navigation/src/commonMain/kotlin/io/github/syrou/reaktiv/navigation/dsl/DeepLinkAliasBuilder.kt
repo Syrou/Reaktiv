@@ -1,8 +1,7 @@
 package io.github.syrou.reaktiv.navigation.dsl
 
 import io.github.syrou.reaktiv.navigation.param.Params
-import io.github.syrou.reaktiv.navigation.util.createRouteRegex
-import io.github.syrou.reaktiv.navigation.util.extractRouteParameterNames
+import io.github.syrou.reaktiv.navigation.util.RouteTemplate
 
 /**
  * Builder for registering deep link alias mappings.
@@ -65,8 +64,7 @@ public data class DeepLinkAlias(
     val targetRoute: String,
     val paramsMapping: (Params) -> Params = { it }
 ) {
-    private val compiledRegex: Regex by lazy { createRouteRegex(pattern.trimStart('/')) }
-    private val compiledParamNames: List<String> by lazy { extractRouteParameterNames(pattern) }
+    internal val template: RouteTemplate get() = RouteTemplate.parse(pattern)
 
     /**
      * Attempts to match [url] against this alias pattern and extract any path parameters.
@@ -74,13 +72,6 @@ public data class DeepLinkAlias(
      * @return Extracted [Params] if the pattern matches, or `null` if it does not.
      */
     public fun matchAndExtract(url: String): Params? {
-        val matchResult = compiledRegex.find(url.trimStart('/')) ?: return null
-        val paramsMap = mutableMapOf<String, Any>()
-        matchResult.groupValues.drop(1).forEachIndexed { index, value ->
-            if (index < compiledParamNames.size) {
-                paramsMap[compiledParamNames[index]] = value
-            }
-        }
-        return Params.fromMap(paramsMap)
+        return template.match(url)?.let { Params.fromMap(it) }
     }
 }

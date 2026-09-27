@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import io.github.syrou.reaktiv.introspection.StallWatchdog
 import io.github.syrou.reaktiv.introspection.DispatchTracingInstrumentation
@@ -8,6 +10,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicFailureKind
 import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 
+@DevToolsInternalApi
 public data class MethodStats(
     val logicClass: String,
     val methodName: String,
@@ -63,6 +66,7 @@ public const val DISPATCH_TRACE_CLASS: String = DispatchTracingInstrumentation.D
 
 public const val DISPATCH_QUEUE_WAIT_WARN_MS: Long = 100L
 
+@DevToolsInternalApi
 public data class DispatchStats(
     val processedActions: Int,
     val avgQueueWaitMs: Long,
@@ -73,12 +77,13 @@ public data class DispatchStats(
     public val isCongested: Boolean get() = maxQueueWaitMs >= DISPATCH_QUEUE_WAIT_WARN_MS
 }
 
+@DevToolsInternalApi
 public fun aggregateDispatchStats(
     started: List<LogicMethodStart>,
     completed: List<LogicMethodCompleted>,
     failed: List<LogicMethodFailed>
 ): DispatchStats? {
-    val dispatchStarts = started.distinctBy { it.callId }.filter { it.logicClass == DISPATCH_TRACE_CLASS }
+    val dispatchStarts = started.distinctBy { it.callId }.filter { it.kind == SpanKind.DISPATCH }
     if (dispatchStarts.isEmpty()) return null
     val dispatchCallIds = dispatchStarts.mapTo(mutableSetOf()) { it.callId }
 
@@ -124,6 +129,32 @@ public const val REDACTION_TRACE_CLASS: String = SessionCapture.REDACTION_TRACE_
  */
 public const val GUARD_TRACE_CLASS: String = "NavigationGuards"
 
+@Suppress("DEPRECATION")
+@DevToolsInternalApi
+public enum class SpanKind(public val traceClass: String?, public val pipeline: Boolean) {
+    LOGIC(null, false),
+    NAVIGATION(NAVIGATION_TRACE_CLASS, false),
+    DISPATCH(DISPATCH_TRACE_CLASS, true),
+    PHASE(PHASE_TRACE_CLASS, true),
+    STALL(STALL_TRACE_CLASS, true),
+    GUARD(GUARD_TRACE_CLASS, true),
+    CAPTURE_ISSUE(REDACTION_TRACE_CLASS, true);
+
+    public companion object {
+        private val byTraceClass: Map<String, SpanKind> =
+            entries.mapNotNull { kind -> kind.traceClass?.let { it to kind } }.toMap()
+
+        public fun of(logicClass: String): SpanKind = byTraceClass[logicClass] ?: LOGIC
+    }
+}
+
+@DevToolsInternalApi
+public val LogicMethodStart.kind: SpanKind get() = SpanKind.of(logicClass)
+
+@DevToolsInternalApi
+public val MethodStats.kind: SpanKind get() = SpanKind.of(logicClass)
+
+@DevToolsInternalApi
 public val SYNTHETIC_TRACE_CLASSES: Set<String> = setOf(
     DISPATCH_TRACE_CLASS,
     STALL_TRACE_CLASS,
@@ -132,22 +163,33 @@ public val SYNTHETIC_TRACE_CLASSES: Set<String> = setOf(
     GUARD_TRACE_CLASS
 )
 
+@DevToolsInternalApi
 public fun isMainThread(thread: String): Boolean {
     val normalized = thread.lowercase()
     return normalized == "main" || normalized.startsWith("main ") || normalized.contains("main thread")
 }
 
+@DevToolsInternalApi
+@Deprecated(
+    "Stall findings from computeFindings carry each freeze's stack and culprit.",
+    level = DeprecationLevel.WARNING
+)
 public data class StallGroup(
     val stack: String?,
     val count: Int,
     val worstMs: Long
 )
 
+@DevToolsInternalApi
+@Deprecated(
+    "Stall findings from computeFindings carry each freeze's stack and culprit.",
+    level = DeprecationLevel.WARNING
+)
 public fun aggregateStalls(
     started: List<LogicMethodStart>,
     completed: List<LogicMethodCompleted>
 ): List<StallGroup> {
-    val stallStarts = started.distinctBy { it.callId }.filter { it.logicClass == STALL_TRACE_CLASS }
+    val stallStarts = started.distinctBy { it.callId }.filter { it.kind == SpanKind.STALL }
     if (stallStarts.isEmpty()) return emptyList()
     val durationByCallId = completed.distinctBy { it.callId }.associate { it.callId to it.durationMs }
 
@@ -163,12 +205,17 @@ public fun aggregateStalls(
     }.sortedByDescending { it.worstMs }
 }
 
+@DevToolsInternalApi
+@Deprecated(
+    "Stall findings from computeFindings carry each freeze's stack and culprit.",
+    level = DeprecationLevel.WARNING
+)
 public fun stallCulprits(
     started: List<LogicMethodStart>,
     completed: List<LogicMethodCompleted>,
     failed: List<LogicMethodFailed>
 ): List<MethodStats> {
-    val stallStarts = started.distinctBy { it.callId }.filter { it.logicClass == STALL_TRACE_CLASS }
+    val stallStarts = started.distinctBy { it.callId }.filter { it.kind == SpanKind.STALL }
     if (stallStarts.isEmpty()) return emptyList()
     val stallCallIds = stallStarts.mapTo(mutableSetOf()) { it.callId }
     val windows = completed.distinctBy { it.callId }
@@ -183,7 +230,7 @@ public fun stallCulprits(
     val culpritKeys = started.distinctBy { it.callId }
         .filter { s ->
             val thread = s.thread
-            if (s.logicClass == STALL_TRACE_CLASS || s.logicClass == DISPATCH_TRACE_CLASS) return@filter false
+            if (s.kind == SpanKind.STALL || s.kind == SpanKind.DISPATCH) return@filter false
             if (thread == null || !isMainThread(thread)) return@filter false
             val callStart = s.timestampMs
             val callEnd = s.timestampMs + (durationByCallId[s.callId] ?: 0L)
@@ -196,6 +243,7 @@ public fun stallCulprits(
         .filter { (it.logicClass to it.methodName) in culpritKeys }
 }
 
+@DevToolsInternalApi
 public data class ThreadStats(
     val thread: String,
     val calls: Int,
@@ -247,6 +295,7 @@ private fun peakOverlapDetail(intervals: List<Interval>): OverlapDetail {
     return OverlapDetail(peak, peakLabels)
 }
 
+@DevToolsInternalApi
 public fun aggregateLogicStats(
     started: List<LogicMethodStart>,
     completed: List<LogicMethodCompleted>,
@@ -333,13 +382,14 @@ public fun aggregateLogicStats(
     }.sortedByDescending { it.totalMs }
 }
 
+@DevToolsInternalApi
 public fun aggregateThreadStats(
     started: List<LogicMethodStart>,
     completed: List<LogicMethodCompleted>,
     failed: List<LogicMethodFailed>
 ): List<ThreadStats> {
     val uniqueStarted = started.distinctBy { it.callId }
-        .filter { it.logicClass !in SYNTHETIC_TRACE_CLASSES }
+        .filter { !it.kind.pipeline }
     val uniqueCompleted = completed.distinctBy { it.callId }
     val uniqueFailed = failed.distinctBy { it.callId }
     val startByCallId = uniqueStarted.associateBy { it.callId }

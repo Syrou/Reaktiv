@@ -39,7 +39,7 @@ class TypeSafeRedactionCaptureTest {
     private object Poke : ModuleAction(FlipVaultState::class)
 
     @Test
-    fun `a flipping sensitive enum produces no spurious deltas and a masked baseline`() = runTest {
+    fun `the live history carries a sensitive value and the export masks it`() = runTest {
         val capture = SessionCapture()
         capture.start("client-ts", "TypeSafeApp", "TestPlatform")
         capture.attachStateSerializers(testSerializers)
@@ -48,6 +48,12 @@ class TypeSafeRedactionCaptureTest {
         capture.captureDispatchedAction(Poke, FlipVaultState(secretLevel = ClearanceLevel.HIGH))
         capture.captureDispatchedAction(Poke, FlipVaultState(secretLevel = ClearanceLevel.LOW))
         capture.captureDispatchedAction(Poke, FlipVaultState(secretLevel = ClearanceLevel.LOW, count = 1))
+
+        val history = capture.getSessionHistory()
+        val liveModule = json.parseToJsonElement(history.initialStateJson).jsonObject.getValue(moduleName).jsonObject
+        assertEquals("HIGH", liveModule["secretLevel"]!!.jsonPrimitive.content)
+        val liveFlip = json.parseToJsonElement(history.actions[1].stateDeltaJson).jsonObject
+        assertEquals("LOW", liveFlip["secretLevel"]!!.jsonPrimitive.content)
 
         val export = json.decodeFromString<SessionExport>(capture.exportSession())
 
@@ -60,7 +66,7 @@ class TypeSafeRedactionCaptureTest {
         actions.forEach { assertEquals(DeltaKind.FIELDS, it.deltaKind) }
 
         val flipDelta = json.parseToJsonElement(actions[1].stateDeltaJson).jsonObject
-        assertTrue("secretLevel" !in flipDelta)
+        assertEquals(REDACTED_PLACEHOLDER, flipDelta["secretLevel"]!!.jsonPrimitive.content)
 
         val countDelta = json.parseToJsonElement(actions[2].stateDeltaJson).jsonObject
         assertTrue("count" in countDelta)

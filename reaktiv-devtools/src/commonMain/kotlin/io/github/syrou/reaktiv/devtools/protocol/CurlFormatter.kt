@@ -1,7 +1,10 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
 import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 
+@DevToolsInternalApi
 public object CurlFormatter {
 
     public fun toCurl(event: NetworkRequestCapture): String {

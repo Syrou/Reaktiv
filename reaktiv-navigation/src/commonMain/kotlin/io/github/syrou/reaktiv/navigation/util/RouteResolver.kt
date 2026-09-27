@@ -12,15 +12,11 @@ import io.github.syrou.reaktiv.navigation.model.ScreenResolution
 
 
 public class RouteResolver private constructor(
-    private val routeToNavigatable: Map<String, Navigatable>,
     private val navigatableToFullPath: Map<Navigatable, String>,
-    private val graphToStartNavigatable: Map<String, ScreenResolution>,
-    private val graphHierarchy: Map<String, List<String>>, // graph -> path to root
     private val fullPathToResolution: Map<String, RouteResolution>,
     private val graphDefinitions: Map<String, NavigationGraph>,
-    private val parameterizedRouteIndex: Map<ParameterizedRouteKey, List<ParameterizedRouteEntry>>,
-    private val graphPathToGraphId: Map<String, String>,
-    private val graphIdToFullPath: Map<String, String>,
+    private val parameterizedRoutes: Map<Int, List<ParameterizedRouteEntry>>,
+    internal val graphIndex: GraphIndex,
     private val notFoundScreen: Screen? = null
 ) {
 
@@ -32,54 +28,61 @@ public class RouteResolver private constructor(
             navigatableToFullPath: Map<Navigatable, String>,
             graphHierarchy: Map<String, List<String>>,
             notFoundScreen: Screen? = null
+        ): RouteResolver = create(
+            graphDefinitions,
+            routeToNavigatable,
+            navigatableToFullPath,
+            GraphIndex(graphDefinitions, graphHierarchy),
+            notFoundScreen
+        )
+
+        internal fun create(
+            graphDefinitions: Map<String, NavigationGraph>,
+            routeToNavigatable: Map<String, Navigatable>,
+            navigatableToFullPath: Map<Navigatable, String>,
+            graphIndex: GraphIndex,
+            notFoundScreen: Screen?
         ): RouteResolver {
-            val graphToStartNavigatable = mutableMapOf<String, ScreenResolution>()
             val fullPathToResolution = mutableMapOf<String, RouteResolution>()
-            val parameterizedRouteIndex = mutableMapOf<ParameterizedRouteKey, MutableList<ParameterizedRouteEntry>>()
-            val graphPathToGraphId = mutableMapOf<String, String>()
-            val graphIdToFullPath = mutableMapOf<String, String>()
+            val parameterizedEntries = mutableListOf<ParameterizedRouteEntry>()
             for ((graphId, graph) in graphDefinitions) {
-                val graphPath = buildGraphPath(graphId, graphHierarchy)
-                if (graphPath.isNotEmpty()) {
-                    graphIdToFullPath[graphId] = graphPath
-                    if (graphPath != graphId) {
-                        graphPathToGraphId[graphPath] = graphId
-                    }
-                }
+                val graphPath = graphIndex.path(graphId).orEmpty()
                 for (navigatable in graph.navigatables) {
-                    val fullPath = navigatableToFullPath[navigatable] ?: continue
+                    val ownPath = if (graphPath.isEmpty()) navigatable.route else "$graphPath/${navigatable.route}"
+                    val fullPath = ownPath.takeIf { routeToNavigatable[it] === navigatable }
+                        ?: navigatableToFullPath[navigatable]
+                        ?: continue
 
-                    if (navigatable.route.contains("{")) {
-                        val entry = ParameterizedRouteEntry(
-                            template = navigatable.route,
-                            fullTemplate = fullPath,
+                    val template = RouteTemplate.parse(fullPath)
+                    if (template.isParameterized) {
+                        parameterizedEntries += ParameterizedRouteEntry(
+                            template = template,
                             navigatable = navigatable,
-                            graphId = graphId,
-                            paramNames = extractRouteParameterNames(navigatable.route),
-                            regex = createRouteRegex(fullPath)
+                            graphId = graphId
                         )
-                        val key = ParameterizedRouteKey.fromTemplate(fullPath)
-                        parameterizedRouteIndex.getOrPut(key) { mutableListOf() }.add(entry)
-
-                        ReaktivDebug.nav("Added parameterized route: $fullPath -> ${navigatable.route} (key: $key)")
+                        ReaktivDebug.nav("Added parameterized route: $fullPath (params: ${template.paramNames})")
                     } else {
                         fullPathToResolution[fullPath] = RouteResolution(
                             targetNavigatable = navigatable,
                             owningGraphId = graphId,
                             extractedParams = Params.empty(),
-                            isGraphReference = false
+                            isGraphReference = false,
+                            path = fullPath
                         )
                     }
                 }
                 val startResolution = resolveGraphStartNavigatable(graph, graphDefinitions)
                 if (startResolution != null) {
-                    graphToStartNavigatable[graphId] = startResolution
+                    val startGraphPath = graphIndex.path(startResolution.actualGraphId).orEmpty()
+                    val startRoute = startResolution.navigatable.route
+                    val startPath = if (startGraphPath.isEmpty()) startRoute else "$startGraphPath/$startRoute"
                     val graphRouteResolution = RouteResolution(
                         targetNavigatable = startResolution.navigatable,
                         owningGraphId = startResolution.actualGraphId,
                         extractedParams = Params.empty(),
                         requestedGraphId = graphId,
-                        isGraphReference = graph.startDestination is StartDestination.GraphReference
+                        isGraphReference = graph.startDestination is StartDestination.GraphReference,
+                        path = startPath.takeIf { routeToNavigatable[it] === startResolution.navigatable }
                     )
 
                     fullPathToResolution[graphId] = graphRouteResolution
@@ -89,32 +92,46 @@ public class RouteResolver private constructor(
                 }
             }
 
-            val totalParameterizedRoutes = parameterizedRouteIndex.values.sumOf { it.size }
-            ReaktivDebug.nav("Created $totalParameterizedRoutes parameterized route patterns in ${parameterizedRouteIndex.size} index buckets")
-            parameterizedRouteIndex.forEach { (key, routes) ->
-                routes.forEach { route ->
-                    ReaktivDebug.nav("   - ${route.fullTemplate} (params: ${route.paramNames}, key: $key)")
+            val templateGraphs = parameterizedEntries.associate { it.template.template to it.graphId }
+            routeToNavigatable.forEach { (path, navigatable) ->
+                fullPathToResolution.getOrPut(path) {
+                    RouteResolution(
+                        targetNavigatable = navigatable,
+                        owningGraphId = templateGraphs[path] ?: ROOT_GRAPH,
+                        extractedParams = Params.empty(),
+                        isGraphReference = false,
+                        path = path
+                    )
                 }
             }
 
+            warnAboutSameShapeTemplates(parameterizedEntries)
+            val parameterizedRoutes = parameterizedEntries
+                .sortedWith { a, b -> RouteTemplate.specificity.compare(a.template, b.template) }
+                .groupBy { it.template.segmentCount }
+
             return RouteResolver(
-                routeToNavigatable = routeToNavigatable,
                 navigatableToFullPath = navigatableToFullPath,
-                graphToStartNavigatable = graphToStartNavigatable,
-                graphHierarchy = graphHierarchy,
                 fullPathToResolution = fullPathToResolution,
                 graphDefinitions = graphDefinitions,
-                parameterizedRouteIndex = parameterizedRouteIndex,
-                graphPathToGraphId = graphPathToGraphId,
-                graphIdToFullPath = graphIdToFullPath,
+                parameterizedRoutes = parameterizedRoutes,
+                graphIndex = graphIndex,
                 notFoundScreen = notFoundScreen
             )
         }
 
-        private fun buildGraphPath(graphId: String, hierarchies: Map<String, List<String>>): String {
-            if (graphId == "root") return ""
-            val hierarchy = hierarchies[graphId] ?: return ""
-            return hierarchy.filter { it != "root" }.joinToString("/")
+        private fun warnAboutSameShapeTemplates(entries: List<ParameterizedRouteEntry>) {
+            entries.forEachIndexed { index, first ->
+                entries.drop(index + 1)
+                    .filter { second -> first.template.sameShapeAs(second.template) }
+                    .forEach { second ->
+                        ReaktivDebug.warn(
+                            "Routes '${first.template.template}' and '${second.template.template}' match the same " +
+                                "paths, so a concrete path can only reach one of them. Give one of them a " +
+                                "distinct static segment."
+                        )
+                    }
+            }
         }
 
         private fun resolveGraphStartNavigatable(
@@ -137,29 +154,24 @@ public class RouteResolver private constructor(
     }
 
     
-    public fun canonicalGraphId(route: String): String? {
-        val clean = route.trimStart('/').trimEnd('/')
-        if (graphDefinitions.containsKey(clean)) return clean
-        return graphPathToGraphId[clean]
-    }
+    public fun canonicalGraphId(route: String): String? = graphIndex.idForPath(route)
 
-    public fun fullPathForGraph(graphId: String): String? = graphIdToFullPath[graphId]
+    public fun fullPathForGraph(graphId: String): String? = graphIndex.path(graphId)
 
     public fun isFullPath(route: String): Boolean {
-        val clean = route.trimStart('/').trimEnd('/')
+        val clean = normalizePath(route)
         if (clean.isEmpty()) return false
-        if (routeToNavigatable.containsKey(clean)) return true
+        if (fullPathToResolution[clean]?.let { it.requestedGraphId == null } == true) return true
         val graphId = canonicalGraphId(clean)
-        if (graphId != null) return (graphIdToFullPath[graphId] ?: graphId) == clean
-        val candidates = parameterizedRouteIndex[ParameterizedRouteKey.fromRoute(clean)] ?: return false
-        return candidates.any { it.regex.matches(clean) }
+        if (graphId != null) return (fullPathForGraph(graphId) ?: graphId) == clean
+        return matchParameterized(clean) != null
     }
 
     public fun fullPathSuggestions(route: String): List<String> {
-        val clean = route.trimStart('/').trimEnd('/')
+        val clean = normalizePath(route)
         if (clean.isEmpty()) return emptyList()
         val screens = navigatableToFullPath.values.filter { it.endsWith("/$clean") }
-        val graphs = graphIdToFullPath.values.filter { it.endsWith("/$clean") }
+        val graphs = graphDefinitions.keys.mapNotNull(::fullPathForGraph).filter { it.endsWith("/$clean") }
         return (screens + graphs).distinct().sorted()
     }
 
@@ -180,7 +192,7 @@ public class RouteResolver private constructor(
         route: String,
         availableNavigatables: Map<String, Navigatable> = emptyMap()
     ): RouteResolution? {
-        val cleanRoute = route.trimStart('/').trimEnd('/')
+        val cleanRoute = normalizePath(route)
         if (cleanRoute.isEmpty()) return null
 
         ReaktivDebug.nav("Resolving route: '$cleanRoute'")
@@ -188,65 +200,24 @@ public class RouteResolver private constructor(
             ReaktivDebug.nav("Direct full path lookup found: $cleanRoute")
             return it
         }
-        routeToNavigatable[cleanRoute]?.let { navigatable ->
-            ReaktivDebug.nav("Direct route-to-navigatable lookup found: $cleanRoute")
-            val graphId = findGraphForNavigatable(navigatable) ?: "root"
-            return RouteResolution(
-                targetNavigatable = navigatable,
-                owningGraphId = graphId,
-                extractedParams = Params.empty(),
-                isGraphReference = false
-            )
-        }
-        graphToStartNavigatable[cleanRoute]?.let { startResolution ->
-            ReaktivDebug.nav("Graph start destination found: $cleanRoute")
-            return RouteResolution(
-                targetNavigatable = startResolution.navigatable,
-                owningGraphId = startResolution.actualGraphId,
-                extractedParams = Params.empty(),
-                requestedGraphId = cleanRoute,
-                isGraphReference = graphDefinitions[cleanRoute]?.startDestination is StartDestination.GraphReference
-            )
-        }
-
-        // Check if this is a graph without a startDestination - redirect to notFoundScreen
         val canonicalId = canonicalGraphId(cleanRoute)
         if (canonicalId != null && graphDefinitions[canonicalId]?.startDestination == null) {
-            if (graphDefinitions[canonicalId]?.entryDefinition != null) {
-                return null
-            }
-            ReaktivDebug.nav("Graph '$cleanRoute' has no startDestination defined")
-            notFoundScreen?.let { screen ->
-                ReaktivDebug.nav("Redirecting to notFoundScreen for graph: $cleanRoute")
-                return RouteResolution(
-                    targetNavigatable = screen,
-                    owningGraphId = "root",
-                    extractedParams = Params.empty(),
-                    requestedGraphId = canonicalId,
-                    isGraphReference = false
-                )
-            }
+            return null
         }
 
         availableNavigatables[cleanRoute]?.let { navigatable ->
             ReaktivDebug.nav("Root navigatable found in provided map: $cleanRoute")
             return RouteResolution(
                 targetNavigatable = navigatable,
-                owningGraphId = "root",
+                owningGraphId = ROOT_GRAPH,
                 extractedParams = Params.empty(),
                 isGraphReference = false
             )
         }
 
-        // Check parameterized routes using index for O(1) candidate lookup
-        val routeKey = ParameterizedRouteKey.fromRoute(cleanRoute)
-        val candidates = parameterizedRouteIndex[routeKey]
-        if (candidates != null) {
-            val parameterizedResult = matchParameterizedCandidates(cleanRoute, candidates)
-            if (parameterizedResult != null) {
-                ReaktivDebug.nav("Parameterized route found: $cleanRoute -> ${parameterizedResult.targetNavigatable.route}")
-                return parameterizedResult
-            }
+        matchParameterized(cleanRoute)?.let { parameterizedResult ->
+            ReaktivDebug.nav("Parameterized route found: $cleanRoute -> ${parameterizedResult.targetNavigatable.route}")
+            return parameterizedResult
         }
 
         // Fallback: Try to find by simple route name (for backward compatibility)
@@ -269,7 +240,7 @@ public class RouteResolver private constructor(
     public fun notFoundResolution(): RouteResolution? = notFoundScreen?.let { screen ->
         RouteResolution(
             targetNavigatable = screen,
-            owningGraphId = "root",
+            owningGraphId = ROOT_GRAPH,
             extractedParams = Params.empty(),
             isGraphReference = false
         )
@@ -290,7 +261,7 @@ public class RouteResolver private constructor(
 
             matches.size == 1 -> {
                 val (navigatable, fullPath) = matches.first()
-                val graphId = findGraphForNavigatable(navigatable) ?: "root"
+                val graphId = fullPathToResolution[fullPath]?.owningGraphId ?: ROOT_GRAPH
 
                 ReaktivDebug.warn(
                     "Simple route '$simpleRoute' resolved via fallback to '$fullPath'. " +
@@ -318,47 +289,19 @@ public class RouteResolver private constructor(
     }
 
     
-    private fun findGraphForNavigatable(navigatable: Navigatable): String? {
-        for ((graphId, graph) in graphDefinitions) {
-            if (graph.navigatables.contains(navigatable)) {
-                return graphId
-            }
+    private fun matchParameterized(route: String): RouteResolution? {
+        val candidates = parameterizedRoutes[RouteTemplate.splitPath(route).size] ?: return null
+        for (candidate in candidates) {
+            val values = candidate.template.match(route) ?: continue
+            ReaktivDebug.nav("Parameterized match found: ${candidate.template.template} with $values")
+            return RouteResolution(
+                targetNavigatable = candidate.navigatable,
+                owningGraphId = candidate.graphId,
+                extractedParams = Params.fromMap(values),
+                isGraphReference = false,
+                path = candidate.template.template
+            )
         }
-        return null
-    }
-
-    private fun matchParameterizedCandidates(
-        route: String,
-        candidates: List<ParameterizedRouteEntry>
-    ): RouteResolution? {
-        ReaktivDebug.nav("Matching parameterized route: $route (${candidates.size} candidates)")
-
-        for (paramRoute in candidates) {
-            ReaktivDebug.nav("   Testing against template: ${paramRoute.fullTemplate}")
-
-            val match = paramRoute.regex.find(route)
-            if (match != null) {
-                val paramsMap = mutableMapOf<String, Any>()
-                match.groupValues.drop(1).forEachIndexed { index, value ->
-                    if (index < paramRoute.paramNames.size) {
-                        paramsMap[paramRoute.paramNames[index]] = value
-                        ReaktivDebug.nav("   Extracted param: ${paramRoute.paramNames[index]} = $value")
-                    }
-                }
-                val params = Params.fromMap(paramsMap)
-
-                ReaktivDebug.nav("Parameterized match found: ${paramRoute.fullTemplate}")
-
-                return RouteResolution(
-                    targetNavigatable = paramRoute.navigatable,
-                    owningGraphId = paramRoute.graphId,
-                    extractedParams = params,
-                    isGraphReference = false
-                )
-            }
-        }
-
-        ReaktivDebug.nav("No parameterized route match in candidates")
         return null
     }
 
@@ -366,6 +309,10 @@ public class RouteResolver private constructor(
         targetRoute: String,
         backStack: List<NavigationEntry>
     ): Int {
+        val targetLocation = RouteTemplate.normalizeLocation(targetRoute)
+        val locationMatch = backStack.indexOfLast { it.location == targetLocation }
+        if (locationMatch != -1) return locationMatch
+
         val directRouteMatch = backStack.indexOfLast { it.route == targetRoute }
         if (directRouteMatch != -1) return directRouteMatch
 
@@ -374,7 +321,7 @@ public class RouteResolver private constructor(
 
         val targetResolution = resolve(targetRoute)
         if (targetResolution != null) {
-            val resolvedFullPath = navigatableToFullPath[targetResolution.targetNavigatable]
+            val resolvedFullPath = targetResolution.path ?: navigatableToFullPath[targetResolution.targetNavigatable]
             if (resolvedFullPath != null) {
                 val resolvedMatch = backStack.indexOfLast { it.path == resolvedFullPath }
                 if (resolvedMatch != -1) return resolvedMatch
@@ -388,23 +335,7 @@ public class RouteResolver private constructor(
 
 
     public fun buildFullPathForEntry(entry: NavigationEntry): String {
-        return substituteRouteParameters(entry.path, entry.params)
-    }
-
-    private fun substituteRouteParameters(routeTemplate: String, params: Params): String {
-        var resolvedRoute = routeTemplate
-
-        for (match in routeParamRegex.findAll(routeTemplate)) {
-            val placeholder = match.value
-            val paramName = match.groupValues[1]
-            val paramValue = params.getString(paramName)
-
-            if (paramValue != null) {
-                resolvedRoute = resolvedRoute.replace(placeholder, paramValue)
-            }
-        }
-
-        return resolvedRoute
+        return RouteTemplate.parse(entry.path).render(entry.params::getString, encoded = false)
     }
 
     public fun getNavigatableNotFoundHint(
@@ -424,7 +355,7 @@ public class RouteResolver private constructor(
      * - It's an umbrella graph (no startDestination)
      */
     public fun resolveForBackstackSynthesis(path: String): RouteResolution? {
-        val cleanPath = path.trimStart('/').trimEnd('/')
+        val cleanPath = normalizePath(path)
         if (cleanPath.isEmpty()) return null
 
         val graphId = canonicalGraphId(cleanPath)
@@ -442,7 +373,7 @@ public class RouteResolver private constructor(
      * For a path like "auth/signup/verify", returns ["auth", "auth/signup", "auth/signup/verify"]
      */
     public fun buildPathHierarchy(fullPath: String): List<String> {
-        val cleanPath = fullPath.trimStart('/').trimEnd('/')
+        val cleanPath = normalizePath(fullPath)
         if (cleanPath.isEmpty()) return emptyList()
 
         val segments = cleanPath.split("/")
@@ -453,47 +384,8 @@ public class RouteResolver private constructor(
 }
 
 
-private data class ParameterizedRouteEntry(
-    val template: String,
-    val fullTemplate: String,
+private class ParameterizedRouteEntry(
+    val template: RouteTemplate,
     val navigatable: Navigatable,
-    val graphId: String,
-    val paramNames: List<String>,
-    val regex: Regex
+    val graphId: String
 )
-
-/**
- * Key for indexing parameterized routes by segment count and first segment.
- * This enables O(1) lookup to find candidate routes instead of iterating all routes.
- */
-private data class ParameterizedRouteKey(
-    val segmentCount: Int,
-    val firstSegment: String
-) {
-    companion object {
-        /**
-         * Creates a key from a route template like "user/{id}" or "home/dashboard/{tab}".
-         * Extracts the segment count and first static segment.
-         */
-        fun fromTemplate(template: String): ParameterizedRouteKey {
-            val segments = template.split("/")
-            val firstSegment = segments.firstOrNull()?.takeIf { !it.startsWith("{") } ?: ""
-            return ParameterizedRouteKey(
-                segmentCount = segments.size,
-                firstSegment = firstSegment
-            )
-        }
-
-        /**
-         * Creates a key from an actual route like "user/123" or "home/dashboard/settings".
-         * Extracts the segment count and first segment for index lookup.
-         */
-        fun fromRoute(route: String): ParameterizedRouteKey {
-            val segments = route.split("/")
-            return ParameterizedRouteKey(
-                segmentCount = segments.size,
-                firstSegment = segments.firstOrNull() ?: ""
-            )
-        }
-    }
-}

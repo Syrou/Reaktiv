@@ -6,6 +6,10 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodFailed
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import io.github.syrou.reaktiv.core.tracing.LogicObserver
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
+import io.github.syrou.reaktiv.core.tracing.ParamRedaction
+import io.github.syrou.reaktiv.core.util.reaktivJson
+import io.github.syrou.reaktiv.introspection.capture.SessionCapture
+import io.github.syrou.reaktiv.introspection.protocol.SessionExport
 import io.github.syrou.reaktiv.tracing.annotations.PII
 import io.github.syrou.reaktiv.tracing.annotations.Sensitive
 import kotlin.test.Test
@@ -40,51 +44,62 @@ private class RecordingObserver : LogicObserver {
 
 class TracedParameterRedactionTest {
 
-    @Test
-    fun sensitiveParameterNeverAppearsInTheTrace() = runTest {
+    private suspend fun tracedSignIn(): LogicMethodStart {
         val observer = RecordingObserver()
         LogicTracer.addObserver(observer)
         try {
             assertTrue(RedactionProbeLogic().signIn("joakim", SECRET, EMAIL))
-
-            val params = observer.starts.single { it.methodName == "signIn" }.params
-            assertEquals("[REDACTED]", params["password"])
-            assertFalse(
-                params.values.any { it.contains(SECRET) },
-                "The raw secret must not appear in any traced parameter: $params"
-            )
+            return observer.starts.single { it.methodName == "signIn" }
         } finally {
             LogicTracer.removeObserver(observer)
         }
     }
 
-    @Test
-    fun piiParameterIsMaskedButStillRecognisable() = runTest {
-        val observer = RecordingObserver()
-        LogicTracer.addObserver(observer)
+    private suspend fun exported(start: LogicMethodStart): Map<String, String> {
+        val capture = SessionCapture()
+        capture.start("client-params", "ParamApp", "TestPlatform")
         try {
-            RedactionProbeLogic().signIn("joakim", SECRET, EMAIL)
-
-            val params = observer.starts.single { it.methodName == "signIn" }.params
-            val traced = params.getValue("email")
-            assertFalse(traced.contains("joakim"), "PII local part must be masked, got $traced")
-            assertTrue(traced.endsWith("@example.com"), "PII masking keeps the domain, got $traced")
+            capture.captureLogicStarted(start)
+            val export = reaktivJson(encodeDefaults = true).decodeFromString<SessionExport>(capture.exportSession())
+            return export.session.logicStartedEvents.single().params
         } finally {
-            LogicTracer.removeObserver(observer)
+            capture.stop()
         }
+    }
+
+    @Test
+    fun annotatedParametersAreTracedRawAndMarkedForRedaction() = runTest {
+        val start = tracedSignIn()
+
+        assertEquals(SECRET, start.params["password"])
+        assertEquals(EMAIL, start.params["email"])
+        assertEquals(mapOf("password" to ParamRedaction.Sensitive, "email" to ParamRedaction.Pii), start.redactions)
+    }
+
+    @Test
+    fun sensitiveParameterNeverAppearsInAnExport() = runTest {
+        val params = exported(tracedSignIn())
+
+        assertEquals("[REDACTED]", params["password"])
+        assertFalse(
+            params.values.any { it.contains(SECRET) },
+            "The raw secret must not appear in any exported parameter: $params"
+        )
+    }
+
+    @Test
+    fun piiParameterIsMaskedInAnExportButStillRecognisable() = runTest {
+        val traced = exported(tracedSignIn()).getValue("email")
+
+        assertFalse(traced.contains("joakim"), "PII local part must be masked, got $traced")
+        assertTrue(traced.endsWith("@example.com"), "PII masking keeps the domain, got $traced")
     }
 
     @Test
     fun unannotatedParameterIsStillTraced() = runTest {
-        val observer = RecordingObserver()
-        LogicTracer.addObserver(observer)
-        try {
-            RedactionProbeLogic().signIn("joakim", SECRET, EMAIL)
+        val start = tracedSignIn()
 
-            val params = observer.starts.single { it.methodName == "signIn" }.params
-            assertEquals("joakim", params["username"])
-        } finally {
-            LogicTracer.removeObserver(observer)
-        }
+        assertEquals("joakim", start.params["username"])
+        assertEquals("joakim", exported(start)["username"])
     }
 }

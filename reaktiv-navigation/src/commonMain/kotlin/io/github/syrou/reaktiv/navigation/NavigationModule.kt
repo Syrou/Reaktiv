@@ -7,6 +7,7 @@ import io.github.syrou.reaktiv.core.ModuleWithLogic
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.CustomTypeRegistrar
 import io.github.syrou.reaktiv.core.util.selectLogic
+import io.github.syrou.reaktiv.navigation.definition.ColdStartPlaceholder
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
@@ -15,23 +16,29 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.dsl.DeepLinkAlias
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
+import io.github.syrou.reaktiv.navigation.exception.MissingPathParamsException
+import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
+import io.github.syrou.reaktiv.navigation.history.BrowserHistorySetup
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import io.github.syrou.reaktiv.navigation.link.NavigationLinkMap
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
-import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.model.NavigationProjection
 import io.github.syrou.reaktiv.navigation.model.NavigationEntrySerializer
-import io.github.syrou.reaktiv.navigation.model.PendingNavigation
-import io.github.syrou.reaktiv.navigation.model.RouteResolution
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.NavigationStackMath
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import io.github.syrou.reaktiv.navigation.util.StackSnapshot
+import io.github.syrou.reaktiv.navigation.util.buildLinkMap
 import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.contextual
 import kotlin.time.Duration
+import io.github.syrou.reaktiv.navigation.util.GraphIndex
+import io.github.syrou.reaktiv.navigation.util.ROOT_GRAPH
+import io.github.syrou.reaktiv.navigation.util.normalizePath
+import io.github.syrou.reaktiv.navigation.util.RouteTemplate
 
 /**
  * The MVLI module that owns the navigation system.
@@ -69,7 +76,8 @@ public class NavigationModule internal constructor(
     internal val onCrash: (suspend (Throwable, ModuleAction?) -> CrashRecovery)? = null,
     private val deepLinkAliases: List<DeepLinkAlias> = emptyList(),
     private val screenRetentionDuration: Duration,
-    private val loadingModal: LoadingModal? = null
+    private val loadingModal: LoadingModal? = null,
+    private val browserHistory: BrowserHistorySetup? = null
 ) : ModuleWithLogic<NavigationState, NavigationAction, NavigationLogic>, CustomTypeRegistrar {
     internal val precomputedData: PrecomputedNavigationData by lazy {
         PrecomputedNavigationData.create(rootGraph, notFoundScreen, crashScreen, deepLinkAliases, loadingModal)
@@ -79,7 +87,9 @@ public class NavigationModule internal constructor(
         builder.contextual(
             NavigationEntry::class,
             NavigationEntrySerializer { path ->
-                precomputedData.routeToNavigatable[path] ?: precomputedData.notFoundScreen
+                precomputedData.routeToNavigatable[path]
+                    ?: ColdStartPlaceholder.takeIf { path == it.route }
+                    ?: precomputedData.notFoundScreen
             }
         )
     }
@@ -109,6 +119,18 @@ public class NavigationModule internal constructor(
         return precomputedData.navigatableToFullPath
     }
 
+    public fun locationOf(navigatable: Navigatable, vararg params: Pair<String, Any>): String =
+        locationOf(navigatable, Params.fromMap(params.toMap()))
+
+    public fun locationOf(navigatable: Navigatable, params: Params): String {
+        val path = precomputedData.navigatableToFullPath[navigatable]
+            ?: throw RouteNotFoundException("'${navigatable.route}' is not registered in any navigation graph")
+        return when (val filled = RouteTemplate.parse(path).fill(params::getString)) {
+            is RouteTemplate.Fill.Filled -> filled.location
+            is RouteTemplate.Fill.Missing -> throw MissingPathParamsException(path, filled.names)
+        }
+    }
+
     /**
      * Get the graph ID for a NavigationEntry.
      *
@@ -127,88 +149,38 @@ public class NavigationModule internal constructor(
      */
     public fun getLoadingModal(): LoadingModal? = loadingModal
 
+    public fun linkMap(): NavigationLinkMap = linkMap
+
+    private val linkMap: NavigationLinkMap by lazy {
+        buildLinkMap(precomputedData, browserHistory?.webLocation?.prefix)
+    }
+
+    internal val documentTitle: ((String?) -> String?)?
+        get() = browserHistory?.takeIf { it.isAvailable }?.documentTitle
+
     override val initialState: NavigationState by lazy {
         createInitialState()
     }
 
     private fun createInitialState(): NavigationState {
-        val resolution = when (val dest = rootGraph.startDestination) {
-            is StartDestination.DirectScreen -> {
-                RouteResolution(
-                    targetNavigatable = dest.screen,
-                    owningGraphId = rootGraph.route,
-                    extractedParams = Params.empty(),
-                    requestedGraphId = rootGraph.route
-                )
-            }
-
-            is StartDestination.GraphReference -> {
-                precomputedData.routeResolver.resolve(dest.graphId)
-                    ?: run {
-                        val referencedGraph = precomputedData.graphDefinitions[dest.graphId]
-                        val hasDynamicEntry = referencedGraph != null &&
-                            precomputedData.graphEntries[dest.graphId]?.route != null
-                        val fallback: Navigatable = loadingModal
-                            ?: notFoundScreen
-                            ?: if (hasDynamicEntry) {
-                                throw IllegalStateException(
-                                    "Root graph references '${dest.graphId}' which uses a dynamic start { } " +
-                                    "but no loadingModal is defined. Provide a loadingModal() so there is a " +
-                                    "screen to show while the entry condition is evaluated at startup."
-                                )
-                            } else {
-                                throw IllegalStateException(
-                                    "Could not resolve root graph reference to '${dest.graphId}'. " +
-                                    "Ensure the graph is defined as a nested graph with a start destination."
-                                )
-                            }
-                        RouteResolution(
-                            targetNavigatable = fallback,
-                            owningGraphId = rootGraph.route,
-                            extractedParams = Params.empty(),
-                            requestedGraphId = rootGraph.route
-                        )
-                    }
-            }
-
-            null -> {
-                val fallbackNavigatable: Navigatable = loadingModal
-                    ?: notFoundScreen
-                    ?: if (rootGraph.entryDefinition != null) {
-                        throw IllegalStateException(
-                            "Root graph uses a dynamic start { } but no loadingModal is defined. " +
-                            "A loadingModal is required as the initial screen while the entry " +
-                            "condition is evaluated at startup."
-                        )
-                    } else {
-                        throw IllegalStateException(
-                            "Root graph has no startScreen/startGraph defined. " +
-                            "Either define a static start destination via start(screen), " +
-                            "provide a loadingModal() at the module level, " +
-                            "or configure a notFoundScreen."
-                        )
-                    }
-                RouteResolution(
-                    targetNavigatable = fallbackNavigatable,
-                    owningGraphId = rootGraph.route,
-                    extractedParams = Params.empty(),
-                    requestedGraphId = rootGraph.route
-                )
-            }
+        val staticStart = precomputedData.staticRootStart
+        val initial: Navigatable = when {
+            staticStart != null &&
+                (browserHistory?.isAvailable == true || precomputedData.staticRootStartIsGuarded) -> ColdStartPlaceholder
+            staticStart != null -> staticStart
+            else -> loadingModal ?: notFoundScreen ?: throw IllegalStateException(missingStartMessage())
         }
 
-        val initialPath = precomputedData.navigatableToFullPath[resolution.targetNavigatable]
-            ?: resolution.targetNavigatable.route
+        val initialPath = precomputedData.navigatableToFullPath[initial] ?: initial.route
 
-        val initialEntry = resolution.targetNavigatable.toNavigationEntry(path = initialPath)
+        val initialEntry = initial.toNavigationEntry(path = initialPath)
 
         val initialBackStack = listOf(initialEntry)
 
         val computedState = computeNavigationDerivedState(
             currentEntry = initialEntry,
             backStack = initialBackStack,
-            precomputedData = precomputedData,
-            existingModalContexts = emptyMap()
+            precomputedData = precomputedData
         )
 
         return NavigationState(
@@ -222,53 +194,68 @@ public class NavigationModule internal constructor(
         )
     }
 
+    private fun missingStartMessage(): String = when (val dest = rootGraph.startDestination) {
+        is StartDestination.GraphReference -> if (precomputedData.graphEntries[dest.graphId]?.route != null) {
+            "Root graph references '${dest.graphId}' which uses a dynamic start { } " +
+                "but no loadingModal is defined. Provide a loadingModal() so there is a " +
+                "screen to show while the entry condition is evaluated at startup."
+        } else {
+            "Could not resolve root graph reference to '${dest.graphId}'. " +
+                "Ensure the graph is defined as a nested graph with a start destination."
+        }
+        else -> if (rootGraph.entryDefinition != null) {
+            "Root graph uses a dynamic start { } but no loadingModal is defined. " +
+                "A loadingModal is required as the initial screen while the entry " +
+                "condition is evaluated at startup."
+        } else {
+            "Root graph has no startScreen/startGraph defined. " +
+                "Either define a static start destination via start(screen), " +
+                "provide a loadingModal() at the module level, " +
+                "or configure a notFoundScreen."
+        }
+    }
+
     private fun reduceNavigationStateUpdate(
         state: NavigationState,
-        currentEntry: NavigationEntry?,
-        backStack: List<NavigationEntry>?,
-        modalContexts: Map<String, ModalContext>?,
-        navigationAction: NavigationAction? = null,
-        pendingNavigation: PendingNavigation? = null,
-        clearPendingNavigation: Boolean = false
+        backStack: List<NavigationEntry>,
+        navigationAction: NavigationAction
     ): NavigationState {
-        val newCurrentEntry = currentEntry ?: state.currentEntry
-        val newBackStack = backStack ?: state.backStack
-        val newModalContexts = modalContexts ?: state.activeModalContexts
-
-        val computedState = computeNavigationDerivedState(
-            currentEntry = newCurrentEntry,
-            backStack = newBackStack,
-            precomputedData = precomputedData,
-            existingModalContexts = newModalContexts
-        )
-
-        val newPendingNavigation = when {
-            clearPendingNavigation -> null
-            pendingNavigation != null -> pendingNavigation
-            else -> state.pendingNavigation
-        }
-
+        val currentEntry = backStack.lastOrNull() ?: state.currentEntry
         return state.copy(
-            currentEntry = newCurrentEntry,
-            backStack = newBackStack,
+            currentEntry = currentEntry,
+            backStack = backStack,
             lastNavigationAction = navigationAction,
-            screenRetentionDuration = state.screenRetentionDuration,
-            derived = computedState,
-            activeModalContexts = newModalContexts,
-            pendingNavigation = newPendingNavigation,
-            isEvaluatingNavigation = state.isEvaluatingNavigation
+            derived = computeNavigationDerivedState(currentEntry, backStack, precomputedData),
+            activeModalContexts = NavigationStackMath.deriveModalContexts(backStack)
         )
     }
 
     private fun NavigationState.toStackSnapshot(): StackSnapshot =
-        StackSnapshot(currentEntry, backStack, activeModalContexts)
+        StackSnapshot(currentEntry, backStack)
 
     private fun reduceAction(state: NavigationState, action: NavigationAction): NavigationState {
         val reduced = reduceNavigation(state, action)
+        val scrub = state.activeScrub
         return when {
             action is NavigationAction.ScrubUpdate -> reduced
-            reduced.activeScrub != null -> reduced.copy(activeScrub = null)
+            scrub != null -> reduced.copy(
+                activeScrub = null,
+                lastNavigationAction = reduced.presentedBy(scrub, state) ?: reduced.lastNavigationAction
+            )
             else -> reduced
+        }
+    }
+
+    private fun NavigationState.presentedBy(scrub: ScrubState, before: NavigationState): NavigationAction? {
+        val change = lastNavigationAction?.takeIf { it !== before.lastNavigationAction } ?: return null
+        if (before.currentEntry.stableKey != scrub.topKey) return null
+        val landed = scrub.revealedKey?.let { currentEntry.stableKey == it }
+            ?: backStack.none { it.stableKey == scrub.topKey }
+        if (!landed) return null
+        return when (change) {
+            is NavigationAction.Back -> change.copy(presentation = TraversePresentation.AlreadyPresented)
+            is NavigationAction.PopUpTo -> change.copy(presentation = TraversePresentation.AlreadyPresented)
+            else -> null
         }
     }
 
@@ -281,14 +268,14 @@ public class NavigationModule internal constructor(
 
         is NavigationAction.Navigate -> {
             val snapshot = NavigationStackMath.applyNavigate(
-                state.toStackSnapshot(), action.entry, action.modalContext, action.dismissModals
+                state.toStackSnapshot(), action.entry, action.dismissModals
             )
-            reduceNavigationStateUpdate(state, snapshot.currentEntry, snapshot.backStack, snapshot.modalContexts, action)
+            reduceNavigationStateUpdate(state, snapshot.backStack, action)
         }
 
         is NavigationAction.Replace -> {
             val snapshot = NavigationStackMath.applyReplace(state.toStackSnapshot(), action.entry)
-            reduceNavigationStateUpdate(state, snapshot.currentEntry, snapshot.backStack, snapshot.modalContexts, action)
+            reduceNavigationStateUpdate(state, snapshot.backStack, action)
         }
 
         is NavigationAction.Back -> {
@@ -298,26 +285,35 @@ public class NavigationModule internal constructor(
                 expected != null && state.currentEntry.stableKey != expected -> state
                 else -> {
                     val snapshot = NavigationStackMath.applyBack(state.toStackSnapshot())
-                    reduceNavigationStateUpdate(
-                        state, snapshot.currentEntry, snapshot.backStack, snapshot.modalContexts, action
-                    )
+                    reduceNavigationStateUpdate(state, snapshot.backStack, action)
                 }
             }
         }
 
         is NavigationAction.ClearBackstack -> {
             val snapshot = NavigationStackMath.applyClearBackstack(state.toStackSnapshot())
-            reduceNavigationStateUpdate(state, snapshot.currentEntry, snapshot.backStack, snapshot.modalContexts, action)
+            reduceNavigationStateUpdate(state, snapshot.backStack, action)
         }
 
         is NavigationAction.PopUpTo -> {
-            val targetIndex = precomputedData.routeResolver.findRouteInBackStack(action.route, state.backStack)
+            val targetIndex = action.targetKey?.let { key -> state.backStack.indexOfLast { it.stableKey == key } }
+                ?: precomputedData.routeResolver.findRouteInBackStack(action.route, state.backStack)
             val original = state.toStackSnapshot()
             val snapshot = NavigationStackMath.applyPopUpTo(original, targetIndex, action.inclusive, action.entryToReAdd)
             if (snapshot == original) {
                 state
             } else {
-                reduceNavigationStateUpdate(state, snapshot.currentEntry, snapshot.backStack, snapshot.modalContexts, action)
+                reduceNavigationStateUpdate(state, snapshot.backStack, action)
+            }
+        }
+
+        is NavigationAction.Traverse -> {
+            val expected = action.expectedTopKey
+            if (action.entries.isEmpty() || (expected != null && state.currentEntry.stableKey != expected)) {
+                state
+            } else {
+                val snapshot = NavigationStackMath.applyTraverse(state.toStackSnapshot(), action.entries)
+                reduceNavigationStateUpdate(state, snapshot.backStack, action)
             }
         }
 
@@ -334,16 +330,14 @@ public class NavigationModule internal constructor(
         )
 
         is NavigationAction.SetEvaluating -> state.copy(isEvaluatingNavigation = action.isEvaluating)
+
+        is NavigationAction.SetStartFailure -> state.copy(startFailure = action.failure)
     }
 
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = ::reduceAction
 
     override val createLogic: (storeAccessor: StoreAccessor) -> NavigationLogic = { storeAccessor ->
-        NavigationLogic(
-            storeAccessor = storeAccessor,
-            precomputedData = precomputedData,
-            onCrash = onCrash
-        )
+        NavigationLogic(storeAccessor, precomputedData, onCrash, browserHistory)
     }
 
     override val createMiddleware: (() -> Middleware) = {
@@ -353,9 +347,8 @@ public class NavigationModule internal constructor(
                 return@middleware
             }
             val result = updatedState(action)
-            val isScrub = action is NavigationAction.ScrubUpdate || action is NavigationAction.ScrubEnd
-            if (!isScrub && result is NavigationState) {
-                storeAccessor.selectLogic<NavigationLogic>().syncLifecycle(result.backStack)
+            if (result is NavigationState) {
+                storeAccessor.selectLogic<NavigationLogic>().onCommitted(action, result)
             }
         }
     }
@@ -369,6 +362,11 @@ public class NavigationModule internal constructor(
 
 public data class PrecomputedNavigationData(
     val routeResolver: RouteResolver,
+    @Deprecated(
+        "Never read. Root navigatables are in routeToNavigatable under their route, which is their full path.",
+        ReplaceWith("routeToNavigatable"),
+        DeprecationLevel.WARNING
+    )
     val availableNavigatables: Map<String, Navigatable>,
     val graphDefinitions: Map<String, NavigationGraph>,
     val graphHierarchies: Map<String, List<String>>,
@@ -391,6 +389,32 @@ public data class PrecomputedNavigationData(
     )
     val allNavigatables: Map<String, Navigatable> get() = routeToNavigatable
 
+    internal val graphIndex: GraphIndex get() = routeResolver.graphIndex
+
+    internal fun isAddressable(navigatable: Navigatable): Boolean =
+        navigatable.renderLayer != RenderLayer.SYSTEM &&
+            navigatable !is LoadingModal &&
+            navigatable != crashScreen
+
+    internal val staticRootStart: Navigatable? by lazy {
+        when (val dest = graphDefinitions[ROOT_GRAPH]?.startDestination) {
+            is StartDestination.DirectScreen -> dest.screen
+            is StartDestination.GraphReference -> routeResolver.resolve(dest.graphId)?.targetNavigatable
+            null -> null
+        }
+    }
+
+    internal val staticRootStartIsGuarded: Boolean by lazy {
+        val path = when (val dest = graphDefinitions[ROOT_GRAPH]?.startDestination) {
+            is StartDestination.DirectScreen -> navigatableToFullPath[dest.screen] ?: dest.screen.route
+            is StartDestination.GraphReference -> routeResolver.resolve(dest.graphId)?.let {
+                it.path ?: navigatableToFullPath[it.targetNavigatable]
+            }
+            null -> null
+        }
+        path != null && interceptsByPath[path] != null
+    }
+
     public companion object {
         public fun create(
             rootGraph: NavigationGraph,
@@ -408,9 +432,7 @@ public data class PrecomputedNavigationData(
             val interceptsByPath = mutableMapOf<String, InterceptDefinition>()
             val graphEntries = mutableMapOf<String, EntryDefinition>()
 
-            val parentGraphLookup = mutableMapOf<String, String>()
-
-            fun collectGraphs(graph: NavigationGraph, inheritedIntercept: InterceptDefinition? = null) {
+            fun collectGraphs(graph: NavigationGraph, graphPath: String, inheritedIntercept: InterceptDefinition?) {
                 val ownIntercept = graph.interceptDefinition
                 val effectiveIntercept = when {
                     ownIntercept != null && inheritedIntercept != null ->
@@ -429,23 +451,10 @@ public data class PrecomputedNavigationData(
                     interceptsByGraphId[graph.route] = effectiveIntercept
                 }
 
-                graph.nestedGraphs.forEach { nestedGraph ->
-                    parentGraphLookup[nestedGraph.route] = graph.route
-                }
-
                 graph.navigatables.forEach { navigatable ->
                     navigatableToGraph[navigatable] = graph.route
 
-                    val fullPath = if (graph.route == "root") {
-                        navigatable.route
-                    } else {
-                        val graphPath = buildGraphPathToRoot(graph.route, parentGraphLookup)
-                        if (graphPath.isEmpty()) {
-                            navigatable.route
-                        } else {
-                            "$graphPath/${navigatable.route}"
-                        }
-                    }
+                    val fullPath = if (graphPath.isEmpty()) navigatable.route else "$graphPath/${navigatable.route}"
 
                     if (routeToNavigatable.containsKey(fullPath)) {
                         val existing = routeToNavigatable[fullPath]
@@ -457,37 +466,31 @@ public data class PrecomputedNavigationData(
                     navigatableToFullPath[navigatable] = fullPath
                     routeToNavigatable[fullPath] = navigatable
 
-                    if (graph.route == "root") {
+                    if (graph.route == ROOT_GRAPH) {
                         availableNavigatables[navigatable.route] = navigatable
                     }
 
-                    if (effectiveIntercept != null) {
-                        interceptsByPath[fullPath] = effectiveIntercept
+                    val screenIntercept = graph.navigatableIntercepts[navigatable]
+                    val pathIntercept = if (screenIntercept != null && effectiveIntercept != null) {
+                        screenIntercept.prependOuter(effectiveIntercept)
+                    } else {
+                        screenIntercept ?: effectiveIntercept
+                    }
+                    if (pathIntercept != null) {
+                        interceptsByPath[fullPath] = pathIntercept
                     }
                 }
 
-                graph.navigatableIntercepts.forEach { (navigatable, interceptDef) ->
-                    val fullPath = navigatableToFullPath[navigatable] ?: return@forEach
-                    interceptsByPath[fullPath] = interceptDef
+                graph.nestedGraphs.forEach { nested ->
+                    val nestedPath = if (graphPath.isEmpty()) nested.route else "$graphPath/${nested.route}"
+                    collectGraphs(nested, nestedPath, effectiveIntercept)
                 }
-
-                graph.nestedGraphs.forEach { collectGraphs(it, effectiveIntercept) }
             }
 
-            collectGraphs(rootGraph)
+            collectGraphs(rootGraph, "", null)
 
-            val graphHierarchies = mutableMapOf<String, List<String>>()
-            for (graphId in graphDefinitions.keys) {
-                val hierarchy = mutableListOf<String>()
-                var currentGraphId: String? = graphId
-
-                while (currentGraphId != null && currentGraphId != "root") {
-                    hierarchy.add(0, currentGraphId)
-                    currentGraphId = parentGraphLookup[currentGraphId]
-                }
-
-                graphHierarchies[graphId] = hierarchy
-            }
+            val graphs = graphDefinitions.toMap()
+            val graphIndex = GraphIndex.of(graphs)
 
             // Register special navigatables not discovered via graph traversal, before the
             // resolver is built from these maps.
@@ -496,11 +499,13 @@ public data class PrecomputedNavigationData(
                 routeToNavigatable.getOrPut(path) { navigatable }
             }
 
+            val routes = routeToNavigatable.toMap()
+            val fullPaths = navigatableToFullPath.toMap()
             val routeResolver = RouteResolver.create(
-                graphDefinitions = graphDefinitions,
-                routeToNavigatable = routeToNavigatable.toMap(),
-                navigatableToFullPath = navigatableToFullPath.toMap(),
-                graphHierarchy = graphHierarchies.toMap(),
+                graphDefinitions = graphs,
+                routeToNavigatable = routes,
+                navigatableToFullPath = fullPaths,
+                graphIndex = graphIndex,
                 notFoundScreen = notFoundScreen
             )
 
@@ -513,11 +518,11 @@ public data class PrecomputedNavigationData(
             return PrecomputedNavigationData(
                 routeResolver = routeResolver,
                 availableNavigatables = availableNavigatables,
-                graphDefinitions = graphDefinitions.toMap(),
-                graphHierarchies = graphHierarchies.toMap(),
+                graphDefinitions = graphs,
+                graphHierarchies = graphIndex.chains,
                 navigatableToGraph = navigatableToGraph.toMap(),
-                routeToNavigatable = routeToNavigatable.toMap(),
-                navigatableToFullPath = navigatableToFullPath.toMap(),
+                routeToNavigatable = routes,
+                navigatableToFullPath = fullPaths,
                 notFoundScreen = notFoundScreen,
                 crashScreen = crashScreen,
                 interceptsByGraphId = interceptsByGraphId,
@@ -527,25 +532,11 @@ public data class PrecomputedNavigationData(
                 loadingModal = loadingModal
             )
         }
-
-        private fun buildGraphPathToRoot(graphId: String, parentLookup: Map<String, String>): String {
-            if (graphId == "root") return ""
-
-            val pathSegments = mutableListOf<String>()
-            var currentGraphId: String? = graphId
-
-            while (currentGraphId != null && currentGraphId != "root") {
-                pathSegments.add(0, currentGraphId)
-                currentGraphId = parentLookup[currentGraphId]
-            }
-
-            return pathSegments.joinToString("/")
-        }
     }
 }
 
 internal fun fullPathMessage(resolver: RouteResolver, route: String, describedAs: String): String {
-    val clean = route.trimStart('/').trimEnd('/')
+    val clean = normalizePath(route)
     val suggestions = resolver.fullPathSuggestions(route)
     val hint = when (suggestions.size) {
         0 -> "No registered path ends with '/$clean'."
@@ -560,21 +551,20 @@ internal fun fullPathMessage(resolver: RouteResolver, route: String, describedAs
 private fun computeNavigationDerivedState(
     currentEntry: NavigationEntry,
     backStack: List<NavigationEntry>,
-    precomputedData: PrecomputedNavigationData,
-    existingModalContexts: Map<String, ModalContext> = emptyMap()
+    precomputedData: PrecomputedNavigationData
 ): NavigationProjection {
     val orderedBackStack = backStack.mapIndexed { index, entry ->
         entry.copy(stackPosition = index)
     }
 
-    val visibleLayers = computeVisibleLayers(orderedBackStack, existingModalContexts)
+    val visibleLayers = computeVisibleLayers(orderedBackStack)
 
     val currentFullPath = precomputedData.routeResolver.buildFullPathForEntry(currentEntry)
 
     val currentPathSegments = currentFullPath.split("/").filter { it.isNotEmpty() }
 
     val currentGraphId = precomputedData.navigatableToGraph[currentEntry.navigatable]
-    val currentGraphHierarchy = currentGraphId?.let { precomputedData.graphHierarchies[it] }
+    val currentGraphHierarchy = currentGraphId?.let { precomputedData.graphIndex.chain(it) }
         ?: listOf(currentEntry.route)
 
     val breadcrumbs = buildBreadcrumbs(currentPathSegments, precomputedData.graphDefinitions)
@@ -589,13 +579,13 @@ private fun computeNavigationDerivedState(
     val systemLayerEntries = entriesByLayer[RenderLayer.SYSTEM] ?: emptyList()
 
     val underlyingScreen = if (isCurrentModal) {
-        findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, existingModalContexts)
+        findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack)
     } else null
     val modalsInStack = backStack.filter { it.navigatable is Modal }
 
     val underlyingScreenGraphHierarchy = underlyingScreen?.let { screen ->
         val graphId = precomputedData.navigatableToGraph[screen.navigatable]
-        graphId?.let { precomputedData.graphHierarchies[it] } ?: listOf(screen.route)
+        graphId?.let { precomputedData.graphIndex.chain(it) } ?: listOf(screen.route)
     }
 
     val showsNavigationChrome = !isCurrentModal && currentGraphHierarchy.none { graphId ->
@@ -622,23 +612,19 @@ private fun computeNavigationDerivedState(
 
 private fun computeVisibleLayers(
     orderedBackStack: List<NavigationEntry>,
-    modalContexts: Map<String, ModalContext> = emptyMap()
 ): List<NavigationEntry> {
     if (orderedBackStack.isEmpty()) return emptyList()
 
-    val currentEntry = orderedBackStack.last()
+    val systemTail = orderedBackStack.takeLastWhile { it.navigatable.renderLayer == RenderLayer.SYSTEM }
+    val content = orderedBackStack.dropLast(systemTail.size)
+    val currentEntry = content.lastOrNull() ?: return listOf(orderedBackStack.last())
 
+    val layers = mutableListOf<NavigationEntry>()
     if (currentEntry.navigatable is Modal) {
-        val underlyingScreen = findOriginalUnderlyingScreenForModal(currentEntry, orderedBackStack, modalContexts)
-        val layers = mutableListOf<NavigationEntry>()
-        if (underlyingScreen != null) {
-            layers.add(underlyingScreen)
-        }
-        layers.add(currentEntry)
-        return layers
+        findOriginalUnderlyingScreenForModal(currentEntry, content)?.let { layers.add(it) }
     }
-
-    return listOf(currentEntry)
+    layers.add(currentEntry)
+    return layers + systemTail
 }
 
 private fun buildBreadcrumbs(
@@ -666,27 +652,11 @@ private fun buildBreadcrumbs(
 
 internal fun findOriginalUnderlyingScreenForModal(
     modalEntry: NavigationEntry,
-    backStack: List<NavigationEntry>,
-    modalContexts: Map<String, ModalContext> = emptyMap()
+    backStack: List<NavigationEntry>
 ): NavigationEntry? {
-    val modalContext = modalContexts[modalEntry.path]
-    if (modalContext != null) {
-        return modalContext.originalUnderlyingScreenEntry
-    }
-
-    val modalContextByEntry = modalContexts.values.find {
-        it.modalEntry.path == modalEntry.path
-    }
-    if (modalContextByEntry != null) {
-        return modalContextByEntry.originalUnderlyingScreenEntry
-    }
-
-    val modalIndex = backStack.indexOfFirst { it.path == modalEntry.path }
+    val modalIndex = backStack.indexOfLast { it.stableKey == modalEntry.stableKey }
     if (modalIndex <= 0) return null
-
-    return backStack.subList(0, modalIndex).lastOrNull {
-        it.navigatable is Screen
-    }
+    return NavigationStackMath.underlyingScreen(backStack, modalIndex)
 }
 
 /**

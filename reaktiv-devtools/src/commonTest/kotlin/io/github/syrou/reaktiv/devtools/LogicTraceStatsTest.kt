@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package io.github.syrou.reaktiv.devtools
 
 import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted

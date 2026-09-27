@@ -14,5 +14,10 @@ public sealed class TypedParam<T> {
 public data class SerializableParam<T>(
     override val value: T,
     override val serializer: KSerializer<T>
-) : TypedParam<T>()
+) : TypedParam<T>() {
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is SerializableParam<*> && value == other.value)
+
+    override fun hashCode(): Int = value?.hashCode() ?: 0
+}
 

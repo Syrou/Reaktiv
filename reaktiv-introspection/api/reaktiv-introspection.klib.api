@@ -22,6 +22,17 @@ final enum class io.github.syrou.reaktiv.introspection.network/NetworkBodyPart :
     }
 }
 
+final enum class io.github.syrou.reaktiv.introspection.network/NetworkBodySource : kotlin/Enum<io.github.syrou.reaktiv.introspection.network/NetworkBodySource> { // io.github.syrou.reaktiv.introspection.network/NetworkBodySource|null[0]
+    enum entry Archive // io.github.syrou.reaktiv.introspection.network/NetworkBodySource.Archive|null[0]
+    enum entry Origin // io.github.syrou.reaktiv.introspection.network/NetworkBodySource.Origin|null[0]
+
+    final val entries // io.github.syrou.reaktiv.introspection.network/NetworkBodySource.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.syrou.reaktiv.introspection.network/NetworkBodySource> // io.github.syrou.reaktiv.introspection.network/NetworkBodySource.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.syrou.reaktiv.introspection.network/NetworkBodySource // io.github.syrou.reaktiv.introspection.network/NetworkBodySource.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.syrou.reaktiv.introspection.network/NetworkBodySource> // io.github.syrou.reaktiv.introspection.network/NetworkBodySource.values|values#static(){}[0]
+}
+
 final enum class io.github.syrou.reaktiv.introspection.protocol/CrashOrigin : kotlin/Enum<io.github.syrou.reaktiv.introspection.protocol/CrashOrigin> { // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin|null[0]
     enum entry LOGIC_METHOD // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.LOGIC_METHOD|null[0]
     enum entry MANUAL // io.github.syrou.reaktiv.introspection.protocol/CrashOrigin.MANUAL|null[0]
@@ -74,6 +85,9 @@ final enum class io.github.syrou.reaktiv.introspection.tooling/ServiceState : ko
 }
 
 abstract fun interface io.github.syrou.reaktiv.introspection.network/NetworkBodyProvider { // io.github.syrou.reaktiv.introspection.network/NetworkBodyProvider|null[0]
+    open val source // io.github.syrou.reaktiv.introspection.network/NetworkBodyProvider.source|{}source[0]
+        open fun <get-source>(): io.github.syrou.reaktiv.introspection.network/NetworkBodySource // io.github.syrou.reaktiv.introspection.network/NetworkBodyProvider.source.<get-source>|<get-source>(){}[0]
+
     abstract fun slice(kotlin/String, io.github.syrou.reaktiv.introspection.network/NetworkBodyPart, kotlin/Int, kotlin/Int): io.github.syrou.reaktiv.introspection.network/NetworkBodySlice? // io.github.syrou.reaktiv.introspection.network/NetworkBodyProvider.slice|slice(kotlin.String;io.github.syrou.reaktiv.introspection.network.NetworkBodyPart;kotlin.Int;kotlin.Int){}[0]
 }
 
@@ -97,19 +111,70 @@ abstract interface io.github.syrou.reaktiv.introspection.tooling/ToolingService 
     abstract suspend fun stop() // io.github.syrou.reaktiv.introspection.tooling/ToolingService.stop|stop(){}[0]
     open fun createMiddleware(): io.github.syrou.reaktiv.core/Middleware? // io.github.syrou.reaktiv.introspection.tooling/ToolingService.createMiddleware|createMiddleware(){}[0]
     open suspend fun onCommand(io.github.syrou.reaktiv.introspection.tooling/ToolingCommand, kotlin.collections/Map<kotlin/String, kotlin/String>) // io.github.syrou.reaktiv.introspection.tooling/ToolingService.onCommand|onCommand(io.github.syrou.reaktiv.introspection.tooling.ToolingCommand;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+    open suspend fun onRequest(kotlin/String, kotlinx.serialization.json/JsonElement): kotlinx.serialization.json/JsonElement? // io.github.syrou.reaktiv.introspection.tooling/ToolingService.onRequest|onRequest(kotlin.String;kotlinx.serialization.json.JsonElement){}[0]
+}
+
+sealed interface io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent { // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent|null[0]
+    final class Completed : io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent { // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed|null[0]
+        constructor <init>(io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted) // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed.<init>|<init>(io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted){}[0]
+
+        final val event // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed.event|{}event[0]
+            final fun <get-event>(): io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed.event.<get-event>|<get-event>(){}[0]
+
+        final fun component1(): io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed.component1|component1(){}[0]
+        final fun copy(io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted = ...): io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed.copy|copy(io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Completed.toString|toString(){}[0]
+    }
+
+    final class Failed : io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent { // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed|null[0]
+        constructor <init>(io.github.syrou.reaktiv.core.tracing/LogicMethodFailed) // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed.<init>|<init>(io.github.syrou.reaktiv.core.tracing.LogicMethodFailed){}[0]
+
+        final val event // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed.event|{}event[0]
+            final fun <get-event>(): io.github.syrou.reaktiv.core.tracing/LogicMethodFailed // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed.event.<get-event>|<get-event>(){}[0]
+
+        final fun component1(): io.github.syrou.reaktiv.core.tracing/LogicMethodFailed // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed.component1|component1(){}[0]
+        final fun copy(io.github.syrou.reaktiv.core.tracing/LogicMethodFailed = ...): io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed.copy|copy(io.github.syrou.reaktiv.core.tracing.LogicMethodFailed){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Failed.toString|toString(){}[0]
+    }
+
+    final class Started : io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent { // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started|null[0]
+        constructor <init>(io.github.syrou.reaktiv.core.tracing/LogicMethodStart) // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started.<init>|<init>(io.github.syrou.reaktiv.core.tracing.LogicMethodStart){}[0]
+
+        final val event // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started.event|{}event[0]
+            final fun <get-event>(): io.github.syrou.reaktiv.core.tracing/LogicMethodStart // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started.event.<get-event>|<get-event>(){}[0]
+
+        final fun component1(): io.github.syrou.reaktiv.core.tracing/LogicMethodStart // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started.component1|component1(){}[0]
+        final fun copy(io.github.syrou.reaktiv.core.tracing/LogicMethodStart = ...): io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started.copy|copy(io.github.syrou.reaktiv.core.tracing.LogicMethodStart){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent.Started.toString|toString(){}[0]
+    }
 }
 
 final class io.github.syrou.reaktiv.introspection.capture/SessionCapture { // io.github.syrou.reaktiv.introspection.capture/SessionCapture|null[0]
-    constructor <init>(kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Boolean = ...) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.<init>|<init>(kotlin.Int?;kotlin.Int?;kotlin.Int?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String> = ...) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.<init>|<init>(kotlin.Int?;kotlin.Int?;kotlin.Int?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Boolean;kotlin.collections.Set<kotlin.String>){}[0]
 
     final val actions // io.github.syrou.reaktiv.introspection.capture/SessionCapture.actions|{}actions[0]
         final fun <get-actions>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.actions.<get-actions>|<get-actions>(){}[0]
     final val crashes // io.github.syrou.reaktiv.introspection.capture/SessionCapture.crashes|{}crashes[0]
         final fun <get-crashes>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.crashes.<get-crashes>|<get-crashes>(){}[0]
+    final val logicEvents // io.github.syrou.reaktiv.introspection.capture/SessionCapture.logicEvents|{}logicEvents[0]
+        final fun <get-logicEvents>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.logicEvents.<get-logicEvents>|<get-logicEvents>(){}[0]
+    final val logs // io.github.syrou.reaktiv.introspection.capture/SessionCapture.logs|{}logs[0]
+        final fun <get-logs>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.protocol/CapturedLog> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.logs.<get-logs>|<get-logs>(){}[0]
     final val markers // io.github.syrou.reaktiv.introspection.capture/SessionCapture.markers|{}markers[0]
         final fun <get-markers>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.protocol/SessionMarker> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.markers.<get-markers>|<get-markers>(){}[0]
+    final val network // io.github.syrou.reaktiv.introspection.capture/SessionCapture.network|{}network[0]
+        final fun <get-network>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.network.<get-network>|<get-network>(){}[0]
     final val stateReads // io.github.syrou.reaktiv.introspection.capture/SessionCapture.stateReads|{}stateReads[0]
         final fun <get-stateReads>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.core.tracing/StateRead> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.stateReads.<get-stateReads>|<get-stateReads>(){}[0]
+
+    final var stateJson // io.github.syrou.reaktiv.introspection.capture/SessionCapture.stateJson|{}stateJson[0]
+        final fun <get-stateJson>(): kotlinx.serialization.json/Json // io.github.syrou.reaktiv.introspection.capture/SessionCapture.stateJson.<get-stateJson>|<get-stateJson>(){}[0]
 
     final fun addMarker(kotlin/String, kotlin/String = ..., kotlin/String = ..., kotlin/Long? = ..., kotlin/Int = ...) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.addMarker|addMarker(kotlin.String;kotlin.String;kotlin.String;kotlin.Long?;kotlin.Int){}[0]
     final fun attachStateSerializers(kotlinx.serialization.modules/SerializersModule) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.attachStateSerializers|attachStateSerializers(kotlinx.serialization.modules.SerializersModule){}[0]
@@ -121,6 +186,7 @@ final class io.github.syrou.reaktiv.introspection.capture/SessionCapture { // io
     final fun captureLogicFailed(io.github.syrou.reaktiv.core.tracing/LogicMethodFailed) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.captureLogicFailed|captureLogicFailed(io.github.syrou.reaktiv.core.tracing.LogicMethodFailed){}[0]
     final fun captureLogicStarted(io.github.syrou.reaktiv.core.tracing/LogicMethodStart) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.captureLogicStarted|captureLogicStarted(io.github.syrou.reaktiv.core.tracing.LogicMethodStart){}[0]
     final fun captureStateRead(io.github.syrou.reaktiv.core.tracing/StateRead) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.captureStateRead|captureStateRead(io.github.syrou.reaktiv.core.tracing.StateRead){}[0]
+    final fun encodeStateTree(kotlin.collections/Map<kotlin/String, io.github.syrou.reaktiv.core/ModuleState>): io.github.syrou.reaktiv.introspection.capture/StateTree // io.github.syrou.reaktiv.introspection.capture/SessionCapture.encodeStateTree|encodeStateTree(kotlin.collections.Map<kotlin.String,io.github.syrou.reaktiv.core.ModuleState>){}[0]
     final fun getCapturedCrash(): io.github.syrou.reaktiv.introspection.protocol/CrashInfo? // io.github.syrou.reaktiv.introspection.capture/SessionCapture.getCapturedCrash|getCapturedCrash(){}[0]
     final fun getClientId(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionCapture.getClientId|getClientId(){}[0]
     final fun getInitialStateJson(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionCapture.getInitialStateJson|getInitialStateJson(){}[0]
@@ -131,6 +197,7 @@ final class io.github.syrou.reaktiv.introspection.capture/SessionCapture { // io
     final fun start(kotlin/String, kotlin/String, kotlin/String, io.github.syrou.reaktiv.introspection/ClientMetadata? = ...) // io.github.syrou.reaktiv.introspection.capture/SessionCapture.start|start(kotlin.String;kotlin.String;kotlin.String;io.github.syrou.reaktiv.introspection.ClientMetadata?){}[0]
     final fun suggestFileName(kotlin/String? = ...): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionCapture.suggestFileName|suggestFileName(kotlin.String?){}[0]
     final suspend fun clear() // io.github.syrou.reaktiv.introspection.capture/SessionCapture.clear|clear(){}[0]
+    final suspend fun diagnoseCrash(io.github.syrou.reaktiv.introspection.protocol/CrashInfo): io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis // io.github.syrou.reaktiv.introspection.capture/SessionCapture.diagnoseCrash|diagnoseCrash(io.github.syrou.reaktiv.introspection.protocol.CrashInfo){}[0]
     final suspend fun exportCrashSession(kotlin/Throwable): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionCapture.exportCrashSession|exportCrashSession(kotlin.Throwable){}[0]
     final suspend fun exportSession(io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ...): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionCapture.exportSession|exportSession(io.github.syrou.reaktiv.introspection.protocol.CrashInfo?){}[0]
     final suspend fun flush() // io.github.syrou.reaktiv.introspection.capture/SessionCapture.flush|flush(){}[0]
@@ -146,10 +213,12 @@ final class io.github.syrou.reaktiv.introspection.capture/SessionCapture { // io
 }
 
 final class io.github.syrou.reaktiv.introspection.capture/SessionHistory { // io.github.syrou.reaktiv.introspection.capture/SessionHistory|null[0]
-    constructor <init>(kotlin/Long, kotlin/String = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/SessionMarker> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedLog> = ...) // io.github.syrou.reaktiv.introspection.capture/SessionHistory.<init>|<init>(kotlin.Long;kotlin.String;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodFailed>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.SessionMarker>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedLog>){}[0]
+    constructor <init>(kotlin/Long, kotlin/String = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed>, kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/SessionMarker> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedLog> = ..., kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement> = ...) // io.github.syrou.reaktiv.introspection.capture/SessionHistory.<init>|<init>(kotlin.Long;kotlin.String;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodFailed>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.SessionMarker>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedLog>;kotlin.collections.Map<kotlin.String,kotlinx.serialization.json.JsonElement>){}[0]
 
     final val actions // io.github.syrou.reaktiv.introspection.capture/SessionHistory.actions|{}actions[0]
         final fun <get-actions>(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.actions.<get-actions>|<get-actions>(){}[0]
+    final val extensions // io.github.syrou.reaktiv.introspection.capture/SessionHistory.extensions|{}extensions[0]
+        final fun <get-extensions>(): kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.extensions.<get-extensions>|<get-extensions>(){}[0]
     final val initialStateJson // io.github.syrou.reaktiv.introspection.capture/SessionHistory.initialStateJson|{}initialStateJson[0]
         final fun <get-initialStateJson>(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionHistory.initialStateJson.<get-initialStateJson>|<get-initialStateJson>(){}[0]
     final val logicCompleted // io.github.syrou.reaktiv.introspection.capture/SessionHistory.logicCompleted|{}logicCompleted[0]
@@ -171,6 +240,7 @@ final class io.github.syrou.reaktiv.introspection.capture/SessionHistory { // io
 
     final fun component1(): kotlin/Long // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component1|component1(){}[0]
     final fun component10(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedLog> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component10|component10(){}[0]
+    final fun component11(): kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component11|component11(){}[0]
     final fun component2(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component2|component2(){}[0]
     final fun component3(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component3|component3(){}[0]
     final fun component4(): kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component4|component4(){}[0]
@@ -179,7 +249,7 @@ final class io.github.syrou.reaktiv.introspection.capture/SessionHistory { // io
     final fun component7(): kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component7|component7(){}[0]
     final fun component8(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/SessionMarker> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component8|component8(){}[0]
     final fun component9(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.component9|component9(){}[0]
-    final fun copy(kotlin/Long = ..., kotlin/String = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart> = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted> = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed> = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/SessionMarker> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedLog> = ...): io.github.syrou.reaktiv.introspection.capture/SessionHistory // io.github.syrou.reaktiv.introspection.capture/SessionHistory.copy|copy(kotlin.Long;kotlin.String;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodFailed>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.SessionMarker>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedLog>){}[0]
+    final fun copy(kotlin/Long = ..., kotlin/String = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodStart> = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodCompleted> = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/LogicMethodFailed> = ..., kotlin.collections/List<io.github.syrou.reaktiv.core.tracing/StateRead> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/SessionMarker> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture> = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedLog> = ..., kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement> = ...): io.github.syrou.reaktiv.introspection.capture/SessionHistory // io.github.syrou.reaktiv.introspection.capture/SessionHistory.copy|copy(kotlin.Long;kotlin.String;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodStart>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.LogicMethodFailed>;kotlin.collections.List<io.github.syrou.reaktiv.core.tracing.StateRead>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.SessionMarker>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture>;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedLog>;kotlin.collections.Map<kotlin.String,kotlinx.serialization.json.JsonElement>){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection.capture/SessionHistory.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection.capture/SessionHistory.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection.capture/SessionHistory.toString|toString(){}[0]
@@ -198,6 +268,15 @@ final class io.github.syrou.reaktiv.introspection.capture/SessionHistory { // io
 
         final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.introspection.capture/SessionHistory> // io.github.syrou.reaktiv.introspection.capture/SessionHistory.Companion.serializer|serializer(){}[0]
     }
+}
+
+final class io.github.syrou.reaktiv.introspection.capture/StateTree { // io.github.syrou.reaktiv.introspection.capture/StateTree|null[0]
+    constructor <init>(kotlinx.serialization.json/JsonObject, kotlin.collections/Map<kotlin/String, kotlin/String>) // io.github.syrou.reaktiv.introspection.capture/StateTree.<init>|<init>(kotlinx.serialization.json.JsonObject;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+
+    final val failed // io.github.syrou.reaktiv.introspection.capture/StateTree.failed|{}failed[0]
+        final fun <get-failed>(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.syrou.reaktiv.introspection.capture/StateTree.failed.<get-failed>|<get-failed>(){}[0]
+    final val modules // io.github.syrou.reaktiv.introspection.capture/StateTree.modules|{}modules[0]
+        final fun <get-modules>(): kotlinx.serialization.json/JsonObject // io.github.syrou.reaktiv.introspection.capture/StateTree.modules.<get-modules>|<get-modules>(){}[0]
 }
 
 final class io.github.syrou.reaktiv.introspection.network/NetworkBodySlice { // io.github.syrou.reaktiv.introspection.network/NetworkBodySlice|null[0]
@@ -239,7 +318,7 @@ final class io.github.syrou.reaktiv.introspection.network/NetworkBodySlice { // 
 }
 
 final class io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture { // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture|null[0]
-    constructor <init>(kotlin/String, kotlin/Long, kotlin/Long, kotlin/String, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/String? = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin/Long? = ..., kotlin/Long? = ..., kotlin/String? = ...) // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.<init>|<init>(kotlin.String;kotlin.Long;kotlin.Long;kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.Int?;kotlin.String?;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.String?;kotlin.Long?;kotlin.Long?;kotlin.String?){}[0]
+    constructor <init>(kotlin/String, kotlin/Long, kotlin/Long, kotlin/String, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/String? = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin/Long? = ..., kotlin/Long? = ..., kotlin/String? = ..., kotlin.collections/Set<kotlin/String> = ...) // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.<init>|<init>(kotlin.String;kotlin.Long;kotlin.Long;kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.Int?;kotlin.String?;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.String?;kotlin.Long?;kotlin.Long?;kotlin.String?;kotlin.collections.Set<kotlin.String>){}[0]
 
     final val decodeError // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.decodeError|{}decodeError[0]
         final fun <get-decodeError>(): kotlin/String? // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.decodeError.<get-decodeError>|<get-decodeError>(){}[0]
@@ -279,6 +358,8 @@ final class io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture 
         final fun <get-responseStatus>(): kotlin/Int? // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.responseStatus.<get-responseStatus>|<get-responseStatus>(){}[0]
     final val responseStatusText // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.responseStatusText|{}responseStatusText[0]
         final fun <get-responseStatusText>(): kotlin/String? // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.responseStatusText.<get-responseStatusText>|<get-responseStatusText>(){}[0]
+    final val sensitiveHeaders // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.sensitiveHeaders|{}sensitiveHeaders[0]
+        final fun <get-sensitiveHeaders>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.sensitiveHeaders.<get-sensitiveHeaders>|<get-sensitiveHeaders>(){}[0]
     final val startedAtMs // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.startedAtMs|{}startedAtMs[0]
         final fun <get-startedAtMs>(): kotlin/Long // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.startedAtMs.<get-startedAtMs>|<get-startedAtMs>(){}[0]
     final val url // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.url|{}url[0]
@@ -300,6 +381,7 @@ final class io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture 
     final fun component2(): kotlin/Long // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component2|component2(){}[0]
     final fun component20(): kotlin/Long? // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component20|component20(){}[0]
     final fun component21(): kotlin/String? // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component21|component21(){}[0]
+    final fun component22(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component22|component22(){}[0]
     final fun component3(): kotlin/Long // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component3|component3(){}[0]
     final fun component4(): kotlin/String // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component4|component4(){}[0]
     final fun component5(): kotlin/String // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component5|component5(){}[0]
@@ -307,7 +389,7 @@ final class io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture 
     final fun component7(): kotlin/String? // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component7|component7(){}[0]
     final fun component8(): kotlin/String? // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component8|component8(){}[0]
     final fun component9(): kotlin/Long // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.component9|component9(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin/String = ..., kotlin/String = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/String? = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin/Long? = ..., kotlin/Long? = ..., kotlin/String? = ...): io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.copy|copy(kotlin.String;kotlin.Long;kotlin.Long;kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.Int?;kotlin.String?;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.String?;kotlin.Long?;kotlin.Long?;kotlin.String?){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin/String = ..., kotlin/String = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/String? = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/String? = ..., kotlin/Long? = ..., kotlin/Long? = ..., kotlin/String? = ..., kotlin.collections/Set<kotlin/String> = ...): io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.copy|copy(kotlin.String;kotlin.Long;kotlin.Long;kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.Int?;kotlin.String?;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.String?;kotlin.Long?;kotlin.Long?;kotlin.String?;kotlin.collections.Set<kotlin.String>){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture.toString|toString(){}[0]
@@ -670,7 +752,7 @@ final class io.github.syrou.reaktiv.introspection.protocol/SessionData { // io.g
 }
 
 final class io.github.syrou.reaktiv.introspection.protocol/SessionExport { // io.github.syrou.reaktiv.introspection.protocol/SessionExport|null[0]
-    constructor <init>(kotlin/String = ..., kotlin/String, kotlin/Long, io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo, io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ..., io.github.syrou.reaktiv.introspection.protocol/SessionData, kotlin/Long = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> = ..., io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? = ...) // io.github.syrou.reaktiv.introspection.protocol/SessionExport.<init>|<init>(kotlin.String;kotlin.String;kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo;io.github.syrou.reaktiv.introspection.protocol.CrashInfo?;io.github.syrou.reaktiv.introspection.protocol.SessionData;kotlin.Long;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CrashInfo>;io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis?){}[0]
+    constructor <init>(kotlin/String = ..., kotlin/String, kotlin/Long, io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo, io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ..., io.github.syrou.reaktiv.introspection.protocol/SessionData, kotlin/Long = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> = ..., io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? = ..., kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement> = ...) // io.github.syrou.reaktiv.introspection.protocol/SessionExport.<init>|<init>(kotlin.String;kotlin.String;kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo;io.github.syrou.reaktiv.introspection.protocol.CrashInfo?;io.github.syrou.reaktiv.introspection.protocol.SessionData;kotlin.Long;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CrashInfo>;io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis?;kotlin.collections.Map<kotlin.String,kotlinx.serialization.json.JsonElement>){}[0]
 
     final val clientInfo // io.github.syrou.reaktiv.introspection.protocol/SessionExport.clientInfo|{}clientInfo[0]
         final fun <get-clientInfo>(): io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo // io.github.syrou.reaktiv.introspection.protocol/SessionExport.clientInfo.<get-clientInfo>|<get-clientInfo>(){}[0]
@@ -684,6 +766,8 @@ final class io.github.syrou.reaktiv.introspection.protocol/SessionExport { // io
         final fun <get-droppedRecords>(): kotlin/Long // io.github.syrou.reaktiv.introspection.protocol/SessionExport.droppedRecords.<get-droppedRecords>|<get-droppedRecords>(){}[0]
     final val exportedAt // io.github.syrou.reaktiv.introspection.protocol/SessionExport.exportedAt|{}exportedAt[0]
         final fun <get-exportedAt>(): kotlin/Long // io.github.syrou.reaktiv.introspection.protocol/SessionExport.exportedAt.<get-exportedAt>|<get-exportedAt>(){}[0]
+    final val extensions // io.github.syrou.reaktiv.introspection.protocol/SessionExport.extensions|{}extensions[0]
+        final fun <get-extensions>(): kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement> // io.github.syrou.reaktiv.introspection.protocol/SessionExport.extensions.<get-extensions>|<get-extensions>(){}[0]
     final val session // io.github.syrou.reaktiv.introspection.protocol/SessionExport.session|{}session[0]
         final fun <get-session>(): io.github.syrou.reaktiv.introspection.protocol/SessionData // io.github.syrou.reaktiv.introspection.protocol/SessionExport.session.<get-session>|<get-session>(){}[0]
     final val sessionId // io.github.syrou.reaktiv.introspection.protocol/SessionExport.sessionId|{}sessionId[0]
@@ -692,6 +776,7 @@ final class io.github.syrou.reaktiv.introspection.protocol/SessionExport { // io
         final fun <get-version>(): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/SessionExport.version.<get-version>|<get-version>(){}[0]
 
     final fun component1(): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component1|component1(){}[0]
+    final fun component10(): kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement> // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component10|component10(){}[0]
     final fun component2(): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component2|component2(){}[0]
     final fun component3(): kotlin/Long // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component3|component3(){}[0]
     final fun component4(): io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component4|component4(){}[0]
@@ -700,7 +785,7 @@ final class io.github.syrou.reaktiv.introspection.protocol/SessionExport { // io
     final fun component7(): kotlin/Long // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component7|component7(){}[0]
     final fun component8(): kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component8|component8(){}[0]
     final fun component9(): io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? // io.github.syrou.reaktiv.introspection.protocol/SessionExport.component9|component9(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo = ..., io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ..., io.github.syrou.reaktiv.introspection.protocol/SessionData = ..., kotlin/Long = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> = ..., io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? = ...): io.github.syrou.reaktiv.introspection.protocol/SessionExport // io.github.syrou.reaktiv.introspection.protocol/SessionExport.copy|copy(kotlin.String;kotlin.String;kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo;io.github.syrou.reaktiv.introspection.protocol.CrashInfo?;io.github.syrou.reaktiv.introspection.protocol.SessionData;kotlin.Long;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CrashInfo>;io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis?){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection.protocol/ExportedClientInfo = ..., io.github.syrou.reaktiv.introspection.protocol/CrashInfo? = ..., io.github.syrou.reaktiv.introspection.protocol/SessionData = ..., kotlin/Long = ..., kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> = ..., io.github.syrou.reaktiv.introspection.protocol/CrashDiagnosis? = ..., kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement> = ...): io.github.syrou.reaktiv.introspection.protocol/SessionExport // io.github.syrou.reaktiv.introspection.protocol/SessionExport.copy|copy(kotlin.String;kotlin.String;kotlin.Long;io.github.syrou.reaktiv.introspection.protocol.ExportedClientInfo;io.github.syrou.reaktiv.introspection.protocol.CrashInfo?;io.github.syrou.reaktiv.introspection.protocol.SessionData;kotlin.Long;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CrashInfo>;io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis?;kotlin.collections.Map<kotlin.String,kotlinx.serialization.json.JsonElement>){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection.protocol/SessionExport.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection.protocol/SessionExport.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/SessionExport.toString|toString(){}[0]
@@ -809,7 +894,7 @@ final class io.github.syrou.reaktiv.introspection.tooling/ToolingLogic : io.gith
     final suspend fun stopCapture() // io.github.syrou.reaktiv.introspection.tooling/ToolingLogic.stopCapture|stopCapture(){}[0]
 }
 
-final class io.github.syrou.reaktiv.introspection.tooling/ToolingModule : io.github.syrou.reaktiv.core/ModuleWithLogic<io.github.syrou.reaktiv.introspection.tooling/ToolingState, io.github.syrou.reaktiv.introspection.tooling/ToolingAction, io.github.syrou.reaktiv.introspection.tooling/ToolingLogic> { // io.github.syrou.reaktiv.introspection.tooling/ToolingModule|null[0]
+final class io.github.syrou.reaktiv.introspection.tooling/ToolingModule : io.github.syrou.reaktiv.core/ExternalStateRequester, io.github.syrou.reaktiv.core/ModuleWithLogic<io.github.syrou.reaktiv.introspection.tooling/ToolingState, io.github.syrou.reaktiv.introspection.tooling/ToolingAction, io.github.syrou.reaktiv.introspection.tooling/ToolingLogic> { // io.github.syrou.reaktiv.introspection.tooling/ToolingModule|null[0]
     final val createLogic // io.github.syrou.reaktiv.introspection.tooling/ToolingModule.createLogic|{}createLogic[0]
         final fun <get-createLogic>(): kotlin/Function1<io.github.syrou.reaktiv.core/StoreAccessor, io.github.syrou.reaktiv.introspection.tooling/ToolingLogic> // io.github.syrou.reaktiv.introspection.tooling/ToolingModule.createLogic.<get-createLogic>|<get-createLogic>(){}[0]
     final val createMiddleware // io.github.syrou.reaktiv.introspection.tooling/ToolingModule.createMiddleware|{}createMiddleware[0]
@@ -818,6 +903,8 @@ final class io.github.syrou.reaktiv.introspection.tooling/ToolingModule : io.git
         final fun <get-initialState>(): io.github.syrou.reaktiv.introspection.tooling/ToolingState // io.github.syrou.reaktiv.introspection.tooling/ToolingModule.initialState.<get-initialState>|<get-initialState>(){}[0]
     final val reducer // io.github.syrou.reaktiv.introspection.tooling/ToolingModule.reducer|{}reducer[0]
         final fun <get-reducer>(): kotlin/Function2<io.github.syrou.reaktiv.introspection.tooling/ToolingState, io.github.syrou.reaktiv.introspection.tooling/ToolingAction, io.github.syrou.reaktiv.introspection.tooling/ToolingState> // io.github.syrou.reaktiv.introspection.tooling/ToolingModule.reducer.<get-reducer>|<get-reducer>(){}[0]
+
+    final fun startsUnderExternalControl(): kotlin/Boolean // io.github.syrou.reaktiv.introspection.tooling/ToolingModule.startsUnderExternalControl|startsUnderExternalControl(){}[0]
 }
 
 final class io.github.syrou.reaktiv.introspection.tooling/ToolingModuleBuilder { // io.github.syrou.reaktiv.introspection.tooling/ToolingModuleBuilder|null[0]
@@ -834,6 +921,7 @@ final class io.github.syrou.reaktiv.introspection.tooling/ToolingServiceContext 
     final val storeAccessor // io.github.syrou.reaktiv.introspection.tooling/ToolingServiceContext.storeAccessor|{}storeAccessor[0]
         final fun <get-storeAccessor>(): io.github.syrou.reaktiv.core/StoreAccessor // io.github.syrou.reaktiv.introspection.tooling/ToolingServiceContext.storeAccessor.<get-storeAccessor>|<get-storeAccessor>(){}[0]
 
+    final fun publishExtension(kotlin/String, kotlinx.serialization.json/JsonElement) // io.github.syrou.reaktiv.introspection.tooling/ToolingServiceContext.publishExtension|publishExtension(kotlin.String;kotlinx.serialization.json.JsonElement){}[0]
     final suspend fun setStatus(io.github.syrou.reaktiv.introspection.tooling/ServiceStatus) // io.github.syrou.reaktiv.introspection.tooling/ToolingServiceContext.setStatus|setStatus(io.github.syrou.reaktiv.introspection.tooling.ServiceStatus){}[0]
 }
 
@@ -944,7 +1032,7 @@ final class io.github.syrou.reaktiv.introspection/DispatchTracingInstrumentation
 }
 
 final class io.github.syrou.reaktiv.introspection/IntrospectionConfig { // io.github.syrou.reaktiv.introspection/IntrospectionConfig|null[0]
-    constructor <init>(kotlin/String = ..., kotlin/String = ..., kotlin/String, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection/ClientMetadata? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // io.github.syrou.reaktiv.introspection/IntrospectionConfig.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Long;io.github.syrou.reaktiv.introspection.ClientMetadata?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Int?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/String = ..., kotlin/String = ..., kotlin/String, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection/ClientMetadata? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String> = ...) // io.github.syrou.reaktiv.introspection/IntrospectionConfig.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Long;io.github.syrou.reaktiv.introspection.ClientMetadata?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Int?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.Set<kotlin.String>){}[0]
 
     final val autoStart // io.github.syrou.reaktiv.introspection/IntrospectionConfig.autoStart|{}autoStart[0]
         final fun <get-autoStart>(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.autoStart.<get-autoStart>|<get-autoStart>(){}[0]
@@ -972,6 +1060,8 @@ final class io.github.syrou.reaktiv.introspection/IntrospectionConfig { // io.gi
         final fun <get-redactSensitiveKeys>(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.redactSensitiveKeys.<get-redactSensitiveKeys>|<get-redactSensitiveKeys>(){}[0]
     final val redactor // io.github.syrou.reaktiv.introspection/IntrospectionConfig.redactor|{}redactor[0]
         final fun <get-redactor>(): io.github.syrou.reaktiv.introspection/StateRedactor? // io.github.syrou.reaktiv.introspection/IntrospectionConfig.redactor.<get-redactor>|<get-redactor>(){}[0]
+    final val sensitiveKeys // io.github.syrou.reaktiv.introspection/IntrospectionConfig.sensitiveKeys|{}sensitiveKeys[0]
+        final fun <get-sensitiveKeys>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.introspection/IntrospectionConfig.sensitiveKeys.<get-sensitiveKeys>|<get-sensitiveKeys>(){}[0]
     final val stallThresholdMs // io.github.syrou.reaktiv.introspection/IntrospectionConfig.stallThresholdMs|{}stallThresholdMs[0]
         final fun <get-stallThresholdMs>(): kotlin/Long // io.github.syrou.reaktiv.introspection/IntrospectionConfig.stallThresholdMs.<get-stallThresholdMs>|<get-stallThresholdMs>(){}[0]
 
@@ -981,6 +1071,7 @@ final class io.github.syrou.reaktiv.introspection/IntrospectionConfig { // io.gi
     final fun component12(): kotlin/Int? // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component12|component12(){}[0]
     final fun component13(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component13|component13(){}[0]
     final fun component14(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component14|component14(){}[0]
+    final fun component15(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component15|component15(){}[0]
     final fun component2(): kotlin/String // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component2|component2(){}[0]
     final fun component3(): kotlin/String // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component3|component3(){}[0]
     final fun component4(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component4|component4(){}[0]
@@ -989,7 +1080,7 @@ final class io.github.syrou.reaktiv.introspection/IntrospectionConfig { // io.gi
     final fun component7(): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component7|component7(){}[0]
     final fun component8(): kotlin/Long // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component8|component8(){}[0]
     final fun component9(): io.github.syrou.reaktiv.introspection/ClientMetadata? // io.github.syrou.reaktiv.introspection/IntrospectionConfig.component9|component9(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection/ClientMetadata? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): io.github.syrou.reaktiv.introspection/IntrospectionConfig // io.github.syrou.reaktiv.introspection/IntrospectionConfig.copy|copy(kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Long;io.github.syrou.reaktiv.introspection.ClientMetadata?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Int?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., io.github.syrou.reaktiv.introspection/ClientMetadata? = ..., io.github.syrou.reaktiv.introspection/StateRedactor? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String> = ...): io.github.syrou.reaktiv.introspection/IntrospectionConfig // io.github.syrou.reaktiv.introspection/IntrospectionConfig.copy|copy(kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Long;io.github.syrou.reaktiv.introspection.ClientMetadata?;io.github.syrou.reaktiv.introspection.StateRedactor?;kotlin.Int?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.collections.Set<kotlin.String>){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.introspection/IntrospectionConfig.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.introspection/IntrospectionConfig.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.introspection/IntrospectionConfig.toString|toString(){}[0]
@@ -1109,6 +1200,7 @@ final object io.github.syrou.reaktiv.introspection.network/NetworkTap { // io.gi
     final fun bodySlice(kotlin/String, io.github.syrou.reaktiv.introspection.network/NetworkBodyPart, kotlin/Int, kotlin/Int): io.github.syrou.reaktiv.introspection.network/NetworkBodySlice? // io.github.syrou.reaktiv.introspection.network/NetworkTap.bodySlice|bodySlice(kotlin.String;io.github.syrou.reaktiv.introspection.network.NetworkBodyPart;kotlin.Int;kotlin.Int){}[0]
     final fun clear() // io.github.syrou.reaktiv.introspection.network/NetworkTap.clear|clear(){}[0]
     final fun emit(io.github.syrou.reaktiv.introspection.network/NetworkRequestCapture) // io.github.syrou.reaktiv.introspection.network/NetworkTap.emit|emit(io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture){}[0]
+    final fun originBody(kotlin/String, io.github.syrou.reaktiv.introspection.network/NetworkBodyPart): kotlin/String? // io.github.syrou.reaktiv.introspection.network/NetworkTap.originBody|originBody(kotlin.String;io.github.syrou.reaktiv.introspection.network.NetworkBodyPart){}[0]
     final fun removeBodyProvider(io.github.syrou.reaktiv.introspection.network/NetworkBodyProvider) // io.github.syrou.reaktiv.introspection.network/NetworkTap.removeBodyProvider|removeBodyProvider(io.github.syrou.reaktiv.introspection.network.NetworkBodyProvider){}[0]
     final fun removeListener(io.github.syrou.reaktiv.introspection.network/NetworkEventListener) // io.github.syrou.reaktiv.introspection.network/NetworkTap.removeListener|removeListener(io.github.syrou.reaktiv.introspection.network.NetworkEventListener){}[0]
 }
@@ -1170,3 +1262,6 @@ final suspend fun io.github.syrou.reaktiv.introspection/decodeSessionPayload(kot
 final suspend fun io.github.syrou.reaktiv.introspection/encodeSessionPayload(kotlin/String): kotlin/String // io.github.syrou.reaktiv.introspection/encodeSessionPayload|encodeSessionPayload(kotlin.String){}[0]
 final suspend fun io.github.syrou.reaktiv.introspection/gzipCompress(kotlin/ByteArray): kotlin/ByteArray // io.github.syrou.reaktiv.introspection/gzipCompress|gzipCompress(kotlin.ByteArray){}[0]
 final suspend fun io.github.syrou.reaktiv.introspection/gzipDecompress(kotlin/ByteArray): kotlin/ByteArray // io.github.syrou.reaktiv.introspection/gzipDecompress|gzipDecompress(kotlin.ByteArray){}[0]
+
+// Targets: [wasmJs]
+final fun io.github.syrou.reaktiv.introspection/browserIntrospectionConfig(kotlin/String? = ...): io.github.syrou.reaktiv.introspection/IntrospectionConfig // io.github.syrou.reaktiv.introspection/browserIntrospectionConfig|browserIntrospectionConfig(kotlin.String?){}[0]

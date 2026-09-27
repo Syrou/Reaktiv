@@ -5,27 +5,23 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.DismissIndicatorPlacement
 import io.github.syrou.reaktiv.navigation.definition.Graph
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
 import io.github.syrou.reaktiv.navigation.transition.gestureAxis
 
-internal fun canHandleBack(state: NavigationState): Boolean {
-    if (!state.canGoBack) return false
-    val top = state.currentEntry.navigatable
-    if (top is LoadingModal) return false
-    if (top.renderLayer == RenderLayer.SYSTEM) return true
-    if (state.isBootstrapping) return false
-    if (state.isEvaluatingNavigation) return false
-    return true
-}
+internal fun canHandleBack(state: NavigationState): Boolean =
+    state.canGoBack && (state.currentEntry.navigatable.isSystemOverlay || !backBlockedByWork(state))
 
-internal fun revealedEntryForBack(state: NavigationState): NavigationEntry? {
-    val ordered = state.orderedBackStack
-    return ordered.getOrNull(ordered.size - 2)
-}
+internal fun backBlockedByWork(state: NavigationState): Boolean =
+    state.currentEntry.navigatable is LoadingModal || state.isBootstrapping || state.isEvaluatingNavigation
+
+internal val Navigatable.isSystemOverlay: Boolean
+    get() = renderLayer == RenderLayer.SYSTEM && this !is LoadingModal
 
 /**
  * The innermost graph containing [entry] that presents itself as a draggable surface.
@@ -36,8 +32,13 @@ internal fun revealedEntryForBack(state: NavigationState): NavigationEntry? {
 internal fun dismissableBoundary(
     entry: NavigationEntry,
     navModule: NavigationModule
+): String? = dismissableBoundary(entry, navModule.getGraphDefinitions())
+
+internal fun dismissableBoundary(
+    entry: NavigationEntry,
+    graphDefinitions: Map<String, NavigationGraph>
 ): String? = entry.graphChain.lastOrNull { graphId ->
-    navModule.getGraphDefinitions()[graphId]?.declaration?.dismissal?.swipe?.allowsDismiss == true
+    graphDefinitions[graphId]?.declaration?.dismissal?.swipe?.allowsDismiss == true
 }
 
 internal fun dismissableSurface(entry: NavigationEntry, navModule: NavigationModule): Graph? =
@@ -55,7 +56,7 @@ internal fun revealedEntryForDismiss(
     navModule: NavigationModule
 ): NavigationEntry? {
     val boundary = dismissableBoundary(state.currentEntry, navModule)
-        ?: return revealedEntryForBack(state)
+        ?: return state.revealedEntry
     val ordered = state.orderedBackStack
     return ordered.lastOrNull { candidate ->
         dismissableBoundary(candidate, navModule) != boundary
@@ -70,7 +71,7 @@ internal fun canArmInteractiveBackGesture(state: NavigationState, navModule: Nav
     if (!top.backGestureEnabled) return false
     if (!top.dismissal.back.allowsDismiss) return false
 
-    val revealed = revealedEntryForBack(state) ?: return false
+    val revealed = state.revealedEntry ?: return false
     // Read the axis from whatever would actually move. Going back from the first screen of a
     // presented graph leaves the graph, so a sheet that arrived vertically leaves vertically and
     // the horizontal edge swipe must not arm for it. Deeper inside the graph nothing is crossed,
@@ -141,14 +142,10 @@ internal fun canArmSwipeDismiss(state: NavigationState, navModule: NavigationMod
     val insideDismissableGraph = dismissableBoundary(state.currentEntry, navModule) != null
     if (!top.dismissal.swipe.allowsDismiss && !insideDismissableGraph) return false
     val revealed = revealedEntryForDismiss(state, navModule) ?: return false
-    if (revealed.navigatable.renderLayer != RenderLayer.CONTENT) return false
-    return state.activeModalContexts[revealed.path] == null
+    return revealed.navigatable.renderLayer == RenderLayer.CONTENT
 }
 
 private fun revealedContentEntryAvailable(state: NavigationState): Boolean {
-    val revealed = revealedEntryForBack(state) ?: return false
-    val revealedNavigatable = revealed.navigatable
-    if (revealedNavigatable.renderLayer != RenderLayer.CONTENT) return false
-    if (state.activeModalContexts[revealed.path] != null) return false
-    return true
+    val revealed = state.revealedEntry ?: return false
+    return revealed.navigatable.renderLayer == RenderLayer.CONTENT
 }

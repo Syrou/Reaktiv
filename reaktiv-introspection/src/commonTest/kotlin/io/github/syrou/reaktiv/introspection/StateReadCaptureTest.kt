@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package io.github.syrou.reaktiv.introspection
 
 import io.github.syrou.reaktiv.core.tracing.StateRead

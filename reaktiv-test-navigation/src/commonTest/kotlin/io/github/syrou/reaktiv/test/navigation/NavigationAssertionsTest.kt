@@ -68,6 +68,22 @@ class NavigationAssertionsTest {
     }
 
     @Test
+    fun `assertCurrentLocation compares the concrete path while assertCurrentPath compares the template`() =
+        reaktivTest(
+            NavTestAuthModule,
+            createNavigationModule {
+                rootGraph {
+                    start(startScreen)
+                    screens(startScreen, screen("user/{id}"))
+                }
+            }
+        ) {
+            store.navigation { navigateTo("user/John%20Doe") }
+            assertCurrentLocation("user/John%20Doe")
+            assertCurrentPath("user/{id}")
+        }
+
+    @Test
     fun `assertCurrentRoute fails with an informative message`() = reaktivTest(NavTestAuthModule, navModule()) {
         store.navigation { navigateTo("home") }
         val failure = assertFailsWith<AssertionError> {

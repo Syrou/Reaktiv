@@ -155,7 +155,7 @@ class StoreResetTest {
             val reset = async(start = CoroutineStart.UNDISPATCHED) { store.reset() }
             gate.complete(Unit)
             assertTrue(withTimeout(5_000) { reset.await() })
-            queued.awaitAll().forEach { assertEquals(DispatchResult.Blocked, it) }
+            queued.awaitAll().forEach { assertEquals(DispatchResult.Dropped(DispatchDropReason.RESET), it) }
             assertTrue(dropped.size >= queued.size, "every queued action reports as dropped, got $dropped")
             assertTrue(dropped.all { it == DispatchDropReason.RESET }, "drops are attributed to the reset, got $dropped")
             assertEquals(DispatchResult.Processed, store.dispatchAndAwait(ProbeAction.Increment))

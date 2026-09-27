@@ -1,7 +1,6 @@
 package io.github.syrou.reaktiv.introspection
 
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
-import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
 import kotlinx.coroutines.runBlocking
 
@@ -10,22 +9,19 @@ public actual class CrashHandler actual constructor(
     private val sessionCapture: SessionCapture
 ) {
     public actual fun install() {
+        current = sessionCapture to SessionFileExport(platformContext)
         if (installed) {
-            ReaktivDebug.general("Introspection: Crash handler already installed")
+            ReaktivDebug.general("Introspection: Crash handler now reports to the newest capture")
             return
         }
 
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
-        val sessionExport = SessionFileExport(platformContext)
-
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                val bytes = runBlocking {
-                    gzipCompress(sessionCapture.exportCrashSession(throwable).encodeToByteArray())
+                current?.let { (capture, export) ->
+                    val savedPath = runBlocking { export.saveSession(capture, throwable) }
+                    println("Introspection: Crash session saved to $savedPath")
                 }
-                val fileName = sessionCapture.suggestFileName("crash")
-                val savedPath = sessionExport.saveToDownloads(bytes, fileName)
-                println("Introspection: Crash session saved to $savedPath")
             } catch (e: Exception) {
                 println("Introspection: Failed to save crash session - ${e.message}")
             } finally {
@@ -38,6 +34,8 @@ public actual class CrashHandler actual constructor(
     }
 
     public companion object {
+        @Volatile
+        private var current: Pair<SessionCapture, SessionFileExport>? = null
         private var installed = false
     }
 }

@@ -54,6 +54,18 @@ public object NetworkTap {
         return null
     }
 
+    public fun originBody(requestId: String, part: NetworkBodyPart): String? {
+        bodyProviders.snapshot().filter { it.source == NetworkBodySource.Origin }.forEach { provider ->
+            val slice = try {
+                provider.slice(requestId, part, 0, Int.MAX_VALUE)
+            } catch (_: Exception) {
+                null
+            }
+            if (slice != null) return slice.content.takeIf { it.isNotEmpty() }
+        }
+        return null
+    }
+
     public fun clear() {
         listeners.clear()
         bodyProviders.clear()

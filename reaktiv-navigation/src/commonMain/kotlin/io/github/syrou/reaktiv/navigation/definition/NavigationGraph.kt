@@ -59,6 +59,7 @@ public interface NavigationGraph : NavigationNode {
     /**
      * Returns a flat map of route -> [Navigatable] for this graph and all nested graphs.
      */
+    @Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
     public fun getAllNavigatables(): Map<String, Navigatable> = buildMap {
         navigatables.forEach { navigatable -> put(navigatable.route, navigatable) }
         nestedGraphs.forEach { nestedGraph ->
@@ -73,6 +74,7 @@ public interface NavigationGraph : NavigationNode {
      * @param route The route of the navigatable to search for.
      * @return The owning graph, or `null` if not found.
      */
+    @Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
     public fun findGraphContaining(route: String): NavigationGraph? {
         if (navigatables.any { it.route == route }) return this
         return nestedGraphs.firstNotNullOfOrNull { it.findGraphContaining(route) }
@@ -84,6 +86,7 @@ public interface NavigationGraph : NavigationNode {
      * @param graphId The [route] of the nested graph to find.
      * @return The matching graph, or `null` if not found.
      */
+    @Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
     public fun findNestedGraph(graphId: String): NavigationGraph? {
         return nestedGraphs.find { it.route == graphId }
             ?: nestedGraphs.firstNotNullOfOrNull { it.findNestedGraph(graphId) }
@@ -96,6 +99,7 @@ public interface NavigationGraph : NavigationNode {
      * @param graphDefinitions All known graphs keyed by their route.
      * @return The resolved start screen, or `null` if [startDestination] is `null`.
      */
+    @Deprecated("Unused. Removed in the next release.", level = DeprecationLevel.WARNING)
     public fun resolveStartScreen(graphDefinitions: Map<String, NavigationGraph>): Navigatable? {
         return when (val dest = startDestination) {
             is StartDestination.DirectScreen -> dest.screen

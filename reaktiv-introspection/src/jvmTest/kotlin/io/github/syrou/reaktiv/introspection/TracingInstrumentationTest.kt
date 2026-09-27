@@ -1,5 +1,6 @@
 package io.github.syrou.reaktiv.introspection
 
+import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
 import io.github.syrou.reaktiv.core.ModuleLogic
@@ -33,6 +34,12 @@ class TracedRepository {
     }
 
     suspend fun untraced(): String = "plain"
+}
+
+abstract class ModuleLogicLookalike
+
+class LookalikeLogic : ModuleLogicLookalike() {
+    suspend fun work(): String = "done"
 }
 
 @Serializable
@@ -117,5 +124,44 @@ class TracingInstrumentationTest {
                 "Origin must name the dispatching function and file, was: $origin"
             )
             store.cleanup()
+        }
+
+    @Test
+    fun `a dispatch through a Dispatch value of any name records its origin`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = createStore {
+                module(ProvenanceModule)
+                coroutineContext(dispatcher)
+            }
+            advanceUntilIdle()
+
+            val observer = RecordingObserver()
+            LogicTracer.addObserver(observer)
+            store.setDispatchInstrumentation(DispatchTracingInstrumentation())
+
+            val send: Dispatch = store.dispatch
+            send(ProvenanceAction.Bump)
+            advanceUntilIdle()
+
+            val dispatchStart = observer.started.single { it.logicClass == "StoreDispatch" }
+            val origin = dispatchStart.params["dispatchedFrom"]
+            assertNotNull(origin, "A Dispatch value named send must record its call site, params were ${dispatchStart.params}")
+            assertTrue(origin.contains("TracingInstrumentationTest"), "Origin must name the dispatching function, was: $origin")
+            store.cleanup()
+        }
+
+    @Test
+    fun `a class that only shares the ModuleLogic name is not traced`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val observer = RecordingObserver()
+            LogicTracer.addObserver(observer)
+
+            assertEquals("done", LookalikeLogic().work())
+
+            assertTrue(
+                observer.started.none { it.methodName == "work" },
+                "LookalikeLogic does not extend ModuleLogic, traced ${observer.started.map { it.logicClass + "." + it.methodName }}"
+            )
         }
 }

@@ -188,22 +188,27 @@ class GuardZoneReentryTest {
         }
 
     @Test
-    fun aStaticRootStartInsideTheZoneDoesNotLetANavigationInheritAGuardNobodyPassed() =
+    fun aStaticRootStartInsideTheZoneIsGuardedAtColdStart() =
         withStore(RootStart.StaticIntoZone, { GuardResult.RedirectTo("login") }) { store ->
-            assertTrue(
-                store.paths().all { it.startsWith("home") },
-                "A static root start lands on its placeholder inside the zone"
-            )
-            val callsAtBootstrap = guardCalls
+            assertEquals(1, guardCalls, "A cold start into the zone asks the guard")
+            assertEquals(listOf("login"), store.paths())
 
             store.navigation { navigateTo("home/workspace") }
 
-            assertEquals(
-                callsAtBootstrap + 1,
-                guardCalls,
-                "The placeholder is not a zone the app passed a guard to reach"
-            )
+            assertEquals(2, guardCalls, "Nobody passed the guard, so entering the zone asks again")
             assertEquals("login", store.paths().last())
             assertFalse(store.paths().any { it.endsWith("workspace-overview") })
+        }
+
+    @Test
+    fun aStaticRootStartThatPassedItsGuardAtColdStartMovesInsideTheZoneWithoutAskingAgain() =
+        withStore(RootStart.StaticIntoZone) { store ->
+            assertEquals(1, guardCalls, "A cold start into the zone asks the guard once")
+            assertEquals(listOf("home/home-start"), store.paths())
+
+            store.navigation { navigateTo("home/workspace") }
+
+            assertEquals(1, guardCalls, "Moving inside a zone already passed does not ask again")
+            assertEquals("home/workspace/workspace-overview", store.paths().last())
         }
 }

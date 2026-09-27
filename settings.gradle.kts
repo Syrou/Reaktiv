@@ -6,22 +6,6 @@ pluginManagement {
         google()
     }
 
-    plugins {
-        val kotlinVersion = "2.4.10"
-        val agpVersion = "9.3.0"
-        val composeVersion = "1.12.0"
-
-        kotlin("jvm").version(kotlinVersion)
-        kotlin("multiplatform").version(kotlinVersion)
-        kotlin("plugin.compose").version(kotlinVersion)
-        kotlin("plugin.serialization").version(kotlinVersion)
-        id("com.android.base").version(agpVersion)
-        id("com.android.application").version(agpVersion)
-        id("com.android.library").version(agpVersion)
-        id("com.android.kotlin.multiplatform.library").version(agpVersion)
-        id("org.jetbrains.compose").version(composeVersion)
-    }
-
     includeBuild("convention-plugins")
     includeBuild("reaktiv-tracing-gradle")
 }
@@ -29,15 +13,19 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-
 rootProject.name = "reaktiv"
 include("reaktiv-core")
 include(":androidexample")
+include(":webexample")
+include(":example-shared")
+include(":example-tooling")
 include("reaktiv-compose")
 include("reaktiv-navigation")
 include("reaktiv-introspection")
 include("reaktiv-devtools")
+include("reaktiv-devtools-ui")
 include("reaktiv-network-ktor")
+include("reaktiv-navigation-tooling")
 include("reaktiv-tracing-annotations")
 include("reaktiv-tracing-runtime")
 include("reaktiv-test")

@@ -2,23 +2,16 @@ package eu.syrou.androidexample.tooling
 
 import android.content.Context
 import android.os.Build
-import eu.syrou.androidexample.ui.screen.DevToolsScreen
-import io.github.syrou.reaktiv.core.Module
-import io.github.syrou.reaktiv.core.StoreAccessor
-import io.github.syrou.reaktiv.core.util.selectLogic
-import io.github.syrou.reaktiv.devtools.middleware.DevToolsConfig
-import io.github.syrou.reaktiv.devtools.protocol.ClientRole
-import io.github.syrou.reaktiv.devtools.service.DevToolsService
+import eu.syrou.androidexample.ui.screen.TwitchAuthWebViewScreen
+import eu.syrou.example.ExamplePlatform
+import eu.syrou.example.tooling.exampleToolingPlatform
 import io.github.syrou.reaktiv.introspection.ClientMetadata
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.PlatformContext
-import io.github.syrou.reaktiv.introspection.tooling.ToolingLogic
-import io.github.syrou.reaktiv.introspection.tooling.createToolingModule
-import io.github.syrou.reaktiv.navigation.definition.Screen
-import io.github.syrou.reaktiv.network.ktor.ReaktivNetworkInspection
-import io.ktor.client.HttpClientConfig
 
-fun toolingModule(context: Context): Module<*, *>? = createToolingModule(
+private const val DEVTOOLS_SERVER_URL = "ws://100.125.101.2:8080/ws"
+
+fun examplePlatform(context: Context): ExamplePlatform = exampleToolingPlatform(
     config = IntrospectionConfig(
         clientName = "${Build.MANUFACTURER} ${Build.MODEL}",
         platform = "Android ${Build.VERSION.RELEASE}",
@@ -29,24 +22,8 @@ fun toolingModule(context: Context): Module<*, *>? = createToolingModule(
             osVersion = Build.VERSION.RELEASE
         )
     ),
-    platformContext = PlatformContext(context)
-) {
-    install(
-        DevToolsService(
-            DevToolsConfig(
-                serverUrl = "ws://100.125.101.2:8080/ws",
-                autoConnect = false,
-                defaultRole = ClientRole.PUBLISHER
-            )
-        )
-    )
-}
-
-fun toolingScreens(): List<Screen> = listOf(DevToolsScreen)
-
-fun HttpClientConfig<*>.attachNetworkInspection() {
-    install(ReaktivNetworkInspection)
-}
-
-suspend fun exportCapturedSession(store: StoreAccessor): String? =
-    store.selectLogic<ToolingLogic>().exportSessionToDownloads()
+    platformContext = PlatformContext(context),
+    serverUrl = DEVTOOLS_SERVER_URL,
+    autoConnect = false,
+    twitchLogin = TwitchAuthWebViewScreen
+)

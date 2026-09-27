@@ -87,6 +87,7 @@ public object Obfuscation {
      * @param maxLength Maximum length of the output string (default 200)
      * @return String representation of the value
      */
+    @Deprecated("Unused by the tracing plugin and the runtime.", level = DeprecationLevel.WARNING)
     public fun toTraceString(value: Any?, maxLength: Int = 200): String {
         if (value == null) return "null"
 

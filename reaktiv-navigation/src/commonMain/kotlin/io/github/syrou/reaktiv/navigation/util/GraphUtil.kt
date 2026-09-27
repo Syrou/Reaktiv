@@ -5,32 +5,14 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 public fun findLayoutGraphsInHierarchy(
     currentGraphId: String,
     graphDefinitions: Map<String, NavigationGraph>
-): List<NavigationGraph> {
-    val hierarchyPath = buildGraphHierarchyPath(currentGraphId, graphDefinitions)
-    return hierarchyPath.filter { it.layout != null }
-}
+): List<NavigationGraph> = GraphIndex.of(graphDefinitions).layoutsAround(currentGraphId)
 
 public fun buildGraphHierarchyPath(
     graphId: String,
     graphDefinitions: Map<String, NavigationGraph>
-): List<NavigationGraph> {
-    val targetGraph = graphDefinitions[graphId] ?: return emptyList()
-
-    val path = mutableListOf<NavigationGraph>()
-    var currentGraph: NavigationGraph? = targetGraph
-    while (currentGraph != null) {
-        path.add(0, currentGraph)
-        currentGraph = findParentGraph(currentGraph, graphDefinitions)
-    }
-
-    return path
-}
+): List<NavigationGraph> = GraphIndex.of(graphDefinitions).layoutChain(graphId)
 
 public fun findParentGraph(
     targetGraph: NavigationGraph,
     graphDefinitions: Map<String, NavigationGraph>
-): NavigationGraph? {
-    return graphDefinitions.values.find { graph ->
-        graph.nestedGraphs.any { it.route == targetGraph.route }
-    }
-}
+): NavigationGraph? = GraphIndex.of(graphDefinitions).parent(targetGraph.route)?.let { graphDefinitions[it] }

@@ -4,12 +4,15 @@ pluginManagement {
         mavenCentral()
     }
 
-    plugins {
-        kotlin("jvm") version "2.4.10"
-        id("org.jetbrains.dokka") version "2.2.0"
-    }
-
     includeBuild("../convention-plugins")
+}
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("libs") {
+            from(files("../gradle/libs.versions.toml"))
+        }
+    }
 }
 
 plugins {

@@ -18,8 +18,6 @@ import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.float
-import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.long
@@ -33,21 +31,14 @@ public object AnySerializer : KSerializer<Any> {
     override fun serialize(encoder: Encoder, value: Any) {
         val jsonEncoder =
             encoder as? JsonEncoder ?: throw SerializationException("This serializer can be used only with JSON")
-        val jsonElement = when (value) {
-            is String -> JsonPrimitive(value)
-            is Number -> JsonPrimitive(value)
-            is Boolean -> JsonPrimitive(value)
-            is List<*> -> JsonArray(value.map { serialize(it) })
-            is Map<*, *> -> JsonObject(value.entries.associate { it.key.toString() to serialize(it.value) })
-            else -> JsonPrimitive(value.toString())
-        }
-        jsonEncoder.encodeJsonElement(jsonElement)
+        jsonEncoder.encodeJsonElement(serialize(value))
     }
 
     override fun deserialize(decoder: Decoder): Any {
         val jsonDecoder =
             decoder as? JsonDecoder ?: throw SerializationException("This serializer can be used only with JSON")
         return deserialize(jsonDecoder.decodeJsonElement())
+            ?: throw SerializationException("AnySerializer cannot decode a JSON null into a non-null value")
     }
 
     private fun serialize(value: Any?): JsonElement {
@@ -63,14 +54,14 @@ public object AnySerializer : KSerializer<Any> {
         }
     }
 
-    private fun deserialize(element: JsonElement): Any {
+    private fun deserialize(element: JsonElement): Any? {
         return when (element) {
+            JsonNull -> null
             is JsonPrimitive -> {
                 when {
                     element.isString -> element.content
                     element.intOrNull != null -> element.int
                     element.longOrNull != null -> element.long
-                    element.floatOrNull != null -> element.float
                     element.doubleOrNull != null -> element.double
                     element.booleanOrNull != null -> element.boolean
                     else -> element.content

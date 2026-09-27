@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.core.util
 
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.fetchAndUpdate
 
 @OptIn(ExperimentalAtomicApi::class)
 public class CopyOnWriteRegistry<T> {
@@ -16,21 +17,11 @@ public class CopyOnWriteRegistry<T> {
 
     public fun snapshot(): List<T> = entries.load()
 
-    public fun add(entry: T): Boolean {
-        while (true) {
-            val current = entries.load()
-            if (entry in current) return false
-            if (entries.compareAndSet(current, current + entry)) return true
-        }
-    }
+    public fun add(entry: T): Boolean =
+        entry !in entries.fetchAndUpdate { current -> if (entry in current) current else current + entry }
 
-    public fun remove(entry: T): Boolean {
-        while (true) {
-            val current = entries.load()
-            if (entry !in current) return false
-            if (entries.compareAndSet(current, current - entry)) return true
-        }
-    }
+    public fun remove(entry: T): Boolean =
+        entry in entries.fetchAndUpdate { current -> current - entry }
 
     public fun clear() {
         entries.store(emptyList())

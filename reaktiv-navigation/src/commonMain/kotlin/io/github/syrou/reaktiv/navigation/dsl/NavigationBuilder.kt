@@ -7,9 +7,10 @@ import io.github.syrou.reaktiv.navigation.definition.NavigationTarget
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.encoding.DualNavigationParameterEncoder
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
-import io.github.syrou.reaktiv.navigation.param.SerializableParam
+import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.getNavigationModule
 import io.github.syrou.reaktiv.navigation.param.Params
+import io.github.syrou.reaktiv.navigation.param.typedParamValue
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -23,9 +24,13 @@ public enum class NavigationOperation {
     Back,
     PopUpTo,
     ClearBackStack,
-    ResumePending
+    ResumePending,
+    DismissModal,
+    ClearModals,
+    DeepLink
 }
 
+@Suppress("DEPRECATION")
 @Serializable
 public data class NavigationStep(
     val operation: NavigationOperation,
@@ -34,10 +39,13 @@ public data class NavigationStep(
     val popUpToTarget: NavigationTarget? = null,
     val popUpToInclusive: Boolean = false,
     val popUpToFallback: NavigationTarget? = null,
+    @Deprecated("Restates operation. Check operation == NavigationOperation.ClearBackStack.", level = DeprecationLevel.WARNING)
     val shouldClearBackStack: Boolean = false,
+    @Deprecated("Restates operation. Check operation == NavigationOperation.Replace.", level = DeprecationLevel.WARNING)
     val shouldReplaceWith: Boolean = false,
     val shouldDismissModals: Boolean = false,
-    val synthesizeBackstack: Boolean = false
+    val synthesizeBackstack: Boolean = false,
+    val expectedTopKey: String? = null
 )
 
 public class NavigationParameterBuilder {
@@ -45,12 +53,12 @@ public class NavigationParameterBuilder {
     internal val params: MutableMap<String, Any> = mutableMapOf()
 
     public inline fun <reified T> put(key: String, value: T): NavigationParameterBuilder {
-        params[key] = SerializableParam(value, serializer<T>())
+        params[key] = typedParamValue(value, serializer<T>())
         return this
     }
 
     public fun <T> put(key: String, value: T, serializer: KSerializer<T>): NavigationParameterBuilder {
-        params[key] = SerializableParam(value, serializer)
+        params[key] = typedParamValue(value, serializer)
         return this
     }
 
@@ -92,6 +100,10 @@ public class NavigationBuilder(
     @PublishedApi
     internal var shouldDismissModalsGlobally: Boolean = false
 
+    private var ignoredOperations: Int = 0
+
+    internal val hasNothingToDo: Boolean get() = operations.isEmpty() && ignoredOperations > 0
+
     /**
      * Get the full path for a Navigatable within the navigation builder context.
      *
@@ -105,6 +117,7 @@ public class NavigationBuilder(
      * @return The full path for the navigatable
      * @throws IllegalStateException if the navigatable is not registered
      */
+    @Deprecated("Unused. Removed in the next release. Navigate to the navigatable itself.", level = DeprecationLevel.WARNING)
     public val Navigatable.fullPath: String
         get() = storeAccessor.getNavigationModule().getFullPath(this)
             ?: error("Navigatable '${this.route}' is not registered in any navigation graph")
@@ -159,11 +172,51 @@ public class NavigationBuilder(
      * @param synthesizeBackstack If true, automatically builds the backstack based on path hierarchy.
      */
     public fun navigateTo(
-        navigatable: Navigatable,
+        path: String,
+        params: Params?,
         replaceCurrent: Boolean = false,
         synthesizeBackstack: Boolean = false
     ): NavigationBuilder {
-        val stepParams = currentParams
+        params?.let { currentParams += it }
+        return navigateTo(path, replaceCurrent = replaceCurrent, synthesizeBackstack = synthesizeBackstack)
+    }
+
+    public fun navigateTo(
+        navigatable: Navigatable,
+        replaceCurrent: Boolean = false,
+        synthesizeBackstack: Boolean = false
+    ): NavigationBuilder = addNavigatableStep(navigatable, Params.empty(), replaceCurrent, synthesizeBackstack)
+
+    public fun navigateTo(
+        navigatable: Navigatable,
+        vararg params: Pair<String, Any>,
+        replaceCurrent: Boolean = false,
+        synthesizeBackstack: Boolean = false
+    ): NavigationBuilder =
+        addNavigatableStep(navigatable, Params.fromMap(params.toMap()), replaceCurrent, synthesizeBackstack)
+
+    public fun navigateTo(
+        navigatable: Navigatable,
+        replaceCurrent: Boolean = false,
+        synthesizeBackstack: Boolean = false,
+        paramBuilder: NavigationParameterBuilder.() -> Unit
+    ): NavigationBuilder {
+        val parameterBuilder = NavigationParameterBuilder().apply(paramBuilder)
+        return addNavigatableStep(
+            navigatable,
+            Params.fromMap(parameterBuilder.params),
+            replaceCurrent,
+            synthesizeBackstack
+        )
+    }
+
+    private fun addNavigatableStep(
+        navigatable: Navigatable,
+        params: Params,
+        replaceCurrent: Boolean,
+        synthesizeBackstack: Boolean
+    ): NavigationBuilder {
+        val stepParams = params + currentParams
         currentParams = Params.empty()
 
         val step = NavigationStep(
@@ -179,13 +232,48 @@ public class NavigationBuilder(
         return this
     }
 
-    public fun navigateBack(): NavigationBuilder {
+    public fun navigateBack(): NavigationBuilder = navigateBack(expectedTopKey = null)
+
+    public fun navigateBack(expectedTopKey: String?): NavigationBuilder {
         val step = NavigationStep(
             operation = NavigationOperation.Back,
-            shouldDismissModals = shouldDismissModalsGlobally
+            shouldDismissModals = shouldDismissModalsGlobally,
+            expectedTopKey = expectedTopKey
         )
         operations.add(step)
 
+        return this
+    }
+
+    public fun dismissModal(): NavigationBuilder {
+        operations.add(NavigationStep(operation = NavigationOperation.DismissModal))
+        return this
+    }
+
+    public fun dismissModal(modalEntry: NavigationEntry): NavigationBuilder {
+        if (modalEntry.navigatable is Modal) {
+            popUpTo(modalEntry.location, inclusive = true)
+        } else {
+            ignoredOperations++
+        }
+        return this
+    }
+
+    public fun clearAllModals(): NavigationBuilder {
+        operations.add(NavigationStep(operation = NavigationOperation.ClearModals))
+        return this
+    }
+
+    public fun navigateDeepLink(route: String, params: Params = Params.empty()): NavigationBuilder {
+        val stepParams = params + currentParams
+        currentParams = Params.empty()
+        operations.add(
+            NavigationStep(
+                operation = NavigationOperation.DeepLink,
+                target = NavigationTarget.Path(route),
+                params = stepParams
+            )
+        )
         return this
     }
 
@@ -194,6 +282,20 @@ public class NavigationBuilder(
         synthesizeBackstack: Boolean = false
     ): NavigationBuilder {
         return navigateTo<T>(replaceCurrent = replaceCurrent, preferredGraphId = null, synthesizeBackstack = synthesizeBackstack)
+    }
+
+    public suspend inline fun <reified T : Navigatable> navigateTo(
+        params: Params?,
+        replaceCurrent: Boolean = false,
+        preferredGraphId: String? = null,
+        synthesizeBackstack: Boolean = false
+    ): NavigationBuilder {
+        params?.let { currentParams += it }
+        return navigateTo<T>(
+            replaceCurrent = replaceCurrent,
+            preferredGraphId = preferredGraphId,
+            synthesizeBackstack = synthesizeBackstack
+        )
     }
 
     /**
@@ -366,7 +468,7 @@ public class NavigationBuilder(
      * standing there when the navigation begins do not survive it.
      */
     internal fun clearsBackStack(): Boolean =
-        operations.any { it.operation == NavigationOperation.ClearBackStack || it.shouldClearBackStack }
+        operations.any { it.operation == NavigationOperation.ClearBackStack }
 
     internal fun describeTarget(): String =
         operations.firstOrNull { it.target != null }?.let { step ->
@@ -424,6 +526,7 @@ public class NavigationBuilder(
     public fun param(key: String, value: Any): NavigationBuilder = putRaw(key, value)
 
     internal fun validate() {
+        if (hasNothingToDo) return
         if (operations.isEmpty()) {
             throw IllegalStateException("No navigation operations specified")
         }
@@ -447,13 +550,23 @@ public class NavigationBuilder(
                 }
                 NavigationOperation.Back -> { /* Always valid */ }
                 NavigationOperation.ResumePending -> { /* Always valid */ }
+                NavigationOperation.DismissModal, NavigationOperation.ClearModals -> Unit
+                NavigationOperation.DeepLink -> {
+                    require(step.target != null) {
+                        "navigateDeepLink requires a route"
+                    }
+                    require(operations.size == 1) {
+                        "navigateDeepLink replaces the whole back stack, so it must be the only " +
+                            "operation in its navigation block"
+                    }
+                }
             }
         }
 
         val operationTypes = operations.map { it.operation }.toSet()
         val hasClearBackStack = NavigationOperation.ClearBackStack in operationTypes
         val hasPopUpTo = NavigationOperation.PopUpTo in operationTypes
-        val hasReplaceCurrent = operations.any { it.shouldReplaceWith }
+        val hasReplaceCurrent = NavigationOperation.Replace in operationTypes
 
         require(!(hasClearBackStack && hasPopUpTo)) {
             "Cannot combine clearBackStack with popUpTo operations in the same batch"

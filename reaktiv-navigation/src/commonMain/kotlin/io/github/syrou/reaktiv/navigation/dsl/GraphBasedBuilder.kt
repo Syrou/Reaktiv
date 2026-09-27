@@ -6,8 +6,14 @@ import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.Screen
+import io.github.syrou.reaktiv.navigation.history.BrowserHistoryMode
+import io.github.syrou.reaktiv.navigation.history.BrowserHistorySetup
+import io.github.syrou.reaktiv.navigation.history.BrowserPort
+import io.github.syrou.reaktiv.navigation.history.UrlStyle
+import io.github.syrou.reaktiv.navigation.history.platformBrowserPort
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import io.github.syrou.reaktiv.navigation.util.ROOT_GRAPH
 
 public class GraphBasedBuilder {
     private var rootGraph: NavigationGraph? = null
@@ -17,9 +23,10 @@ public class GraphBasedBuilder {
     private val deepLinkAliasBuilder = DeepLinkAliasBuilder()
     private var screenRetentionDuration: Duration = 10.seconds
     private var loadingModal: LoadingModal? = null
+    private var browserHistory: BrowserHistorySetup? = BrowserHistorySetup(portProvider = { platformBrowserPort(BrowserHistoryMode.TopLevelOnly) })
 
     public fun rootGraph(block: NavigationGraphBuilder.() -> Unit) {
-        val builder = NavigationGraphBuilder("root")
+        val builder = NavigationGraphBuilder(ROOT_GRAPH)
         builder.apply(block)
         rootGraph = builder.build()
     }
@@ -53,6 +60,10 @@ public class GraphBasedBuilder {
         this.onCrash = onCrash
     }
 
+    @Deprecated(
+        "Has no effect. Screen content is not retained after it leaves the back stack.",
+        level = DeprecationLevel.WARNING
+    )
     public fun screenRetentionDuration(duration: Duration) {
         screenRetentionDuration = duration
     }
@@ -96,6 +107,26 @@ public class GraphBasedBuilder {
         deepLinkAliasBuilder.apply(block)
     }
 
+    public fun browserHistory(block: BrowserHistoryBuilder.() -> Unit) {
+        val config = BrowserHistoryBuilder().apply(block)
+        browserHistory = BrowserHistorySetup(
+            portProvider = { platformBrowserPort(config.mode) },
+            style = config.urlStyle,
+            basePath = config.basePath,
+            mode = config.mode,
+            documentTitle = config.documentTitle
+        )
+    }
+
+    internal fun browserHistoryForTesting(
+        port: BrowserPort,
+        style: UrlStyle = UrlStyle.Path,
+        basePath: String? = null,
+        mode: BrowserHistoryMode = BrowserHistoryMode.TopLevelOnly
+    ) {
+        browserHistory = BrowserHistorySetup(portProvider = { port }, style = style, basePath = basePath, mode = mode)
+    }
+
     public fun build(): NavigationModule {
         requireNotNull(rootGraph) { "Root graph must be defined" }
         return NavigationModule(
@@ -105,7 +136,8 @@ public class GraphBasedBuilder {
             onCrash = onCrash,
             deepLinkAliases = deepLinkAliasBuilder.aliases.toList(),
             screenRetentionDuration = screenRetentionDuration,
-            loadingModal = loadingModal
+            loadingModal = loadingModal,
+            browserHistory = browserHistory
         )
     }
 }

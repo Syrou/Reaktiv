@@ -9,6 +9,7 @@ import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.BackstackLifecycle
+import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
@@ -80,6 +81,48 @@ class RemovalHandlerTimingTest {
                 "handler ran ${removedAtMs - backStartedAtMs}ms after back, expected at least " +
                     "${NavTransition.DEFAULT_ANIMATION_DURATION}ms (the pop exit duration)"
             )
+        }
+
+    @Test
+    fun `a dismissed modal runs its removal handlers after its own exit transition`() =
+        runTest(timeout = 10.toDuration(DurationUnit.SECONDS)) {
+            var removedAtMs = -1L
+            val sheet = object : Modal {
+                override val route = "timing-sheet"
+                override val enterTransition = NavTransition.Custom(durationMillis = 400)
+                override val exitTransition = NavTransition.None
+                override val popExitTransition = NavTransition.Custom(durationMillis = 100)
+
+                override suspend fun onLifecycleCreated(lifecycle: BackstackLifecycle) {
+                    lifecycle.invokeOnRemoval {
+                        removedAtMs = testScheduler.currentTime
+                    }
+                }
+
+                @Composable
+                override fun Content(params: Params) { Text(route) }
+            }
+            val home = homeScreen()
+            val store = createStore {
+                module(createNavigationModule {
+                    rootGraph {
+                        start(home)
+                        screens(home)
+                        modals(sheet)
+                    }
+                })
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceUntilIdle()
+
+            store.navigation { navigateTo("timing-sheet") }
+            advanceUntilIdle()
+
+            val backStartedAtMs = testScheduler.currentTime
+            store.navigateBack()
+            advanceUntilIdle()
+
+            assertEquals(100L, removedAtMs - backStartedAtMs)
         }
 
     @Test

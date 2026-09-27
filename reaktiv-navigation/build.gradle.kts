@@ -1,4 +1,3 @@
-import org.jetbrains.compose.ExperimentalComposeLibrary
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
@@ -6,7 +5,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
     id("com.android.kotlin.multiplatform.library")
-    id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     kotlin("plugin.serialization")
     id("io.github.syrou.version")
@@ -19,14 +17,7 @@ centralPublisher {
 
 kotlin {
     jvm()
-    android {
-        namespace = "io.github.syrou.reaktiv.navigation"
-        compileSdk = 37
-        minSdk = 23
-        androidResources {
-            enable = true
-        }
-    }
+    android {}
     macosArm64()
     iosArm64()
     iosSimulatorArm64()
@@ -41,23 +32,16 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.components.resources)
-                implementation(project(":reaktiv-core"))
+                api(project(":reaktiv-core"))
+                api(libs.compose.runtime)
+                api(libs.compose.foundation)
+                implementation(libs.compose.material3)
                 implementation(project(":reaktiv-compose"))
-                implementation(libs.kotlinx.coroutines.core)
-                implementation(libs.kotlinx.serialization.json)
-                implementation(libs.kotlinx.datetime)
             }
         }
         getByName("commonTest") {
             dependencies {
-                implementation(kotlin("test"))
-                implementation(libs.kotlinx.coroutines.test)
-                @OptIn(ExperimentalComposeLibrary::class)
-                implementation(compose.uiTest)
+                implementation(libs.compose.ui.test)
             }
         }
         // Compose gesture tests drive touch input against a real composition and a live Store.
@@ -69,12 +53,6 @@ kotlin {
         }
         getByName("jvmTest").dependsOn(uiTest)
         getByName("appleTest").dependsOn(uiTest)
-        getByName("jvmMain") {
-            dependencies {
-                implementation(compose.desktop.currentOs)
-                implementation(compose.desktop.uiTestJUnit4)
-            }
-        }
         getByName("androidMain") {
             dependencies {
                 implementation(libs.androidx.activity.compose)
@@ -82,6 +60,8 @@ kotlin {
         }
         getByName("jvmTest") {
             dependencies {
+                implementation(compose.desktop.currentOs)
+                implementation(libs.compose.ui.test.junit4)
                 implementation(libs.kotlinx.coroutines.swing)
             }
         }
@@ -90,6 +70,8 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-opt-in=kotlin.time.ExperimentalTime")
         optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
+        optIn.add("kotlin.concurrent.atomics.ExperimentalAtomicApi")
+        optIn.add("io.github.syrou.reaktiv.core.ExperimentalReaktivApi")
     }
 }
 

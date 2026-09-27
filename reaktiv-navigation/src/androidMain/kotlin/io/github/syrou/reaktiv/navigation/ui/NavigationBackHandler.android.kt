@@ -11,13 +11,17 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
-internal actual fun platformEdgeSwipeBackEnabled(): Boolean {
+internal actual fun platformBackGesturePolicy(): BackGesturePolicy {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val gestureInsets = WindowInsets.systemGestures
     val systemOwnsEdges = gestureInsets.getLeft(density, layoutDirection) > 0 ||
         gestureInsets.getRight(density, layoutDirection) > 0
-    return !systemOwnsEdges
+    return if (systemOwnsEdges) BackGesturePolicy.Nowhere else BackGesturePolicy.Everywhere
+}
+
+@Composable
+internal actual fun PlatformDocumentTitle(title: String?) {
 }
 
 @Composable

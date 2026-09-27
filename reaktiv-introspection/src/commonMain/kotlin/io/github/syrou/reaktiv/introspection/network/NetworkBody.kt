@@ -17,7 +17,11 @@ public data class NetworkBodySlice(
     val isLast: Boolean
 )
 
+public enum class NetworkBodySource { Origin, Archive }
+
 public fun interface NetworkBodyProvider {
+    public val source: NetworkBodySource get() = NetworkBodySource.Origin
+
     public fun slice(
         requestId: String,
         part: NetworkBodyPart,

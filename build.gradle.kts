@@ -1,69 +1,68 @@
+import com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryTarget
+import org.jetbrains.dokka.gradle.DokkaExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+
 plugins {
-    kotlin("jvm") apply false
-    kotlin("multiplatform") apply false
-    id("com.android.application") apply false
-    id("com.android.kotlin.multiplatform.library") apply false
-    id("org.jetbrains.dokka") version "2.2.0"
-    id("org.jetbrains.compose") version "1.12.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.4.10"
-    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.1"
+    alias(libs.plugins.kotlin.multiplatform) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.compose.multiplatform) apply false
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.kotlin.multiplatform.library) apply false
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.binary.compatibility.validator)
 }
 
 @OptIn(kotlinx.validation.ExperimentalBCVApi::class)
 apiValidation {
-    ignoredProjects += listOf("androidexample")
+    ignoredProjects += listOf("androidexample", "webexample", "example-shared", "example-tooling", "reaktiv-devtools-ui")
     klib {
         enabled = true
     }
 }
 
-buildscript {
-
-    repositories {
-        mavenLocal()
-        mavenCentral()
-        gradlePluginPortal()
-        google()
-    }
-
-    val kotlinVersion = project.extra["kotlinVersion"] as String
-
-    dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-    }
-}
-
 subprojects {
-    apply(plugin = "org.jetbrains.dokka")
     group = "io.github.syrou"
 
-    extensions.configure<org.jetbrains.dokka.gradle.DokkaExtension> {
-        dokkaSourceSets.configureEach {
-            if (project.file("module.md").exists()) {
-                includes.from("module.md")
-            }
-            sourceLink {
-                localDirectory.set(project.file("src"))
-                remoteUrl.set(java.net.URI("https://github.com/Syrou/Reaktiv/blob/main/${project.name}/src"))
-                remoteLineSuffix.set("#L")
-            }
-        }
-    }
-
     plugins.withId("org.jetbrains.kotlin.multiplatform") {
-        extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension> {
+        extensions.configure<KotlinMultiplatformExtension> {
             jvmToolchain(17)
-            explicitApi()
             compilerOptions {
                 freeCompilerArgs.add("-Xexpect-actual-classes")
             }
         }
     }
 
-    tasks {
-        withType<PublishToMavenRepository> {
-            dependsOn(withType<Sign>())
+    plugins.withId("io.github.syrou.central-publisher-plugin") {
+        apply(plugin = "org.jetbrains.dokka")
+        extensions.configure<DokkaExtension> {
+            dokkaSourceSets.configureEach {
+                if (project.file("module.md").exists()) {
+                    includes.from("module.md")
+                }
+                sourceLink {
+                    localDirectory.set(project.file("src"))
+                    remoteUrl.set(java.net.URI("https://github.com/Syrou/Reaktiv/blob/main/${project.name}/src"))
+                    remoteLineSuffix.set("#L")
+                }
+            }
+        }
+
+        plugins.withId("org.jetbrains.kotlin.multiplatform") {
+            extensions.configure<KotlinMultiplatformExtension> {
+                explicitApi()
+                sourceSets.named("commonTest") {
+                    dependencies {
+                        implementation(kotlin("test"))
+                        implementation(rootProject.libs.kotlinx.coroutines.test)
+                    }
+                }
+                targets.withType<KotlinMultiplatformAndroidLibraryTarget>().configureEach {
+                    namespace = "io.github.syrou.reaktiv." + project.name.removePrefix("reaktiv-").replace('-', '.')
+                    compileSdk = 37
+                    minSdk = 23
+                }
+            }
         }
     }
 }

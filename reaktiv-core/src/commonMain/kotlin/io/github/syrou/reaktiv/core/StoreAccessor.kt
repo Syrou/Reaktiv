@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.core
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.modules.SerializersModule
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KClass
 
@@ -64,7 +65,8 @@ public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      *
      * @param action The action to dispatch
      * @return [DispatchResult.Processed] if action was applied,
-     *         [DispatchResult.Blocked] if middleware blocked the action or a reset dropped it,
+     *         [DispatchResult.Blocked] if middleware blocked the action,
+     *         [DispatchResult.Dropped] if the store discarded it, for example because a reset swapped past it,
      *         [DispatchResult.Error] if processing failed
      * @throws IllegalStateException when called from inside the dispatch pipeline, which would wait
      *         for itself. Middleware and [ModuleLogic.beforeReset] must use [dispatch] instead.
@@ -78,7 +80,7 @@ public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * cancelled and joined, bounded by a timeout after which a warning is logged and the reset
      * continues without the stragglers. The dispatch pipeline then, in one ordered step, calls
      * [ModuleLogic.beforeReset] on each logic instance, swaps state and logic, and drops every
-     * action that was queued before the reset with [DispatchResult.Blocked].
+     * action that was queued before the reset with [DispatchResult.Dropped].
      *
      * The coroutine that awaits this call survives the reset, so a logic method can continue
      * afterwards against the fresh store. Every other coroutine of the old generation is
@@ -126,8 +128,24 @@ public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      *
      * @return InternalStoreOperations instance or null if not supported
      */
+    @Deprecated(
+        "Use externalState(), which is null when the store does not grant outside state.",
+        ReplaceWith("externalState()"),
+        DeprecationLevel.WARNING
+    )
+    @Suppress("DEPRECATION")
     @ExperimentalReaktivApi
     public fun asInternalOperations(): InternalStoreOperations? = this as? InternalStoreOperations
+
+    public open fun externalState(): ExternalStateAccess? = null
+
+    public open val serializersModule: SerializersModule?
+        get() = null
+
+    public open val activeDispatchInstrumentation: DispatchInstrumentation?
+        get() = null
+
+    public open fun setDispatchInstrumentation(instrumentation: DispatchInstrumentation?) {}
 
     /**
      * Get a module instance by its class.

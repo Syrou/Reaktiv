@@ -26,6 +26,7 @@ public class StoreDSL {
     private var persistenceStrategy: PersistenceStrategy? = null
     private val moduleStateRegistrations = mutableMapOf<String, (PolymorphicModuleBuilder<ModuleState>) -> Unit>()
     private val customTypeRegistrars = mutableListOf<CustomTypeRegistrar>()
+    private var externalStatePolicy = ExternalStatePolicy.OnRequest
 
     @OptIn(InternalSerializationApi::class)
 
@@ -83,6 +84,10 @@ public class StoreDSL {
         this.persistenceStrategy = persistenceStrategy
     }
 
+    public fun externalState(policy: ExternalStatePolicy) {
+        externalStatePolicy = policy
+    }
+
     internal fun build(): Store {
         val serializersModule = SerializersModule {
             polymorphic(ModuleState::class) {
@@ -105,7 +110,20 @@ public class StoreDSL {
         val moduleMiddlewares = modules.mapNotNull { it.createMiddleware?.invoke() }
         val allMiddlewares = middlewares + moduleMiddlewares
 
-        return Store.create(coroutineScope, allMiddlewares, modules, persistenceManager, serializersModule)
+        val externalStateGranted = when (externalStatePolicy) {
+            ExternalStatePolicy.Deny -> false
+            ExternalStatePolicy.Allow -> true
+            ExternalStatePolicy.OnRequest -> modules.any { it is ExternalStateRequester }
+        }
+
+        return Store(
+            coroutineScope = coroutineScope,
+            middlewares = allMiddlewares,
+            modules = modules.toList(),
+            persistenceManager = persistenceManager,
+            serializersModule = serializersModule,
+            externalStateGranted = externalStateGranted
+        )
     }
 }
 

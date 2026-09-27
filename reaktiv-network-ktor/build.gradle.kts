@@ -4,7 +4,6 @@ plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
     id("com.android.kotlin.multiplatform.library")
-    id("org.jetbrains.dokka")
     id("io.github.syrou.central-publisher-plugin")
     id("io.github.syrou.version")
 }
@@ -15,11 +14,7 @@ centralPublisher {
 }
 
 kotlin {
-    android {
-        namespace = "io.github.syrou.reaktiv.network.ktor"
-        compileSdk = 37
-        minSdk = 23
-    }
+    android {}
 
     jvm()
 
@@ -42,17 +37,12 @@ kotlin {
         getByName("commonMain") {
             dependencies {
                 api(project(":reaktiv-introspection"))
-                implementation(project(":reaktiv-core"))
                 api(libs.ktor.client.core)
-                implementation(libs.kotlinx.coroutines.core)
-                implementation(libs.kotlinx.serialization.json)
             }
         }
 
         getByName("commonTest") {
             dependencies {
-                implementation(kotlin("test"))
-                implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.ktor.client.mock)
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.serialization.kotlinx.json)

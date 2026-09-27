@@ -5,87 +5,50 @@ package io.github.syrou.reaktiv.tracing.compiler.ir
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.builders.irBlock
-import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetObject
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
-import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classFqName
+import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.util.fileEntry
 import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
-import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
 
-class DispatchOriginTransformer(
+internal class DispatchOriginTransformer(
     private val pluginContext: IrPluginContext,
+    private val symbols: RuntimeSymbols,
     private val messageCollector: MessageCollector
 ) : IrElementTransformerVoidWithContext() {
 
     private val dispatchOwners = setOf(
-        "io.github.syrou.reaktiv.core.StoreAccessor",
-        "io.github.syrou.reaktiv.core.Store"
+        FqName("io.github.syrou.reaktiv.core.StoreAccessor"),
+        FqName("io.github.syrou.reaktiv.core.Store")
     )
 
-    private fun receiverIsDispatch(receiver: IrExpression?): Boolean = when (receiver) {
-        is IrCall -> receiver.symbol.owner.name.asString() == "<get-dispatch>"
-        is org.jetbrains.kotlin.ir.expressions.IrGetValue ->
-            receiver.symbol.owner.name.asString() == "dispatch"
-        is org.jetbrains.kotlin.ir.expressions.IrGetField ->
-            receiver.symbol.owner.name.asString() == "dispatch"
-        else -> false
-    }
+    private val function1 = FqName("kotlin.Function1")
 
     var instrumentedCount: Int = 0
         private set
 
-    private val trackerClass: IrClassSymbol? by lazy {
-        pluginContext.finderForBuiltins().findClass(
-            ClassId(FqName("io.github.syrou.reaktiv.core.tracing"), Name.identifier("DispatchOriginTracker"))
-        )
-    }
-
-    private val recordFun: IrSimpleFunctionSymbol? by lazy {
-        trackerClass?.owner?.functions?.find { it.name.asString() == "record" }?.symbol
-    }
-
     override fun visitCall(expression: IrCall): IrExpression {
         expression.transformChildrenVoid()
 
-        val callee = expression.symbol.owner
-        val argumentOffset: Int = when (callee.name.asString()) {
-            "dispatchAndAwait" -> {
-                val ownerFqName = (callee.parent as? IrClass)?.fqNameWhenAvailable?.asString()
-                    ?: return expression
-                if (ownerFqName !in dispatchOwners) return expression
-                if (callee.dispatchReceiverParameter != null) 1 else 0
-            }
-            "invoke" -> {
-                val regularParams = callee.parameters.count {
-                    it.kind == org.jetbrains.kotlin.ir.declarations.IrParameterKind.Regular
-                }
-                if (regularParams != 1) return expression
-                if (!receiverIsDispatch(expression.dispatchReceiver)) return expression
-                1
-            }
-            else -> return expression
-        }
-
-        val tracker = trackerClass ?: return expression
-        val record = recordFun ?: return expression
+        val actionIndex = dispatchedActionIndex(expression) ?: return expression
+        val actionExpression = expression.arguments[actionIndex] ?: return expression
         val scopeSymbol = currentScope?.scope?.scopeOwnerSymbol ?: return expression
-
-        val actionExpression = expression.arguments.getOrNull(argumentOffset) ?: return expression
+        val tracker = symbols.dispatchOrigin ?: return expression
 
         val enclosing = allScopes.mapNotNull { it.irElement as? IrFunction }.lastOrNull { !it.name.isSpecial }
         val fileEntry = enclosing?.fileEntry
@@ -115,12 +78,31 @@ class DispatchOriginTransformer(
         val builder = DeclarationIrBuilder(pluginContext, scopeSymbol)
         return builder.irBlock(resultType = expression.type) {
             val actionVar = irTemporary(actionExpression, nameHint = "dispatch_origin_action")
-            +irCall(record).apply {
-                dispatchReceiver = irGetObject(tracker)
-                setValueArgs(record, irGet(actionVar), irString(origin))
-            }
-            expression.arguments[argumentOffset] = irGet(actionVar)
+            +irCallNamed(
+                tracker.function,
+                irGetObject(tracker.owner),
+                mapOf("action" to irGet(actionVar), "origin" to irString(origin))
+            )
+            expression.arguments[actionIndex] = irGet(actionVar)
             +expression
         }
+    }
+
+    private fun dispatchedActionIndex(call: IrCall): Int? {
+        val callee = call.symbol.owner
+        val dispatches = when (callee.name.asString()) {
+            "dispatchAndAwait" -> (callee.parent as? IrClass)?.fqNameWhenAvailable in dispatchOwners
+            "invoke" -> call.dispatchReceiver?.type?.isDispatch() == true
+            else -> false
+        }
+        if (!dispatches) return null
+        return callee.parameters.indexOfFirst { it.kind == IrParameterKind.Regular }.takeIf { it >= 0 }
+    }
+
+    private fun IrType.isDispatch(): Boolean {
+        val function = this as? IrSimpleType ?: return false
+        if (function.classFqName != function1) return false
+        val moduleAction = symbols.moduleAction ?: return false
+        return function.arguments.firstOrNull()?.typeOrNull?.classOrNull == moduleAction
     }
 }

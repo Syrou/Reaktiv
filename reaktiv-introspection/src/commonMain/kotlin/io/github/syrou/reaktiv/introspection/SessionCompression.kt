@@ -1,5 +1,8 @@
 package io.github.syrou.reaktiv.introspection
 
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
+
 /**
  * Gzip codec used for session exports.
  *
@@ -49,7 +52,9 @@ public suspend fun decodeSessionBytes(data: ByteArray): String =
  * survive a JSON round trip. Base64 costs a third on top of the compressed size, which against a
  * typical gzip ratio still leaves the payload far smaller than the raw JSON it replaces.
  */
-public expect suspend fun encodeSessionPayload(json: String): String
+@OptIn(ExperimentalEncodingApi::class)
+public suspend fun encodeSessionPayload(json: String): String =
+    Base64.encode(gzipCompress(json.encodeToByteArray()))
 
 /**
  * Reverses [encodeSessionPayload], passing plain JSON through untouched.
@@ -57,7 +62,11 @@ public expect suspend fun encodeSessionPayload(json: String): String
  * Payloads written before compression was introduced are plain JSON objects, so anything starting
  * with `{` is returned as-is rather than being treated as base64.
  */
-public expect suspend fun decodeSessionPayload(payload: String): String
+@OptIn(ExperimentalEncodingApi::class)
+public suspend fun decodeSessionPayload(payload: String): String {
+    if (isPlainSessionJson(payload)) return payload
+    return gzipDecompress(Base64.decode(payload)).decodeToString()
+}
 
 /**
  * True when [payload] looks like plain JSON rather than an encoded session.

@@ -1,8 +1,11 @@
 package io.github.syrou.reaktiv.devtools.protocol
 
+import io.github.syrou.reaktiv.devtools.DevToolsInternalApi
+
 import io.github.syrou.reaktiv.core.tracing.StateRead
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 
+@DevToolsInternalApi
 public data class ChurnEntry(
     val composable: String,
     val statesRead: List<String>,
@@ -11,6 +14,7 @@ public data class ChurnEntry(
     val shortComposable: String get() = composable.substringAfterLast('.')
 }
 
+@DevToolsInternalApi
 public fun aggregateChurn(
     actions: List<CapturedAction>,
     reads: List<StateRead>

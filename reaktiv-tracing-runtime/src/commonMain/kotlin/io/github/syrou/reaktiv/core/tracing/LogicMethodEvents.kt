@@ -26,8 +26,12 @@ public data class LogicMethodStart(
     val githubSourceUrl: String? = null,
     val thread: String? = null,
     val dispatcher: String? = null,
-    val parentCallId: String? = null
+    val parentCallId: String? = null,
+    val redactions: Map<String, ParamRedaction> = emptyMap()
 )
+
+@Serializable
+public enum class ParamRedaction { Sensitive, Pii }
 
 /**
  * Event fired when a traced logic method completes successfully.

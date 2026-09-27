@@ -20,5 +20,6 @@ import kotlinx.serialization.Serializable
 public data class ModalContext(
     @Contextual val modalEntry: NavigationEntry,
     @Contextual val originalUnderlyingScreenEntry: NavigationEntry,
+    @Deprecated("Always null. Modal contexts are derived from the back stack and no longer track navigation away.")
     val navigatedAwayToRoute: String? = null
 )

@@ -1,11 +1,11 @@
 package io.github.syrou.reaktiv.navigation.util
 
-import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.StoreAccessor
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
 import io.github.syrou.reaktiv.core.util.currentTimeMillis
 import io.github.syrou.reaktiv.navigation.definition.NavigationNode
 import io.github.syrou.reaktiv.navigation.NavigationOutcome
+import io.github.syrou.reaktiv.navigation.history.ExternalOutcome
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import kotlinx.coroutines.CancellationException
 
@@ -48,6 +48,24 @@ internal suspend fun traceNavigation(
         throw e
     }
 
+internal suspend fun traceTraverse(
+    storeAccessor: StoreAccessor,
+    targetRoute: String,
+    block: suspend () -> ExternalOutcome
+): ExternalOutcome =
+    traceEvaluation(storeAccessor, NAVIGATION_TRACE_CLASS, "traverse", targetRoute, ::describeExternalOutcome, block)
+        .also { ReaktivDebug.nav("traverse($targetRoute) -> $it") }
+
+private fun describeExternalOutcome(outcome: ExternalOutcome): Pair<String, String> = when (outcome) {
+    is ExternalOutcome.Landed -> "Landed" to "ExternalOutcome"
+    is ExternalOutcome.LandedOnNotFound -> "LandedOnNotFound" to "ExternalOutcome"
+    is ExternalOutcome.Redirected -> "Redirected(${outcome.to})" to "ExternalOutcome"
+    is ExternalOutcome.Rejected -> "Rejected" to "ExternalOutcome"
+    is ExternalOutcome.Unresolvable -> "Unresolvable" to "ExternalOutcome"
+    is ExternalOutcome.Stale -> "Stale" to "ExternalOutcome"
+    is ExternalOutcome.Dropped -> "Dropped" to "ExternalOutcome"
+}
+
 private fun describeOutcome(outcome: NavigationOutcome): Pair<String, String> = when (outcome) {
     is NavigationOutcome.Success -> "Success" to "NavigationOutcome"
     is NavigationOutcome.Dropped -> "Dropped" to "NavigationOutcome"
@@ -73,7 +91,7 @@ private suspend fun <T> traceEvaluation(
     describe: (T) -> Pair<String, String>,
     block: suspend () -> T
 ): T {
-    val instrumentation = (storeAccessor as? Store)?.activeDispatchInstrumentation ?: return block()
+    val instrumentation = storeAccessor.activeDispatchInstrumentation ?: return block()
     val startedAt = currentTimeMillis()
     val token = instrumentation.onEvaluationStarted(
         scope = scope,

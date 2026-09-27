@@ -100,20 +100,15 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
             selfMs: Long,
             startedAtMs: Long
         ) {
-            val callId = LogicTracer.notifyMethodStart(
+            LogicTracer.emitSpan(
                 logicClass = PHASE_TRACE_CLASS,
                 methodName = phase,
                 params = mapOf("actionType" to (action::class.simpleName ?: "Action")),
+                result = "took ${selfMs}ms",
+                resultType = PHASE_TRACE_CLASS,
+                durationMs = selfMs,
                 startedAtMs = startedAtMs
             )
-            if (callId.isNotEmpty()) {
-                LogicTracer.notifyMethodCompleted(
-                    callId = callId,
-                    result = "took ${selfMs}ms",
-                    resultType = PHASE_TRACE_CLASS,
-                    durationMs = selfMs
-                )
-            }
         }
     }
 
@@ -121,26 +116,28 @@ public class DispatchTracingInstrumentation : DispatchInstrumentation {
         val source = when (reason) {
             DispatchDropReason.EXTERNAL_CONTROL -> "externalControl"
             DispatchDropReason.RESET -> "reset"
+            DispatchDropReason.EXTERNAL_STATE_DENIED -> "externalStateDenied"
         }
-        val callId = LogicTracer.notifyMethodStart(
+        LogicTracer.emitSpan(
             logicClass = DISPATCH_TRACE_CLASS,
             methodName = action::class.simpleName ?: "Action",
-            params = mapOf(source to "dropped")
+            params = buildMap {
+                put(source, "dropped")
+                DispatchOriginTracker.consume(action)?.let { put("dispatchedFrom", it) }
+            },
+            result = "Dropped",
+            resultType = "DispatchResult"
         )
-        if (callId.isNotEmpty()) {
-            LogicTracer.notifyMethodCompleted(callId, "Blocked", "DispatchResult", 0L)
-        }
     }
 
     override suspend fun onExternalControlChanged(enabled: Boolean) {
-        val callId = LogicTracer.notifyMethodStart(
+        LogicTracer.emitSpan(
             logicClass = DISPATCH_TRACE_CLASS,
             methodName = if (enabled) "beginExternalControl" else "endExternalControl",
-            params = emptyMap()
+            params = emptyMap(),
+            result = "Applied",
+            resultType = "Unit"
         )
-        if (callId.isNotEmpty()) {
-            LogicTracer.notifyMethodCompleted(callId, "Applied", "Unit", 0L)
-        }
     }
 
     public companion object {

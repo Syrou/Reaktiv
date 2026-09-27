@@ -52,7 +52,7 @@ object ExternalControlModule : ModuleWithLogic<ExternalControlState, ExternalCon
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class, ExperimentalReaktivApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class ExternalControlTest {
 
     @AfterTest
@@ -65,14 +65,15 @@ class ExternalControlTest {
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val store = createStore {
                 module(ExternalControlModule)
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            store.beginExternalControl()
+            store.externalState()!!.beginControl()
             advanceUntilIdle()
 
-            assertEquals(DispatchResult.Blocked, store.dispatchAndAwait(ExternalControlAction.Plain))
+            assertEquals(DispatchResult.Dropped(DispatchDropReason.EXTERNAL_CONTROL), store.dispatchAndAwait(ExternalControlAction.Plain))
             assertEquals(DispatchResult.Processed, store.dispatchAndAwait(ExternalControlAction.Exempt))
             advanceUntilIdle()
 
@@ -87,17 +88,19 @@ class ExternalControlTest {
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val store = createStore {
                 module(ExternalControlModule)
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            store.beginExternalControl()
+            store.externalState()!!.beginControl()
             advanceUntilIdle()
 
-            store.applyExternalStates(
+            store.externalState()!!.hydrate(
                 mapOf(
                     ExternalControlState::class.qualifiedName!! to ExternalControlState(plainCount = 42)
-                )
+                ),
+                HydrateSource.External("test")
             )
             advanceUntilIdle()
 
@@ -110,14 +113,15 @@ class ExternalControlTest {
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val store = createStore {
                 module(ExternalControlModule)
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
             val logic = ExternalControlModule.lastLogic!!
 
-            store.beginExternalControl()
-            store.beginExternalControl()
-            store.endExternalControl()
+            store.externalState()!!.beginControl()
+            store.externalState()!!.beginControl()
+            store.externalState()!!.endControl()
             advanceUntilIdle()
 
             assertContentEquals(listOf(true, false), logic.transitions)
@@ -130,13 +134,14 @@ class ExternalControlTest {
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val store = createStore {
                 module(ExternalControlModule)
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            store.beginExternalControl()
+            store.externalState()!!.beginControl()
             store.dispatchAndAwait(ExternalControlAction.Plain)
-            store.endExternalControl()
+            store.externalState()!!.endControl()
             store.dispatchAndAwait(ExternalControlAction.Plain)
             advanceUntilIdle()
 
@@ -149,11 +154,12 @@ class ExternalControlTest {
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val store = createStore {
                 module(ExternalControlModule)
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            store.beginExternalControl()
+            store.externalState()!!.beginControl()
             advanceUntilIdle()
             assertTrue(store.isExternallyDriven)
 
@@ -167,34 +173,16 @@ class ExternalControlTest {
         }
 
     @Test
-    fun `markExternallyDriven gates without notifying logic`() =
-        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
-            val store = createStore {
-                module(ExternalControlModule)
-                coroutineContext(StandardTestDispatcher(testScheduler))
-            }
-            advanceUntilIdle()
-            val logic = ExternalControlModule.lastLogic!!
-
-            store.markExternallyDriven()
-            assertTrue(store.isExternallyDriven)
-            assertEquals(DispatchResult.Blocked, store.dispatchAndAwait(ExternalControlAction.Plain))
-            advanceUntilIdle()
-
-            assertTrue(logic.transitions.isEmpty())
-            store.cleanup()
-        }
-
-    @Test
     fun `dropped dispatch reports through the instrumentation seam`() =
         runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
             val store = createStore {
                 module(ExternalControlModule)
+                externalState(ExternalStatePolicy.Allow)
                 coroutineContext(StandardTestDispatcher(testScheduler))
             }
             advanceUntilIdle()
 
-            store.beginExternalControl()
+            store.externalState()!!.beginControl()
             advanceUntilIdle()
 
             val dropped = mutableListOf<String?>()
@@ -216,7 +204,7 @@ class ExternalControlTest {
                 override suspend fun onExternalControlChanged(enabled: Boolean) {}
             })
 
-            assertEquals(DispatchResult.Blocked, store.dispatchAndAwait(ExternalControlAction.Plain))
+            assertEquals(DispatchResult.Dropped(DispatchDropReason.EXTERNAL_CONTROL), store.dispatchAndAwait(ExternalControlAction.Plain))
             advanceUntilIdle()
 
             assertEquals<List<String?>>(listOf("Plain:EXTERNAL_CONTROL"), dropped)

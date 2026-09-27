@@ -115,20 +115,15 @@ public class StallWatchdog(
             if (stacks.isNotEmpty()) put("samples", stacks.size.toString())
             hottestFrame(stacks)?.let { put("hottestFrame", it) }
         }
-        val callId = LogicTracer.notifyMethodStart(
+        LogicTracer.emitSpan(
             logicClass = TRACE_CLASS,
             methodName = "stall",
             params = params,
+            result = "recovered after ${stallMs}ms",
+            resultType = "Stall",
+            durationMs = stallMs,
             startedAtMs = stallStartMs
         )
-        if (callId.isNotEmpty()) {
-            LogicTracer.notifyMethodCompleted(
-                callId = callId,
-                result = "recovered after ${stallMs}ms",
-                resultType = "Stall",
-                durationMs = stallMs
-            )
-        }
     }
 
     private fun hottestFrame(stacks: List<String>): String? =

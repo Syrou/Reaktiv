@@ -26,13 +26,14 @@ import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Dismissal
+import io.github.syrou.reaktiv.navigation.definition.DismissSource
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.ui.NavigationRender
-import io.github.syrou.reaktiv.navigation.ui.dispatchBackDismissal
+import io.github.syrou.reaktiv.navigation.util.performUserBack
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -107,7 +108,7 @@ class DismissalPolicyUiTest {
     }
 
     private fun ComposeUiTest.pressSystemBack(harness: Harness) {
-        harness.store.launch { dispatchBackDismissal(harness.store, harness.navModule) }
+        harness.store.launch { performUserBack(harness.store, harness.navModule, DismissSource.Back) }
         waitForIdle()
     }
 

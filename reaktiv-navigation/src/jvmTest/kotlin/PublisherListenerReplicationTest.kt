@@ -1,6 +1,8 @@
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import io.github.syrou.reaktiv.core.ExperimentalReaktivApi
+import io.github.syrou.reaktiv.core.ExternalStatePolicy
+import io.github.syrou.reaktiv.core.ExternalStateRequester
+import io.github.syrou.reaktiv.core.HydrateSource
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.Module
 import io.github.syrou.reaktiv.core.ModuleAction
@@ -70,28 +72,20 @@ sealed class ReplGateAction : ModuleAction(ReplGateModule::class) {
 }
 
 /**
- * Stands in for `ToolingLogic`, which gates the store from its own constructor when a client
- * is configured to start as a follower.
+ * Stands in for the tooling module, which asks the store to start as a follower when a client
+ * is configured to.
  */
-@OptIn(ExperimentalReaktivApi::class)
-class ReplGateLogic(storeAccessor: StoreAccessor) : ModuleLogic() {
-    init {
-        if (ReplGateModule.gateOnConstruction) {
-            ReplGateModule.gateOnConstruction = false
-            storeAccessor.asInternalOperations()?.markExternallyDriven()
-        }
-    }
-}
-
-object ReplGateModule : Module<ReplGateState, ReplGateAction> {
+object ReplGateModule : Module<ReplGateState, ReplGateAction>, ExternalStateRequester {
     var gateOnConstruction: Boolean = false
 
     override val initialState = ReplGateState()
     override val reducer: (ReplGateState, ReplGateAction) -> ReplGateState = { state, _ -> state }
-    override val createLogic: (StoreAccessor) -> ModuleLogic = { ReplGateLogic(it) }
+    override val createLogic: (StoreAccessor) -> ModuleLogic = { object : ModuleLogic() {} }
+
+    override fun startsUnderExternalControl(): Boolean = gateOnConstruction.also { gateOnConstruction = false }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class, ExperimentalReaktivApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class PublisherListenerReplicationTest {
 
     private fun screen(route: String) = object : Screen {
@@ -184,7 +178,7 @@ class PublisherListenerReplicationTest {
             .encodeToString(mapSerializer, publisherStates)
         val decoded: Map<String, ModuleState> = reaktivJson(listener.serializersModule)
             .decodeFromString(mapSerializer, stateJson)
-        listener.applyExternalStates(decoded)
+        listener.externalState()!!.hydrate(decoded, HydrateSource.Replication)
     }
 
     @BeforeTest
@@ -260,7 +254,7 @@ class PublisherListenerReplicationTest {
 
             assertEquals(1, listenerCounters.selectorRuns, "Listener booted locally before following")
 
-            listener.beginExternalControl()
+            listener.externalState()!!.beginControl()
             advanceUntilIdle()
 
             project(publisherStates!!.invoke(), publisher, listener)
@@ -283,6 +277,7 @@ class PublisherListenerReplicationTest {
             val counters = Counters()
 
             val listener = createStore {
+                externalState(ExternalStatePolicy.Allow)
                 module(ReplAuthModule)
                 module(createNavigationModule {
                     loadingModal(overlay)
@@ -307,7 +302,7 @@ class PublisherListenerReplicationTest {
                 "Start lambda is parked on state a dispatch would have produced"
             )
 
-            listener.beginExternalControl()
+            listener.externalState()!!.beginControl()
             advanceUntilIdle()
 
             val nav = listener.selectState<NavigationState>().first()
