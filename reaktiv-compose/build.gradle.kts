@@ -24,6 +24,7 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
+        binaries.executable()
     }
 
     applyDefaultHierarchyTemplate()

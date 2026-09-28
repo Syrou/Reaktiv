@@ -24,7 +24,7 @@ class RssNewsSource(
 
     private fun parseRssContent(content: String): List<NewsItem> {
         val items = mutableListOf<NewsItem>()
-        val itemRegex = "<item>(.+?)</item>".toRegex(RegexOption.DOT_MATCHES_ALL)
+        val itemRegex = "<item>([\\s\\S]+?)</item>".toRegex()
         val titleRegex = "<title>(.+?)</title>".toRegex()
         val linkRegex = "<link>(.+?)</link>".toRegex()
         val descriptionRegex = "<description>(.+?)</description>".toRegex()

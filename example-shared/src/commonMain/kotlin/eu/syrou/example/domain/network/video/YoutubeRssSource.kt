@@ -52,7 +52,7 @@ class YouTubeRssSource(
     private fun parseRssContent(content: String): List<VideoItem> {
         val items = mutableListOf<VideoItem>()
         val channelRegex = "<title>(.+?)</title>".toRegex()
-        val entryRegex = "<entry>(.+?)</entry>".toRegex(RegexOption.DOT_MATCHES_ALL)
+        val entryRegex = "<entry>([\\s\\S]+?)</entry>".toRegex()
         val titleRegex = "<title>(.+?)</title>".toRegex()
         val linkRegex = "<link rel=\"alternate\" href=\"(.+?)\"/>".toRegex()
         val descriptionRegex = "<media:description>(.+?)</media:description>".toRegex()
