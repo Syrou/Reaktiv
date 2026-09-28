@@ -1,4 +1,6 @@
 import com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryTarget
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.dokka.gradle.DokkaExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
@@ -23,6 +25,13 @@ apiValidation {
 
 subprojects {
     group = "io.github.syrou"
+
+    tasks.withType<AbstractTestTask>().configureEach {
+        testLogging {
+            events(TestLogEvent.FAILED)
+            exceptionFormat = TestExceptionFormat.FULL
+        }
+    }
 
     plugins.withId("org.jetbrains.kotlin.multiplatform") {
         extensions.configure<KotlinMultiplatformExtension> {

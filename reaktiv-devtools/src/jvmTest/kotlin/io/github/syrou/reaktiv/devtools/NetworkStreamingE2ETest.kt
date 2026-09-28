@@ -37,6 +37,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import io.github.syrou.reaktiv.core.tracing.LogicTracer
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.core.util.ReaktivLogSink
 import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.devtools.service.DevToolsCommand
 import io.github.syrou.reaktiv.devtools.service.DevToolsCommands
@@ -51,15 +52,22 @@ class NetworkStreamingE2ETest {
     private lateinit var server: RunningDevToolsServer
     private var serverPort: Int = 0
     private val stores = mutableListOf<Store>()
+    private val warnings = ConcurrentLinkedQueue<String>()
+    private val warningSink = ReaktivLogSink { level, category, message ->
+        if (level != "DEBUG") warnings.add("$level $category: $message")
+    }
 
     @BeforeTest
     fun startServer() = runBlocking {
+        ReaktivDebug.addSink(warningSink)
         server = DevToolsServer.startEmbedded(port = 0)
         serverPort = server.port()
     }
 
     @AfterTest
     fun stopServer() {
+        ReaktivDebug.removeSink(warningSink)
+        warnings.clear()
         stores.forEach { runCatching { it.cleanup() } }
         stores.clear()
         server.stop()
@@ -356,7 +364,11 @@ class NetworkStreamingE2ETest {
                 it.services["devtools"]?.detail?.contains(detail) == true
             }
         }
-        assertNotNull(reached, "Timed out waiting for publisher to report $detail")
+        assertNotNull(
+            reached,
+            "Timed out waiting for publisher to report $detail. Last status: " +
+                "${store.selectState<ToolingState>().value.services["devtools"]}. Warnings: ${warnings.toList()}"
+        )
     }
 
     private suspend fun awaitCapture(
