@@ -2,16 +2,21 @@ package io.github.syrou.reaktiv.core
 
 import io.github.syrou.reaktiv.core.util.selectState
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 
 class StoreConcurrencyTest {
@@ -176,5 +181,32 @@ class StoreConcurrencyTest {
             settled.size,
             "cleanup() must resolve every pending dispatchAndAwait rather than leave it suspended"
         )
+    }
+
+    @Test
+    fun `cleanup completes a dispatch the pipeline took but had not resumed with yet`() = runBlocking {
+        val pipelineThread = Executors.newSingleThreadExecutor()
+        val busy = CountDownLatch(1)
+        try {
+            val dispatcher = pipelineThread.asCoroutineDispatcher()
+            val store = createStore {
+                module(CounterModule)
+                coroutineContext(dispatcher)
+            }
+            store.initialized.first { it }
+
+            pipelineThread.execute { busy.await() }
+            val waiter = async(Dispatchers.IO) { runCatching { store.dispatchAndAwait(CounterAction.Normal) } }
+            delay(200)
+
+            store.cleanup()
+            busy.countDown()
+
+            val result = withTimeoutOrNull(5_000) { waiter.await() }
+            assertTrue(result != null, "a dispatch handed to the pipeline before cleanup() never completed")
+        } finally {
+            busy.countDown()
+            pipelineThread.shutdownNow()
+        }
     }
 }

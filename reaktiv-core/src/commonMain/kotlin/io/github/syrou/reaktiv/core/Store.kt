@@ -50,8 +50,8 @@ public class Store internal constructor(
     private val externalStateGranted: Boolean,
 ) : StoreAccessor(coroutineScope), InternalStoreOperations {
     private val resetMutex = Mutex()
-    private val highPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
-    private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED)
+    private val highPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED, onUndeliveredElement = ::failClosed)
+    private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED, onUndeliveredElement = ::failClosed)
 
     private val moduleInfos: List<ModuleInfo> =
         modules.map { module -> ModuleInfo(module, MutableStateFlow(module.initialState)) }
@@ -233,10 +233,8 @@ public class Store internal constructor(
 
     private fun failConstruction(cause: Throwable) {
         constructed.completeExceptionally(cause)
-        highPriorityChannel.close()
-        lowPriorityChannel.close()
-        failPending(highPriorityChannel)
-        failPending(lowPriorityChannel)
+        highPriorityChannel.cancel()
+        lowPriorityChannel.cancel()
     }
 
     override suspend fun reset(): Boolean {
@@ -377,8 +375,7 @@ public class Store internal constructor(
                 yield()
             }
         } finally {
-            val closed = IllegalStateException("Store is closed")
-            heldForNextGeneration.forEach { it.completion?.complete(DispatchResult.Error(closed)) }
+            heldForNextGeneration.forEach(::failClosed)
         }
     }
 
@@ -735,20 +732,14 @@ public class Store internal constructor(
     }
 
     public fun cleanup() {
-        highPriorityChannel.close()
-        lowPriorityChannel.close()
-        failPending(highPriorityChannel)
-        failPending(lowPriorityChannel)
+        highPriorityChannel.cancel()
+        lowPriorityChannel.cancel()
         crashScope.cancel()
         coroutineScope.cancel()
     }
 
-    private fun failPending(channel: Channel<DispatchEnvelope>) {
-        val closed = IllegalStateException("Store is closed")
-        while (true) {
-            val envelope = channel.tryReceive().getOrNull() ?: return
-            envelope.completion?.complete(DispatchResult.Error(closed))
-        }
+    private fun failClosed(envelope: DispatchEnvelope) {
+        envelope.completion?.complete(DispatchResult.Error(IllegalStateException("Store is closed")))
     }
 
     public suspend fun saveState(state: Map<String, ModuleState>) {
