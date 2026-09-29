@@ -1332,6 +1332,7 @@ public final class io/github/syrou/reaktiv/devtools/protocol/NavigationEntrySnap
 	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/NavigationEntrySnapshot;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/NavigationEntrySnapshot;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getGraphChain ()Ljava/util/List;
+	public final fun getLocation ()Ljava/lang/String;
 	public final fun getParams ()Ljava/util/Map;
 	public final fun getPath ()Ljava/lang/String;
 	public final fun getRoute ()Ljava/lang/String;

@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.core.tracing.LogicMethodCompleted
 import io.github.syrou.reaktiv.core.tracing.LogicMethodStart
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -35,6 +36,24 @@ public data class NavigationEntrySnapshot(
         path.removeSuffix("/$route").takeIf { it != path }
             ?.split('/')?.filter { it.isNotEmpty() }
             ?: emptyList()
+    public val location: String get() =
+        PATH_PARAM.replace(path) { match -> params[match.groupValues[1]]?.let(::encodePathSegment) ?: match.value }
+}
+
+private val PATH_PARAM = Regex("\\{([^}]+)}")
+
+private const val HEX_DIGITS = "0123456789ABCDEF"
+
+private fun encodePathSegment(value: String): String = buildString {
+    value.encodeToByteArray().forEach { byte ->
+        val code = byte.toInt() and 0xFF
+        val char = code.toChar()
+        if (code < 0x80 && (char.isLetterOrDigit() || char in "-._~")) {
+            append(char)
+        } else {
+            append('%').append(HEX_DIGITS[code shr 4]).append(HEX_DIGITS[code and 0x0F])
+        }
+    }
 }
 
 /**
@@ -70,9 +89,8 @@ private val lensJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
 private fun JsonObject.entrySnapshot(): NavigationEntrySnapshot? {
     val path = this["path"]?.jsonPrimitive?.contentOrNullSafe() ?: return null
-    val params = (this["params"] as? JsonObject)
-        ?.mapValues { (_, v) -> runCatching { v.jsonPrimitive.content }.getOrElse { v.toString() } }
-        ?: emptyMap()
+    val values = (this["params"] as? JsonObject)?.get("values") as? JsonObject
+    val params = values?.mapValues { (_, value) -> (value as? JsonPrimitive)?.content ?: value.toString() } ?: emptyMap()
     return NavigationEntrySnapshot(path, params)
 }
 

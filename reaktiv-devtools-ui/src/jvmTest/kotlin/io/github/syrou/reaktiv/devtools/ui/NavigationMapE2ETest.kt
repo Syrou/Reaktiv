@@ -14,6 +14,8 @@ import io.github.syrou.reaktiv.devtools.server.RunningDevToolsServer
 import io.github.syrou.reaktiv.devtools.service.DevToolsService
 import io.github.syrou.reaktiv.devtools.ui.navmap.MapLinkOutcome
 import io.github.syrou.reaktiv.devtools.ui.navmap.NAVIGATION_LINKS_EXTENSION
+import io.github.syrou.reaktiv.devtools.ui.navmap.deviceEntry
+import io.github.syrou.reaktiv.devtools.ui.navmap.navigationSnapshot
 import io.github.syrou.reaktiv.devtools.ui.navmap.parseAppLinkFiles
 import io.github.syrou.reaktiv.devtools.ui.navmap.parseLinkMap
 import io.github.syrou.reaktiv.devtools.ui.navmap.parseLinkOutcome
@@ -176,6 +178,21 @@ class NavigationMapE2ETest {
         assertEquals(MapLinkOutcome.Landed("news/article/kotlin"), parseLinkOutcome(attempt.result))
         val current = phone.selectState<NavigationState>().first { it.currentEntry.path == "news/article/{slug}" }.currentEntry
         assertEquals("kotlin", current.params.getString("slug"))
+    }
+
+    @Test
+    fun `the ui reads the values the device's route was opened with`() = runBlocking<Unit> {
+        publisher()
+        val ui = ui()
+
+        ui.open("news/article/{slug}", params = mapOf("slug" to "kotlin 2"))
+        val showing = withTimeoutOrNull(20_000) {
+            ui.selectState<DevToolsUiState>().first { it.navigationSnapshot()?.deviceEntry("news/article/{slug}")?.belowTop == 0 }
+        }
+
+        val device = assertNotNull(assertNotNull(showing, "the UI never saw the article showing").navigationSnapshot()?.deviceEntry("news/article/{slug}"))
+        assertEquals(mapOf("slug" to "kotlin 2"), device.entry.params)
+        assertEquals("news/article/kotlin%202", device.entry.location)
     }
 
     @Test

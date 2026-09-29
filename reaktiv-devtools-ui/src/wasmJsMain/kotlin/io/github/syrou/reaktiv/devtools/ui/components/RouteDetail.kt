@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -29,6 +30,7 @@ import io.github.syrou.reaktiv.devtools.ui.LinkAttempt
 import io.github.syrou.reaktiv.devtools.ui.RequestStatus
 import io.github.syrou.reaktiv.devtools.ui.LinkDraft
 import io.github.syrou.reaktiv.devtools.ui.LocalSyntaxColors
+import io.github.syrou.reaktiv.devtools.ui.navmap.DeviceEntry
 import io.github.syrou.reaktiv.devtools.ui.navmap.MapAccess
 import io.github.syrou.reaktiv.devtools.ui.navmap.MapGraph
 import io.github.syrou.reaktiv.devtools.ui.navmap.MapKind
@@ -86,6 +88,7 @@ internal fun RouteDetail(
     draft: LinkDraft,
     attempts: List<LinkAttempt>,
     openBlockedReason: String?,
+    onDevice: DeviceEntry?,
     onDraftChange: (LinkDraft) -> Unit,
     onOpen: (link: String, params: Map<String, String>) -> Unit,
     onSelectGraph: (String) -> Unit,
@@ -118,6 +121,7 @@ internal fun RouteDetail(
         FieldRow("Link", route.access.explanation())
         if (route.params.isNotEmpty()) FieldRow("Params", route.params.joinToString(), mono = true)
         webPath?.let { FieldRow("Web path", it, mono = true) }
+        onDevice?.let { DeviceEntrySection(it) }
 
         SectionHeading("Graph")
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -273,6 +277,52 @@ internal fun GraphDetail(
                     Text(child.id, style = MaterialTheme.typography.labelSmall)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DeviceEntrySection(device: DeviceEntry) {
+    val entry = device.entry
+    SectionHeading("On the device", if (device.belowTop == 0) "showing now" else "${device.belowTop} below the top")
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = entry.location,
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+        )
+        CopyControl(
+            actions = buildList {
+                add(CopyAction("Location") { entry.location })
+                if (entry.params.isNotEmpty()) {
+                    add(CopyAction("All params") { entry.params.entries.joinToString("\n") { (name, value) -> "$name=$value" } })
+                }
+            },
+            dense = true
+        )
+    }
+    entry.params.forEach { (name, value) ->
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(120.dp)
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = LocalSyntaxColors.current.number,
+                modifier = Modifier.weight(1f)
+            )
+            CopyControl(
+                actions = listOf(CopyAction("Value") { value }, CopyAction("Name and value") { "$name=$value" }),
+                dense = true
+            )
         }
     }
 }

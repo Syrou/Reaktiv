@@ -31,10 +31,8 @@ import io.github.syrou.reaktiv.devtools.protocol.NavigationAttempt
 import io.github.syrou.reaktiv.devtools.protocol.NavigationEntrySnapshot
 import io.github.syrou.reaktiv.devtools.protocol.NavigationSnapshot
 import io.github.syrou.reaktiv.devtools.protocol.buildNavigationLog
-import io.github.syrou.reaktiv.devtools.protocol.parseNavigationState
 import io.github.syrou.reaktiv.devtools.ui.LogicMethodEvent
 import io.github.syrou.reaktiv.devtools.ui.LogicTrace
-import io.github.syrou.reaktiv.devtools.ui.Reconstruction
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.AssistChip
@@ -49,6 +47,7 @@ import io.github.syrou.reaktiv.devtools.ui.DevToolsUiState
 import io.github.syrou.reaktiv.devtools.ui.NavigationView
 import io.github.syrou.reaktiv.devtools.ui.Overlay
 import io.github.syrou.reaktiv.devtools.ui.navigationPositionIndex
+import io.github.syrou.reaktiv.devtools.ui.navmap.navigationSnapshot
 import io.github.syrou.reaktiv.devtools.ui.navmap.MapMetrics
 import io.github.syrou.reaktiv.devtools.ui.navmap.NAVIGATION_LINKS_EXTENSION
 import io.github.syrou.reaktiv.devtools.ui.navmap.layoutLinkMap
@@ -179,16 +178,10 @@ private fun rememberMapMetrics(): MapMetrics {
 }
 
 @Composable
-private fun rememberNavigationSnapshot(state: DevToolsUiState): NavigationSnapshot? {
-    val index = state.navigationPositionIndex
-    return remember(state.actionStateHistory, index, state.initialStateJson) {
-        val stateJson = when (index) {
-            null -> state.initialStateJson
-            else -> Reconstruction.stateAt(state.initialStateJson, state.actionStateHistory, index)
-        }
-        parseNavigationState(stateJson)
+internal fun rememberNavigationSnapshot(state: DevToolsUiState): NavigationSnapshot? =
+    remember(state.actionStateHistory, state.navigationPositionIndex, state.initialStateJson) {
+        state.navigationSnapshot()
     }
-}
 
 /**
  * Where navigation is, and how it got there.

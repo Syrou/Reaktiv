@@ -93,9 +93,11 @@ import io.github.syrou.reaktiv.introspection.PlatformContext
 import io.github.syrou.reaktiv.introspection.SessionFileExport
 import io.github.syrou.reaktiv.introspection.gzipCompress
 import io.github.syrou.reaktiv.devtools.ui.components.AppLinksDialog
+import io.github.syrou.reaktiv.devtools.ui.components.rememberNavigationSnapshot
 import io.github.syrou.reaktiv.devtools.ui.components.GraphDetail
 import io.github.syrou.reaktiv.devtools.ui.components.RouteDetail
 import io.github.syrou.reaktiv.devtools.ui.navmap.NAVIGATION_LINKS_EXTENSION
+import io.github.syrou.reaktiv.devtools.ui.navmap.deviceEntry
 import io.github.syrou.reaktiv.devtools.ui.navmap.downloads
 import io.github.syrou.reaktiv.devtools.ui.navmap.graph
 import io.github.syrou.reaktiv.devtools.ui.navmap.parseLinkMap
@@ -740,6 +742,7 @@ private fun Inspector(
                             draft = state.linkDrafts[route.path] ?: LinkDraft(),
                             attempts = state.linkAttempts,
                             openBlockedReason = openBlockedReason(state),
+                            onDevice = rememberNavigationSnapshot(state)?.deviceEntry(route.path),
                             onDraftChange = { dispatch(DevToolsUiAction.SetLinkDraft(route.path, it)) },
                             onOpen = { link, params ->
                                 scope.launch {

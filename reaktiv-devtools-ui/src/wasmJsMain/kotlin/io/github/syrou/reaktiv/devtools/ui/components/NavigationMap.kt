@@ -175,6 +175,9 @@ internal fun NavigationMap(
     val backStackOrder = remember(snapshot) {
         snapshot?.backStack?.mapIndexed { index, entry -> entry.path to index + 1 }?.toMap().orEmpty()
     }
+    val deviceParams = remember(snapshot) {
+        snapshot?.backStack?.associate { entry -> entry.path to entry.params }.orEmpty()
+    }
 
     val latest = rememberUpdatedState(layout)
     val latestCamera = rememberUpdatedState(camera)
@@ -298,6 +301,7 @@ internal fun NavigationMap(
                         hovered = hovered,
                         currentPath = snapshot?.currentPath,
                         backStackOrder = backStackOrder,
+                        deviceParams = deviceParams,
                         inLiveChain = card.graph.id in liveChain
                     )
                 }
@@ -504,7 +508,7 @@ private fun DrawScope.drawEdges(layout: MapLayout, cam: MapCamera, liveChain: Se
     }
 }
 
-private fun routeLabel(route: MapRoute, palette: MapPalette): AnnotatedString = buildAnnotatedString {
+private fun routeLabel(route: MapRoute, palette: MapPalette, values: Map<String, String>): AnnotatedString = buildAnnotatedString {
     var index = 0
     val text = route.route
     while (index < text.length) {
@@ -515,7 +519,11 @@ private fun routeLabel(route: MapRoute, palette: MapPalette): AnnotatedString = 
         }
         append(text.substring(index, open))
         val close = text.indexOf('}', open).takeIf { it > open } ?: text.lastIndex
-        withStyle(SpanStyle(color = palette.param)) { append(text.substring(open, close + 1)) }
+        val placeholder = text.substring(open, close + 1)
+        val value = values[placeholder.removePrefix("{").removeSuffix("}")]
+        withStyle(SpanStyle(color = palette.param, fontWeight = if (value == null) null else FontWeight.SemiBold)) {
+            append(value ?: placeholder)
+        }
         index = close + 1
     }
 }
@@ -532,6 +540,7 @@ private fun DrawScope.drawCard(
     hovered: MapHit?,
     currentPath: String?,
     backStackOrder: Map<String, Int>,
+    deviceParams: Map<String, Map<String, String>>,
     inLiveChain: Boolean
 ) {
     val frame = card.frame.toScreen(cam)
@@ -705,7 +714,7 @@ private fun DrawScope.drawCard(
         val labelLeft = glyphX + 9f * cam.scale
         drawText(
             textMeasurer = textMeasurer,
-            text = routeLabel(route, palette),
+            text = routeLabel(route, palette, deviceParams[route.path].orEmpty()),
             topLeft = Offset(labelLeft, rect.top + rect.height * 0.18f),
             style = TextStyle(
                 fontSize = (12f * cam.scale).sp,

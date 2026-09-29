@@ -10529,3 +10529,60 @@ println(files.androidDeepLinkIntentFilter)
   Related: AD-139, AD-140.
 
 ---
+
+### [BC-185] NavigationEntrySnapshot.params holds the entry's real params
+
+**Type:** Behavioural
+
+**Grep:** `NavigationEntrySnapshot|parseNavigationState`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A captured entry's params read as one key wrapping the whole map:
+parseNavigationState(stateJson)!!.backStack.last().params
+// {values={"playerId":42}}
+```
+
+**After:**
+```kotlin
+parseNavigationState(stateJson)!!.backStack.last().params
+// {playerId=42}
+parseNavigationState(stateJson)!!.backStack.last().location
+// home/leaderboard/player/42
+```
+
+**Notes:** The lens read an entry's `params` as a flat map, while `Params` has always been encoded as
+`{"values": {...}}`. It now reads the values, with numbers and booleans as their own text and objects as
+compact JSON. The DevTools Nav tab's Live view showed the wrapped form before this. `@DevToolsInternalApi`.
+See AD-186.
+
+---
+
+### [AD-186] The DevTools navigation map shows the values the device's routes were opened with
+
+**Type:** Addition
+
+**Grep:** `NavigationEntrySnapshot.location|\.location`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val entry = parseNavigationState(stateJson)!!.backStack.last()
+entry.path
+// home/leaderboard/player/{playerId}
+entry.location
+// home/leaderboard/player/42
+```
+
+**Notes:**
+- `NavigationEntrySnapshot.location` fills the path params with the entry's values, encoded for a link.
+  A param without a value stays a `{placeholder}`.
+- In the Nav map, every route on the device's back stack draws its values in place of the
+  placeholders, so the route showing `player/{playerId}` reads `player/42`.
+- Selecting such a route adds an "On the device" section to the inspector. It says whether the route is
+  showing or how far below the top it sits, shows the location and each param, and copies the location,
+  every param, a single value, or `name=value`.
+- Both follow the selected action and time travel, like the rest of the map. Related: BC-185, AD-138.
+
+---

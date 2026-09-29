@@ -495,6 +495,8 @@ final class io.github.syrou.reaktiv.devtools.protocol/NavigationEntrySnapshot { 
 
     final val graphChain // io.github.syrou.reaktiv.devtools.protocol/NavigationEntrySnapshot.graphChain|{}graphChain[0]
         final fun <get-graphChain>(): kotlin.collections/List<kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/NavigationEntrySnapshot.graphChain.<get-graphChain>|<get-graphChain>(){}[0]
+    final val location // io.github.syrou.reaktiv.devtools.protocol/NavigationEntrySnapshot.location|{}location[0]
+        final fun <get-location>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/NavigationEntrySnapshot.location.<get-location>|<get-location>(){}[0]
     final val params // io.github.syrou.reaktiv.devtools.protocol/NavigationEntrySnapshot.params|{}params[0]
         final fun <get-params>(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.syrou.reaktiv.devtools.protocol/NavigationEntrySnapshot.params.<get-params>|<get-params>(){}[0]
     final val path // io.github.syrou.reaktiv.devtools.protocol/NavigationEntrySnapshot.path|{}path[0]

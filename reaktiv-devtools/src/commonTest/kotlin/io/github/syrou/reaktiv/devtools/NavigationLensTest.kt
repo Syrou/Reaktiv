@@ -18,11 +18,11 @@ class NavigationLensTest {
         {
           "com.example.AuthState": { "isAuthenticated": true },
           "io.github.syrou.reaktiv.navigation.NavigationState": {
-            "currentEntry": { "path": "workspace/project/files", "params": { "id": "7" } },
+            "currentEntry": { "path": "workspace/project/files", "params": { "values": { "id": "7" } } },
             "backStack": [
-              { "path": "home", "params": {} },
-              { "path": "workspace/project", "params": {} },
-              { "path": "workspace/project/files", "params": { "id": "7" } }
+              { "path": "home", "params": { "values": {} } },
+              { "path": "workspace/project", "params": { "values": {} } },
+              { "path": "workspace/project/files", "params": { "values": { "id": "7" } } }
             ],
             "derived": {
               "currentGraphHierarchy": ["root", "workspace", "project"],
@@ -54,6 +54,35 @@ class NavigationLensTest {
         assertEquals(listOf("workspace", "project"), top.graphChain)
         assertEquals(mapOf("id" to "7"), top.params)
     }
+
+    @Test
+    fun `typed param values read as their own text`() {
+        val entry = parseNavigationState(
+            stateWithTop("""{ "path": "player/{playerId}", "params": { "values": { "playerId": 42, "pro": true, "filter": { "season": 3 } } } }""")
+        )!!.backStack.single()
+
+        assertEquals(mapOf("playerId" to "42", "pro" to "true", "filter" to "{\"season\":3}"), entry.params)
+    }
+
+    @Test
+    fun `the location fills path params and encodes them for a link`() {
+        val entry = parseNavigationState(
+            stateWithTop("""{ "path": "user/{name}/files/item-{id}.json", "params": { "values": { "name": "Ann Lee/2", "id": 7, "tab": "x" } } }""")
+        )!!.backStack.single()
+
+        assertEquals("user/Ann%20Lee%2F2/files/item-7.json", entry.location)
+    }
+
+    @Test
+    fun `a path param with no value stays a placeholder in the location`() {
+        val entry = parseNavigationState(stateWithTop("""{ "path": "player/{playerId}", "params": { "values": {} } }"""))!!.backStack.single()
+
+        assertEquals("player/{playerId}", entry.location)
+    }
+
+    private fun stateWithTop(entry: String) = """
+        { "io.github.syrou.reaktiv.navigation.NavigationState": { "currentEntry": $entry, "backStack": [ $entry ] } }
+    """.trimIndent()
 
     @Test
     fun `a top level entry has no enclosing graphs`() {
