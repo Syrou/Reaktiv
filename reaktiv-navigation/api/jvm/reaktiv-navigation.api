@@ -1445,16 +1445,18 @@ public final class io/github/syrou/reaktiv/navigation/layer/RenderLayer : java/l
 public final class io/github/syrou/reaktiv/navigation/link/AppLinkFiles {
 	public static final field $stable I
 	public static final field Companion Lio/github/syrou/reaktiv/navigation/link/AppLinkFiles$Companion;
-	public fun <init> (Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/util/List;
 	public final fun component2 ()Ljava/util/List;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
 	public final fun component5 ()Ljava/lang/String;
-	public final fun copy (Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/link/AppLinkFiles;
-	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/link/AppLinkFiles;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/link/AppLinkFiles;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/link/AppLinkFiles;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/link/AppLinkFiles;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/link/AppLinkFiles;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAndroidDeepLinkIntentFilter ()Ljava/lang/String;
 	public final fun getAndroidManifestIntentFilter ()Ljava/lang/String;
 	public final fun getAppleAppSiteAssociation ()Ljava/lang/String;
 	public final fun getAssetLinks ()Ljava/lang/String;
@@ -1521,8 +1523,8 @@ public final class io/github/syrou/reaktiv/navigation/link/AppLinkPath$Companion
 public final class io/github/syrou/reaktiv/navigation/link/AppLinksConfig {
 	public static final field $stable I
 	public static final field Companion Lio/github/syrou/reaktiv/navigation/link/AppLinksConfig$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZLjava/util/Set;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZLjava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZLjava/util/Set;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZLjava/util/Set;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/util/List;
@@ -1530,14 +1532,18 @@ public final class io/github/syrou/reaktiv/navigation/link/AppLinksConfig {
 	public final fun component5 ()Ljava/util/List;
 	public final fun component6 ()Z
 	public final fun component7 ()Ljava/util/Set;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZLjava/util/Set;)Lio/github/syrou/reaktiv/navigation/link/AppLinksConfig;
-	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/link/AppLinksConfig;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZLjava/util/Set;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/link/AppLinksConfig;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZLjava/util/Set;Ljava/lang/String;Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/link/AppLinksConfig;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/link/AppLinksConfig;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ZLjava/util/Set;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/link/AppLinksConfig;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAndroidCertFingerprints ()Ljava/util/List;
 	public final fun getAndroidDynamicPaths ()Z
 	public final fun getAndroidPackage ()Ljava/lang/String;
 	public final fun getAppleAppIds ()Ljava/util/List;
 	public final fun getBasePath ()Ljava/lang/String;
+	public final fun getDeepLinkHost ()Ljava/lang/String;
+	public final fun getDeepLinkScheme ()Ljava/lang/String;
 	public final fun getHost ()Ljava/lang/String;
 	public final fun getPaths ()Ljava/util/Set;
 	public fun hashCode ()I

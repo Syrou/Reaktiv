@@ -219,18 +219,6 @@ public class Store internal constructor(
         }
     }
 
-    init {
-        launch {
-            try {
-                initializeModules()
-            } catch (e: Throwable) {
-                failConstruction(e)
-                throw e
-            }
-        }
-        CoroutineScope(baseContext + pipelineJob + PipelineMarker).launch { processActionChannel() }
-    }
-
     private fun failConstruction(cause: Throwable) {
         constructed.completeExceptionally(cause)
         highPriorityChannel.cancel()
@@ -757,6 +745,18 @@ public class Store internal constructor(
     }
 
     public suspend fun hasPersistedState(): Boolean = persistenceManager?.hasPersistedState() ?: false
+
+    init {
+        launch {
+            try {
+                initializeModules()
+            } catch (e: Throwable) {
+                failConstruction(e)
+                throw e
+            }
+        }
+        CoroutineScope(baseContext + pipelineJob + PipelineMarker).launch { processActionChannel() }
+    }
 
     private data object ResetFence : ModuleAction(Store::class), HighPriorityAction, ExternalControlExempt
 

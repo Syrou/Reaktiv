@@ -373,13 +373,15 @@ val files = navigationModule.linkMap().appLinkFiles(
         appleAppIds = listOf("ABCDE12345.com.example.app"),
         androidPackage = "com.example.app",
         androidCertFingerprints = listOf("14:6D:E9:83:..."),
-        paths = setOf("home/leaderboard/player/*", "home/news/*")
+        paths = setOf("home/leaderboard/player/*", "home/news/*"),
+        deepLinkScheme = "myapp"
     )
 )
 
 File("site/.well-known/apple-app-site-association").writeText(files.appleAppSiteAssociation!!)
 File("site/.well-known/assetlinks.json").writeText(files.assetLinks!!)
 println(files.androidManifestIntentFilter)
+println(files.androidDeepLinkIntentFilter)
 ```
 
 - `appleAppSiteAssociation` lists every chosen path for each iOS app ID. It is generated when at least
@@ -389,6 +391,12 @@ println(files.androidManifestIntentFilter)
   dynamic app links. It is generated when a package is given.
 - `androidManifestIntentFilter` is the `<intent-filter android:autoVerify="true">` to add to the
   activity that handles the links, with one `<data>` entry per path.
+- `androidDeepLinkIntentFilter` is a plain `<intent-filter>` for custom scheme deep links such as
+  `myapp://example.com/home/news`. It is generated when `deepLinkScheme` is given, uses `deepLinkHost`
+  or else `host`, and lists the paths without the web base path, since the app receives them as they are.
+  Android does not verify custom schemes, so another app can claim the same one.
+- Both filters are `null` when no path is chosen, because a filter without paths opens the app for every
+  address on the host.
 
 Candidate paths are every linkable route, every graph that has a start, and every deep link alias
 whose pattern is a web address or a plain path. Path params become `*` and the web base path (from

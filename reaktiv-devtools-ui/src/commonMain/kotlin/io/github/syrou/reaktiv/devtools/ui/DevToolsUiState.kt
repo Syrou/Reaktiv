@@ -90,7 +90,9 @@ internal data class AppLinksForm(
     val androidPackage: String = "",
     val androidCertFingerprints: String = "",
     val androidDynamicPaths: Boolean = true,
-    val selectedPaths: Set<String>? = null
+    val selectedPaths: Set<String>? = null,
+    val deepLinkScheme: String = "",
+    val deepLinkHost: String = ""
 ) {
     val appleAppIdList: List<String> get() = appleAppIds.split(',', '\n', ' ').map { it.trim() }.filter { it.isNotEmpty() }
     val fingerprintList: List<String> get() = androidCertFingerprints.split(',', '\n', ' ').map { it.trim() }.filter { it.isNotEmpty() }

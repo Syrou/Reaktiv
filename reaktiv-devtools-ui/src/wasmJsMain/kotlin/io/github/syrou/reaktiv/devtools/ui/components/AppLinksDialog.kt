@@ -38,12 +38,12 @@ import io.github.syrou.reaktiv.devtools.ui.AppLinksTab
 import io.github.syrou.reaktiv.devtools.ui.DevToolsColors
 import io.github.syrou.reaktiv.devtools.ui.RequestStatus
 import io.github.syrou.reaktiv.devtools.ui.ServiceCall
+import io.github.syrou.reaktiv.devtools.ui.navmap.APPLE_APP_SITE_ASSOCIATION_FILE
+import io.github.syrou.reaktiv.devtools.ui.navmap.ASSET_LINKS_FILE
 import io.github.syrou.reaktiv.devtools.ui.navmap.AppLinkFilesModel
+import io.github.syrou.reaktiv.devtools.ui.navmap.DEEP_LINKS_SNIPPET_FILE
+import io.github.syrou.reaktiv.devtools.ui.navmap.MANIFEST_SNIPPET_FILE
 import io.github.syrou.reaktiv.devtools.ui.navmap.parseAppLinkFiles
-
-internal const val APPLE_APP_SITE_ASSOCIATION_FILE: String = "apple-app-site-association"
-internal const val ASSET_LINKS_FILE: String = "assetlinks.json"
-internal const val MANIFEST_SNIPPET_FILE: String = "AndroidManifest-app-links.xml"
 
 private val PREVIEW_HEIGHT = 340.dp
 
@@ -57,6 +57,7 @@ internal fun AppLinksDialog(
     onFormChange: (AppLinksForm) -> Unit,
     onTabChange: (AppLinksTab) -> Unit,
     onGenerate: (AppLinksForm) -> Unit,
+    onRefresh: (AppLinksForm) -> Unit,
     onDownload: (fileName: String, content: String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -66,7 +67,7 @@ internal fun AppLinksDialog(
 
     fun regenerate(next: AppLinksForm) {
         onFormChange(next)
-        if (next.host.isNotBlank() && blockedReason == null) onGenerate(next)
+        if (next.host.isNotBlank() && blockedReason == null) onRefresh(next)
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -81,8 +82,9 @@ internal fun AppLinksDialog(
             ) {
                 Text("App links", style = MaterialTheme.typography.headlineSmall, color = colors.onSurface)
                 Text(
-                    "Generates the files iOS universal links and Android App Links need, from the routes this app " +
-                        "registers. Pick the routes that should open the app, then download the files.",
+                    "Generates the files iOS universal links and Android App Links need, and the Android intent " +
+                        "filter for custom scheme deep links, from the routes this app registers, and downloads " +
+                        "them. Untick routes that should not open the app, and download a single file from its tab.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.onSurfaceVariant
                 )
@@ -139,10 +141,28 @@ internal fun AppLinksDialog(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = form.deepLinkScheme,
+                        onValueChange = { onFormChange(form.copy(deepLinkScheme = it)) },
+                        label = { Text("Android deep link scheme") },
+                        placeholder = { Text("myapp") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = form.deepLinkHost,
+                        onValueChange = { onFormChange(form.copy(deepLinkHost = it)) },
+                        label = { Text("Deep link host") },
+                        placeholder = { Text(form.host.ifBlank { "example.com" }) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { onGenerate(form) }, enabled = form.host.isNotBlank() && blockedReason == null) {
-                        Text(if (files == null) "Generate" else "Generate again")
+                        Text("Generate and download")
                     }
                     val status = when {
                         blockedReason != null -> blockedReason
@@ -199,13 +219,30 @@ internal fun AppLinksDialog(
                             copyLabel = "Copy $ASSET_LINKS_FILE",
                             onDownload = { onDownload(ASSET_LINKS_FILE, it) }
                         )
-                        AppLinksTab.MANIFEST -> GeneratedFile(
-                            where = "Add this intent filter inside the activity that handles the links.",
-                            content = files.androidManifestIntentFilter,
-                            missing = "",
-                            copyLabel = "Copy intent filter",
-                            onDownload = { onDownload(MANIFEST_SNIPPET_FILE, it) }
-                        )
+                        AppLinksTab.MANIFEST -> Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                            GeneratedFile(
+                                title = "App Links (verified https)",
+                                where = "Add inside the activity that handles the links. Android checks it against " +
+                                    "$ASSET_LINKS_FILE.",
+                                content = files.androidManifestIntentFilter,
+                                missing = "Pick at least one route to generate it.",
+                                copyLabel = "Copy App Links filter",
+                                onDownload = { onDownload(MANIFEST_SNIPPET_FILE, it) }
+                            )
+                            GeneratedFile(
+                                title = "Deep links (custom scheme)",
+                                where = "Add inside the same activity. Android does not verify custom schemes, so " +
+                                    "another app can claim the same one.",
+                                content = files.androidDeepLinkIntentFilter,
+                                missing = if (form.deepLinkScheme.isBlank()) {
+                                    "Enter a deep link scheme and generate again."
+                                } else {
+                                    "Pick at least one route, or generate again after changing the scheme."
+                                },
+                                copyLabel = "Copy deep link filter",
+                                onDownload = { onDownload(DEEP_LINKS_SNIPPET_FILE, it) }
+                            )
+                        }
                     }
                 }
 
@@ -266,6 +303,7 @@ private fun RouteChoices(
 
 @Composable
 private fun GeneratedFile(
+    title: String? = null,
     where: String,
     content: String?,
     missing: String,
@@ -274,6 +312,7 @@ private fun GeneratedFile(
 ) {
     val colors = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        title?.let { Text(it, style = MaterialTheme.typography.titleSmall, color = colors.onSurface) }
         if (content == null) {
             Caption(missing)
             return@Column

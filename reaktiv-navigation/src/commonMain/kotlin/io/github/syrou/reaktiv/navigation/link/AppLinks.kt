@@ -22,7 +22,9 @@ public data class AppLinksConfig(
     val androidPackage: String? = null,
     val androidCertFingerprints: List<String> = emptyList(),
     val androidDynamicPaths: Boolean = true,
-    val paths: Set<String>? = null
+    val paths: Set<String>? = null,
+    val deepLinkScheme: String? = null,
+    val deepLinkHost: String? = null
 )
 
 @Serializable
@@ -40,7 +42,8 @@ public data class AppLinkFiles(
     val paths: List<AppLinkPath>,
     val appleAppSiteAssociation: String? = null,
     val assetLinks: String? = null,
-    val androidManifestIntentFilter: String
+    val androidManifestIntentFilter: String?,
+    val androidDeepLinkIntentFilter: String? = null
 )
 
 private val appLinksJson = reaktivJson(prettyPrint = true)
@@ -71,9 +74,25 @@ public fun NavigationLinkMap.appLinkFiles(config: AppLinksConfig): AppLinkFiles 
         paths = paths,
         appleAppSiteAssociation = config.appleAppIds.takeIf { it.isNotEmpty() }?.let { appleAppSiteAssociation(it, paths) },
         assetLinks = config.androidPackage?.takeIf { it.isNotBlank() }?.let { assetLinks(config, paths) },
-        androidManifestIntentFilter = androidIntentFilter(config.host, paths)
+        androidManifestIntentFilter = androidIntentFilter(
+            verified = true,
+            scheme = "https",
+            host = config.host,
+            paths = paths.map { it.pattern }
+        ),
+        androidDeepLinkIntentFilter = config.deepLinkScheme?.let(::normalizeScheme)?.let { scheme ->
+            androidIntentFilter(
+                verified = false,
+                scheme = scheme,
+                host = config.deepLinkHost?.trim()?.takeIf { it.isNotEmpty() } ?: config.host,
+                paths = paths.map { "/" + it.path }
+            )
+        }
     )
 }
+
+private fun normalizeScheme(scheme: String): String? =
+    scheme.trim().removeSuffix("://").lowercase().takeIf { it.isNotEmpty() }
 
 private fun NavigationLinkMap.defaultAppLinkBase(): String = webPrefix?.takeIf { it.startsWith("/") } ?: "/"
 
@@ -130,22 +149,25 @@ private fun assetLinks(config: AppLinksConfig, paths: List<AppLinkPath>): String
     return appLinksJson.encodeToString(JsonElement.serializer(), JsonArray(listOf(statement)))
 }
 
-private fun androidIntentFilter(host: String, paths: List<AppLinkPath>): String = buildString {
-    appendLine("<intent-filter android:autoVerify=\"true\">")
-    appendLine("    <action android:name=\"android.intent.action.VIEW\" />")
-    appendLine("    <category android:name=\"android.intent.category.DEFAULT\" />")
-    appendLine("    <category android:name=\"android.intent.category.BROWSABLE\" />")
-    appendLine("    <data android:scheme=\"https\" />")
-    appendLine("    <data android:host=\"${xml(host)}\" />")
-    paths.forEach { path ->
-        if ('*' in path.pattern) {
-            val pattern = path.pattern.replace(".", "\\\\.").replace("*", ".*")
-            appendLine("    <data android:pathPattern=\"${xml(pattern)}\" />")
-        } else {
-            appendLine("    <data android:path=\"${xml(path.pattern)}\" />")
+private fun androidIntentFilter(verified: Boolean, scheme: String, host: String, paths: List<String>): String? {
+    if (paths.isEmpty()) return null
+    return buildString {
+        appendLine(if (verified) "<intent-filter android:autoVerify=\"true\">" else "<intent-filter>")
+        appendLine("    <action android:name=\"android.intent.action.VIEW\" />")
+        appendLine("    <category android:name=\"android.intent.category.DEFAULT\" />")
+        appendLine("    <category android:name=\"android.intent.category.BROWSABLE\" />")
+        appendLine("    <data android:scheme=\"${xml(scheme)}\" />")
+        appendLine("    <data android:host=\"${xml(host)}\" />")
+        paths.forEach { path ->
+            if ('*' in path) {
+                val pattern = path.replace(".", "\\\\.").replace("*", ".*")
+                appendLine("    <data android:pathPattern=\"${xml(pattern)}\" />")
+            } else {
+                appendLine("    <data android:path=\"${xml(path)}\" />")
+            }
         }
+        append("</intent-filter>")
     }
-    append("</intent-filter>")
 }
 
 private fun xml(value: String): String =

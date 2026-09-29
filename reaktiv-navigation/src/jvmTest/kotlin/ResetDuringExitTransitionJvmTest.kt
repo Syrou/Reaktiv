@@ -58,7 +58,7 @@ class ResetDuringExitTransitionJvmTest {
                 })
             }
             try {
-                withTimeout(30_000) {
+                withTimeout(5_000) {
                     store.selectState<NavigationState>().first { !it.isBootstrapping }
                     launch {
                         try {

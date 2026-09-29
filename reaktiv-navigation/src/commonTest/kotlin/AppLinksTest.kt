@@ -17,6 +17,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -123,7 +124,7 @@ class AppLinksTest {
 
     @Test
     fun `the manifest filter verifies the host and matches every path`() {
-        val filter = map.appLinkFiles(AppLinksConfig(host = "example.com")).androidManifestIntentFilter
+        val filter = assertNotNull(map.appLinkFiles(AppLinksConfig(host = "example.com")).androidManifestIntentFilter)
 
         assertTrue("android:autoVerify=\"true\"" in filter)
         assertTrue("<data android:host=\"example.com\" />" in filter)
@@ -147,7 +148,60 @@ class AppLinksTest {
         val components = Json.parseToJsonElement(files.appleAppSiteAssociation!!).jsonObject["applinks"]!!.jsonObject["details"]!!
             .jsonArray.single().jsonObject["components"]!!.jsonArray
         assertEquals(2, components.size)
-        assertFalse("/app/home" in files.androidManifestIntentFilter)
+        assertFalse("/app/home" in assertNotNull(files.androidManifestIntentFilter))
+    }
+
+    @Test
+    fun `choosing no routes generates no manifest filter rather than one that opens every path`() {
+        val files = map.appLinkFiles(AppLinksConfig(host = "example.com", deepLinkScheme = "myapp", paths = emptySet()))
+
+        assertNull(files.androidManifestIntentFilter)
+        assertNull(files.androidDeepLinkIntentFilter)
+    }
+
+    @Test
+    fun `the deep link filter opens the chosen routes under the custom scheme`() {
+        val filter = assertNotNull(
+            map.appLinkFiles(
+                AppLinksConfig(host = "example.com", deepLinkScheme = "myapp", paths = setOf("home", "leaderboard/player/*"))
+            ).androidDeepLinkIntentFilter
+        )
+
+        assertTrue(filter.startsWith("<intent-filter>"))
+        assertFalse("autoVerify" in filter)
+        assertTrue("<data android:scheme=\"myapp\" />" in filter)
+        assertTrue("<data android:host=\"example.com\" />" in filter)
+        assertTrue("<data android:path=\"/home\" />" in filter)
+        assertTrue("<data android:pathPattern=\"/leaderboard/player/.*\" />" in filter)
+        assertFalse("/app/" in filter)
+        assertFalse("promo" in filter)
+    }
+
+    @Test
+    fun `the deep link host can differ from the web host`() {
+        val filter = assertNotNull(
+            map.appLinkFiles(
+                AppLinksConfig(host = "links.example.com", deepLinkScheme = "myapp", deepLinkHost = "open")
+            ).androidDeepLinkIntentFilter
+        )
+
+        assertTrue("<data android:host=\"open\" />" in filter)
+        assertFalse("links.example.com" in filter)
+    }
+
+    @Test
+    fun `the deep link scheme is read the way android matches it`() {
+        val filter = assertNotNull(
+            map.appLinkFiles(AppLinksConfig(host = "example.com", deepLinkScheme = " MyApp:// ")).androidDeepLinkIntentFilter
+        )
+
+        assertTrue("<data android:scheme=\"myapp\" />" in filter)
+    }
+
+    @Test
+    fun `no deep link filter is generated without a scheme`() {
+        assertNull(map.appLinkFiles(AppLinksConfig(host = "example.com")).androidDeepLinkIntentFilter)
+        assertNull(map.appLinkFiles(AppLinksConfig(host = "example.com", deepLinkScheme = " ")).androidDeepLinkIntentFilter)
     }
 
     @Test

@@ -44,6 +44,8 @@ import kotlinx.serialization.json.JsonElement
 import io.github.syrou.reaktiv.devtools.ui.navmap.NAVIGATION_LINKS_SERVICE
 import io.github.syrou.reaktiv.devtools.ui.navmap.OPEN_LINK_REQUEST
 import io.github.syrou.reaktiv.devtools.ui.navmap.APP_LINKS_REQUEST
+import io.github.syrou.reaktiv.devtools.ui.navmap.AppLinkFilesModel
+import io.github.syrou.reaktiv.devtools.ui.navmap.parseAppLinkFiles
 import io.github.syrou.reaktiv.devtools.ui.navmap.appLinksPayload
 import io.github.syrou.reaktiv.devtools.ui.navmap.openLinkPayload
 import kotlinx.serialization.encodeToString
@@ -1050,9 +1052,9 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    suspend fun requestAppLinks(form: AppLinksForm) {
+    suspend fun requestAppLinks(form: AppLinksForm): AppLinkFilesModel? {
         val state = storeAccessor.selectState<DevToolsUiState>().value
-        val publisher = state.selectedPublisher?.takeIf { it != state.activeGhostId } ?: return
+        val publisher = state.selectedPublisher?.takeIf { it != state.activeGhostId } ?: return null
         val call = ServiceCall(Uuid.random().toString(), currentTimeMillis())
         storeAccessor.dispatch(DevToolsUiAction.AppLinksRequested(call))
         val payload = appLinksPayload(
@@ -1062,11 +1064,12 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
             androidPackage = form.androidPackage.trim().ifEmpty { null },
             androidCertFingerprints = form.fingerprintList,
             androidDynamicPaths = form.androidDynamicPaths,
-            paths = form.selectedPaths
+            paths = form.selectedPaths,
+            deepLinkScheme = form.deepLinkScheme.trim().ifEmpty { null },
+            deepLinkHost = form.deepLinkHost.trim().ifEmpty { null }
         )
-        storeAccessor.launch {
-            askDevice(publisher, call.requestId, NAVIGATION_LINKS_SERVICE, APP_LINKS_REQUEST, payload)
-        }
+        val reply = askDevice(publisher, call.requestId, NAVIGATION_LINKS_SERVICE, APP_LINKS_REQUEST, payload)
+        return reply?.takeIf { it.error == null }?.let { parseAppLinkFiles(it.result) }
     }
 
     private suspend fun askDevice(
@@ -1241,8 +1244,10 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
             }
 
             is DevToolsMessage.ServiceReply -> {
+                storeAccessor.dispatchAndAwait(
+                    DevToolsUiAction.ServiceReplyReceived(message.requestId, message.result, message.error)
+                )
                 pendingRepliesLock.withLock { pendingReplies.remove(message.requestId) }?.complete(message)
-                storeAccessor.dispatch(DevToolsUiAction.ServiceReplyReceived(message.requestId, message.result, message.error))
             }
 
             is DevToolsMessage.LogBatch -> {

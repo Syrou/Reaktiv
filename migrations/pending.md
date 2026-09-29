@@ -8582,7 +8582,8 @@ println(files.androidManifestIntentFilter)
 |---|---|---|
 | `apple-app-site-association` | Every chosen path for each iOS app ID | When at least one app ID is given |
 | `assetlinks.json` | The Android package and its signing certificate fingerprints | When a package is given |
-| `androidManifestIntentFilter` | The `<intent-filter android:autoVerify="true">` for the activity that handles the links | Always |
+| `androidManifestIntentFilter` | The `<intent-filter android:autoVerify="true">` for the activity that handles the links | When at least one path is chosen |
+| `androidDeepLinkIntentFilter` | The `<intent-filter>` for custom scheme deep links (AD-184) | When `deepLinkScheme` is given and at least one path is chosen |
 
 `assetlinks.json` also lists the paths for Android 15 dynamic app links unless
 `androidDynamicPaths = false`.
@@ -10477,5 +10478,54 @@ dependencies {
 - On the JVM, reaktiv-devtools still carries the embeddable server, so it still depends on the Ktor server,
   CIO and kotlinx-io there. Moving the server into its own artifact would make server users add a
   dependency, so it waits for a release that can announce it.
+
+---
+
+### [AD-184] appLinkFiles generates the Android intent filter for custom scheme deep links
+
+**Type:** Addition
+
+**Grep:** `deepLinkScheme|androidDeepLinkIntentFilter`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val files = navigationModule.linkMap().appLinkFiles(
+    AppLinksConfig(
+        host = "example.com",
+        deepLinkScheme = "myapp",
+        paths = setOf("home/leaderboard/player/*", "deeplink-demo")
+    )
+)
+
+println(files.androidDeepLinkIntentFilter)
+// <intent-filter>
+//     <action android:name="android.intent.action.VIEW" />
+//     <category android:name="android.intent.category.DEFAULT" />
+//     <category android:name="android.intent.category.BROWSABLE" />
+//     <data android:scheme="myapp" />
+//     <data android:host="example.com" />
+//     <data android:pathPattern="/home/leaderboard/player/.*" />
+//     <data android:path="/deeplink-demo" />
+// </intent-filter>
+```
+
+**Notes:**
+- `AppLinksConfig` gains `deepLinkScheme` and `deepLinkHost`, and `AppLinkFiles` gains
+  `androidDeepLinkIntentFilter`. The filter is generated when a scheme is given. It uses `deepLinkHost`,
+  or `host` when that is not set.
+- The scheme is trimmed, a trailing `://` is dropped and it is lowercased, because Android matches schemes
+  case sensitively and expects them in lowercase.
+- The paths are the chosen candidates without the web base path, since the app receives a custom scheme
+  link's path as it is. The filter has no `autoVerify`, because Android does not verify custom schemes.
+- `androidManifestIntentFilter` is now `null` when no path is chosen, and so is the deep link filter. A
+  filter with a scheme and a host but no path opens the app for every address on that host.
+- In DevTools, the App links dialog has a deep link scheme and host field, and the `AndroidManifest.xml`
+  tab shows the App Links filter and the deep link filter, each with its own copy and download.
+- The dialog's Generate button is now Generate and download. It saves every generated file once the device
+  answers (`apple-app-site-association`, `assetlinks.json`, `AndroidManifest-app-links.xml`,
+  `AndroidManifest-deep-links.xml`, whichever were generated). Before, it only filled the preview tabs.
+  Ticking routes still only refreshes the preview. The browser may ask once to allow several downloads.
+  Related: AD-139, AD-140.
 
 ---

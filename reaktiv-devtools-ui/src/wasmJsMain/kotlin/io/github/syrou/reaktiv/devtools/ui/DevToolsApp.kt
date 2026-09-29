@@ -96,6 +96,7 @@ import io.github.syrou.reaktiv.devtools.ui.components.AppLinksDialog
 import io.github.syrou.reaktiv.devtools.ui.components.GraphDetail
 import io.github.syrou.reaktiv.devtools.ui.components.RouteDetail
 import io.github.syrou.reaktiv.devtools.ui.navmap.NAVIGATION_LINKS_EXTENSION
+import io.github.syrou.reaktiv.devtools.ui.navmap.downloads
 import io.github.syrou.reaktiv.devtools.ui.navmap.graph
 import io.github.syrou.reaktiv.devtools.ui.navmap.parseLinkMap
 import io.github.syrou.reaktiv.devtools.ui.navmap.route
@@ -397,6 +398,13 @@ private fun DevToolsContent(store: Store, serverUrl: String) {
                     onFormChange = { dispatch(DevToolsUiAction.SetAppLinksForm(it)) },
                     onTabChange = { dispatch(DevToolsUiAction.SetAppLinksTab(it)) },
                     onGenerate = { form ->
+                        scope.launch {
+                            DevToolsUiModule.selectLogicTyped(store).requestAppLinks(form)?.downloads()?.forEach { (name, content) ->
+                                downloadFile(content.encodeToByteArray(), name)
+                            }
+                        }
+                    },
+                    onRefresh = { form ->
                         scope.launch { DevToolsUiModule.selectLogicTyped(store).requestAppLinks(form) }
                     },
                     onDownload = { name, content -> downloadFile(content.encodeToByteArray(), name) },

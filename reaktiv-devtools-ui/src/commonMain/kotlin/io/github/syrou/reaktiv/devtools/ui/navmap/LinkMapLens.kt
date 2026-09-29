@@ -182,7 +182,20 @@ internal data class AppLinkFilesModel(
     val paths: List<AppLinkPathModel> = emptyList(),
     val appleAppSiteAssociation: String? = null,
     val assetLinks: String? = null,
-    val androidManifestIntentFilter: String = ""
+    val androidManifestIntentFilter: String? = null,
+    val androidDeepLinkIntentFilter: String? = null
+)
+
+internal const val APPLE_APP_SITE_ASSOCIATION_FILE: String = "apple-app-site-association"
+internal const val ASSET_LINKS_FILE: String = "assetlinks.json"
+internal const val MANIFEST_SNIPPET_FILE: String = "AndroidManifest-app-links.xml"
+internal const val DEEP_LINKS_SNIPPET_FILE: String = "AndroidManifest-deep-links.xml"
+
+internal fun AppLinkFilesModel.downloads(): List<Pair<String, String>> = listOfNotNull(
+    appleAppSiteAssociation?.let { APPLE_APP_SITE_ASSOCIATION_FILE to it },
+    assetLinks?.let { ASSET_LINKS_FILE to it },
+    androidManifestIntentFilter?.let { MANIFEST_SNIPPET_FILE to it },
+    androidDeepLinkIntentFilter?.let { DEEP_LINKS_SNIPPET_FILE to it }
 )
 
 internal fun parseAppLinkFiles(element: JsonElement?): AppLinkFilesModel? {
@@ -197,7 +210,9 @@ internal fun appLinksPayload(
     androidPackage: String?,
     androidCertFingerprints: List<String>,
     androidDynamicPaths: Boolean,
-    paths: Set<String>?
+    paths: Set<String>?,
+    deepLinkScheme: String? = null,
+    deepLinkHost: String? = null
 ): JsonElement = JsonObject(
     buildMap {
         put("host", JsonPrimitive(host))
@@ -207,5 +222,7 @@ internal fun appLinksPayload(
         put("androidCertFingerprints", JsonArray(androidCertFingerprints.map(::JsonPrimitive)))
         put("androidDynamicPaths", JsonPrimitive(androidDynamicPaths))
         paths?.let { chosen -> put("paths", JsonArray(chosen.sorted().map(::JsonPrimitive))) }
+        deepLinkScheme?.let { put("deepLinkScheme", JsonPrimitive(it)) }
+        deepLinkHost?.let { put("deepLinkHost", JsonPrimitive(it)) }
     }
 )

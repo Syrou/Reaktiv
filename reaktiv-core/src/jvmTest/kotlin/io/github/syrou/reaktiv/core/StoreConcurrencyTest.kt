@@ -46,9 +46,41 @@ class StoreConcurrencyTest {
         override val createLogic: (StoreAccessor) -> ModuleLogic = { object : ModuleLogic() {} }
     }
 
+    @Serializable
+    data class EagerState(val started: Int = 0) : ModuleState
+
+    sealed class EagerAction : ModuleAction(EagerModule::class) {
+        data object Started : EagerAction()
+    }
+
+    object EagerModule : Module<EagerState, EagerAction> {
+        override val initialState = EagerState()
+        override val reducer: (EagerState, EagerAction) -> EagerState = { state, _ ->
+            state.copy(started = state.started + 1)
+        }
+        override val createLogic: (StoreAccessor) -> ModuleLogic = { accessor ->
+            accessor.dispatch(EagerAction.Started)
+            object : ModuleLogic() {}
+        }
+    }
+
     private fun store() = createStore {
         module(CounterModule)
         coroutineContext(Dispatchers.Default)
+    }
+
+    @Test
+    fun `an action dispatched while the store is being built reaches the reducer`() = runBlocking {
+        val store = createStore {
+            module(EagerModule)
+            coroutineContext(Dispatchers.Unconfined)
+        }
+        try {
+            store.dispatchAndAwait(EagerAction.Started)
+            assertEquals(2, store.selectState<EagerState>().first().started)
+        } finally {
+            store.cleanup()
+        }
     }
 
     @Test

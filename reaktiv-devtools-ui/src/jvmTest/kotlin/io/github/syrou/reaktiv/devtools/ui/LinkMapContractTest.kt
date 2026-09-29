@@ -6,6 +6,7 @@ import io.github.syrou.reaktiv.core.util.reaktivJson
 import io.github.syrou.reaktiv.devtools.ui.navmap.APP_LINKS_REQUEST
 import io.github.syrou.reaktiv.devtools.ui.navmap.MapAccess
 import io.github.syrou.reaktiv.devtools.ui.navmap.appLinksPayload
+import io.github.syrou.reaktiv.devtools.ui.navmap.downloads
 import io.github.syrou.reaktiv.devtools.ui.navmap.parseAppLinkFiles
 import io.github.syrou.reaktiv.navigation.link.AppLinkFiles
 import io.github.syrou.reaktiv.navigation.link.AppLinksConfig
@@ -174,11 +175,23 @@ class LinkMapContractTest {
             androidPackage = "com.example",
             androidCertFingerprints = listOf("AA:BB"),
             androidDynamicPaths = false,
-            paths = setOf("news/article/*")
+            paths = setOf("news/article/*"),
+            deepLinkScheme = "myapp",
+            deepLinkHost = "open"
         )
         val config = reaktivJson().decodeFromJsonElement(AppLinksConfig.serializer(), payload)
         assertEquals(
-            AppLinksConfig("example.com", "/app", listOf("ABCDE12345.com.example"), "com.example", listOf("AA:BB"), false, setOf("news/article/*")),
+            AppLinksConfig(
+                host = "example.com",
+                basePath = "/app",
+                appleAppIds = listOf("ABCDE12345.com.example"),
+                androidPackage = "com.example",
+                androidCertFingerprints = listOf("AA:BB"),
+                androidDynamicPaths = false,
+                paths = setOf("news/article/*"),
+                deepLinkScheme = "myapp",
+                deepLinkHost = "open"
+            ),
             config
         )
 
@@ -189,7 +202,37 @@ class LinkMapContractTest {
         assertEquals(files.appleAppSiteAssociation, model.appleAppSiteAssociation)
         assertEquals(files.assetLinks, model.assetLinks)
         assertEquals(files.androidManifestIntentFilter, model.androidManifestIntentFilter)
+        assertNotNull(files.androidDeepLinkIntentFilter)
+        assertEquals(files.androidDeepLinkIntentFilter, model.androidDeepLinkIntentFilter)
         assertEquals(NavigationLinks.APP_LINKS_REQUEST, APP_LINKS_REQUEST)
+    }
+
+    @Test
+    fun `generate downloads every file the device generated under its own name`() {
+        val encoder = reaktivJson(encodeDefaults = true)
+        val everything = navigationMap.appLinkFiles(
+            AppLinksConfig(
+                host = "example.com",
+                appleAppIds = listOf("ABCDE12345.com.example"),
+                androidPackage = "com.example",
+                deepLinkScheme = "myapp"
+            )
+        )
+        val model = assertNotNull(parseAppLinkFiles(encoder.encodeToJsonElement(AppLinkFiles.serializer(), everything)))
+
+        assertEquals(
+            listOf(
+                "apple-app-site-association" to everything.appleAppSiteAssociation,
+                "assetlinks.json" to everything.assetLinks,
+                "AndroidManifest-app-links.xml" to everything.androidManifestIntentFilter,
+                "AndroidManifest-deep-links.xml" to everything.androidDeepLinkIntentFilter
+            ),
+            model.downloads()
+        )
+
+        val manifestOnly = navigationMap.appLinkFiles(AppLinksConfig(host = "example.com"))
+        val onlyModel = assertNotNull(parseAppLinkFiles(encoder.encodeToJsonElement(AppLinkFiles.serializer(), manifestOnly)))
+        assertEquals(listOf("AndroidManifest-app-links.xml"), onlyModel.downloads().map { it.first })
     }
 
     @Test

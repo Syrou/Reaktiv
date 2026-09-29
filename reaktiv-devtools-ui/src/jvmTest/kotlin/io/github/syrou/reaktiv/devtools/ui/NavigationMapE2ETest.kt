@@ -194,17 +194,24 @@ class NavigationMapE2ETest {
     fun `the ui asks the device for app links files for the chosen routes`() = runBlocking<Unit> {
         publisher()
         val ui = ui()
-        val form = AppLinksForm(host = "example.com", appleAppIds = "ABCDE12345.com.example", selectedPaths = setOf("news/article/*"))
+        val form = AppLinksForm(
+            host = "example.com",
+            appleAppIds = "ABCDE12345.com.example",
+            selectedPaths = setOf("news/article/*"),
+            deepLinkScheme = " myapp "
+        )
 
-        DevToolsUiModule.selectLogicTyped(ui).requestAppLinks(form)
-        val answered = withTimeoutOrNull(20_000) {
-            ui.selectState<DevToolsUiState>().first { it.appLinksCall?.status == RequestStatus.ANSWERED }
-        }
+        val returned = DevToolsUiModule.selectLogicTyped(ui).requestAppLinks(form)
+        val answered = ui.selectState<DevToolsUiState>().first()
 
-        val files = assertNotNull(parseAppLinkFiles(assertNotNull(answered).appLinksCall?.result))
+        assertEquals(RequestStatus.ANSWERED, answered.appLinksCall?.status)
+        val files = assertNotNull(parseAppLinkFiles(answered.appLinksCall?.result))
+        assertEquals(files, returned)
         assertEquals(listOf("/news/article/*"), files.paths.map { it.pattern })
         assertEquals(true, files.candidates.size > files.paths.size)
         assertEquals(true, files.appleAppSiteAssociation?.contains("ABCDE12345.com.example"))
+        assertEquals(true, files.androidDeepLinkIntentFilter?.contains("<data android:scheme=\"myapp\" />"))
+        assertEquals(true, files.androidDeepLinkIntentFilter?.contains("<data android:pathPattern=\"/news/article/.*\" />"))
     }
 
     @Test

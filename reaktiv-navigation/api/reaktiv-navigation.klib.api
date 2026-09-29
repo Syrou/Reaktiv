@@ -972,10 +972,12 @@ final class io.github.syrou.reaktiv.navigation.exception/PopUpToTargetNotInBackS
 }
 
 final class io.github.syrou.reaktiv.navigation.link/AppLinkFiles { // io.github.syrou.reaktiv.navigation.link/AppLinkFiles|null[0]
-    constructor <init>(kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath>, kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath>, kotlin/String? = ..., kotlin/String? = ..., kotlin/String) // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.<init>|<init>(kotlin.collections.List<io.github.syrou.reaktiv.navigation.link.AppLinkPath>;kotlin.collections.List<io.github.syrou.reaktiv.navigation.link.AppLinkPath>;kotlin.String?;kotlin.String?;kotlin.String){}[0]
+    constructor <init>(kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath>, kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath>, kotlin/String? = ..., kotlin/String? = ..., kotlin/String?, kotlin/String? = ...) // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.<init>|<init>(kotlin.collections.List<io.github.syrou.reaktiv.navigation.link.AppLinkPath>;kotlin.collections.List<io.github.syrou.reaktiv.navigation.link.AppLinkPath>;kotlin.String?;kotlin.String?;kotlin.String?;kotlin.String?){}[0]
 
+    final val androidDeepLinkIntentFilter // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.androidDeepLinkIntentFilter|{}androidDeepLinkIntentFilter[0]
+        final fun <get-androidDeepLinkIntentFilter>(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.androidDeepLinkIntentFilter.<get-androidDeepLinkIntentFilter>|<get-androidDeepLinkIntentFilter>(){}[0]
     final val androidManifestIntentFilter // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.androidManifestIntentFilter|{}androidManifestIntentFilter[0]
-        final fun <get-androidManifestIntentFilter>(): kotlin/String // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.androidManifestIntentFilter.<get-androidManifestIntentFilter>|<get-androidManifestIntentFilter>(){}[0]
+        final fun <get-androidManifestIntentFilter>(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.androidManifestIntentFilter.<get-androidManifestIntentFilter>|<get-androidManifestIntentFilter>(){}[0]
     final val appleAppSiteAssociation // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.appleAppSiteAssociation|{}appleAppSiteAssociation[0]
         final fun <get-appleAppSiteAssociation>(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.appleAppSiteAssociation.<get-appleAppSiteAssociation>|<get-appleAppSiteAssociation>(){}[0]
     final val assetLinks // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.assetLinks|{}assetLinks[0]
@@ -989,8 +991,9 @@ final class io.github.syrou.reaktiv.navigation.link/AppLinkFiles { // io.github.
     final fun component2(): kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath> // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.component2|component2(){}[0]
     final fun component3(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.component3|component3(){}[0]
     final fun component4(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.component4|component4(){}[0]
-    final fun component5(): kotlin/String // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.component5|component5(){}[0]
-    final fun copy(kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath> = ..., kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String = ...): io.github.syrou.reaktiv.navigation.link/AppLinkFiles // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.copy|copy(kotlin.collections.List<io.github.syrou.reaktiv.navigation.link.AppLinkPath>;kotlin.collections.List<io.github.syrou.reaktiv.navigation.link.AppLinkPath>;kotlin.String?;kotlin.String?;kotlin.String){}[0]
+    final fun component5(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.component5|component5(){}[0]
+    final fun component6(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.component6|component6(){}[0]
+    final fun copy(kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath> = ..., kotlin.collections/List<io.github.syrou.reaktiv.navigation.link/AppLinkPath> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ...): io.github.syrou.reaktiv.navigation.link/AppLinkFiles // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.copy|copy(kotlin.collections.List<io.github.syrou.reaktiv.navigation.link.AppLinkPath>;kotlin.collections.List<io.github.syrou.reaktiv.navigation.link.AppLinkPath>;kotlin.String?;kotlin.String?;kotlin.String?;kotlin.String?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.navigation.link/AppLinkFiles.toString|toString(){}[0]
@@ -1052,7 +1055,7 @@ final class io.github.syrou.reaktiv.navigation.link/AppLinkPath { // io.github.s
 }
 
 final class io.github.syrou.reaktiv.navigation.link/AppLinksConfig { // io.github.syrou.reaktiv.navigation.link/AppLinksConfig|null[0]
-    constructor <init>(kotlin/String, kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String>? = ...) // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.<init>|<init>(kotlin.String;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.Boolean;kotlin.collections.Set<kotlin.String>?){}[0]
+    constructor <init>(kotlin/String, kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String>? = ..., kotlin/String? = ..., kotlin/String? = ...) // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.<init>|<init>(kotlin.String;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.Boolean;kotlin.collections.Set<kotlin.String>?;kotlin.String?;kotlin.String?){}[0]
 
     final val androidCertFingerprints // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.androidCertFingerprints|{}androidCertFingerprints[0]
         final fun <get-androidCertFingerprints>(): kotlin.collections/List<kotlin/String> // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.androidCertFingerprints.<get-androidCertFingerprints>|<get-androidCertFingerprints>(){}[0]
@@ -1064,6 +1067,10 @@ final class io.github.syrou.reaktiv.navigation.link/AppLinksConfig { // io.githu
         final fun <get-appleAppIds>(): kotlin.collections/List<kotlin/String> // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.appleAppIds.<get-appleAppIds>|<get-appleAppIds>(){}[0]
     final val basePath // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.basePath|{}basePath[0]
         final fun <get-basePath>(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.basePath.<get-basePath>|<get-basePath>(){}[0]
+    final val deepLinkHost // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.deepLinkHost|{}deepLinkHost[0]
+        final fun <get-deepLinkHost>(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.deepLinkHost.<get-deepLinkHost>|<get-deepLinkHost>(){}[0]
+    final val deepLinkScheme // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.deepLinkScheme|{}deepLinkScheme[0]
+        final fun <get-deepLinkScheme>(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.deepLinkScheme.<get-deepLinkScheme>|<get-deepLinkScheme>(){}[0]
     final val host // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.host|{}host[0]
         final fun <get-host>(): kotlin/String // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.host.<get-host>|<get-host>(){}[0]
     final val paths // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.paths|{}paths[0]
@@ -1076,7 +1083,9 @@ final class io.github.syrou.reaktiv.navigation.link/AppLinksConfig { // io.githu
     final fun component5(): kotlin.collections/List<kotlin/String> // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.component5|component5(){}[0]
     final fun component6(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.component6|component6(){}[0]
     final fun component7(): kotlin.collections/Set<kotlin/String>? // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.component7|component7(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String>? = ...): io.github.syrou.reaktiv.navigation.link/AppLinksConfig // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.copy|copy(kotlin.String;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.Boolean;kotlin.collections.Set<kotlin.String>?){}[0]
+    final fun component8(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.component8|component8(){}[0]
+    final fun component9(): kotlin/String? // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.component9|component9(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/Boolean = ..., kotlin.collections/Set<kotlin/String>? = ..., kotlin/String? = ..., kotlin/String? = ...): io.github.syrou.reaktiv.navigation.link/AppLinksConfig // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.copy|copy(kotlin.String;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.Boolean;kotlin.collections.Set<kotlin.String>?;kotlin.String?;kotlin.String?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.syrou.reaktiv.navigation.link/AppLinksConfig.toString|toString(){}[0]

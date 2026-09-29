@@ -89,11 +89,14 @@ The Nav tab then opens on a map of every route the app can navigate to:
 - Click a route to see its screen, params, guards, aliases and web path, copy them, and open it on the
   device. Opening runs the same plan as a universal link and shows the outcome.
 - Export JSON downloads the map for sharing, in the format `NavigationModule.linkMap()` produces.
-- App links asks for the host, the iOS app IDs, the Android package and its signing fingerprints.
-  Its Routes tab lets you tick the routes that should open the app (Select all and Select none help
-  when only a few should), and `apple-app-site-association`, `assetlinks.json` and the
-  `AndroidManifest.xml` intent filter each get a tab to preview, copy or download the file. The files
-  are generated on the device by `appLinkFiles`, the same function an app can call in a test.
+- App links asks for the host, the iOS app IDs, the Android package and its signing fingerprints,
+  and optionally a custom deep link scheme and host. Its Routes tab lets you tick the routes that
+  should open the app (Select all and Select none help when only a few should), and
+  `apple-app-site-association`, `assetlinks.json` and `AndroidManifest.xml` each get a tab to preview,
+  copy or download the file. The `AndroidManifest.xml` tab holds the verified App Links intent filter
+  and, when a scheme is given, the custom scheme deep link filter. Generate and download saves every
+  generated file at once, and ticking routes only refreshes the preview. The files are generated on the
+  device by `appLinkFiles`, the same function an app can call in a test.
 
 Opening links on the device can be turned off with `NavigationLinks(allowOpening = false)`, and every
 remote request with `DevToolsConfig(allowRemoteRequests = false)`.
