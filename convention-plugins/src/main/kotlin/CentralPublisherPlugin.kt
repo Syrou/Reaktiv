@@ -4,6 +4,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
@@ -233,153 +234,53 @@ abstract class CreateBundleTask : DefaultTask() {
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
+    @get:Input
+    abstract val publicationPaths: ListProperty<String>
+
     @TaskAction
     fun createBundle() {
         val outputDir = outputDirectory.get().asFile
         outputDir.deleteRecursively()
         outputDir.mkdirs()
 
-        // Get all publications from the project
-        val publishing = project.extensions.getByType<PublishingExtension>()
-        val mavenLocalDir = File(System.getProperty("user.home"), ".m2/repository")
-
+        val mavenLocalDir = System.getProperty("maven.repo.local")?.takeIf { it.isNotBlank() }?.let(::File)
+            ?: File(System.getProperty("user.home"), ".m2/repository")
         if (!mavenLocalDir.exists()) {
-            throw GradleException("Maven local repository not found. Run 'publishToMavenLocal' first.")
+            throw GradleException("Maven local repository not found at ${mavenLocalDir.absolutePath}. Run 'publishToMavenLocal' first.")
         }
 
-        // Copy artifacts maintaining full Maven repository structure (including groupId path)
-        copyArtifactsToStaging(mavenLocalDir, outputDir, project.group.toString(), project.version.toString())
-
-        // Create ZIP bundle
+        copyPublicationsToStaging(mavenLocalDir, outputDir)
         createZipBundle(outputDir, bundleFile.get().asFile)
 
         logger.lifecycle("Created bundle: ${bundleFile.get().asFile.absolutePath}")
         logger.lifecycle("Bundle size: ${bundleFile.get().asFile.length() / 1024}KB")
     }
 
-    private fun copyArtifactsToStaging(mavenLocalDir: File, stagingDir: File, group: String, version: String) {
-        val projectName = project.name
+    private fun copyPublicationsToStaging(mavenLocalDir: File, stagingDir: File) {
+        val paths = publicationPaths.get()
+        if (paths.isEmpty()) throw GradleException("This project declares no Maven publications to bundle.")
+
         var artifactCount = 0
-        val targets = mutableSetOf<String>()
-        val groupPath = group.replace('.', '/')
-
-        // Gradle plugin markers are published under plugin ID path (e.g., io/github/syrou/reaktiv/tracing/)
-        val pluginMarkerPaths = mutableSetOf<String>()
-        val gradlePluginExtension = project.extensions.findByName("gradlePlugin")
-        if (gradlePluginExtension != null) {
-            try {
-                val pluginsContainer = gradlePluginExtension.javaClass.getMethod("getPlugins").invoke(gradlePluginExtension)
-                val iterator = pluginsContainer.javaClass.getMethod("iterator").invoke(pluginsContainer) as Iterator<*>
-                iterator.forEach { plugin ->
-                    val pluginId = plugin!!.javaClass.getMethod("getId").invoke(plugin) as String
-                    pluginMarkerPaths.add(pluginId.replace('.', '/'))
-                }
-            } catch (e: Exception) {
-                logger.warn("Could not extract plugin IDs: ${e.message}")
+        paths.forEach { path ->
+            val versionDir = File(mavenLocalDir, path)
+            if (!versionDir.isDirectory) {
+                throw GradleException(
+                    "Publication '$path' is missing from ${mavenLocalDir.absolutePath}. " +
+                        "Run 'publishToMavenLocal' for this project first."
+                )
             }
-        }
-
-        logger.lifecycle("Debugging artifact discovery:")
-        logger.lifecycle("   Maven local: ${mavenLocalDir.absolutePath}")
-        logger.lifecycle("   Group path: $groupPath")
-        logger.lifecycle("   Project name: $projectName")
-        logger.lifecycle("   Version: $version")
-        if (pluginMarkerPaths.isNotEmpty()) {
-            logger.lifecycle("   Plugin markers: ${pluginMarkerPaths.size}")
-        }
-
-        val groupDir = File(mavenLocalDir, groupPath)
-        if (!groupDir.exists()) {
-            logger.warn("Group directory doesn't exist: ${groupDir.absolutePath}")
-            return
-        }
-
-        logger.lifecycle("   Group directory found: ${groupDir.absolutePath}")
-
-        var totalFilesInGroup = 0
-        var matchingProjectFiles = 0
-
-        mavenLocalDir.walkTopDown().forEach { file ->
-            if (file.isFile) {
-                val relativePath = file.relativeTo(mavenLocalDir).path.replace('\\', '/')
-
-                val belongsToThisProject = relativePath.startsWith("$groupPath/$projectName/") ||
-                        relativePath.startsWith("$groupPath/$projectName-")
-
-                val belongsToPluginMarker = pluginMarkerPaths.any { markerPath ->
-                    relativePath.startsWith("$markerPath/")
-                }
-
-                if (relativePath.startsWith(groupPath)) {
-                    totalFilesInGroup++
-                }
-
-                if ((belongsToThisProject || belongsToPluginMarker) &&
-                    file.name.contains(version) &&
-                    (file.name.endsWith(".jar") || file.name.endsWith(".klib") ||
-                            file.name.endsWith(".aar") || file.name.endsWith(".pom") ||
-                            file.name.endsWith(".module") || file.name.endsWith(".asc") ||
-                            file.name.endsWith(".md5") || file.name.endsWith(".sha1") ||
-                            file.name.endsWith(".sha256") || file.name.endsWith(".sha512") ||
-                            file.name.endsWith(".json") || file.name.endsWith(".zip"))
-                ) {
-                    matchingProjectFiles++
-
-                    val targetFile = File(stagingDir, relativePath)
-                    targetFile.parentFile.mkdirs()
-                    file.copyTo(targetFile, overwrite = true)
-
-                    if (!file.name.endsWith(".md5") && !file.name.endsWith(".sha1") &&
-                        !file.name.endsWith(".sha256") && !file.name.endsWith(".sha512") &&
-                        !file.name.endsWith(".asc")
-                    ) {
-                        generateChecksums(targetFile)
-                    }
-
-                    if (file.name.startsWith(projectName)) {
-                        val artifactPattern = "$projectName-(.+?)-$version\\.(klib|jar|aar|module|pom).*".toRegex()
-                        val match = artifactPattern.find(file.name)
-                        if (match != null) {
-                            val target = match.groupValues[1]
-                            if (target !in setOf("sources", "javadoc")) {
-                                targets.add(target)
-                            }
-                        }
-                    }
-
-                    artifactCount++
-                    logger.lifecycle("   Copied: $relativePath")
-                }
-            }
-        }
-
-        logger.lifecycle("Discovery Summary:")
-        logger.lifecycle("   Total files in group: $totalFilesInGroup")
-        logger.lifecycle("   Files for THIS project: $matchingProjectFiles")
-        logger.lifecycle("   Files copied: $artifactCount")
-
-        if (artifactCount == 0) {
-            logger.lifecycle("No artifacts found! Possible issues:")
-            logger.lifecycle("   1. Run 'publishToMavenLocal' first")
-            logger.lifecycle("   2. Check if group/version/project name are correct")
-            logger.lifecycle("   3. Verify artifacts exist in: ${groupDir.absolutePath}")
-
-            File(groupDir, projectName).walkTopDown().take(5).forEach { file ->
-                if (file.isFile) {
-                    logger.lifecycle("   Example file found: ${file.name}")
-                }
+            logger.lifecycle("Bundling $path")
+            versionDir.listFiles().orEmpty().filter { it.isFile && it.extension in BUNDLED_EXTENSIONS }.forEach { file ->
+                val targetFile = File(stagingDir, "$path/${file.name}")
+                targetFile.parentFile.mkdirs()
+                file.copyTo(targetFile, overwrite = true)
+                if (file.extension !in CHECKSUM_AND_SIGNATURE_EXTENSIONS) generateChecksums(targetFile)
+                artifactCount++
             }
         }
 
         validateBundleStructure(stagingDir)
-
-        logger.lifecycle("Auto-discovered ${targets.size} Kotlin Multiplatform targets:")
-        targets.sorted().forEach { target ->
-            logger.lifecycle("   - $target")
-        }
-        logger.lifecycle("Total artifacts copied: $artifactCount")
-        logger.lifecycle("Bundle structure: Preserving full Maven repository layout ($groupPath/...)")
-        logger.lifecycle("Project-specific bundle created for: $projectName")
+        logger.lifecycle("Bundled ${paths.size} publications, $artifactCount files")
     }
 
     private fun validateBundleStructure(bundleDir: File) {
@@ -468,6 +369,11 @@ abstract class CreateBundleTask : DefaultTask() {
                 }
             }
         }
+    }
+
+    private companion object {
+        val BUNDLED_EXTENSIONS = setOf("jar", "klib", "aar", "pom", "module", "json", "zip", "asc", "md5", "sha1", "sha256", "sha512")
+        val CHECKSUM_AND_SIGNATURE_EXTENSIONS = setOf("asc", "md5", "sha1", "sha256", "sha512")
     }
 }
 
@@ -742,6 +648,11 @@ class CentralPublisherPlugin : Plugin<Project> {
 
             bundleFile.set(project.layout.buildDirectory.file("central-bundle.zip"))
             outputDirectory.set(project.layout.buildDirectory.dir("central-staging"))
+            publicationPaths.set(project.provider {
+                project.extensions.getByType<PublishingExtension>().publications.withType<MavenPublication>().map {
+                    "${it.groupId.replace('.', '/')}/${it.artifactId}/${it.version}"
+                }
+            })
 
             dependsOn("publishToMavenLocal")
         }
