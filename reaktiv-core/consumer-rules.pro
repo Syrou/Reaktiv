@@ -1,0 +1,9 @@
+-keepattributes InnerClasses,EnclosingMethod
+-keepnames class * implements io.github.syrou.reaktiv.core.ModuleState
+-keepnames class * implements io.github.syrou.reaktiv.core.Module
+-keepnames class * extends io.github.syrou.reaktiv.core.ModuleAction
+-keepnames class * extends io.github.syrou.reaktiv.core.ModuleLogic
+-if class **$* implements io.github.syrou.reaktiv.core.ModuleState
+-keep class <1>
+-if class **$*$* implements io.github.syrou.reaktiv.core.ModuleState
+-keep class <1>, <1>$<2>

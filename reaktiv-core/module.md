@@ -182,6 +182,35 @@ object SettingsModule : ModuleWithLogic<SettingsState, SettingsAction, SettingsL
 
 ---
 
+### R8 / ProGuard
+
+Reaktiv ships its own keep rules for Android. The AAR carries them as `proguard.txt`, which AGP
+applies automatically, also under R8 full mode (the default since AGP 8.0). The rules live in
+reaktiv-core and match classes by type, and every Reaktiv module depends on reaktiv-core, so they
+cover the app's own classes as well as the modules of reaktiv-navigation and reaktiv-introspection.
+
+The rules keep:
+
+- The name of every class that implements [ModuleState]. The store keys persisted and hydrated state
+  by the state class's qualified name. An obfuscated name changes from one release to the next, so
+  state saved by the previous release would silently fail to restore. Fields and methods of the state
+  class are still shrunk and obfuscated.
+- The names of classes that implement [Module] or extend [ModuleAction] or [ModuleLogic], so actions
+  and logic read by their real names in DevTools and crash captures from a release build. Their members
+  are still shrunk and obfuscated.
+- The enclosing classes of a nested state class, up to two levels (`SettingsModule.SettingsState`,
+  `Features.SearchModule.SearchState`), plus the `InnerClasses` and `EnclosingMethod` attributes.
+  Without them a nested state is named `SettingsModule$SettingsState` in a minified build and
+  `SettingsModule.SettingsState` in a debug build. The attributes rule is global, like the same line in
+  AGP's `proguard-android-optimize.txt`, and R8 applies it only to classes a keep rule matches.
+
+Generated serializers are covered by kotlinx.serialization's own rules. State classes must be
+`@Serializable`, which `createStore` already requires. A state class nested more than two levels deep
+needs its enclosing classes kept by the app, for example `-keep class com.example.Outer` and
+`-keep class com.example.Outer$Middle`.
+
+---
+
 ### Swift / iOS Interop
 
 Reaktiv works with Swift via Kotlin Swift Export, which bridges suspend functions as `async`.

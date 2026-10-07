@@ -66,10 +66,17 @@ subprojects {
                         implementation(rootProject.libs.kotlinx.coroutines.test)
                     }
                 }
+                val consumerRules = project.file("consumer-rules.pro")
                 targets.withType<KotlinMultiplatformAndroidLibraryTarget>().configureEach {
                     namespace = "io.github.syrou.reaktiv." + project.name.removePrefix("reaktiv-").replace('-', '.')
                     compileSdk = 37
                     minSdk = 23
+                    if (consumerRules.exists()) {
+                        optimization {
+                            consumerKeepRules.publish = true
+                            consumerKeepRules.file(consumerRules)
+                        }
+                    }
                 }
             }
         }

@@ -10586,3 +10586,39 @@ entry.location
 - Both follow the selected action and time travel, like the rest of the map. Related: BC-185, AD-138.
 
 ---
+
+### [BC-187] Minified Android apps keep ModuleState class names
+
+**Type:** Behavioural
+
+**Grep:** `persistenceManager\(|loadState\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A minified build persisted state under obfuscated names, which change with every release:
+// {"e.b0":{"type":"com.example.FormState","text":"hello"}}
+```
+
+**After:**
+```kotlin
+// A minified build persists state under the names a debug build uses:
+// {"com.example.FormState":{"type":"com.example.FormState","text":"hello"}}
+// {"com.example.SettingsModule.SettingsState":{"type":"com.example.SettingsModule.SettingsState"}}
+```
+
+**Notes:**
+- reaktiv-core's AAR now carries consumer keep rules as `proguard.txt`, which AGP applies automatically.
+  They keep the names of classes implementing `ModuleState` or `Module` and of classes extending
+  `ModuleAction` or `ModuleLogic`, the enclosing classes of nested state classes up to two levels, and the
+  `InnerClasses` and `EnclosingMethod` attributes. Members are still shrunk and obfuscated. Every Reaktiv
+  module depends on reaktiv-core, so the rules also cover navigation's and introspection's own modules.
+- Why: the store keys persisted and hydrated state by `qualifiedName`. Under R8 the names were obfuscated
+  and reassigned between releases, so `loadState()` silently dropped state saved by the previous release,
+  and nested states were named `Outer$State` instead of `Outer.State`.
+- Upgrading: state a minified app persisted with an earlier Reaktiv is stored under obfuscated keys. It does
+  not restore after this upgrade (it would not have restored after the next release either). From the first
+  save on, keys are stable.
+- A state class nested more than two levels deep needs its enclosing classes kept by the app.
+
+---
