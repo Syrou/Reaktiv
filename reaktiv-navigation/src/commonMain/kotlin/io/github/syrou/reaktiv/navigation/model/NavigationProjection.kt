@@ -54,5 +54,7 @@ public data class NavigationProjection internal constructor(
     @Contextual val underlyingScreen: NavigationEntry?,
     val modalsInStack: List<@Contextual NavigationEntry>,
     val underlyingScreenGraphHierarchy: List<String>? = null,
-    val showsNavigationChrome: Boolean = true
+    val showsNavigationChrome: Boolean = true,
+    val paneGraph: String? = null,
+    val paneColumns: List<@Contextual NavigationEntry?> = emptyList()
 )

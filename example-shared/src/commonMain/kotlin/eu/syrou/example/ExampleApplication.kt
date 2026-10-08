@@ -7,6 +7,7 @@ import eu.syrou.example.reaktiv.auth.AuthModule
 import eu.syrou.example.reaktiv.crashtest.CrashTestModule
 import eu.syrou.example.reaktiv.crashtest.MockCrashlytics
 import eu.syrou.example.reaktiv.lifecycledemo.LifecycleDemoModule
+import eu.syrou.example.reaktiv.mail.MailModule
 import eu.syrou.example.reaktiv.middleware.createTestNavigationMiddleware
 import eu.syrou.example.reaktiv.news.NewsModule
 import eu.syrou.example.reaktiv.settings.SettingsModule
@@ -34,6 +35,11 @@ import eu.syrou.example.ui.screen.home.leaderboard.LeaderboardDetailScreen
 import eu.syrou.example.ui.screen.home.leaderboard.LeaderboardListScreen
 import eu.syrou.example.ui.screen.home.leaderboard.PlayerProfileScreen
 import eu.syrou.example.ui.screen.home.leaderboard.StatsDetailScreen
+import eu.syrou.example.ui.screen.home.mail.MailGraph
+import eu.syrou.example.ui.screen.home.mail.MailInboxScreen
+import eu.syrou.example.ui.screen.home.mail.MailMessageScreen
+import eu.syrou.example.ui.screen.home.mail.MailReplyModal
+import eu.syrou.example.ui.screen.home.mail.MailThreadScreen
 import eu.syrou.example.ui.screen.home.news.NewsListScreen
 import eu.syrou.example.ui.screen.home.news.NewsScreen
 import eu.syrou.example.ui.screen.home.workspace.WorkspaceScreen
@@ -206,6 +212,12 @@ class ExampleApplication(private val platform: ExamplePlatform) {
                         start(LeaderboardListScreen)
                         screens(LeaderboardDetailScreen, PlayerProfileScreen, StatsDetailScreen)
                     }
+
+                    graph(MailGraph) {
+                        start(MailInboxScreen)
+                        screens(MailInboxScreen, MailMessageScreen, MailThreadScreen)
+                        modals(MailReplyModal)
+                    }
                 }
                 screenGroup(UserManagementScreens)
             }
@@ -260,6 +272,7 @@ class ExampleApplication(private val platform: ExamplePlatform) {
         module(TwitchStreamsModule(http))
         module(CrashTestModule)
         module(SubscriptionModule)
+        module(MailModule)
         platform.extraModules.forEach { module(it) }
         module(navigationModule)
         middlewares(

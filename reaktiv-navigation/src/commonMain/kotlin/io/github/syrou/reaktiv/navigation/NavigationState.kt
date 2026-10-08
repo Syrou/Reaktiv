@@ -3,6 +3,7 @@ package io.github.syrou.reaktiv.navigation
 import androidx.compose.runtime.Stable
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.definition.WindowWidthClass
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.StartFailure
 import io.github.syrou.reaktiv.navigation.model.ModalContext
@@ -80,7 +81,9 @@ public data class NavigationState(
      */
     val activeScrub: ScrubState? = null,
 
-    val startFailure: StartFailure? = null
+    val startFailure: StartFailure? = null,
+
+    val windowWidthClass: WindowWidthClass? = null
 ) : ModuleState {
 
     @Deprecated(
@@ -190,6 +193,17 @@ public data class NavigationState(
      * presenting graph does by default because it carries its own chrome.
      */
     val showsNavigationChrome: Boolean get() = derived.showsNavigationChrome
+
+    val paneGraph: String? get() = derived.paneGraph
+
+    val paneColumns: List<NavigationEntry?> get() = derived.paneColumns
+
+    internal fun showsEntry(entry: NavigationEntry): Boolean {
+        if (currentEntry.stableKey == entry.stableKey) return true
+        val columns = paneColumns
+        return columns.any { it?.stableKey == currentEntry.stableKey } &&
+            columns.any { it?.stableKey == entry.stableKey }
+    }
 
     /** `true` when there is more than one entry in [backStack] and a back navigation is possible. */
     val canGoBack: Boolean get() = backStack.size > 1

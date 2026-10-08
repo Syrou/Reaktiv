@@ -315,6 +315,35 @@ public final class io/github/syrou/reaktiv/navigation/NavigationAction$SetStartF
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
+	public static final field $stable I
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass$Companion;
+	public fun <init> (Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;)V
+	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public final fun copy (Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass;
+	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass;Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getWidthClass ()Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/syrou/reaktiv/navigation/NavigationAction$SetWindowWidthClass$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
 public final class io/github/syrou/reaktiv/navigation/NavigationAction$Traverse : io/github/syrou/reaktiv/navigation/NavigationAction, io/github/syrou/reaktiv/core/HighPriorityAction {
 	public static final field $stable I
 	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationAction$Traverse$Companion;
@@ -477,13 +506,14 @@ public final class io/github/syrou/reaktiv/navigation/NavigationOutcome$Success 
 public final class io/github/syrou/reaktiv/navigation/NavigationState : io/github/syrou/reaktiv/core/ModuleState {
 	public static final field $stable I
 	public static final field Companion Lio/github/syrou/reaktiv/navigation/NavigationState$Companion;
-	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/model/NavigationProjection;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/NavigationAction;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLio/github/syrou/reaktiv/navigation/ScrubState;Lio/github/syrou/reaktiv/navigation/model/StartFailure;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/model/NavigationProjection;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/NavigationAction;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLio/github/syrou/reaktiv/navigation/ScrubState;Lio/github/syrou/reaktiv/navigation/model/StartFailure;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/model/NavigationProjection;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/NavigationAction;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLio/github/syrou/reaktiv/navigation/ScrubState;Lio/github/syrou/reaktiv/navigation/model/StartFailure;Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/model/NavigationProjection;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/NavigationAction;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLio/github/syrou/reaktiv/navigation/ScrubState;Lio/github/syrou/reaktiv/navigation/model/StartFailure;Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/NavigationAction;JLjava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZZZLjava/util/List;Ljava/util/List;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZZLio/github/syrou/reaktiv/navigation/ScrubState;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/NavigationAction;JLjava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZZZLjava/util/List;Ljava/util/List;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZZLio/github/syrou/reaktiv/navigation/ScrubState;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
 	public final fun component10 ()Lio/github/syrou/reaktiv/navigation/ScrubState;
 	public final fun component11 ()Lio/github/syrou/reaktiv/navigation/model/StartFailure;
+	public final fun component12 ()Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
 	public final fun component2 ()Ljava/util/List;
 	public final fun component3-UwyO8pc ()J
 	public final fun component4 ()Lio/github/syrou/reaktiv/navigation/model/NavigationProjection;
@@ -492,8 +522,8 @@ public final class io/github/syrou/reaktiv/navigation/NavigationState : io/githu
 	public final fun component7 ()Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
 	public final fun component8 ()Z
 	public final fun component9 ()Z
-	public final fun copy-bhIBvvc (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/model/NavigationProjection;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/NavigationAction;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLio/github/syrou/reaktiv/navigation/ScrubState;Lio/github/syrou/reaktiv/navigation/model/StartFailure;)Lio/github/syrou/reaktiv/navigation/NavigationState;
-	public static synthetic fun copy-bhIBvvc$default (Lio/github/syrou/reaktiv/navigation/NavigationState;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/model/NavigationProjection;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/NavigationAction;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLio/github/syrou/reaktiv/navigation/ScrubState;Lio/github/syrou/reaktiv/navigation/model/StartFailure;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationState;
+	public final fun copy--jMnzLM (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/model/NavigationProjection;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/NavigationAction;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLio/github/syrou/reaktiv/navigation/ScrubState;Lio/github/syrou/reaktiv/navigation/model/StartFailure;Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;)Lio/github/syrou/reaktiv/navigation/NavigationState;
+	public static synthetic fun copy--jMnzLM$default (Lio/github/syrou/reaktiv/navigation/NavigationState;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Ljava/util/List;JLio/github/syrou/reaktiv/navigation/model/NavigationProjection;Ljava/util/Map;Lio/github/syrou/reaktiv/navigation/NavigationAction;Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;ZZLio/github/syrou/reaktiv/navigation/ScrubState;Lio/github/syrou/reaktiv/navigation/model/StartFailure;Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;ILjava/lang/Object;)Lio/github/syrou/reaktiv/navigation/NavigationState;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getActiveModalContexts ()Ljava/util/Map;
 	public final fun getActiveScrub ()Lio/github/syrou/reaktiv/navigation/ScrubState;
@@ -514,6 +544,8 @@ public final class io/github/syrou/reaktiv/navigation/NavigationState : io/githu
 	public final fun getModalsInStack ()Ljava/util/List;
 	public final fun getNavigationDepth ()I
 	public final fun getOrderedBackStack ()Ljava/util/List;
+	public final fun getPaneColumns ()Ljava/util/List;
+	public final fun getPaneGraph ()Ljava/lang/String;
 	public final fun getPendingNavigation ()Lio/github/syrou/reaktiv/navigation/model/PendingNavigation;
 	public final fun getRenderableEntries ()Ljava/util/List;
 	public final fun getRevealedEntry ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
@@ -525,6 +557,7 @@ public final class io/github/syrou/reaktiv/navigation/NavigationState : io/githu
 	public final fun getUnderlyingScreen ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
 	public final fun getUnderlyingScreenGraphHierarchy ()Ljava/util/List;
 	public final fun getVisibleLayers ()Ljava/util/List;
+	public final fun getWindowWidthClass ()Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
 	public fun hashCode ()I
 	public final fun isAtPath (Ljava/lang/String;)Z
 	public final fun isBootstrapping ()Z
@@ -689,6 +722,12 @@ public final class io/github/syrou/reaktiv/navigation/definition/BackstackLifecy
 	public final fun invokeOnRemoval (Lkotlin/jvm/functions/Function2;)V
 }
 
+public final class io/github/syrou/reaktiv/navigation/definition/ComposableSingletons$PaneLayoutKt {
+	public static final field INSTANCE Lio/github/syrou/reaktiv/navigation/definition/ComposableSingletons$PaneLayoutKt;
+	public fun <init> ()V
+	public final fun getLambda$1350652953$io_github_syrou_reaktiv_navigation ()Lkotlin/jvm/functions/Function2;
+}
+
 public abstract interface class io/github/syrou/reaktiv/navigation/definition/ContentInsets {
 }
 
@@ -778,6 +817,7 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Gr
 	public fun getEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public fun getExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public fun getOnDismissRequest ()Lkotlin/jvm/functions/Function2;
+	public fun getPaneLayout ()Lio/github/syrou/reaktiv/navigation/definition/PaneLayout;
 	public abstract fun getRoute ()Ljava/lang/String;
 	public fun getShowsDismissIndicator ()Z
 	public fun getShowsNavigationChrome ()Z
@@ -793,6 +833,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/Graph$DefaultIm
 	public static fun getEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getExitTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lkotlin/jvm/functions/Function2;
+	public static fun getPaneLayout (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/definition/PaneLayout;
 	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getPopExitTransition (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getShowsDismissIndicator (Lio/github/syrou/reaktiv/navigation/definition/Graph;)Z
@@ -1047,6 +1088,41 @@ public final class io/github/syrou/reaktiv/navigation/definition/NavigationTarge
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/syrou/reaktiv/navigation/definition/PaneColumn {
+	public static final field $stable I
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/PaneLayout {
+	public static final field $stable I
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/PaneLayoutBuilder {
+	public static final field $stable I
+	public final fun at (Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;Ljava/util/List;Lkotlin/jvm/functions/Function3;)V
+	public final fun column ([Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;
+	public final fun expanded (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function6;)V
+	public final fun expanded (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function5;)V
+	public final fun expanded (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function4;)V
+	public final fun extraLarge (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function6;)V
+	public final fun extraLarge (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function5;)V
+	public final fun extraLarge (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function4;)V
+	public final fun large (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function6;)V
+	public final fun large (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function5;)V
+	public final fun large (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function4;)V
+	public final fun medium (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function5;)V
+	public final fun medium (Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lio/github/syrou/reaktiv/navigation/definition/PaneColumn;Lkotlin/jvm/functions/Function4;)V
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/PaneLayoutKt {
+	public static final fun PaneLayout (Lkotlin/jvm/functions/Function1;)Lio/github/syrou/reaktiv/navigation/definition/PaneLayout;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/PaneSlot {
+	public static final field $stable I
+	public final fun invoke (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public final fun isOpen ()Z
+}
+
 public final class io/github/syrou/reaktiv/navigation/definition/RemovalReason : java/lang/Enum {
 	public static final field NAVIGATION Lio/github/syrou/reaktiv/navigation/definition/RemovalReason;
 	public static final field RESET Lio/github/syrou/reaktiv/navigation/definition/RemovalReason;
@@ -1164,6 +1240,24 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Ur
 	public abstract fun decode (Ljava/lang/String;)Ljava/lang/String;
 	public abstract fun encodePath (Ljava/lang/String;)Ljava/lang/String;
 	public abstract fun encodeQuery (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/WindowWidthClass : java/lang/Enum {
+	public static final field Compact Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public static final field Companion Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass$Companion;
+	public static final field Expanded Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public static final field ExtraLarge Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public static final field Large Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public static final field Medium Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getMinWidthDp ()I
+	public static fun valueOf (Ljava/lang/String;)Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public static fun values ()[Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+}
+
+public final class io/github/syrou/reaktiv/navigation/definition/WindowWidthClass$Companion {
+	public final fun fromWidthDp (F)Lio/github/syrou/reaktiv/navigation/definition/WindowWidthClass;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
 public final class io/github/syrou/reaktiv/navigation/dsl/BrowserHistoryBuilder {
@@ -2187,6 +2281,8 @@ public final class io/github/syrou/reaktiv/navigation/model/NavigationProjection
 	public final fun component12 ()Ljava/util/List;
 	public final fun component13 ()Ljava/util/List;
 	public final fun component14 ()Z
+	public final fun component15 ()Ljava/lang/String;
+	public final fun component16 ()Ljava/util/List;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/util/List;
 	public final fun component4 ()Ljava/util/List;
@@ -2203,6 +2299,8 @@ public final class io/github/syrou/reaktiv/navigation/model/NavigationProjection
 	public final fun getGlobalOverlayEntries ()Ljava/util/List;
 	public final fun getHasModalsInStack ()Z
 	public final fun getModalsInStack ()Ljava/util/List;
+	public final fun getPaneColumns ()Ljava/util/List;
+	public final fun getPaneGraph ()Ljava/lang/String;
 	public final fun getShowsNavigationChrome ()Z
 	public final fun getSystemLayerEntries ()Ljava/util/List;
 	public final fun getUnderlyingScreen ()Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;
@@ -2841,6 +2939,7 @@ public final class io/github/syrou/reaktiv/navigation/ui/NavigationRenderKt {
 	public static final fun NavigationRender (Landroidx/compose/ui/Modifier;ZLandroidx/compose/runtime/Composer;II)V
 	public static final fun currentActionResource (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function2;
 	public static final fun currentNavigatable (Landroidx/compose/runtime/Composer;I)Lio/github/syrou/reaktiv/navigation/definition/Navigatable;
+	public static final fun currentPaneColumn (Landroidx/compose/runtime/Composer;I)Ljava/lang/Integer;
 	public static final fun currentTitle (Landroidx/compose/runtime/Composer;I)Ljava/lang/String;
 	public static final fun getLocalNavigationModule ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 }

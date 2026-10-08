@@ -2,6 +2,7 @@ package io.github.syrou.reaktiv.navigation
 
 import io.github.syrou.reaktiv.core.HighPriorityAction
 import io.github.syrou.reaktiv.core.ModuleAction
+import io.github.syrou.reaktiv.navigation.definition.WindowWidthClass
 import io.github.syrou.reaktiv.navigation.model.StartFailure
 import io.github.syrou.reaktiv.navigation.model.ModalContext
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -126,6 +127,9 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
 
     @Serializable
     public object ScrubEnd : NavigationAction(), HighPriorityAction
+
+    @Serializable
+    public data class SetWindowWidthClass(val widthClass: WindowWidthClass) : NavigationAction(), HighPriorityAction
 }
 
 @Serializable

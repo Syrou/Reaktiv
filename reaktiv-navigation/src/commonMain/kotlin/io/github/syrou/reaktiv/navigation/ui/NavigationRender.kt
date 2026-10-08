@@ -7,21 +7,25 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.compose.runtime.LaunchedEffect
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import androidx.compose.runtime.snapshotFlow
 import io.github.syrou.reaktiv.core.util.ReaktivDebug
+import io.github.syrou.reaktiv.navigation.NavigationAction
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.alias.ActionResource
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
+import io.github.syrou.reaktiv.navigation.definition.WindowWidthClass
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import io.github.syrou.reaktiv.navigation.util.NavigationDebugger
@@ -41,6 +45,11 @@ public val LocalNavigationModule: ProvidableCompositionLocal<NavigationModule> =
 internal val LocalRenderedEntry = compositionLocalOf<NavigationEntry?> { null }
 
 internal val LocalRenderedNavigationState = compositionLocalOf<NavigationState?> { null }
+
+internal val LocalPaneColumn = compositionLocalOf<Int?> { null }
+
+@Composable
+public fun currentPaneColumn(): Int? = LocalPaneColumn.current
 
 /**
  * Returns the [Navigatable] bound to the current entry.
@@ -133,6 +142,18 @@ public fun NavigationRender(
     }
 
     val interactiveController = remember(store) { InteractiveTransitionController { action -> store.dispatch(action) } }
+    val density = LocalDensity.current
+    val reportsWidth = navModule.hasPaneLayouts
+    val measuredWidthClass = remember(store) { mutableStateOf<WindowWidthClass?>(null) }
+    if (reportsWidth) {
+        val measured = measuredWidthClass.value
+        val stored = navigationState.windowWidthClass
+        LaunchedEffect(measured, stored) {
+            if (measured != null && measured != stored) {
+                store.dispatch(NavigationAction.SetWindowWidthClass(measured))
+            }
+        }
+    }
     val gesturePolicy = LocalBackGesturePolicy.current ?: platformBackGesturePolicy()
 
     navModule.documentTitle?.let { format ->
@@ -164,7 +185,12 @@ public fun NavigationRender(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .onGloballyPositioned { interactiveController.rootCoordinates = it }
+                .onGloballyPositioned { coordinates ->
+                    interactiveController.rootCoordinates = coordinates
+                    if (reportsWidth) {
+                        measuredWidthClass.value = WindowWidthClass.fromWidthDp(coordinates.size.width / density.density)
+                    }
+                }
                 .let {
                     if (gesturePolicy.edgeSwipe) it.backGestureRecognizer(interactiveController, gesturePolicy) else it
                 }
@@ -181,7 +207,8 @@ public fun NavigationRender(
         ) {
             val hasActiveLoadingOverlay = navigationState.isEvaluatingNavigation ||
                 navigationState.systemLayerEntries.any { it.navigatable is LoadingModal }
-            val showContentLayers = !navigationState.isBootstrapping || !hasActiveLoadingOverlay
+            val awaitingWidth = reportsWidth && navigationState.windowWidthClass == null
+            val showContentLayers = (!navigationState.isBootstrapping || !hasActiveLoadingOverlay) && !awaitingWidth
             if (showContentLayers) {
                 UnifiedLayerRenderer(
                     layerType = RenderLayer.CONTENT,

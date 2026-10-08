@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -127,5 +128,6 @@ private class HomeTab(val graph: String, val label: String, val icon: ImageVecto
 private val HOME_TABS = listOf(
     HomeTab("news", "Home", Icons.Default.Home),
     HomeTab("workspace", "Workspace", Icons.Default.Home),
-    HomeTab("leaderboard", "Leaderboard", Icons.Default.Star)
+    HomeTab("leaderboard", "Leaderboard", Icons.Default.Star),
+    HomeTab("mail", "Mail", Icons.Default.Email)
 )

@@ -16,7 +16,8 @@ internal data class LayoutTreeSlot(
     val layoutRoutes: List<String>,
     val zIndex: Float,
     val indicatorAnchor: IndicatorAnchor? = null,
-    val shielded: Boolean = false
+    val shielded: Boolean = false,
+    val follows: Boolean = false
 )
 
 internal sealed interface LayoutTreeNode {
@@ -92,7 +93,9 @@ internal fun buildLayoutTree(slots: List<LayoutTreeSlot>): List<LayoutTreeNode> 
             slot = slot,
             transitionAnchorRoute = outermostUnsharedLayout(
                 layoutRoutes = slot.layoutRoutes,
-                sharedWith = slots.filterIndexed { other, _ -> other != index }.map { it.layoutRoutes }
+                sharedWith = slots
+                    .filterIndexed { other, candidate -> other != index && !candidate.follows }
+                    .map { it.layoutRoutes }
             )
         )
     }
@@ -118,7 +121,7 @@ private fun buildLayoutLevel(slots: List<AnchoredSlot>, depth: Int): List<Layout
             nodes += LayoutTreeLeaf(
                 slotKey = slot.key,
                 zIndex = slot.zIndex,
-                ownsTransition = anchored.transitionAnchorRoute == null,
+                ownsTransition = !slot.follows && anchored.transitionAnchorRoute == null,
                 ownsIndicator = slot.holdsIndicatorAt(null)
             )
             if (slot.shielded) {
@@ -132,7 +135,7 @@ private fun buildLayoutLevel(slots: List<AnchoredSlot>, depth: Int): List<Layout
         nodes += LayoutTreeBranch(
             route = route,
             zIndex = group.maxOf { it.slot.zIndex },
-            ownerSlotKey = group.lastOrNull { it.transitionAnchorRoute == route }?.slot?.key,
+            ownerSlotKey = group.lastOrNull { !it.slot.follows && it.transitionAnchorRoute == route }?.slot?.key,
             indicatorSlotKey = group.lastOrNull { it.slot.holdsIndicatorAt(route) }?.slot?.key,
             children = buildLayoutLevel(group, depth + 1)
         )

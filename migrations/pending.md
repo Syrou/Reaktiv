@@ -10622,3 +10622,77 @@ entry.location
 - A state class nested more than two levels deep needs its enclosing classes kept by the app.
 
 ---
+
+### [AD-188] Graphs can show their screens side by side on wider windows
+
+**Type:** Addition
+
+**Grep:** `paneLayout|PaneLayout\(|currentPaneColumn|windowWidthClass`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object MailGraph : Graph {
+    override val route = "mail"
+
+    override val paneLayout = PaneLayout {
+        expanded(
+            column(InboxScreen),
+            column(MessageScreen, ThreadScreen)
+        ) { inbox, message ->
+            Row(Modifier.fillMaxSize()) {
+                inbox(Modifier.weight(0.4f))
+                VerticalDivider()
+                message(Modifier.weight(0.6f)) { Text("Select a message") }
+            }
+        }
+
+        large(
+            column(InboxScreen),
+            column(MessageScreen, ThreadScreen),
+            column(ReplyModal)
+        ) { inbox, message, reply ->
+            Row(Modifier.fillMaxSize()) {
+                inbox(Modifier.weight(0.25f))
+                VerticalDivider()
+                message(Modifier.weight(0.45f)) { Text("Select a message") }
+                if (reply.isOpen) {
+                    VerticalDivider()
+                    reply(Modifier.weight(0.3f))
+                }
+            }
+        }
+    }
+}
+
+graph(MailGraph) {
+    start(InboxScreen)
+    screens(InboxScreen, MessageScreen, ThreadScreen)
+    modals(ReplyModal)
+}
+```
+
+**Notes:**
+- `Graph.paneLayout` is `null` by default, so existing graphs behave as before. The graph DSL is unchanged.
+- Each block names a `WindowWidthClass` (`medium`, `expanded`, `large`, `extraLarge`, or `at(...)` for a list
+  of columns) and gives a composable one `PaneSlot` per column. A window without its own block uses the
+  nearest smaller one. Compact windows, and sizes below the smallest block, keep the single stack.
+- A column shows the topmost of its navigatables, and the others stack inside it with their normal
+  transitions and back gestures. `slot(modifier) { empty }` draws the column, `slot.isOpen` says whether
+  anything is open in it.
+- Modals keep showing on top as before. Only a modal placed in a column at the current width class is drawn
+  inline in that column, and only at that size.
+- There is one back stack at every width. Opening a navigatable that is already showing in the graph's panes
+  replaces it and everything opened after it, on phones as well, so rotating or resizing never changes
+  history.
+- `NavigationRender` measures its own width and dispatches `NavigationAction.SetWindowWidthClass` when the
+  class changes, only for modules that declare a pane layout. Content waits for that first measurement.
+  `NavigationState.windowWidthClass`, `paneGraph` and `paneColumns` expose the result.
+- `BackstackLifecycle.visibility` is true for every entry shown in a column while the current entry is one
+  of them, and `visibleLayers` lists those entries.
+- `currentPaneColumn()` returns the column a screen is drawn in, or `null` outside a pane layout. A screen
+  can use it to hide its back arrow when the list sits beside it.
+- `createNavigationModule` fails when a pane layout places a navigatable that is not registered inside that
+  graph or a graph nested in it.
+
+---

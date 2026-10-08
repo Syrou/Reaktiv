@@ -52,6 +52,7 @@ import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.modalExitSpec
 import io.github.syrou.reaktiv.navigation.transition.popExitSpec
 import io.github.syrou.reaktiv.navigation.util.NavigationStackMath
+import io.github.syrou.reaktiv.navigation.util.PaneMath
 import io.github.syrou.reaktiv.navigation.util.RouteTemplate
 import io.github.syrou.reaktiv.navigation.util.StackSnapshot
 import io.github.syrou.reaktiv.navigation.util.parseUrlWithQueryParams
@@ -1507,6 +1508,26 @@ public class NavigationLogic internal constructor(
                                 "navigateTo(${entry.route}) skipped, already the current entry"
                             )
                             continue
+                        }
+                        val reopened = PaneMath.reopenIndex(sim.backStack, entry, precomputedData.graphDefinitions)
+                        if (reopened >= 0) {
+                            val existing = sim.backStack[reopened]
+                            val keepsExisting = existing.stableKey == entry.stableKey
+                            val inclusive = !keepsExisting && reopened > 0
+                            batchedActions.add(
+                                NavigationAction.PopUpTo(existing.path, inclusive, null, existing.stableKey)
+                            )
+                            sim = NavigationStackMath.applyPopUpTo(sim, reopened, inclusive, null)
+                            lastNavigatedEntry = null
+                            when {
+                                keepsExisting -> continue
+                                !inclusive -> {
+                                    batchedActions.add(NavigationAction.Replace(entry))
+                                    sim = NavigationStackMath.applyReplace(sim, entry)
+                                    lastNavigatedEntry = entry
+                                    continue
+                                }
+                            }
                         }
                         batchedActions.add(NavigationAction.Navigate(entry, dismissModals = step.shouldDismissModals))
                         sim = NavigationStackMath.applyNavigate(sim, entry, step.shouldDismissModals)

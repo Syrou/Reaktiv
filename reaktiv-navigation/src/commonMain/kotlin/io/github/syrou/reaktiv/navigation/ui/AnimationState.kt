@@ -96,7 +96,13 @@ public fun rememberLayerAnimationState(
     }
 
     val animationDecision = previousEntry?.let { prev ->
-        determineContentAnimationDecision(prev, currentEntry, navModule, isExplicitBackNavigation)
+        determineContentAnimationDecision(
+            prev,
+            currentEntry,
+            navModule,
+            isExplicitBackNavigation,
+            navigationState.windowWidthClass
+        )
     }
 
     val isBackNavigation = isExplicitBackNavigation && previousEntry != null

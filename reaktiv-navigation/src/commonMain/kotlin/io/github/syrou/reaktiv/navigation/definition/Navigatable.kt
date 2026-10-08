@@ -105,11 +105,11 @@ public class BackstackLifecycle(
 ) : CoroutineScope by lifecycleScope {
 
     public val visibility: StateFlow<Boolean> = navigationStateFlow
-        .map { state -> state.currentEntry.stableKey == entry.stableKey }
+        .map { state -> state.showsEntry(entry) }
         .stateIn(
             scope = lifecycleScope,
             started = SharingStarted.Eagerly,
-            initialValue = navigationStateFlow.value.currentEntry.stableKey == entry.stableKey
+            initialValue = navigationStateFlow.value.showsEntry(entry)
         )
 
     public val params: Params get() = entry.params

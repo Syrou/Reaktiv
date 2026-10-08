@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.navigation.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -8,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -17,6 +19,9 @@ import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.LoadingModal
+import io.github.syrou.reaktiv.navigation.definition.PaneBlock
+import io.github.syrou.reaktiv.navigation.definition.PaneSlot
+import io.github.syrou.reaktiv.navigation.definition.WindowWidthClass
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -25,6 +30,8 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.computeBackGesturePlan
 import io.github.syrou.reaktiv.navigation.transition.computeDismissGesturePlan
 import io.github.syrou.reaktiv.navigation.util.GraphIndex
+import io.github.syrou.reaktiv.navigation.util.PaneMath
+import io.github.syrou.reaktiv.navigation.util.PaneSurface
 import io.github.syrou.reaktiv.navigation.util.AnimationDecision
 import io.github.syrou.reaktiv.navigation.util.canArmSwipeDismiss
 import io.github.syrou.reaktiv.navigation.util.dismissIndicatorAnchor
@@ -117,8 +124,15 @@ private fun ContentLayerRenderer(
 ) {
     val navModule = LocalNavigationModule.current
     val graphIndex = remember(graphDefinitions) { GraphIndex.of(graphDefinitions) }
-    val contentModals = entries.filter { it.navigatable is Modal }
-    val screenEntries = entries.filter { it.navigatable !is Modal }
+    val navigationState by composeState<NavigationState>()
+    val widthClass = navigationState.windowWidthClass
+    val paneSurface = navigationState.paneGraph?.let { graphId ->
+        PaneMath.activeBlock(graphId, graphDefinitions, widthClass)?.let { block ->
+            PaneSurface(graphId, block, navigationState.paneColumns)
+        }
+    }
+    val contentModals = entries.filter { it.navigatable is Modal && paneSurface?.places(it) != true }
+    val screenEntries = entries.filter { it.navigatable !is Modal || paneSurface?.places(it) == true }
     if (screenEntries.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
             ModalStack(contentModals, NavigationZIndex.CONTENT_MODAL_BASE)
@@ -126,13 +140,14 @@ private fun ContentLayerRenderer(
         return
     }
     val currentEntry = screenEntries.last()
+    val paneMemory = remember { PaneSurfaceMemory() }
+    val previousSurface = paneMemory.advance(currentEntry.stableKey, paneSurface)
 
     val animationState = rememberLayerAnimationState(currentEntry)
 
     val interactiveController = LocalInteractiveTransitionController.current
     val activeKind = interactiveController?.scrubKind
     val windowInfoForScrub = LocalWindowInfo.current
-    val navigationState by composeState<NavigationState>()
 
     fun previewOf(revealed: NavigationEntry?, plan: BackGesturePlan): ContentScrubPreview? =
         interactiveController?.let { controller ->
@@ -241,36 +256,120 @@ private fun ContentLayerRenderer(
     val scrubPreview: ContentScrubPreview? = backPreview ?: dismissPreview
     val revealedAtRest = interactiveController?.phase == InteractiveTransitionController.Phase.Idle
 
-    fun layoutsFor(entry: NavigationEntry): List<NavigationGraph> =
-        if (navModule.getGraphId(entry) == null) emptyList() else graphIndex.layoutsAround(entry.graphId)
-
-    val currentLayouts = layoutsFor(currentEntry)
-    val prevEntry = animationState.previousEntry?.takeIf { it.stableKey != currentEntry.stableKey }
-    val prevLayouts = prevEntry?.let(::layoutsFor)
-    val revealedEntry = scrubPreview?.revealedEntry?.takeIf { revealed ->
-        revealed.stableKey != currentEntry.stableKey && revealed.stableKey != prevEntry?.stableKey
+    fun levelsFor(entry: NavigationEntry): List<String> {
+        if (navModule.getGraphId(entry) == null) return emptyList()
+        val paneGraph = PaneMath.graphOf(entry, graphDefinitions)
+            ?.takeIf { PaneMath.activeBlock(it, graphDefinitions, widthClass) != null }
+        val column = paneGraph?.let { PaneMath.columnOf(entry, graphDefinitions, widthClass) }
+        return graphIndex.layoutChain(entry.graphId).flatMap { graph ->
+            when {
+                graph.route == paneGraph -> listOfNotNull(graph.route, column?.let { paneColumnLevel(graph.route, it) })
+                graph.layout != null -> listOf(graph.route)
+                else -> emptyList()
+            }
+        }
     }
-    val revealedLayouts = revealedEntry?.let(::layoutsFor)
 
-    val currentLayoutRoutes = currentLayouts.map { it.route }
+    val currentLevels = levelsFor(currentEntry)
+    val prevEntry = animationState.previousEntry?.takeIf {
+        it.stableKey != currentEntry.stableKey && paneSurface?.places(it) != true
+    }
+    val prevLevels = prevEntry?.let(::levelsFor)
+    val revealedEntry = scrubPreview?.revealedEntry?.takeIf { revealed ->
+        revealed.stableKey != currentEntry.stableKey &&
+            revealed.stableKey != prevEntry?.stableKey &&
+            paneSurface?.places(revealed) != true
+    }
+    val revealedLevels = revealedEntry?.let(::levelsFor)
+
     val placement = decideTransitionPlacement(
-        currentLayoutRoutes = currentLayoutRoutes,
-        previousLayoutRoutes = prevLayouts?.map { it.route },
+        currentLayoutRoutes = currentLevels,
+        previousLayoutRoutes = prevLevels,
         decision = animationState.animationDecision
     )
 
+    val restingEntries = paneSurface?.entries.orEmpty().filter { it.stableKey != currentEntry.stableKey }
+    val shownKeys = buildSet {
+        add(currentEntry.stableKey)
+        prevEntry?.let { add(it.stableKey) }
+        revealedEntry?.let { add(it.stableKey) }
+        restingEntries.forEach { add(it.stableKey) }
+    }
+    val leavingFollowers = if (prevEntry == null) {
+        emptyList()
+    } else {
+        previousSurface?.entries.orEmpty().filter { it.stableKey !in shownKeys }
+    }
+    val revealedSurface = revealedEntry?.let { revealed ->
+        val content = navigationState.orderedBackStack.filter { it.navigatable.renderLayer != RenderLayer.SYSTEM }
+        val end = content.indexOfLast { it.stableKey == revealed.stableKey }
+        if (end < 0) null else PaneMath.surface(content.take(end + 1), widthClass, graphDefinitions)
+    }
+    val arrivingFollowers = revealedSurface?.entries.orEmpty().filter { arriving ->
+        arriving.stableKey !in shownKeys && leavingFollowers.none { it.stableKey == arriving.stableKey }
+    }
+
     val slots = buildList {
+        restingEntries.forEach { entry ->
+            add(
+                ContentSlot(
+                    entry = entry,
+                    levels = levelsFor(entry),
+                    zIndex = NavigationZIndex.CONTENT_BACK,
+                    isEntering = false,
+                    animationDecision = null,
+                    progressDriver = TransitionProgressDriver.Timed,
+                    blockInput = false,
+                    clearSemantics = false,
+                    resting = true
+                )
+            )
+        }
+        arrivingFollowers.forEach { entry ->
+            add(
+                ContentSlot(
+                    entry = entry,
+                    levels = levelsFor(entry),
+                    zIndex = NavigationZIndex.CONTENT_BACK,
+                    isEntering = false,
+                    animationDecision = null,
+                    progressDriver = TransitionProgressDriver.Timed,
+                    blockInput = false,
+                    clearSemantics = revealedAtRest,
+                    resting = true,
+                    follows = true,
+                    shielded = true
+                )
+            )
+        }
         if (revealedEntry != null) {
             add(
                 ContentSlot(
                     entry = revealedEntry,
-                    layouts = revealedLayouts.orEmpty(),
+                    levels = revealedLevels.orEmpty(),
                     zIndex = NavigationZIndex.CONTENT_BACK,
                     isEntering = false,
                     animationDecision = null,
                     progressDriver = scrubPreview.revealedDriver,
                     blockInput = false,
-                    clearSemantics = revealedAtRest
+                    clearSemantics = revealedAtRest,
+                    shielded = true
+                )
+            )
+        }
+        leavingFollowers.forEach { entry ->
+            add(
+                ContentSlot(
+                    entry = entry,
+                    levels = levelsFor(entry),
+                    zIndex = placement.previousZIndex,
+                    isEntering = false,
+                    animationDecision = null,
+                    progressDriver = TransitionProgressDriver.Timed,
+                    blockInput = true,
+                    clearSemantics = false,
+                    resting = true,
+                    follows = true
                 )
             )
         }
@@ -278,7 +377,7 @@ private fun ContentLayerRenderer(
             add(
                 ContentSlot(
                     entry = prevEntry,
-                    layouts = prevLayouts.orEmpty(),
+                    levels = prevLevels.orEmpty(),
                     zIndex = placement.previousZIndex,
                     isEntering = false,
                     animationDecision = animationState.animationDecision,
@@ -291,7 +390,7 @@ private fun ContentLayerRenderer(
         add(
             ContentSlot(
                 entry = currentEntry,
-                layouts = currentLayouts,
+                levels = currentLevels,
                 hostedModals = contentModals,
                 zIndex = placement.currentZIndex,
                 isEntering = true,
@@ -308,51 +407,82 @@ private fun ContentLayerRenderer(
     val screenWidth = windowInfo.containerSize.width.toFloat()
     val screenHeight = windowInfo.containerSize.height.toFloat()
 
-    val slotLayoutRoutes = slots.map { slot -> slot.layouts.map { it.route } }
     // Where the grab affordance goes follows from the entry and the graph declarations alone.
     // Deriving it from whatever sat beneath instead put the same screen's affordance above a graph
     // layout when the screen was reached from outside that layout and inside the layout when it was
     // reached from a screen standing under it, and moved it from the one to the other while a
     // transition was still running.
     val tree = buildLayoutTree(
-        slots.mapIndexed { index, slot ->
+        slots.map { slot ->
             LayoutTreeSlot(
                 key = slot.entry.stableKey,
-                layoutRoutes = slotLayoutRoutes[index],
+                layoutRoutes = slot.levels,
                 zIndex = slot.zIndex,
-                indicatorAnchor = if (interactiveController == null) {
+                indicatorAnchor = if (interactiveController == null || slot.resting) {
                     null
                 } else {
-                    dismissIndicatorAnchor(slot.entry, navModule, slotLayoutRoutes[index])
+                    dismissIndicatorAnchor(slot.entry, navModule, slot.levels)
                 },
-                shielded = slot.entry.stableKey == revealedEntry?.stableKey
+                shielded = slot.shielded,
+                follows = slot.follows
             )
         }
     )
     val slotsByKey = slots.associateBy { it.entry.stableKey }
-    val graphsByRoute = slots.flatMap { it.layouts }.associateBy { it.route }
+    val panes = PaneRendering(graphDefinitions, widthClass, paneSurface)
 
     Box(modifier = Modifier.fillMaxSize()) {
         LayoutTreeNodes(
             nodes = tree,
             slotsByKey = slotsByKey,
-            graphsByRoute = graphsByRoute,
+            panes = panes,
             screenWidth = screenWidth,
             screenHeight = screenHeight
         )
     }
 }
 
+private class PaneSurfaceMemory {
+    private var currentKey: String? = null
+    private var surface: PaneSurface? = null
+    private var previous: PaneSurface? = null
+
+    fun advance(key: String, current: PaneSurface?): PaneSurface? {
+        if (currentKey != key) {
+            previous = surface
+            currentKey = key
+        }
+        surface = current
+        return previous
+    }
+}
+
+private class PaneRendering(
+    val graphs: Map<String, NavigationGraph>,
+    val widthClass: WindowWidthClass?,
+    val surface: PaneSurface?
+) {
+    fun blockFor(graphRoute: String): PaneBlock? = PaneMath.activeBlock(graphRoute, graphs, widthClass)
+
+    fun isOpen(graphRoute: String, column: Int): Boolean =
+        surface?.takeIf { it.graphId == graphRoute }?.columns?.getOrNull(column) != null
+}
+
+private fun paneColumnLevel(graphRoute: String, column: Int): String = "$graphRoute#pane$column"
+
 private class ContentSlot(
     val entry: NavigationEntry,
-    val layouts: List<NavigationGraph>,
+    val levels: List<String>,
     val hostedModals: List<NavigationEntry> = emptyList(),
     val zIndex: Float,
     val isEntering: Boolean,
     val animationDecision: AnimationDecision?,
     val progressDriver: TransitionProgressDriver,
     val blockInput: Boolean,
-    val clearSemantics: Boolean
+    val clearSemantics: Boolean,
+    val resting: Boolean = false,
+    val follows: Boolean = false,
+    val shielded: Boolean = false
 )
 
 private fun Modifier.consumeAllPointerInput(): Modifier = pointerInput(Unit) {
@@ -397,7 +527,7 @@ private fun Modifier.slotTransition(
 private fun LayoutTreeNodes(
     nodes: List<LayoutTreeNode>,
     slotsByKey: Map<String, ContentSlot>,
-    graphsByRoute: Map<String, NavigationGraph>,
+    panes: PaneRendering,
     screenWidth: Float,
     screenHeight: Float
 ) {
@@ -407,7 +537,7 @@ private fun LayoutTreeNodes(
                 is LayoutTreeBranch -> LayoutBranchHost(
                     branch = node,
                     slotsByKey = slotsByKey,
-                    graphsByRoute = graphsByRoute,
+                    panes = panes,
                     screenWidth = screenWidth,
                     screenHeight = screenHeight
                 )
@@ -430,9 +560,40 @@ private fun LayoutTreeNodes(
 private fun LayoutBranchHost(
     branch: LayoutTreeBranch,
     slotsByKey: Map<String, ContentSlot>,
-    graphsByRoute: Map<String, NavigationGraph>,
+    panes: PaneRendering,
     screenWidth: Float,
     screenHeight: Float
+) {
+    val block = panes.blockFor(branch.route)
+    BranchBox(branch, slotsByKey, screenWidth, screenHeight) {
+        GraphLayout(panes.graphs[branch.route]) {
+            // Everything under one layout occupies the same space and is ordered by zIndex.
+            // Handing the children straight to the layout would let a Column or a Scaffold
+            // stack the screens one after another instead.
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (block != null) {
+                    PaneBranchContent(branch, block, slotsByKey, panes, screenWidth, screenHeight)
+                } else {
+                    LayoutTreeNodes(
+                        nodes = branch.children,
+                        slotsByKey = slotsByKey,
+                        panes = panes,
+                        screenWidth = screenWidth,
+                        screenHeight = screenHeight
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BranchBox(
+    branch: LayoutTreeBranch,
+    slotsByKey: Map<String, ContentSlot>,
+    screenWidth: Float,
+    screenHeight: Float,
+    content: @Composable () -> Unit
 ) {
     val owner = branch.ownerSlotKey?.let { slotsByKey[it] }
     val indicatorSlot = branch.indicatorSlotKey?.let { slotsByKey[it] }
@@ -456,17 +617,76 @@ private fun LayoutBranchHost(
             // because a wrapper that came and went as a sheet arrived over the layout would take
             // the layout and its screens down with it.
             DismissIndicatorSlot(indicatorEntry = indicatorSlot?.entry) {
-                GraphLayout(graphsByRoute[branch.route]) {
-                    // Everything under one layout occupies the same space and is ordered by zIndex.
-                    // Handing the children straight to the layout would let a Column or a Scaffold
-                    // stack the screens one after another instead.
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaneBranchContent(
+    branch: LayoutTreeBranch,
+    block: PaneBlock,
+    slotsByKey: Map<String, ContentSlot>,
+    panes: PaneRendering,
+    screenWidth: Float,
+    screenHeight: Float
+) {
+    val columnNodes = block.columns.indices.map { column ->
+        branch.children.firstOrNull { node ->
+            node is LayoutTreeBranch && node.route == paneColumnLevel(branch.route, column)
+        } as LayoutTreeBranch?
+    }
+    val columnKeys = columnNodes.mapNotNull { it?.key }.toSet()
+    val coveringNodes = branch.children.filter { it.key !in columnKeys }
+    val slots = columnNodes.mapIndexed { column, node ->
+        val open = panes.isOpen(branch.route, column)
+        PaneSlot(open) { modifier, empty ->
+            PaneColumnHost(column, node, open, modifier, empty, slotsByKey, panes, screenWidth, screenHeight)
+        }
+    }
+    block.content(slots)
+    if (coveringNodes.isNotEmpty()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            LayoutTreeNodes(
+                nodes = coveringNodes,
+                slotsByKey = slotsByKey,
+                panes = panes,
+                screenWidth = screenWidth,
+                screenHeight = screenHeight
+            )
+        }
+    }
+}
+
+@Composable
+private fun PaneColumnHost(
+    column: Int,
+    node: LayoutTreeBranch?,
+    open: Boolean,
+    modifier: Modifier,
+    empty: @Composable () -> Unit,
+    slotsByKey: Map<String, ContentSlot>,
+    panes: PaneRendering,
+    screenWidth: Float,
+    screenHeight: Float
+) {
+    BoxWithConstraints(modifier = modifier.clipToBounds()) {
+        val columnWidth = if (constraints.hasBoundedWidth) constraints.maxWidth.toFloat() else screenWidth
+        val columnHeight = if (constraints.hasBoundedHeight) constraints.maxHeight.toFloat() else screenHeight
+        CompositionLocalProvider(LocalPaneColumn provides column) {
+            if (!open) {
+                empty()
+            }
+            if (node != null) {
+                BranchBox(node, slotsByKey, columnWidth, columnHeight) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         LayoutTreeNodes(
-                            nodes = branch.children,
+                            nodes = node.children,
                             slotsByKey = slotsByKey,
-                            graphsByRoute = graphsByRoute,
-                            screenWidth = screenWidth,
-                            screenHeight = screenHeight
+                            panes = panes,
+                            screenWidth = columnWidth,
+                            screenHeight = columnHeight
                         )
                     }
                 }

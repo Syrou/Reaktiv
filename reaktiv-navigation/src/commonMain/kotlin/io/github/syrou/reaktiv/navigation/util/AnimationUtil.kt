@@ -8,6 +8,7 @@ import io.github.syrou.reaktiv.navigation.TraverseDirection
 import io.github.syrou.reaktiv.navigation.TraversePresentation
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.definition.WindowWidthClass
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
 import io.github.syrou.reaktiv.navigation.transition.presentsItself
@@ -146,9 +147,22 @@ public fun determineContentAnimationDecision(
     currentEntry: NavigationEntry,
     navModule: NavigationModule,
     isExplicitBackNavigation: Boolean = false
+): AnimationDecision = determineContentAnimationDecision(
+    previousEntry, currentEntry, navModule, isExplicitBackNavigation, widthClass = null
+)
+
+internal fun determineContentAnimationDecision(
+    previousEntry: NavigationEntry,
+    currentEntry: NavigationEntry,
+    navModule: NavigationModule,
+    isExplicitBackNavigation: Boolean,
+    widthClass: WindowWidthClass?
 ): AnimationDecision {
-    val prevLayer = previousEntry.navigatable.renderLayer
-    val currLayer = currentEntry.navigatable.renderLayer
+    val graphs = navModule.getGraphDefinitions()
+    fun layerOf(entry: NavigationEntry): RenderLayer =
+        if (PaneMath.columnOf(entry, graphs, widthClass) != null) RenderLayer.CONTENT else entry.navigatable.renderLayer
+    val prevLayer = layerOf(previousEntry)
+    val currLayer = layerOf(currentEntry)
     if (prevLayer != RenderLayer.CONTENT || currLayer != RenderLayer.CONTENT) {
         return AnimationDecision(
             shouldAnimateEnter = false,

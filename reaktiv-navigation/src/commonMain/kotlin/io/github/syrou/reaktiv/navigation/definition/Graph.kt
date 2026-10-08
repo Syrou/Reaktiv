@@ -111,4 +111,6 @@ public interface Graph : NavigationNode, TransitionSpec {
         get() = Dismissal.fromLegacy(onDismissRequest, swipeToDismiss)
 
     public val startAnchorsChildren: Boolean get() = true
+
+    public val paneLayout: PaneLayout? get() = null
 }

@@ -14,6 +14,7 @@ import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
+import io.github.syrou.reaktiv.navigation.definition.WindowWidthClass
 import io.github.syrou.reaktiv.navigation.dsl.DeepLinkAlias
 import io.github.syrou.reaktiv.navigation.dsl.GraphBasedBuilder
 import io.github.syrou.reaktiv.navigation.exception.MissingPathParamsException
@@ -29,6 +30,8 @@ import io.github.syrou.reaktiv.navigation.model.NavigationEntrySerializer
 import io.github.syrou.reaktiv.navigation.model.toNavigationEntry
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.util.NavigationStackMath
+import io.github.syrou.reaktiv.navigation.util.PaneMath
+import io.github.syrou.reaktiv.navigation.util.PaneSurface
 import io.github.syrou.reaktiv.navigation.util.RouteResolver
 import io.github.syrou.reaktiv.navigation.util.StackSnapshot
 import io.github.syrou.reaktiv.navigation.util.buildLinkMap
@@ -100,6 +103,10 @@ public class NavigationModule internal constructor(
      */
     internal fun getGraphDefinitions(): Map<String, NavigationGraph> {
         return precomputedData.graphDefinitions
+    }
+
+    internal val hasPaneLayouts: Boolean by lazy {
+        precomputedData.graphDefinitions.values.any { it.declaration?.paneLayout != null }
     }
 
     /**
@@ -180,7 +187,8 @@ public class NavigationModule internal constructor(
         val computedState = computeNavigationDerivedState(
             currentEntry = initialEntry,
             backStack = initialBackStack,
-            precomputedData = precomputedData
+            precomputedData = precomputedData,
+            widthClass = null
         )
 
         return NavigationState(
@@ -225,7 +233,7 @@ public class NavigationModule internal constructor(
             currentEntry = currentEntry,
             backStack = backStack,
             lastNavigationAction = navigationAction,
-            derived = computeNavigationDerivedState(currentEntry, backStack, precomputedData),
+            derived = computeNavigationDerivedState(currentEntry, backStack, precomputedData, state.windowWidthClass),
             activeModalContexts = NavigationStackMath.deriveModalContexts(backStack)
         )
     }
@@ -332,6 +340,20 @@ public class NavigationModule internal constructor(
         is NavigationAction.SetEvaluating -> state.copy(isEvaluatingNavigation = action.isEvaluating)
 
         is NavigationAction.SetStartFailure -> state.copy(startFailure = action.failure)
+
+        is NavigationAction.SetWindowWidthClass -> if (state.windowWidthClass == action.widthClass) {
+            state
+        } else {
+            state.copy(
+                windowWidthClass = action.widthClass,
+                derived = computeNavigationDerivedState(
+                    state.currentEntry,
+                    state.backStack,
+                    precomputedData,
+                    action.widthClass
+                )
+            )
+        }
     }
 
     override val reducer: (NavigationState, NavigationAction) -> NavigationState = ::reduceAction
@@ -492,6 +514,19 @@ public data class PrecomputedNavigationData(
             val graphs = graphDefinitions.toMap()
             val graphIndex = GraphIndex.of(graphs)
 
+            graphs.values.forEach { graph ->
+                val paneLayout = graph.declaration?.paneLayout ?: return@forEach
+                paneLayout.placed.forEach { navigatable ->
+                    val owner = navigatableToGraph[navigatable]
+                    val inside = owner == graph.route || (owner != null && graph.route in graphIndex.chain(owner))
+                    check(inside) {
+                        "The pane layout of graph '${graph.route}' places '${navigatable.route}', which is not " +
+                            "registered inside that graph. Register it with screens() or modals() in graph " +
+                            "'${graph.route}' or in a graph nested in it."
+                    }
+                }
+            }
+
             // Register special navigatables not discovered via graph traversal, before the
             // resolver is built from these maps.
             listOfNotNull(notFoundScreen, crashScreen, loadingModal).forEach { navigatable ->
@@ -551,13 +586,20 @@ internal fun fullPathMessage(resolver: RouteResolver, route: String, describedAs
 private fun computeNavigationDerivedState(
     currentEntry: NavigationEntry,
     backStack: List<NavigationEntry>,
-    precomputedData: PrecomputedNavigationData
+    precomputedData: PrecomputedNavigationData,
+    widthClass: WindowWidthClass?
 ): NavigationProjection {
     val orderedBackStack = backStack.mapIndexed { index, entry ->
         entry.copy(stackPosition = index)
     }
 
-    val visibleLayers = computeVisibleLayers(orderedBackStack)
+    val paneSurface = PaneMath.surface(
+        content = orderedBackStack.filter { it.navigatable.renderLayer != RenderLayer.SYSTEM },
+        widthClass = widthClass,
+        graphs = precomputedData.graphDefinitions
+    )
+
+    val visibleLayers = computeVisibleLayers(orderedBackStack, paneSurface)
 
     val currentFullPath = precomputedData.routeResolver.buildFullPathForEntry(currentEntry)
 
@@ -573,7 +615,9 @@ private fun computeNavigationDerivedState(
     val isCurrentScreen = currentEntry.navigatable is Screen
     val hasModalsInStack = backStack.any { it.navigatable is Modal }
 
-    val entriesByLayer = visibleLayers.groupBy { it.navigatable.renderLayer }
+    val entriesByLayer = visibleLayers.groupBy { entry ->
+        if (paneSurface?.places(entry) == true) RenderLayer.CONTENT else entry.navigatable.renderLayer
+    }
     val contentLayerEntries = entriesByLayer[RenderLayer.CONTENT] ?: emptyList()
     val globalOverlayEntries = entriesByLayer[RenderLayer.GLOBAL_OVERLAY] ?: emptyList()
     val systemLayerEntries = entriesByLayer[RenderLayer.SYSTEM] ?: emptyList()
@@ -588,7 +632,8 @@ private fun computeNavigationDerivedState(
         graphId?.let { precomputedData.graphIndex.chain(it) } ?: listOf(screen.route)
     }
 
-    val showsNavigationChrome = !isCurrentModal && currentGraphHierarchy.none { graphId ->
+    val currentIsPane = paneSurface?.places(currentEntry) == true
+    val showsNavigationChrome = (!isCurrentModal || currentIsPane) && currentGraphHierarchy.none { graphId ->
         precomputedData.graphDefinitions[graphId]?.declaration?.showsNavigationChrome == false
     }
 
@@ -606,12 +651,15 @@ private fun computeNavigationDerivedState(
         underlyingScreen = underlyingScreen,
         modalsInStack = modalsInStack,
         underlyingScreenGraphHierarchy = underlyingScreenGraphHierarchy,
-        showsNavigationChrome = showsNavigationChrome
+        showsNavigationChrome = showsNavigationChrome,
+        paneGraph = paneSurface?.graphId,
+        paneColumns = paneSurface?.columns.orEmpty()
     )
 }
 
 private fun computeVisibleLayers(
     orderedBackStack: List<NavigationEntry>,
+    paneSurface: PaneSurface?
 ): List<NavigationEntry> {
     if (orderedBackStack.isEmpty()) return emptyList()
 
@@ -620,8 +668,14 @@ private fun computeVisibleLayers(
     val currentEntry = content.lastOrNull() ?: return listOf(orderedBackStack.last())
 
     val layers = mutableListOf<NavigationEntry>()
-    if (currentEntry.navigatable is Modal) {
-        findOriginalUnderlyingScreenForModal(currentEntry, content)?.let { layers.add(it) }
+    paneSurface?.entries
+        ?.filter { it.stableKey != currentEntry.stableKey }
+        ?.sortedBy { it.stackPosition }
+        ?.let { layers.addAll(it) }
+    if (currentEntry.navigatable is Modal && paneSurface?.places(currentEntry) != true) {
+        findOriginalUnderlyingScreenForModal(currentEntry, content)
+            ?.takeIf { underlying -> layers.none { it.stableKey == underlying.stableKey } }
+            ?.let { layers.add(it) }
     }
     layers.add(currentEntry)
     return layers + systemTail
