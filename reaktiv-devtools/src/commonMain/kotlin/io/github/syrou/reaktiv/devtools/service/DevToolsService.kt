@@ -23,6 +23,7 @@ import io.github.syrou.reaktiv.introspection.capture.SessionHistory
 import io.github.syrou.reaktiv.introspection.protocol.CrashDiagnosis
 import io.github.syrou.reaktiv.introspection.protocol.CrashInfo
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.drop
 import io.github.syrou.reaktiv.introspection.capture.chunked
 import io.github.syrou.reaktiv.introspection.protocol.CapturedAction
 import io.github.syrou.reaktiv.introspection.protocol.DeltaKind
@@ -143,6 +144,11 @@ public class DevToolsService(private val config: DevToolsConfig) : ToolingServic
                 if (isConnected()) {
                     send(DevToolsMessage.CrashReport(clientId = clientId, crash = crash, diagnosis = diagnose(crash)))
                 }
+            }
+        }
+        scope.launch {
+            capture.extensions.drop(1).collect {
+                if (publishing()) sendSessionHistorySync()
             }
         }
         scope.forwardEach(capture.stateReads) { DevToolsMessage.StateReadReport(clientId = clientId, read = it) }

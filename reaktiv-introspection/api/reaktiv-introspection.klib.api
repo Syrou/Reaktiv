@@ -162,6 +162,8 @@ final class io.github.syrou.reaktiv.introspection.capture/SessionCapture { // io
         final fun <get-actions>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.protocol/CapturedAction> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.actions.<get-actions>|<get-actions>(){}[0]
     final val crashes // io.github.syrou.reaktiv.introspection.capture/SessionCapture.crashes|{}crashes[0]
         final fun <get-crashes>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.protocol/CrashInfo> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.crashes.<get-crashes>|<get-crashes>(){}[0]
+    final val extensions // io.github.syrou.reaktiv.introspection.capture/SessionCapture.extensions|{}extensions[0]
+        final fun <get-extensions>(): kotlinx.coroutines.flow/StateFlow<kotlin.collections/Map<kotlin/String, kotlinx.serialization.json/JsonElement>> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.extensions.<get-extensions>|<get-extensions>(){}[0]
     final val logicEvents // io.github.syrou.reaktiv.introspection.capture/SessionCapture.logicEvents|{}logicEvents[0]
         final fun <get-logicEvents>(): kotlinx.coroutines.flow/SharedFlow<io.github.syrou.reaktiv.introspection.capture/CapturedLogicEvent> // io.github.syrou.reaktiv.introspection.capture/SessionCapture.logicEvents.<get-logicEvents>|<get-logicEvents>(){}[0]
     final val logs // io.github.syrou.reaktiv.introspection.capture/SessionCapture.logs|{}logs[0]

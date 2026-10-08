@@ -232,6 +232,7 @@ public final class io/github/syrou/reaktiv/introspection/capture/SessionCapture 
 	public final fun getCapturedCrash ()Lio/github/syrou/reaktiv/introspection/protocol/CrashInfo;
 	public final fun getClientId ()Ljava/lang/String;
 	public final fun getCrashes ()Lkotlinx/coroutines/flow/SharedFlow;
+	public final fun getExtensions ()Lkotlinx/coroutines/flow/StateFlow;
 	public final fun getInitialStateJson ()Ljava/lang/String;
 	public final fun getLogicEvents ()Lkotlinx/coroutines/flow/SharedFlow;
 	public final fun getLogs ()Lkotlinx/coroutines/flow/SharedFlow;

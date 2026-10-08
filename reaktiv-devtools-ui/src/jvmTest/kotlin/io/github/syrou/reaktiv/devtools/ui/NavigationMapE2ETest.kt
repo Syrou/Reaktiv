@@ -21,6 +21,8 @@ import io.github.syrou.reaktiv.devtools.ui.navmap.parseLinkMap
 import io.github.syrou.reaktiv.devtools.ui.navmap.parseLinkOutcome
 import io.github.syrou.reaktiv.introspection.IntrospectionConfig
 import io.github.syrou.reaktiv.introspection.PlatformContext
+import io.github.syrou.reaktiv.introspection.tooling.ToolingService
+import io.github.syrou.reaktiv.introspection.tooling.ToolingServiceContext
 import io.github.syrou.reaktiv.introspection.tooling.ToolingState
 import io.github.syrou.reaktiv.introspection.tooling.createToolingModule
 import io.github.syrou.reaktiv.navigation.NavigationState
@@ -30,6 +32,7 @@ import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.tooling.NavigationLinks
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -40,6 +43,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalReaktivApi::class)
 class NavigationMapE2ETest {
@@ -79,7 +83,20 @@ class NavigationMapE2ETest {
         server.stop()
     }
 
-    private suspend fun publisher(allowRemoteRequests: Boolean = true): Store {
+    private class HoldingService(private val gate: CompletableDeferred<Unit>) : ToolingService {
+        override val name: String = "holding"
+
+        override suspend fun start(context: ToolingServiceContext) {
+            gate.await()
+        }
+
+        override suspend fun stop() {}
+    }
+
+    private suspend fun publisher(
+        allowRemoteRequests: Boolean = true,
+        holdLinksUntil: CompletableDeferred<Unit>? = null
+    ): Store {
         val store = createStore {
             module(
                 createToolingModule(
@@ -103,6 +120,7 @@ class NavigationMapE2ETest {
                             )
                         )
                     )
+                    holdLinksUntil?.let { install(HoldingService(it)) }
                     install(NavigationLinks())
                 }
             )
@@ -133,7 +151,7 @@ class NavigationMapE2ETest {
         return store
     }
 
-    private suspend fun ui(): Store {
+    private suspend fun connectedUi(): Store {
         val store = createStore {
             module(DevToolsUiModule)
             coroutineContext(Dispatchers.Default)
@@ -141,6 +159,11 @@ class NavigationMapE2ETest {
         val connection = DevToolsConnection("ws://127.0.0.1:$serverPort/ws").also(connections::add)
         DevToolsUiModule.selectLogicTyped(store).setConnection(connection)
         connection.connect(DEVTOOLS_UI_CLIENT_ID, "DevTools UI", "JVM")
+        return store
+    }
+
+    private suspend fun ui(): Store {
+        val store = connectedUi()
         val withMap = withTimeoutOrNull(20_000) {
             store.selectState<DevToolsUiState>().first { it.extensions.containsKey(NAVIGATION_LINKS_EXTENSION) }
         }
@@ -166,6 +189,28 @@ class NavigationMapE2ETest {
         val map = assertNotNull(parseLinkMap(ui.selectState<DevToolsUiState>().first().extensions[NAVIGATION_LINKS_EXTENSION]))
 
         assertEquals(listOf("home", "login", "news/feed", "news/article/{slug}", "admin/reports"), map.routes.map { it.path })
+    }
+
+    @Test
+    fun `a map published after the ui synced still reaches it`() = runBlocking<Unit> {
+        val gate = CompletableDeferred<Unit>()
+        try {
+            publisher(holdLinksUntil = gate)
+            val ui = connectedUi()
+            val synced = withTimeoutOrNull(20_000) {
+                ui.selectState<DevToolsUiState>().first { it.publisherSessionStart != null }
+            }
+            assertNull(assertNotNull(synced, "the UI never synced the publisher").extensions[NAVIGATION_LINKS_EXTENSION])
+
+            gate.complete(Unit)
+
+            val withMap = withTimeoutOrNull(20_000) {
+                ui.selectState<DevToolsUiState>().first { it.extensions.containsKey(NAVIGATION_LINKS_EXTENSION) }
+            }
+            assertNotNull(withMap, "a map published after the first sync never reached the UI")
+        } finally {
+            gate.complete(Unit)
+        }
     }
 
     @Test

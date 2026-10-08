@@ -51,6 +51,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.channels.BufferOverflow
@@ -170,8 +171,9 @@ public class SessionCapture(
     private var logSink: ReaktivLogSink? = null
     private var networkBodyProvider: NetworkBodyProvider? = null
 
-    @Volatile
-    private var extensions: Map<String, JsonElement> = emptyMap()
+    private val extensionState = MutableStateFlow<Map<String, JsonElement>>(emptyMap())
+
+    public val extensions: StateFlow<Map<String, JsonElement>> = extensionState
     private val cachedBody = AtomicReference<CachedBody?>(null)
 
     private var workerScope: CoroutineScope? = null
@@ -415,7 +417,7 @@ public class SessionCapture(
     }
 
     internal fun putExtension(key: String, value: JsonElement) {
-        extensions = extensions + (key to value)
+        extensionState.update { it + (key to value) }
     }
 
     /**
@@ -583,7 +585,7 @@ public class SessionCapture(
             markers = readMarkers(),
             network = readNetwork(),
             logs = readLogs(),
-            extensions = extensions
+            extensions = extensionState.value
         )
     }
 
@@ -637,7 +639,7 @@ public class SessionCapture(
             ),
             droppedRecords = droppedCount.load(),
             diagnosis = diagnosis,
-            extensions = extensions
+            extensions = extensionState.value
         )
         redaction.issues.forEach { issue ->
             ReaktivDebug.warn("SessionCapture: $issue, so an import cannot restore this field exactly")

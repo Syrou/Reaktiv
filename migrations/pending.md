@@ -10696,3 +10696,28 @@ graph(MailGraph) {
   graph or a graph nested in it.
 
 ---
+
+### [AD-189] Extensions published after a DevTools sync reach the UI
+
+**Type:** Addition
+
+**Grep:** `publishExtension|capture.extensions`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+val capture = toolingLogic.getSessionCapture()
+capture.extensions.collect { extensions ->
+    println(extensions.keys)
+}
+```
+
+**Notes:**
+- `SessionCapture.extensions` is a `StateFlow` of every extension published through
+  `ToolingServiceContext.publishExtension`.
+- The DevTools publisher sends its session history again when an extension arrives after a sync. Before,
+  extensions only travelled with a sync, and tooling services start one after another. A UI that attached
+  between the DevTools service starting to publish and `NavigationLinks` starting never received the
+  navigation map. That is the race behind the CI-only `NavigationMapE2ETest` failure.
+
+---
