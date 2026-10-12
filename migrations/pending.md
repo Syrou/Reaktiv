@@ -10642,8 +10642,10 @@ object MailGraph : Graph {
         ) { inbox, message ->
             Row(Modifier.fillMaxSize()) {
                 inbox(Modifier.weight(0.4f))
-                VerticalDivider()
-                message(Modifier.weight(0.6f)) { Text("Select a message") }
+                if (message.isShowing) {
+                    VerticalDivider()
+                    message(Modifier.weight(0.6f))
+                }
             }
         }
 
@@ -10654,9 +10656,11 @@ object MailGraph : Graph {
         ) { inbox, message, reply ->
             Row(Modifier.fillMaxSize()) {
                 inbox(Modifier.weight(0.25f))
-                VerticalDivider()
-                message(Modifier.weight(0.45f)) { Text("Select a message") }
-                if (reply.isOpen) {
+                if (message.isShowing) {
+                    VerticalDivider()
+                    message(Modifier.weight(0.45f))
+                }
+                if (reply.isShowing) {
                     VerticalDivider()
                     reply(Modifier.weight(0.3f))
                 }
@@ -10680,6 +10684,10 @@ graph(MailGraph) {
 - A column shows the topmost of its navigatables, and the others stack inside it with their normal
   transitions and back gestures. `slot(modifier) { empty }` draws the column, `slot.isOpen` says whether
   anything is open in it.
+- `slot.isShowing` is also true while a screen is still animating in or out of the column, or is being
+  revealed by a back gesture. Wrap a slot in `if (slot.isShowing)` to show a detail column only after a
+  navigation opens something in it. The other columns take its space until then, and on back it stays for
+  the closing transition before it collapses.
 - Modals keep showing on top as before. Only a modal placed in a column at the current width class is drawn
   inline in that column, and only at that size.
 - There is one back stack at every width. Opening a navigatable that is already showing in the graph's panes

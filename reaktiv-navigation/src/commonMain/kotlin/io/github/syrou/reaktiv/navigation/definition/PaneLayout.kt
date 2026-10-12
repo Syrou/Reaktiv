@@ -26,6 +26,7 @@ public class PaneColumn internal constructor(
 @Stable
 public class PaneSlot internal constructor(
     public val isOpen: Boolean,
+    public val isShowing: Boolean,
     private val render: @Composable (Modifier, @Composable () -> Unit) -> Unit
 ) {
     @Composable

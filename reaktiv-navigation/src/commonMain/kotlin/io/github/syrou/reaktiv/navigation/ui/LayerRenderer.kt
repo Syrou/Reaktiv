@@ -641,7 +641,7 @@ private fun PaneBranchContent(
     val coveringNodes = branch.children.filter { it.key !in columnKeys }
     val slots = columnNodes.mapIndexed { column, node ->
         val open = panes.isOpen(branch.route, column)
-        PaneSlot(open) { modifier, empty ->
+        PaneSlot(isOpen = open, isShowing = open || node != null) { modifier, empty ->
             PaneColumnHost(column, node, open, modifier, empty, slotsByKey, panes, screenWidth, screenHeight)
         }
     }

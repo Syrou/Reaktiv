@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilDoesNotExist
@@ -18,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.createStore
+import io.github.syrou.reaktiv.core.util.selectState
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Graph
 import io.github.syrou.reaktiv.navigation.definition.Modal
@@ -30,6 +34,8 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import io.github.syrou.reaktiv.navigation.ui.currentPaneColumn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -44,7 +50,9 @@ class PaneLayoutUiTest {
 
         @Composable
         override fun Content(params: Params) {
-            Text("$label ${params.getString("messageId").orEmpty()}".trim())
+            Box(Modifier.fillMaxSize().testTag("pane-$label")) {
+                Text("$label ${params.getString("messageId").orEmpty()}".trim())
+            }
         }
     }
 
@@ -64,13 +72,17 @@ class PaneLayoutUiTest {
         }
     }
 
-    private val mailGraph = object : Graph {
+    private fun mailGraph(detailOnDemand: Boolean) = object : Graph {
         override val route = "mail"
         override val paneLayout = PaneLayout {
             expanded(column(inbox), column(message, thread)) { inboxSlot, messageSlot ->
                 Row(Modifier.fillMaxSize()) {
                     inboxSlot(Modifier.weight(0.4f))
-                    messageSlot(Modifier.weight(0.6f)) { Text("Select a message") }
+                    if (!detailOnDemand) {
+                        messageSlot(Modifier.weight(0.6f)) { Text("Select a message") }
+                    } else if (messageSlot.isShowing) {
+                        messageSlot(Modifier.weight(0.6f))
+                    }
                 }
             }
             large(column(inbox), column(message, thread), column(reply)) { inboxSlot, messageSlot, replySlot ->
@@ -85,13 +97,13 @@ class PaneLayoutUiTest {
         }
     }
 
-    private fun store(): Store = createStore {
+    private fun store(detailOnDemand: Boolean = false): Store = createStore {
         module(
             createNavigationModule {
                 rootGraph {
                     start(home)
                     screens(home)
-                    graph(mailGraph) {
+                    graph(mailGraph(detailOnDemand)) {
                         start(inbox)
                         screens(inbox, message, thread)
                         modals(reply)
@@ -104,7 +116,7 @@ class PaneLayoutUiTest {
     private fun ComposeUiTest.render(store: Store, width: Dp) {
         setContent {
             StoreProvider(store) {
-                Box(Modifier.requiredSize(width, 700.dp)) {
+                Box(Modifier.requiredSize(width, 700.dp).testTag("frame")) {
                     NavigationRender()
                 }
             }
@@ -136,6 +148,40 @@ class PaneLayoutUiTest {
         val inboxLeft = onNodeWithText("Inbox").fetchSemanticsNode().boundsInRoot.left
         val messageLeft = onNodeWithText("Message 42").fetchSemanticsNode().boundsInRoot.left
         assertTrue(inboxLeft < messageLeft, "the message column sits right of the inbox")
+    }
+
+    private fun ComposeUiTest.widthOf(tag: String): Float =
+        onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.width
+
+    private fun ComposeUiTest.awaitInboxShare(share: Float) {
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) {
+            abs(widthOf("pane-Inbox") - widthOf("frame") * share) < 2f
+        }
+    }
+
+    @Test
+    fun a_detail_column_shown_on_demand_opens_with_the_message_and_closes_after_back() = runComposeUiTest {
+        val store = store(detailOnDemand = true)
+        render(store, 1000.dp)
+
+        open(store, { navigateTo("mail") }, shows = "Inbox")
+        awaitInboxShare(1f)
+
+        open(store, { navigateTo(message, "messageId" to "42") }, shows = "Message 42")
+        awaitInboxShare(0.4f)
+
+        mainClock.autoAdvance = false
+        store.launch { store.navigation { navigateBack() } }
+        val navigationState = runBlocking { store.selectState<NavigationState>() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { navigationState.value.currentEntry.route == "inbox" }
+        mainClock.advanceTimeByFrame()
+        waitForIdle()
+        onNodeWithText("Message 42").assertExists()
+        assertTrue(abs(widthOf("pane-Inbox") - widthOf("frame") * 0.4f) < 2f, "the column stays while the message leaves")
+
+        mainClock.autoAdvance = true
+        waitUntilDoesNotExist(hasText("Message 42"), timeoutMillis = UI_TEST_WAIT_MS)
+        awaitInboxShare(1f)
     }
 
     @Test

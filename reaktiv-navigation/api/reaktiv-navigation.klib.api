@@ -797,6 +797,8 @@ final class io.github.syrou.reaktiv.navigation.definition/PaneLayoutBuilder { //
 final class io.github.syrou.reaktiv.navigation.definition/PaneSlot { // io.github.syrou.reaktiv.navigation.definition/PaneSlot|null[0]
     final val isOpen // io.github.syrou.reaktiv.navigation.definition/PaneSlot.isOpen|{}isOpen[0]
         final fun <get-isOpen>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.definition/PaneSlot.isOpen.<get-isOpen>|<get-isOpen>(){}[0]
+    final val isShowing // io.github.syrou.reaktiv.navigation.definition/PaneSlot.isShowing|{}isShowing[0]
+        final fun <get-isShowing>(): kotlin/Boolean // io.github.syrou.reaktiv.navigation.definition/PaneSlot.isShowing.<get-isShowing>|<get-isShowing>(){}[0]
 
     final fun invoke(androidx.compose.ui/Modifier?, kotlin/Function2<androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.github.syrou.reaktiv.navigation.definition/PaneSlot.invoke|invoke(androidx.compose.ui.Modifier?;kotlin.Function2<androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 }

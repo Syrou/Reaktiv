@@ -1121,6 +1121,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/PaneSlot {
 	public static final field $stable I
 	public final fun invoke (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public final fun isOpen ()Z
+	public final fun isShowing ()Z
 }
 
 public final class io/github/syrou/reaktiv/navigation/definition/RemovalReason : java/lang/Enum {
