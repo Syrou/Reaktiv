@@ -204,41 +204,6 @@ final class io.github.syrou.reaktiv.devtools.protocol/ClientInfo { // io.github.
     }
 }
 
-final class io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry { // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry|null[0]
-    constructor <init>(kotlin/String, kotlin/String, kotlin/String, kotlin/Long) // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.Long){}[0]
-
-    final val category // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.category|{}category[0]
-        final fun <get-category>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.category.<get-category>|<get-category>(){}[0]
-    final val level // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.level|{}level[0]
-        final fun <get-level>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.level.<get-level>|<get-level>(){}[0]
-    final val message // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.message|{}message[0]
-        final fun <get-message>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.message.<get-message>|<get-message>(){}[0]
-    final val timestampMs // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.timestampMs|{}timestampMs[0]
-        final fun <get-timestampMs>(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.timestampMs.<get-timestampMs>|<get-timestampMs>(){}[0]
-
-    final fun component1(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.component1|component1(){}[0]
-    final fun component2(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.component2|component2(){}[0]
-    final fun component3(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.component3|component3(){}[0]
-    final fun component4(): kotlin/Long // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.component4|component4(){}[0]
-    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Long = ...): io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.copy|copy(kotlin.String;kotlin.String;kotlin.String;kotlin.Long){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.toString|toString(){}[0]
-
-    final object $serializer : kotlinx.serialization.internal/GeneratedSerializer<io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry> { // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.$serializer|null[0]
-        final val descriptor // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.$serializer.descriptor|{}descriptor[0]
-            final fun <get-descriptor>(): kotlinx.serialization.descriptors/SerialDescriptor // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.$serializer.descriptor.<get-descriptor>|<get-descriptor>(){}[0]
-
-        final fun childSerializers(): kotlin/Array<kotlinx.serialization/KSerializer<*>> // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.$serializer.childSerializers|childSerializers(){}[0]
-        final fun deserialize(kotlinx.serialization.encoding/Decoder): io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.$serializer.deserialize|deserialize(kotlinx.serialization.encoding.Decoder){}[0]
-        final fun serialize(kotlinx.serialization.encoding/Encoder, io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry) // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.$serializer.serialize|serialize(kotlinx.serialization.encoding.Encoder;io.github.syrou.reaktiv.devtools.protocol.DeviceLogEntry){}[0]
-    }
-
-    final object Companion { // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.Companion|null[0]
-        final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry> // io.github.syrou.reaktiv.devtools.protocol/DeviceLogEntry.Companion.serializer|serializer(){}[0]
-    }
-}
-
 final class io.github.syrou.reaktiv.devtools.protocol/DispatchStats { // io.github.syrou.reaktiv.devtools.protocol/DispatchStats|null[0]
     constructor <init>(kotlin/Int, kotlin/Long, kotlin/Long, kotlin/Int, kotlin/Long) // io.github.syrou.reaktiv.devtools.protocol/DispatchStats.<init>|<init>(kotlin.Int;kotlin.Long;kotlin.Long;kotlin.Int;kotlin.Long){}[0]
 
@@ -1507,35 +1472,6 @@ sealed class io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage { // io.g
 
         final object Companion { // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistoryChunk.Companion|null[0]
             final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistoryChunk> // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistoryChunk.Companion.serializer|serializer(){}[0]
-        }
-    }
-
-    final class SessionHistorySync : io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage, io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.FromClient { // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync|null[0]
-        constructor <init>(kotlin/String, io.github.syrou.reaktiv.introspection.capture/SessionHistory) // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.<init>|<init>(kotlin.String;io.github.syrou.reaktiv.introspection.capture.SessionHistory){}[0]
-
-        final val clientId // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.clientId|{}clientId[0]
-            final fun <get-clientId>(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.clientId.<get-clientId>|<get-clientId>(){}[0]
-        final val history // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.history|{}history[0]
-            final fun <get-history>(): io.github.syrou.reaktiv.introspection.capture/SessionHistory // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.history.<get-history>|<get-history>(){}[0]
-
-        final fun component1(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.component1|component1(){}[0]
-        final fun component2(): io.github.syrou.reaktiv.introspection.capture/SessionHistory // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.component2|component2(){}[0]
-        final fun copy(kotlin/String = ..., io.github.syrou.reaktiv.introspection.capture/SessionHistory = ...): io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.copy|copy(kotlin.String;io.github.syrou.reaktiv.introspection.capture.SessionHistory){}[0]
-        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.equals|equals(kotlin.Any?){}[0]
-        final fun hashCode(): kotlin/Int // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.hashCode|hashCode(){}[0]
-        final fun toString(): kotlin/String // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.toString|toString(){}[0]
-
-        final object $serializer : kotlinx.serialization.internal/GeneratedSerializer<io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync> { // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.$serializer|null[0]
-            final val descriptor // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.$serializer.descriptor|{}descriptor[0]
-                final fun <get-descriptor>(): kotlinx.serialization.descriptors/SerialDescriptor // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.$serializer.descriptor.<get-descriptor>|<get-descriptor>(){}[0]
-
-            final fun childSerializers(): kotlin/Array<kotlinx.serialization/KSerializer<*>> // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.$serializer.childSerializers|childSerializers(){}[0]
-            final fun deserialize(kotlinx.serialization.encoding/Decoder): io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.$serializer.deserialize|deserialize(kotlinx.serialization.encoding.Decoder){}[0]
-            final fun serialize(kotlinx.serialization.encoding/Encoder, io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync) // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.$serializer.serialize|serialize(kotlinx.serialization.encoding.Encoder;io.github.syrou.reaktiv.devtools.protocol.DevToolsMessage.SessionHistorySync){}[0]
-        }
-
-        final object Companion { // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.Companion|null[0]
-            final fun serializer(): kotlinx.serialization/KSerializer<io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync> // io.github.syrou.reaktiv.devtools.protocol/DevToolsMessage.SessionHistorySync.Companion.serializer|serializer(){}[0]
         }
     }
 

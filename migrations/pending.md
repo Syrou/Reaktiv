@@ -10729,3 +10729,94 @@ capture.extensions.collect { extensions ->
   navigation map. That is the race behind the CI-only `NavigationMapE2ETest` failure.
 
 ---
+### [BC-190] Deprecated types removed: Logic, InternalStoreOperations, SessionHistorySync, DeviceLogEntry, StateReconstructor
+
+**Type:** Deprecation-removal
+
+**Grep:** `\bLogic\b|InternalStoreOperations|asInternalOperations|applyExternalStates|beginExternalControl|endExternalControl|markExternallyDriven|SessionHistorySync|DeviceLogEntry|StateReconstructor`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+class MyLogic : Logic
+
+store.asInternalOperations()?.beginExternalControl()
+store.applyExternalStates(states)
+store.endExternalControl()
+
+val state = StateReconstructor.reconstructAtIndex(initialStateJson, actions, index)
+```
+
+**After:**
+```kotlin
+class MyLogic : ModuleLogic()
+
+store.externalState()?.beginControl()
+store.externalState()?.hydrate(states, HydrateSource.External("DevTools"))
+store.externalState()?.endControl()
+
+val state = KeyframedReconstructor(initialStateJson, actions).stateAt(index)
+```
+
+**Notes:** Replacements are in AD-191.
+
+- **Core:** the `Logic` marker interface is gone and `ModuleLogic` no longer implements it (deprecated in
+  BC-132). `InternalStoreOperations` is gone, together with `StoreAccessor.asInternalOperations()` and the
+  `Store` members `applyExternalStates`, `beginExternalControl`, `endExternalControl` and
+  `markExternallyDriven` (deprecated in AD-142). Use `externalState()`, which is null unless the store grants
+  outside state. Instead of `markExternallyDriven()`, implement `ExternalStateRequester` on a module and return
+  true from `startsUnderExternalControl()`.
+- **DevTools:** `DevToolsMessage.SessionHistorySync` is gone. History arrives as `SessionHistoryChunk`, one
+  chunk for a small history. No client the server accepts sends it: publishers stopped in the release that
+  introduced protocol version 2, and the server refuses other versions (BC-171). `DeviceLogEntry` is gone, logs
+  travel as `CapturedLog` (BC-85).
+- **Introspection:** `StateReconstructor` is gone (BC-177). `KeyframedReconstructor.stateAt` returns the
+  initial state for a negative index, where `reconstructAtIndex` returned the state after the first action.
+- Why now: Kotlin/Native 2.4.20 crashes when it links an app with a suspend extension function whose receiver
+  type, or a supertype of it, is a class or interface deprecated with `ReplaceWith`. The crash is
+  `IrConstructorCallImpl is not expected ... kotlin.ReplaceWith` in `linkReleaseFrameworkIosArm64`. `Logic` sat
+  under every `ModuleLogic` subclass and `InternalStoreOperations` under `Store`, so `suspend fun MyLogic.load()`
+  or `suspend fun Store.refresh()` broke iOS builds of apps on Kotlin 2.4.20 with Reaktiv 0.15.69 to 0.15.72.
+  Only bodies that call another suspend function before their last expression crash. Upgrading Reaktiv is
+  enough, no app change is needed.
+
+---
+
+### [AD-191] Replacements for the types removed in BC-190
+
+**Type:** Replaces-deprecated
+
+**Grep:** `externalState\(\)|ExternalStateRequester|KeyframedReconstructor|SessionHistoryChunk|CapturedLog`
+**File glob:** `**/*.kt`
+
+**Replaces:** `Logic`, `InternalStoreOperations` with `asInternalOperations()` and the `Store` external control
+members, `DevToolsMessage.SessionHistorySync`, `DeviceLogEntry` and `StateReconstructor` (see BC-190).
+
+**Example:**
+```kotlin
+class SyncLogic(private val storeAccessor: StoreAccessor) : ModuleLogic() {
+    suspend fun mirror(states: Map<String, ModuleState>) {
+        val access = storeAccessor.externalState() ?: return
+        access.beginControl()
+        access.hydrate(states, HydrateSource.External("Mirror"))
+        access.endControl()
+    }
+}
+
+object SyncModule : ModuleWithLogic<SyncState, SyncAction, SyncLogic>, ExternalStateRequester {
+    override val initialState = SyncState()
+    override val reducer: (SyncState, SyncAction) -> SyncState = { state, _ -> state }
+    override val createLogic: (StoreAccessor) -> SyncLogic = { SyncLogic(it) }
+    override fun startsUnderExternalControl(): Boolean = true
+}
+
+val reconstructor = KeyframedReconstructor(history.initialStateJson, history.actions)
+val stateAtFive = reconstructor.stateAt(5)
+```
+
+**Notes:** All of these shipped before the removal: `externalState()` and `ExternalStateRequester` in AD-142,
+`SessionHistoryChunk` in BC-171, `CapturedLog` in BC-85 and `KeyframedReconstructor` in BC-177. A module that
+implements `ExternalStateRequester` makes a store with the default `ExternalStatePolicy.OnRequest` grant outside
+state, which is what `externalState()` needs to return non-null.
+
+---

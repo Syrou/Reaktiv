@@ -1219,7 +1219,7 @@ internal class DevToolsUiLogic(private val storeAccessor: StoreAccessor) : Modul
             }
 
             is DevToolsMessage.StateSync -> {
-                // Normally the orchestrator gets its baseline from SessionHistorySync. A
+                // Normally the orchestrator gets its baseline from the first SessionHistoryChunk. A
                 // publisher predating the role field answers an attach with a full StateSync
                 // instead, so adopt that as the baseline when none has been established yet.
                 // Adopting it later would misalign the reconstruction, because already

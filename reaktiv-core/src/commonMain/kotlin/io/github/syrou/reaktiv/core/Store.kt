@@ -39,7 +39,6 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KClass
 
 @OptIn(ExperimentalReaktivApi::class)
-@Suppress("DEPRECATION")
 public class Store internal constructor(
     private val coroutineScope: CoroutineScope,
     private val middlewares: List<Middleware>,
@@ -48,7 +47,7 @@ public class Store internal constructor(
     private val persistenceManager: PersistenceManager?,
     override val serializersModule: SerializersModule,
     private val externalStateGranted: Boolean,
-) : StoreAccessor(coroutineScope), InternalStoreOperations {
+) : StoreAccessor(coroutineScope) {
     private val resetMutex = Mutex()
     private val highPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED, onUndeliveredElement = ::failClosed)
     private val lowPriorityChannel: Channel<DispatchEnvelope> = Channel(Channel.UNLIMITED, onUndeliveredElement = ::failClosed)
@@ -139,19 +138,10 @@ public class Store internal constructor(
     /**
      * `true` while a remote publisher authors this store's state.
      *
-     * @see InternalStoreOperations.beginExternalControl
+     * @see ExternalStateAccess.beginControl
      */
     public val isExternallyDriven: Boolean
         get() = externallyDriven.load()
-
-    @Deprecated(
-        "Implement ExternalStateRequester on a module and return true from startsUnderExternalControl().",
-        level = DeprecationLevel.WARNING
-    )
-    @ExperimentalReaktivApi
-    override fun markExternallyDriven() {
-        if (grantedOrWarn("markExternallyDriven")) externallyDriven.store(true)
-    }
 
     override val coroutineContext: CoroutineContext
         get() = baseContext + generation.load()
@@ -606,37 +596,6 @@ public class Store internal constructor(
 
     override fun getAllStates(): Map<String, ModuleState> =
         moduleInfos.associate { it.module.initialState::class.qualifiedName!! to it.state.value }
-
-    @Deprecated(
-        "Use externalState()?.hydrate(states, HydrateSource.External(\"DevTools\")), which exists only " +
-            "when the store grants outside state.",
-        ReplaceWith("externalState()?.hydrate(states, HydrateSource.External(\"DevTools\"))"),
-        DeprecationLevel.WARNING
-    )
-    @ExperimentalReaktivApi
-    override suspend fun applyExternalStates(states: Map<String, ModuleState>) {
-        dispatchAndAwait(StoreAction.Hydrate(states, HydrateSource.External("DevTools")))
-    }
-
-    @Deprecated(
-        "Use externalState()?.beginControl(), which exists only when the store grants outside state.",
-        ReplaceWith("externalState()?.beginControl()"),
-        DeprecationLevel.WARNING
-    )
-    @ExperimentalReaktivApi
-    override suspend fun beginExternalControl() {
-        if (grantedOrWarn("beginExternalControl")) externalStateAccess.beginControl()
-    }
-
-    @Deprecated(
-        "Use externalState()?.endControl(), which exists only when the store grants outside state.",
-        ReplaceWith("externalState()?.endControl()"),
-        DeprecationLevel.WARNING
-    )
-    @ExperimentalReaktivApi
-    override suspend fun endExternalControl() {
-        externalStateAccess.endControl()
-    }
 
     private suspend fun notifyExternalControl(enabled: Boolean) {
         moduleInfos.forEach { entry ->

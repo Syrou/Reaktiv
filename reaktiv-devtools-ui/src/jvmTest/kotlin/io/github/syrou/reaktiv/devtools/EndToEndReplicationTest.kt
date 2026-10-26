@@ -391,7 +391,6 @@ class EndToEndReplicationTest {
             ui.connect("devtools-ui", "devtools-ui", "wasm")
             ui.observeMessages { message ->
                 when (message) {
-                    is DevToolsMessage.SessionHistorySync -> received.complete(message.history)
                     is DevToolsMessage.SessionHistoryChunk ->
                         if (message.chunkIndex == 0) received.complete(message.history)
                     else -> {}

@@ -968,35 +968,6 @@ public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$Ses
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage, io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$FromClient {
-	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync$Companion;
-	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
-	public final fun copy (Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;
-	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;ILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun getClientId ()Ljava/lang/String;
-	public final fun getHistory ()Lio/github/syrou/reaktiv/introspection/capture/SessionHistory;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
-	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync$$serializer;
-	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
-	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;
-	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
-	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
-	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync;)V
-	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
-	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
-}
-
-public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$SessionHistorySync$Companion {
-	public final fun serializer ()Lkotlinx/serialization/KSerializer;
-}
-
 public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport : io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage, io/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$FromClient {
 	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DevToolsMessage$StateReadReport$Companion;
 	public fun <init> (Ljava/lang/String;Lio/github/syrou/reaktiv/core/tracing/StateRead;)V
@@ -1068,39 +1039,6 @@ public final class io/github/syrou/reaktiv/devtools/protocol/DevToolsProtocol {
 	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DevToolsProtocol;
 	public static final field LEGACY I
 	public static final field VERSION I
-}
-
-public final class io/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry {
-	public static final field Companion Lio/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()J
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lio/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry;
-	public static synthetic fun copy$default (Lio/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILjava/lang/Object;)Lio/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCategory ()Ljava/lang/String;
-	public final fun getLevel ()Ljava/lang/String;
-	public final fun getMessage ()Ljava/lang/String;
-	public final fun getTimestampMs ()J
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final synthetic class io/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
-	public static final field INSTANCE Lio/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry$$serializer;
-	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
-	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry;
-	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
-	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
-	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry;)V
-	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
-	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
-}
-
-public final class io/github/syrou/reaktiv/devtools/protocol/DeviceLogEntry$Companion {
-	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
 public final class io/github/syrou/reaktiv/devtools/protocol/DispatchStats {

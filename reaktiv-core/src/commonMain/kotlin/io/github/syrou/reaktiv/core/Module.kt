@@ -5,10 +5,6 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-@Deprecated("Unused marker. Use ModuleLogic.", ReplaceWith("ModuleLogic"), DeprecationLevel.WARNING)
-public interface Logic
-
-
 /**
  * Base class for module logic implementations.
  *
@@ -40,8 +36,7 @@ public interface Logic
  * }
  * ```
  */
-@Suppress("DEPRECATION")
-public open class ModuleLogic : Logic {
+public open class ModuleLogic {
 
     /**
      * Called on the **current** logic instance just before the store is reset.

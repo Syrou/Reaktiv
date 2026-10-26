@@ -183,7 +183,7 @@ public sealed class DevToolsMessage {
      * Sent by the server to a publisher when a new observer attaches.
      *
      * The publisher answers with the baseline that observer needs: a full StateSync for a
-     * [ClientRole.LISTENER], which replicates state, and a SessionHistorySync for a
+     * [ClientRole.LISTENER], which replicates state, and [SessionHistoryChunk] messages for a
      * [ClientRole.ORCHESTRATOR], which needs the captured initial state plus the action
      * history in order to reconstruct the full application state at any point.
      *
@@ -316,22 +316,6 @@ public sealed class DevToolsMessage {
     ) : DevToolsMessage(), ObservabilityOnly
 
     /**
-     * Sent by a publisher to sync its session history on connect.
-     * Allows the WASM orchestrator to track and export the session.
-     */
-    @Deprecated(
-        "History always arrives as SessionHistoryChunk, one chunk for a small history.",
-        ReplaceWith("SessionHistoryChunk"),
-        DeprecationLevel.WARNING
-    )
-    @Serializable
-    public data class SessionHistorySync(
-        override val clientId: String,
-        val history: SessionHistory
-    ) : DevToolsMessage(), FromClient
-
-
-    /**
      * One slice of a large session history. The first chunk carries the
      * initial state snapshot; receivers append slices in chunkIndex order.
      */
@@ -343,20 +327,6 @@ public sealed class DevToolsMessage {
         val history: SessionHistory
     ) : DevToolsMessage(), FromClient
 }
-
-@Serializable
-@Deprecated(
-    "The log wire and the captured session now share CapturedLog, so a session keeps its logs.",
-    ReplaceWith("CapturedLog", "io.github.syrou.reaktiv.introspection.protocol.CapturedLog"),
-    DeprecationLevel.WARNING
-)
-@DevToolsInternalApi
-public data class DeviceLogEntry(
-    val level: String,
-    val category: String,
-    val message: String,
-    val timestampMs: Long
-)
 
 @DevToolsInternalApi
 public object DevToolsProtocol {

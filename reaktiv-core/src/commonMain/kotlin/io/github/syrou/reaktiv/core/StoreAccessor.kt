@@ -116,27 +116,6 @@ public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      */
     public abstract fun resetAsync(): Job
 
-    /**
-     * Provides access to internal store operations for specialized use cases.
-     *
-     * This method returns an [InternalStoreOperations] instance if the store
-     * supports it, allowing access to low-level operations like external state
-     * application.
-     *
-     * This is intentionally not a direct property to make misuse less discoverable.
-     * Requires [ExperimentalReaktivApi] opt-in.
-     *
-     * @return InternalStoreOperations instance or null if not supported
-     */
-    @Deprecated(
-        "Use externalState(), which is null when the store does not grant outside state.",
-        ReplaceWith("externalState()"),
-        DeprecationLevel.WARNING
-    )
-    @Suppress("DEPRECATION")
-    @ExperimentalReaktivApi
-    public fun asInternalOperations(): InternalStoreOperations? = this as? InternalStoreOperations
-
     public open fun externalState(): ExternalStateAccess? = null
 
     public open val serializersModule: SerializersModule?

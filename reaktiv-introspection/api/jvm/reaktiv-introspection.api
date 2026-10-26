@@ -911,13 +911,6 @@ public final class io/github/syrou/reaktiv/introspection/protocol/SessionMarker$
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class io/github/syrou/reaktiv/introspection/protocol/StateReconstructor {
-	public static final field INSTANCE Lio/github/syrou/reaktiv/introspection/protocol/StateReconstructor;
-	public final fun applyDelta (Ljava/lang/String;Lio/github/syrou/reaktiv/introspection/protocol/CapturedAction;)Ljava/lang/String;
-	public final fun applyDelta (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
-	public final fun reconstructAtIndex (Ljava/lang/String;Ljava/util/List;I)Ljava/lang/String;
-}
-
 public final class io/github/syrou/reaktiv/introspection/tooling/ServiceState : java/lang/Enum {
 	public static final field Companion Lio/github/syrou/reaktiv/introspection/tooling/ServiceState$Companion;
 	public static final field DEGRADED Lio/github/syrou/reaktiv/introspection/tooling/ServiceState;

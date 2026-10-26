@@ -1216,12 +1216,6 @@ final object io.github.syrou.reaktiv.introspection.protocol/SessionExportFormat 
         final fun <get-VERSION>(): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/SessionExportFormat.VERSION.<get-VERSION>|<get-VERSION>(){}[0]
 }
 
-final object io.github.syrou.reaktiv.introspection.protocol/StateReconstructor { // io.github.syrou.reaktiv.introspection.protocol/StateReconstructor|null[0]
-    final fun applyDelta(kotlin/String, io.github.syrou.reaktiv.introspection.protocol/CapturedAction): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/StateReconstructor.applyDelta|applyDelta(kotlin.String;io.github.syrou.reaktiv.introspection.protocol.CapturedAction){}[0]
-    final fun applyDelta(kotlin/String, kotlin/String, kotlin/String): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/StateReconstructor.applyDelta|applyDelta(kotlin.String;kotlin.String;kotlin.String){}[0]
-    final fun reconstructAtIndex(kotlin/String, kotlin.collections/List<io.github.syrou.reaktiv.introspection.protocol/CapturedAction>, kotlin/Int): kotlin/String // io.github.syrou.reaktiv.introspection.protocol/StateReconstructor.reconstructAtIndex|reconstructAtIndex(kotlin.String;kotlin.collections.List<io.github.syrou.reaktiv.introspection.protocol.CapturedAction>;kotlin.Int){}[0]
-}
-
 final object io.github.syrou.reaktiv.introspection/RedactionFallbacks { // io.github.syrou.reaktiv.introspection/RedactionFallbacks|null[0]
     final val enumFallbackNames // io.github.syrou.reaktiv.introspection/RedactionFallbacks.enumFallbackNames|{}enumFallbackNames[0]
         final fun <get-enumFallbackNames>(): kotlin.collections/Set<kotlin/String> // io.github.syrou.reaktiv.introspection/RedactionFallbacks.enumFallbackNames.<get-enumFallbackNames>|<get-enumFallbackNames>(){}[0]
