@@ -45,6 +45,7 @@ class WarmDeepLinkRootStartTest {
 
     private object TabHome : Graph {
         override val route = "home"
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
         override val startAnchorsChildren = false
     }
 

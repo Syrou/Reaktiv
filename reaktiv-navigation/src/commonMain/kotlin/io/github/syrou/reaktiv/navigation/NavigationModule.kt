@@ -12,6 +12,7 @@ import io.github.syrou.reaktiv.navigation.definition.LoadingModal
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import io.github.syrou.reaktiv.navigation.definition.NavigationGraph
+import io.github.syrou.reaktiv.navigation.definition.NavigationNode
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.definition.WindowWidthClass
@@ -401,8 +402,17 @@ public data class PrecomputedNavigationData(
     val interceptsByPath: Map<String, InterceptDefinition> = emptyMap(),
     val graphEntries: Map<String, EntryDefinition> = emptyMap(),
     val deepLinkAliases: List<DeepLinkAlias> = emptyList(),
-    val loadingModal: LoadingModal? = null
+    val loadingModal: LoadingModal? = null,
+    /**
+     * Full paths of every child declared as a root destination of its graph, see
+     * [io.github.syrou.reaktiv.navigation.dsl.NavigationGraphBuilder.rootDestinations].
+     */
+    val rootDestinationPaths: Set<String> = emptySet()
 ) {
+
+    internal fun rootDestinationOf(path: String): String? = rootDestinationPaths
+        .filter { path == it || path.startsWith("$it/") }
+        .maxByOrNull { it.length }
 
     @Deprecated(
         "Identical to routeToNavigatable, which is also keyed by full path.",
@@ -453,6 +463,7 @@ public data class PrecomputedNavigationData(
             val interceptsByGraphId = mutableMapOf<String, InterceptDefinition>()
             val interceptsByPath = mutableMapOf<String, InterceptDefinition>()
             val graphEntries = mutableMapOf<String, EntryDefinition>()
+            val rootDestinationDeclarations = mutableListOf<Pair<String, NavigationNode>>()
 
             fun collectGraphs(graph: NavigationGraph, graphPath: String, inheritedIntercept: InterceptDefinition?) {
                 val ownIntercept = graph.interceptDefinition
@@ -467,6 +478,10 @@ public data class PrecomputedNavigationData(
 
                 graph.entryDefinition?.let { def ->
                     graphEntries[graph.route] = def
+                }
+
+                graph.rootDestinations.forEach { node ->
+                    rootDestinationDeclarations.add(graphPath to node)
                 }
 
                 if (effectiveIntercept != null) {
@@ -527,6 +542,10 @@ public data class PrecomputedNavigationData(
                 }
             }
 
+            val rootDestinationPaths = rootDestinationDeclarations.mapTo(LinkedHashSet()) { (hostPath, node) ->
+                rootDestinationPath(hostPath, node, navigatableToFullPath, graphIndex)
+            }
+
             // Register special navigatables not discovered via graph traversal, before the
             // resolver is built from these maps.
             listOfNotNull(notFoundScreen, crashScreen, loadingModal).forEach { navigatable ->
@@ -564,10 +583,44 @@ public data class PrecomputedNavigationData(
                 interceptsByPath = interceptsByPath,
                 graphEntries = graphEntries,
                 deepLinkAliases = deepLinkAliases,
+                rootDestinationPaths = rootDestinationPaths,
                 loadingModal = loadingModal
             )
         }
     }
+}
+
+private fun rootDestinationPath(
+    hostPath: String,
+    node: NavigationNode,
+    navigatableToFullPath: Map<Navigatable, String>,
+    graphIndex: GraphIndex
+): String {
+    val host = hostPath.ifEmpty { ROOT_GRAPH }
+    val path = when (node) {
+        is Navigatable -> navigatableToFullPath[node]
+        else -> graphIndex.path(node.route)
+    } ?: throw IllegalStateException(
+        "'${node.route}' is declared as a root destination of graph '$host' but is not " +
+            "registered in any navigation graph. Register it inside '$host' with screens(), " +
+            "screenGroup() or graph()."
+    )
+    if (node is Modal) {
+        throw IllegalStateException(
+            "'${node.route}' is declared as a root destination of graph '$host' but is a " +
+                "modal. A root destination roots the back stack, so a modal one would be a back " +
+                "stack whose only entry can never be dismissed. Declare the screen or graph " +
+                "beneath it as the root destination and open the modal on top of it."
+        )
+    }
+    if (hostPath.isNotEmpty() && !path.startsWith("$hostPath/")) {
+        throw IllegalStateException(
+            "'${node.route}' is declared as a root destination of graph '$host' but is " +
+                "registered at '$path', which is not inside '$hostPath'. A root destination " +
+                "must be a child of the graph that declares it."
+        )
+    }
+    return path
 }
 
 internal fun fullPathMessage(resolver: RouteResolver, route: String, describedAs: String): String {
@@ -637,6 +690,10 @@ private fun computeNavigationDerivedState(
         precomputedData.graphDefinitions[graphId]?.declaration?.showsNavigationChrome == false
     }
 
+    val currentRootDestination = orderedBackStack
+        .firstOrNull { it.navigatable.renderLayer != RenderLayer.SYSTEM }
+        ?.let { precomputedData.rootDestinationOf(it.path) }
+
     return NavigationProjection(
         visibleLayers = visibleLayers,
         currentFullPath = currentFullPath,
@@ -653,7 +710,8 @@ private fun computeNavigationDerivedState(
         underlyingScreenGraphHierarchy = underlyingScreenGraphHierarchy,
         showsNavigationChrome = showsNavigationChrome,
         paneGraph = paneSurface?.graphId,
-        paneColumns = paneSurface?.columns.orEmpty()
+        paneColumns = paneSurface?.columns.orEmpty(),
+        currentRootDestination = currentRootDestination
     )
 }
 

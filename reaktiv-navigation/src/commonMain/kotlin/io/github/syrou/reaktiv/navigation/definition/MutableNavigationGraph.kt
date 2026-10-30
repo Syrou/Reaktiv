@@ -20,5 +20,7 @@ public data class MutableNavigationGraph(
     @kotlinx.serialization.Transient
     override val entryDefinition: EntryDefinition? = null,
     @kotlinx.serialization.Transient
-    override val navigatableIntercepts: NavigatableInterceptMap = emptyMap()
+    override val navigatableIntercepts: NavigatableInterceptMap = emptyMap(),
+    @kotlinx.serialization.Transient
+    override val rootDestinations: List<NavigationNode> = emptyList()
 ) : NavigationGraph

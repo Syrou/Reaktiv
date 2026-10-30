@@ -31,6 +31,15 @@ public interface NavigationGraph : NavigationNode {
     /** Sub-graphs owned by this graph. */
     public val nestedGraphs: List<NavigationGraph>
 
+    /**
+     * The children declared as this graph's root destinations: the peers a tab bar or bottom
+     * bar switches between, each of which roots the back stack.
+     *
+     * Empty for a graph whose children are steps of a flow rather than peers, which is the
+     * default. Declared through `rootDestinations()` in the graph DSL.
+     */
+    public val rootDestinations: List<NavigationNode> get() = emptyList()
+
     /** Optional shared layout wrapper applied to every screen inside this graph. */
     public val layout: (@Composable (@Composable () -> Unit) -> Unit)?
 

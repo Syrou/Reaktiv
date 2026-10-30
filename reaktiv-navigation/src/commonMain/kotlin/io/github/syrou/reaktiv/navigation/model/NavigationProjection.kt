@@ -36,6 +36,7 @@ import kotlinx.serialization.Serializable
  * @property modalsInStack All modal entries currently present in the back stack.
  * @property underlyingScreenGraphHierarchy Graph hierarchy of [underlyingScreen].
  * @property showsNavigationChrome `true` when the current destination wants a navigation header.
+ * @property currentRootDestination The declared root destination the back stack sits on, or `null`.
  */
 @Stable
 @Serializable
@@ -56,5 +57,6 @@ public data class NavigationProjection internal constructor(
     val underlyingScreenGraphHierarchy: List<String>? = null,
     val showsNavigationChrome: Boolean = true,
     val paneGraph: String? = null,
-    val paneColumns: List<@Contextual NavigationEntry?> = emptyList()
+    val paneColumns: List<@Contextual NavigationEntry?> = emptyList(),
+    val currentRootDestination: String? = null
 )

@@ -110,6 +110,12 @@ public interface Graph : NavigationNode, TransitionSpec {
     public val dismissal: Dismissal
         get() = Dismissal.fromLegacy(onDismissRequest, swipeToDismiss)
 
+    @Deprecated(
+        "Declare root destinations instead. rootDestinations() in the graph DSL decides per child " +
+            "rather than for the whole host, so a host can hold both peer destinations and " +
+            "sections that belong on top of its start. Ignored on a graph that declares them.",
+        level = DeprecationLevel.WARNING
+    )
     public val startAnchorsChildren: Boolean get() = true
 
     public val paneLayout: PaneLayout? get() = null

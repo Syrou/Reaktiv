@@ -196,6 +196,23 @@ public data class NavigationState(
 
     val paneGraph: String? get() = derived.paneGraph
 
+    /**
+     * The full path of the declared root destination the back stack sits on, or `null` when it
+     * sits on none.
+     *
+     * Read by a tab bar or bottom bar to mark its selected item without inspecting the back
+     * stack. It answers for the bottom of the stack rather than the current entry, so a section
+     * or a modal opened over a root destination keeps that one marked.
+     *
+     * ```kotlin
+     * val navState by selectState<NavigationState>().collectAsState()
+     * BottomBarItem(selected = navState.currentRootDestination == "home/wallet")
+     * ```
+     *
+     * @see io.github.syrou.reaktiv.navigation.dsl.NavigationGraphBuilder.rootDestinations
+     */
+    val currentRootDestination: String? get() = derived.currentRootDestination
+
     val paneColumns: List<NavigationEntry?> get() = derived.paneColumns
 
     internal fun showsEntry(entry: NavigationEntry): Boolean {

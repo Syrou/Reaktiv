@@ -919,6 +919,78 @@ made it far easier to hit, because every `ReaktivDebug` emission is now a record
 
 ---
 
+### [BC-192] A navigation can no longer leave a modal as the only back stack entry
+
+**Type:** Behavioural
+
+**Grep:** `navigateTo(.*Modal`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A modal reached with nothing beneath it stayed the only entry, and back did nothing
+// because a back stack of one cannot be popped. The sheet could not be closed.
+navigation {
+    clearBackStack()
+    navigateTo(NewReleaseModal)
+}
+// [NewReleaseModal]
+```
+
+**After:**
+```kotlin
+// The nearest declared start walking up the modal's own path is anchored beneath it,
+// falling back to the root start. Dismissal needs no special case.
+navigation {
+    clearBackStack()
+    navigateTo(NewReleaseModal)
+}
+// [Dashboard, NewReleaseModal]
+```
+
+**Notes:** Applies to every path that adds an entry, not only deep links: a `navigateTo`, a
+`navigateTo(replaceCurrent = true)` and a link that synthesizes its back stack all anchor the
+same entry. Nothing changes when something is already beneath the modal. A modal cannot be
+declared as a root destination for the same reason, see AD-194.
+
+---
+
+### [BC-193] Graph.startAnchorsChildren deprecated in favour of rootDestinations()
+
+**Type:** Deprecation
+
+**Grep:** `startAnchorsChildren`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+object HomeGraph : Graph {
+    override val route = "home"
+    override val startAnchorsChildren = false
+}
+```
+
+**After:**
+```kotlin
+object HomeGraph : Graph {
+    override val route = "home"
+}
+
+graph(HomeGraph) {
+    start(route = { _ -> DashboardScreen })
+    rootDestinations(DashboardScreen, CatalogueGraph, InsightsGraph, WalletGraph)
+}
+```
+
+**Notes:** `startAnchorsChildren` keeps its meaning and is still honoured on a host that declares
+no root destinations, so nothing has to change at once. It decided for a whole host, which is
+wrong for a host that holds both peer destinations and things that belong on top of its start:
+`false` dropped the anchor under the host's own modals and sections too, which left them
+unreachable back stacks, and `true` put the host start under every peer. A host that declares
+root destinations ignores the flag. See AD-194 for the replacement.
+
+---
+
 ## Additions
 
 <!-- Append AD-NN entries below, incrementing from the last AD ID in this section -->
@@ -10818,5 +10890,126 @@ val stateAtFive = reconstructor.stateAt(5)
 `SessionHistoryChunk` in BC-171, `CapturedLog` in BC-85 and `KeyframedReconstructor` in BC-177. A module that
 implements `ExternalStateRequester` makes a store with the default `ExternalStatePolicy.OnRequest` grant outside
 state, which is what `externalState()` needs to return non-null.
+
+---
+
+### [AD-194] rootDestinations() declares a host's peer children
+
+**Type:** Replaces-deprecated
+
+**Grep:** `rootDestinations(`
+**File glob:** `**/*.kt`
+
+**Replaces:** `Graph.startAnchorsChildren`, which decided for a whole host rather than per child
+
+**Example:**
+```kotlin
+graph(HomeGraph) {
+    start(route = { _ -> DashboardScreen })
+    screenGroup(HomeScreenGroup)
+    modals(NewReleaseModal, InvitationModal)
+    screens(NotificationManager)
+    layout { content -> HomeScaffold(content) }
+    graph(CatalogueGraph) {
+        start(CatalogueScreen)
+        screens(CatalogueScreen, ReleaseInfo)
+    }
+    graph(InsightsGraph) {
+        start(route = { store -> if (store.ready()) Insights else Reason })
+        screens(Insights, Reason)
+    }
+    graph(WalletGraph) {
+        start(WalletOverview)
+        screens(WalletOverview, UserWallet)
+    }
+    graph("account") {
+        start(AccountOverview)
+        screens(AccountOverview)
+    }
+    rootDestinations(DashboardScreen, CatalogueGraph, InsightsGraph, WalletGraph)
+}
+```
+
+A root destination roots the back stack, so going back from one leaves the app. Anything else
+on the host keeps the host start anchored beneath it:
+
+```
+home                                 -> [Dashboard]
+home/insights                        -> [Insights], or [Reason]
+home/catalogue/release-info?id=1     -> [Catalogue, ReleaseInfo]
+home/wallet/wallet-overview          -> [WalletOverview]
+home/wallet/user                     -> [WalletOverview, UserWallet]
+home/new-release                     -> [Dashboard, NewReleaseModal]
+home/invitation/team                 -> [Dashboard, InvitationModal]
+home/account/account-overview        -> [Dashboard, AccountOverview]
+home/notification-manager            -> [Dashboard, NotificationManager]
+```
+
+In-app navigation lands the same way, so a bottom bar can use a plain `navigateTo`:
+
+```kotlin
+navigation { navigateTo("home/insights") }
+// from [Catalogue, ReleaseInfo]          -> [Insights]
+// from [Insights, InsightsArtist]        -> [Insights], re-targeting pops to the root
+navigation { navigateTo(UserWallet) }
+// from [WalletOverview, AccountOverview] -> [WalletOverview, UserWallet]
+// from [Catalogue, ReleaseInfo]          -> [UserWallet]
+navigation { navigateTo(AccountOverview) }
+// from [WalletOverview]                  -> [WalletOverview, AccountOverview], a section pushes
+```
+
+**Notes:** Declared on the graph builder rather than on the `Graph` object, so a graph declared
+with the id-only `graph("id") { }` form can declare root destinations too. A child declared that
+way has no object to name, so name it by the `NavigationGraph` the `graph("id") { }` call returns
+or by `NavigationPath("id")`. Calls accumulate. Everything the host owns that is not a root
+destination, and anything not inside one, behaves as it does on any other graph.
+
+Entries of other root destinations are dropped when one is navigated to, and so is anything
+outside the host, so the target's own chain is what remains. Entries already inside the root
+destination being navigated to are kept, which is what makes an ordinary push inside a tab work
+unchanged. A target already in the stack is still pushed rather than popped to unless it is the
+root destination itself, since the same screen is legitimately pushed again with other params.
+
+The decision is taken from the declaration alone, before any start selector runs, so a link to a
+root destination evaluates neither the root start nor the host start. That matters when a start
+has side effects such as config loading. Rejected when the module is built: a root destination
+that is not registered inside the declaring graph, and a modal as one, which would be a back
+stack whose only entry can never be dismissed (see BC-192). See AD-195 for marking the selected
+item, and BC-193 for the flag this replaces.
+
+---
+
+### [AD-195] NavigationState.currentRootDestination
+
+**Type:** Addition
+
+**Grep:** `currentRootDestination`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+@Composable
+fun HomeBottomBar() {
+    val navState by selectState<NavigationState>().collectAsState()
+    val dispatcher = rememberDispatcher()
+    NavigationBar {
+        Tabs.forEach { tab ->
+            NavigationBarItem(
+                selected = navState.currentRootDestination == tab.path,
+                onClick = { dispatcher.launch { navigation { navigateTo(tab.path) } } },
+                icon = { Icon(tab.icon, null) }
+            )
+        }
+    }
+}
+```
+
+**Notes:** The full path of the declared root destination the back stack sits on, or `null` when
+it sits on none. It answers for the bottom of the stack rather than the current entry, so a
+section or a modal opened over a root destination keeps that one marked. Named for the
+declaration rather than for the current entry on purpose, so it is not read as Jetpack's
+`NavController.currentDestination`. Derived by the reducer from the back stack and the
+declarations, like every other value on `NavigationProjection`. Requires `rootDestinations()`,
+see AD-194.
 
 ---

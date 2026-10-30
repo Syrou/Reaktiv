@@ -29,6 +29,7 @@ public class NavigationGraphBuilder(
     private var graphDeclaration: Graph? = null
     private var pendingEntryDefinition: EntryDefinition? = null
     private val navigatableIntercepts: MutableMap<Navigatable, InterceptDefinition> = mutableMapOf()
+    private val declaredRootDestinations = mutableListOf<NavigationNode>()
 
     private fun checkNoStartDestination() {
         if (startDestination != null || pendingEntryDefinition != null) {
@@ -100,6 +101,49 @@ public class NavigationGraphBuilder(
             loadingThreshold = loadingThreshold,
             cacheKey = cacheKey
         )
+    }
+
+    /**
+     * Declares which children of this graph are its root destinations: the peers a tab bar or
+     * bottom bar switches between, rather than steps that stack on top of each other.
+     *
+     * A root destination roots the back stack. Navigating to one, by link or in the app, lands
+     * on its own chain with nothing beneath it, so going back from it leaves the app. Anything
+     * else registered on this graph, a modal or a section, keeps the graph's start anchored
+     * beneath it, so it reads as sitting on top of the host rather than replacing it.
+     *
+     * ```kotlin
+     * graph(HomeGraph) {
+     *     start(route = { DashboardScreen })
+     *     screenGroup(HomeScreenGroup)
+     *     modals(NewReleaseModal)
+     *     layout { content -> HomeScaffold(content) }
+     *     graph(CatalogueGraph) { start(CatalogueScreen); screens(CatalogueScreen, ReleaseInfo) }
+     *     graph(WalletGraph) { start(WalletOverview); screens(WalletOverview, UserWallet) }
+     *     rootDestinations(DashboardScreen, CatalogueGraph, WalletGraph)
+     * }
+     * ```
+     *
+     * With that declaration:
+     * ```
+     * home                              -> [Dashboard]
+     * home/catalogue/release-info       -> [Catalogue, ReleaseInfo]
+     * home/wallet/user                  -> [WalletOverview, UserWallet]
+     * home/new-release                  -> [Dashboard, NewReleaseModal]
+     * ```
+     *
+     * Calls accumulate, so root destinations may be declared in several calls. Name a graph
+     * declared with the id-only `graph("id") { }` form either by the [NavigationGraph] that
+     * call returns or by [io.github.syrou.reaktiv.navigation.definition.NavigationPath].
+     *
+     * Each node must be registered inside this graph, and a modal cannot be one: it would be a
+     * back stack whose only entry could never be dismissed. Both are rejected when the module
+     * is built.
+     *
+     * @param nodes The screens and graphs that root this graph's back stacks
+     */
+    public fun rootDestinations(vararg nodes: NavigationNode) {
+        declaredRootDestinations.addAll(nodes.filterNot(declaredRootDestinations::contains))
     }
 
     public fun screens(vararg screens: Screen) {
@@ -235,6 +279,7 @@ public class NavigationGraphBuilder(
             navigatableIntercepts[navigatable] = merged
         }
         navigatables.addAll(innerBuilder.navigatables.filterNot(navigatables::contains))
+        declaredRootDestinations.addAll(innerBuilder.declaredRootDestinations.filterNot(declaredRootDestinations::contains))
 
         for (nestedGraph in innerBuilder.nestedGraphs) {
             val existing = nestedGraph.interceptDefinition
@@ -252,7 +297,8 @@ public class NavigationGraphBuilder(
             layout = this.graphLayout,
             declaration = this.graphDeclaration,
             entryDefinition = this.pendingEntryDefinition,
-            navigatableIntercepts = this.navigatableIntercepts.toMap()
+            navigatableIntercepts = this.navigatableIntercepts.toMap(),
+            rootDestinations = this.declaredRootDestinations.toList()
         )
     }
 }

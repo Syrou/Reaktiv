@@ -835,11 +835,28 @@ public class NavigationLogic internal constructor(
                 guardOutcome(result.evaluation, builder, result.step, pass.closing) ?: NavigationOutcome.Success
         }
 
+    @Suppress("DEPRECATION")
     private fun peerHostsAbove(route: String): List<String> =
         precomputedData.routeResolver.buildPathHierarchy(route).dropLast(1).filter { graphPath ->
             val graphId = precomputedData.routeResolver.canonicalGraphId(graphPath) ?: return@filter false
-            precomputedData.graphDefinitions[graphId]?.declaration?.startAnchorsChildren == false
+            val graph = precomputedData.graphDefinitions[graphId] ?: return@filter false
+            graph.rootDestinations.isEmpty() && graph.declaration?.startAnchorsChildren == false
         }
+
+    private suspend fun soleModalAnchor(
+        entry: NavigationEntry,
+        beneath: List<NavigationEntry>,
+        pass: Pass
+    ): NavigationEntry? {
+        if (entry.navigatable !is Modal || entry.navigatable.renderLayer == RenderLayer.SYSTEM) return null
+        if (beneath.any { it.navigatable.renderLayer != RenderLayer.SYSTEM }) return null
+        val enclosing = precomputedData.routeResolver.buildPathHierarchy(entry.path).dropLast(1).reversed()
+        for (graphPath in enclosing + ROOT_GRAPH) {
+            val resolved = resolveGraphEntryForSynthesis(graphPath, beneath, pass) ?: continue
+            if (resolved.path != entry.path) return resolved
+        }
+        return null
+    }
 
     private suspend fun synthesizeAncestorEntries(
         destination: NavigationEntry,
@@ -853,7 +870,8 @@ public class NavigationLogic internal constructor(
         val synthesized = mutableListOf<NavigationEntry>()
         var stack = simulatedBackStack
         val peerHosts = peerHostsAbove(route)
-        val rootEntry = if (stack.all { it.navigatable.renderLayer == RenderLayer.SYSTEM }) {
+        val rootDestination = precomputedData.rootDestinationOf(route)
+        val rootEntry = if (rootDestination == null && stack.all { it.navigatable.renderLayer == RenderLayer.SYSTEM }) {
             resolveGraphEntryForSynthesis(ROOT_GRAPH, stack, pass)
         } else {
             null
@@ -866,6 +884,7 @@ public class NavigationLogic internal constructor(
         for ((depth, intermediatePath) in precomputedData.routeResolver.buildPathHierarchy(route).dropLast(1).withIndex()) {
             if (floor != null && (intermediatePath == floor || intermediatePath.startsWith("$floor/"))) continue
             if (intermediatePath in peerHosts) continue
+            if (rootDestination != null && rootDestination.startsWith("$intermediatePath/")) continue
             val resolved = resolveGraphEntryForSynthesis(intermediatePath, stack, pass) ?: continue
             if (!seenPaths.add(resolved.path)) continue
             val entry = withParamsFromLocation(resolved, intermediatePath, locationSegments.take(depth + 1))
@@ -1461,6 +1480,40 @@ public class NavigationLogic internal constructor(
             lastNavigatedEntry = null
         }
 
+        fun trimAbove(index: Int) {
+            val kept = sim.backStack[index]
+            batchedActions.add(NavigationAction.PopUpTo(kept.location, false, null, kept.stableKey))
+            sim = NavigationStackMath.applyPopUpTo(sim, index, false, null)
+            lastNavigatedEntry = null
+        }
+
+        suspend fun anchorBeneath(entry: NavigationEntry) {
+            val anchor = soleModalAnchor(entry, sim.backStack, pass)
+                ?.takeIf { guard == null || guard.admits(it, entry) } ?: return
+            batchedActions.add(NavigationAction.Navigate(anchor))
+            sim = NavigationStackMath.applyNavigate(sim, anchor, false)
+            lastNavigatedEntry = anchor
+        }
+
+        fun switchToRootDestination(entry: NavigationEntry): Boolean {
+            val destination = precomputedData.rootDestinationOf(entry.path) ?: return false
+            val content = sim.backStack.takeWhile { it.navigatable.renderLayer != RenderLayer.SYSTEM }
+            if (content.isEmpty()) return false
+            val inside = content.takeWhile { it.path == destination || it.path.startsWith("$destination/") }
+            if (inside.isEmpty()) {
+                batchedActions.add(NavigationAction.ClearBackstack)
+                sim = NavigationStackMath.applyClearBackstack(sim)
+                lastNavigatedEntry = null
+                return false
+            }
+            if (inside.first().stableKey == entry.stableKey) {
+                if (content.size > 1) trimAbove(0)
+                return true
+            }
+            if (inside.size < content.size) trimAbove(inside.size - 1)
+            return false
+        }
+
         for ((index, step) in steps.withIndex()) {
             when (step.operation) {
                 NavigationOperation.Navigate, NavigationOperation.ResumePending -> {
@@ -1473,6 +1526,7 @@ public class NavigationLogic internal constructor(
                     if (step.synthesizeBackstack) {
                         val destinationPath = resolution.entryPath()
                         val finalEntry = createNavigationEntry(step, resolution, destinationPath, 0)
+                        if (switchToRootDestination(finalEntry)) continue
                         val ancestors = synthesizeAncestorEntries(finalEntry, sim.backStack, pass)
                             .filter { guard == null || guard.admits(it, finalEntry) }
 
@@ -1481,6 +1535,7 @@ public class NavigationLogic internal constructor(
                             sim = NavigationStackMath.applyNavigate(sim, entry, false)
                             lastNavigatedEntry = entry
                         }
+                        anchorBeneath(finalEntry)
 
                         batchedActions.add(NavigationAction.Navigate(finalEntry, dismissModals = step.shouldDismissModals))
                         sim = NavigationStackMath.applyNavigate(sim, finalEntry, step.shouldDismissModals)
@@ -1488,6 +1543,7 @@ public class NavigationLogic internal constructor(
                     } else {
                         val entryPath = resolution.entryPath()
                         val entry = createNavigationEntry(step, resolution, entryPath, 0)
+                        if (switchToRootDestination(entry)) continue
                         val beneathModals = if (step.shouldDismissModals) {
                             sim.backStack.lastOrNull { it.navigatable !is Modal }
                         } else {
@@ -1529,6 +1585,7 @@ public class NavigationLogic internal constructor(
                                 }
                             }
                         }
+                        anchorBeneath(entry)
                         batchedActions.add(NavigationAction.Navigate(entry, dismissModals = step.shouldDismissModals))
                         sim = NavigationStackMath.applyNavigate(sim, entry, step.shouldDismissModals)
                         lastNavigatedEntry = entry
@@ -1539,8 +1596,19 @@ public class NavigationLogic internal constructor(
                     val resolution = targets.getValue(index).resolution
                     val entryPath = resolution.entryPath()
                     val entry = createNavigationEntry(step, resolution, entryPath, sim.backStack.size)
-                    batchedActions.add(NavigationAction.Replace(entry))
-                    sim = NavigationStackMath.applyReplace(sim, entry)
+                    val remaining = sim.backStack
+                        .takeWhile { it.navigatable.renderLayer != RenderLayer.SYSTEM }
+                        .dropLast(1)
+                    val anchor = soleModalAnchor(entry, remaining, pass)
+                    if (anchor == null) {
+                        batchedActions.add(NavigationAction.Replace(entry))
+                        sim = NavigationStackMath.applyReplace(sim, entry)
+                    } else {
+                        batchedActions.add(NavigationAction.Replace(anchor))
+                        sim = NavigationStackMath.applyReplace(sim, anchor)
+                        batchedActions.add(NavigationAction.Navigate(entry))
+                        sim = NavigationStackMath.applyNavigate(sim, entry, false)
+                    }
                     lastNavigatedEntry = entry
                 }
 
