@@ -10,9 +10,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilExactlyOneExists
@@ -24,6 +29,7 @@ import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Dismissal
 import io.github.syrou.reaktiv.navigation.definition.DismissSource
@@ -56,6 +62,7 @@ class DismissalPolicyUiTest {
     private abstract class SmallModal(override val route: String) : Modal {
         override val enterTransition = NavTransition.None
         override val exitTransition = NavTransition.None
+        override val dismissLabel: TitleResource = { "Close" }
 
         @Composable
         override fun Content(params: Params) {
@@ -169,5 +176,24 @@ class DismissalPolicyUiTest {
 
         pressSystemBack(harness)
         awaitCurrentScreen(harness.store, "home")
+    }
+
+    @Test
+    fun dismissableModalBackdropIsALabelledDismissAction() = runComposeUiTest {
+        val harness = mount()
+        open(harness, DismissableModal)
+
+        onNode(hasContentDescription("Close") and hasClickAction())
+            .performSemanticsAction(SemanticsActions.OnClick)
+        awaitCurrentScreen(harness.store, "home")
+    }
+
+    @Test
+    fun blockingModalBackdropOffersNoAction() = runComposeUiTest {
+        val harness = mount()
+        open(harness, BlockingModal)
+
+        onAllNodes(hasContentDescription("Close")).assertCountEquals(0)
+        onAllNodes(hasClickAction()).assertCountEquals(0)
     }
 }

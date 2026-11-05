@@ -1,5 +1,6 @@
 package eu.syrou.example.ui.screen.home
 
+import io.github.syrou.reaktiv.navigation.definition.Dismissal
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ object NotificationModal : Modal {
     override val route = "notification"
     override val enterTransition = NavTransition.SlideUpBottom
     override val exitTransition = NavTransition.SlideOutBottom
+    override val dismissal = Dismissal.Dismissable
     override val titleResource: TitleResource? = { "Modal?" }
 
     @Composable
