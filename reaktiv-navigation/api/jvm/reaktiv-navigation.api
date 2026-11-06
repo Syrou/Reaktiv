@@ -861,6 +861,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/LoadingModal$De
 	public static fun getDismissIndicatorBackground-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)J
 	public static fun getDismissIndicatorColor-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)J
 	public static fun getDismissIndicatorPlacement (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/definition/DismissIndicatorPlacement;
+	public static fun getDismissLabel (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)F
 	public static fun getHiddenUrlParams (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Ljava/util/Set;
@@ -878,6 +879,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/LoadingModal$De
 public abstract interface class io/github/syrou/reaktiv/navigation/definition/Modal : io/github/syrou/reaktiv/navigation/definition/Navigatable {
 	public fun getActionResource ()Lkotlin/jvm/functions/Function2;
 	public fun getBackgroundDimAlpha ()F
+	public fun getDismissLabel ()Lkotlin/jvm/functions/Function2;
 	public fun getElevation ()F
 	public fun getPopEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public fun getPopExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -895,6 +897,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/Modal$DefaultIm
 	public static fun getDismissIndicatorBackground-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Modal;)J
 	public static fun getDismissIndicatorColor-0d7_KjU (Lio/github/syrou/reaktiv/navigation/definition/Modal;)J
 	public static fun getDismissIndicatorPlacement (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/definition/DismissIndicatorPlacement;
+	public static fun getDismissLabel (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Modal;)F
 	public static fun getHiddenUrlParams (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Ljava/util/Set;

@@ -166,10 +166,13 @@ public fun NavigationRender(
         }
     }
 
+    val screenReaderFocus = LocalScreenReaderFocus.current ?: rememberScreenReaderFocus()
+
     CompositionLocalProvider(
         LocalNavigationModule provides navModule,
         LocalInteractiveTransitionController provides interactiveController,
-        LocalRenderedNavigationState provides navigationState
+        LocalRenderedNavigationState provides navigationState,
+        LocalScreenReaderFocus provides screenReaderFocus
     ) {
         if (handlePlatformBack) {
             val backCoordinator = remember(store, navModule, interactiveController) {

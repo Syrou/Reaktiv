@@ -19,6 +19,7 @@ public interface Modal : Navigatable {
 
     public val shouldDimBackground: Boolean get() = true
     public val backgroundDimAlpha: Float get() = 0.5f
+    public val dismissLabel: TitleResource? get() = null
 
     override val renderLayer: RenderLayer
         get() = RenderLayer.GLOBAL_OVERLAY

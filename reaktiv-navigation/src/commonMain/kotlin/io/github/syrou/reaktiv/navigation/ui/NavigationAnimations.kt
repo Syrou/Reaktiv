@@ -5,23 +5,32 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.zIndex
+import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
+import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
 import io.github.syrou.reaktiv.navigation.definition.allowsDismiss
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -39,7 +48,7 @@ import io.github.syrou.reaktiv.navigation.definition.DismissSource
  * Unified animation system for all navigation layers
  */
 public object NavigationAnimations {
-    
+
     public enum class AnimationType {
         MODAL_ENTER,
         MODAL_EXIT
@@ -88,6 +97,24 @@ public object NavigationAnimations {
         val scope = rememberCoroutineScope()
         val store = rememberStore()
         val controller = LocalInteractiveTransitionController.current
+        val screenReaderFocus = LocalScreenReaderFocus.current
+        val opener = remember(entry.stableKey) { screenReaderFocus?.focusedNode() }
+        val navigationState by composeState<NavigationState>()
+        val latestNavigationState = rememberUpdatedState(navigationState)
+        val beneath = remember(entry.stableKey) {
+            val stack = navigationState.orderedBackStack
+            stack.getOrNull(stack.indexOfLast { it.stableKey == entry.stableKey } - 1)
+        }
+
+        DisposableEffect(entry.stableKey) {
+            onDispose {
+                val top = latestNavigationState.value.orderedBackStack.lastOrNull()
+                val returnedToOpener = beneath != null &&
+                    top?.stableKey == beneath.stableKey &&
+                    top.stackPosition == beneath.stackPosition
+                if (opener != null && returnedToOpener) screenReaderFocus?.moveTo(opener)
+            }
+        }
 
         val exitSpec: PopTransitionSpec? = if (isEntering) null else modalExitSpec(navigatable)
         val transition = when {
@@ -104,6 +131,7 @@ public object NavigationAnimations {
         }
 
         val animationTrigger = remember(entry.stableKey) { mutableStateOf(false) }
+        val entered = remember(entry.stableKey) { mutableStateOf(!shouldAnimate) }
 
         LaunchedEffect(entry.stableKey) {
             if (shouldAnimate) {
@@ -131,6 +159,7 @@ public object NavigationAnimations {
                 tween(durationMillis = 0)
             },
             finishedListener = { progress ->
+                if (isEntering && progress == 1f) entered.value = true
                 if ((isEntering && progress == 1f) || (!isEntering && progress == 0f)) {
                     onAnimationComplete?.invoke()
                 }
@@ -148,12 +177,15 @@ public object NavigationAnimations {
         val animationProgress = timedProgress * (1f - scrubProgress)
         val specProgress = if (exitSpec?.reversedProgress == false) 1f - animationProgress else animationProgress
 
+        val tapOutsideDismisses = isEntering && modal?.dismissal?.tapOutside?.allowsDismiss == true
+        val dismissLabel = modal?.dismissLabel?.invoke()
+
         val dimmerAlpha = if (modal?.shouldDimBackground == true) {
             modal.backgroundDimAlpha * animationProgress
         } else {
             0f
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -181,14 +213,32 @@ public object NavigationAnimations {
                             mod.background(Color.Black.copy(alpha = dimmerAlpha))
                         else mod
                     }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        enabled = isEntering
-                    ) {
-                        if (modal != null) {
-                            scope.launch {
-                                performUserBack(store, navModule, DismissSource.TapOutside)
+                    .then(
+                        if (entered.value) {
+                            Modifier.clearAndSetSemantics {
+                                traversalIndex = 1f
+                                if (tapOutsideDismisses && dismissLabel != null) {
+                                    contentDescription = dismissLabel
+                                    onClick {
+                                        scope.launch {
+                                            performUserBack(store, navModule, DismissSource.TapOutside)
+                                        }
+                                        true
+                                    }
+                                } else {
+                                    disabled()
+                                }
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .pointerInput(isEntering) {
+                        detectTapGestures {
+                            if (isEntering && modal != null) {
+                                scope.launch {
+                                    performUserBack(store, navModule, DismissSource.TapOutside)
+                                }
                             }
                         }
                     }
@@ -197,6 +247,7 @@ public object NavigationAnimations {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(if (entered.value) Modifier else Modifier.clearAndSetSemantics { })
                     .then(if (resolved != null) Modifier.navTransitionGraphics(resolved) { specProgress } else Modifier),
                 contentAlignment = Alignment.Center
             ) {

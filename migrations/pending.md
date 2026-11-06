@@ -991,6 +991,44 @@ root destinations ignores the flag. See AD-194 for the replacement.
 
 ---
 
+### [BC-194] The modal backdrop is a labelled dismiss action or an inert node
+
+**Type:** Behavioural
+
+**Grep:** `hasClickAction()`
+**File glob:** `**/*Test.kt`
+
+**Before:**
+```kotlin
+// The full-screen backdrop behind every modal exposed an unlabelled click action,
+// even when tapOutside was DismissAction.Ignore.
+composeTestRule.onAllNodes(hasClickAction()).assertCountEquals(1)
+```
+
+**After:**
+```kotlin
+// tapOutside allows dismissal and Modal.dismissLabel is set: the backdrop is labelled with it and clicking it dismisses.
+composeTestRule.onNode(hasContentDescription("Close") and hasClickAction())
+    .performSemanticsAction(SemanticsActions.OnClick)
+
+// tapOutside is DismissAction.Ignore, or dismissLabel is null: the backdrop has no action and is not a screen reader stop.
+composeTestRule.onAllNodes(hasClickAction()).assertCountEquals(0)
+```
+
+**Notes:** Like the Material 3 `ModalBottomSheet` scrim, read after the modal content. The modal
+exposes no semantics until its enter animation finishes, then the content and the backdrop appear
+together, so VoiceOver keeps its focus while the modal slides in and then moves to the first element
+of the content instead of the backdrop. Tests that query the backdrop or the content must let the
+enter animation finish first. The backdrop covers the screen behind, so TalkBack cannot swipe into
+it while the modal is open. VoiceOver reaches the backdrop after the content, so on iOS dismissal
+mainly relies on the escape gesture. When the modal leaves, TalkBack and VoiceOver focus returns to
+the element that had it when the modal opened, with no code in the app. On iOS that element is found
+again by its exact frame. Focus only returns when the modal closes back to the entry it was opened
+from, at the same stack position, so a modal that navigates elsewhere leaves focus to the new screen.
+A screen behind the modal that carries a `paneTitle` can make TalkBack override that return. See AD-196.
+
+---
+
 ## Additions
 
 <!-- Append AD-NN entries below, incrementing from the last AD ID in this section -->
@@ -11011,5 +11049,32 @@ declaration rather than for the current entry on purpose, so it is not read as J
 `NavController.currentDestination`. Derived by the reducer from the back stack and the
 declarations, like every other value on `NavigationProjection`. Requires `rootDestinations()`,
 see AD-194.
+
+---
+
+### [AD-196] Modal.dismissLabel
+
+**Type:** Addition
+
+**Grep:** `dismissLabel`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object FilterSheet : Modal {
+    override val route = "filters"
+    override val enterTransition = NavTransition.SlideUpBottom
+    override val exitTransition = NavTransition.SlideOutBottom
+    override val dismissal = Dismissal.Dismissable
+    override val dismissLabel: TitleResource = { stringResource(Res.string.close_filters) }
+
+    @Composable
+    override fun Content(params: Params) { /* sheet */ }
+}
+```
+
+**Notes:** What a screen reader announces for the backdrop when `dismissal.tapOutside` allows
+dismissal. Defaults to null, since the library ships no user-facing text. Without a label the
+backdrop stays inert for screen readers, though tapping it still dismisses. See BC-194.
 
 ---
