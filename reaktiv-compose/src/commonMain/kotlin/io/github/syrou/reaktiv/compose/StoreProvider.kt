@@ -4,8 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.structuralEqualityPolicy
 import io.github.syrou.reaktiv.core.Dispatch
 import io.github.syrou.reaktiv.core.ModuleState
 import io.github.syrou.reaktiv.core.Store
@@ -136,4 +138,32 @@ public inline fun <reified S : ModuleState> selectState(): StateFlow<S> {
 @Composable
 public inline fun <reified S : ModuleState> composeState(): State<S> {
     return selectState<S>().collectAsState(Dispatchers.Main.immediate)
+}
+
+/**
+ * Observes a value selected from a module's state as a Compose State.
+ *
+ * Readers recompose only when the selected value changes by `equals`, not on every change to
+ * the module state. Prefer it over [composeState] when a Composable needs a small part of a
+ * large or frequently changing state. A selector that captures changing values takes effect in
+ * the composition where it changes, without waiting for the next state change.
+ *
+ * Example:
+ * ```kotlin
+ * @Composable
+ * fun TodoCount() {
+ *     val count by composeState<TodoState, Int> { it.items.size }
+ *     Text("$count items")
+ * }
+ * ```
+ *
+ * @param selector Function that derives the observed value from the module state
+ * @return Compose State of the selected value
+ */
+@Composable
+public inline fun <reified S : ModuleState, R> composeState(noinline selector: (S) -> R): State<R> {
+    val state = composeState<S>()
+    return remember(state, selector) {
+        derivedStateOf(structuralEqualityPolicy()) { selector(state.value) }
+    }
 }

@@ -11078,3 +11078,28 @@ dismissal. Defaults to null, since the library ships no user-facing text. Withou
 backdrop stays inert for screen readers, though tapping it still dismisses. See BC-194.
 
 ---
+
+### [AD-197] composeState with a selector
+
+**Type:** Addition
+
+**Grep:** `composeState<\w+, `
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+@Composable
+fun BackStackDepth() {
+    val depth by composeState<NavigationState, Int> { it.backStack.size }
+    Text("Depth: $depth")
+}
+```
+
+**Notes:** Observes one value of a module state and recomposes only when that value changes by
+`equals`, so a reader of `NavigationState` that needs the back stack size is not recomposed by
+every scrub frame or width change. A selector that captures changing values applies in the
+composition where it changes, and a swapped store is followed the same way `composeState<S>()`
+follows it. It is an overload of `composeState`, which stays the single state observation API
+(BC-13 removed the separate `select` delegate). `composeState<S>()` itself is unchanged.
+
+---

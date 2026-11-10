@@ -64,25 +64,23 @@ fun CounterPreview() {
 
 ---
 
-## Derived State with `select`
+## Selecting Part of a State
 
-`select<S, R>()` derives a value from module state and only triggers recomposition when
-the derived value changes — useful for large state objects.
+`composeState<S, R>(selector)` observes a value derived from module state and only triggers
+recomposition when that value changes by `equals`, which keeps readers of large or busy
+states from recomposing on unrelated changes.
 
 ```kotlin
 @Composable
 fun TodoCount() {
     // Only recomposes when the item count changes, not on other TodoState field changes
-    val count by select<TodoState, Int> { it.items.size }
+    val count by composeState<TodoState, Int> { it.items.size }
     Text("$count items")
 }
 
 @Composable
 fun UserGreeting() {
-    val name by select<UserState, String>(
-        selector = { it.user?.name ?: "Guest" },
-        areEqual = { old, new -> old == new }
-    )
+    val name by composeState<UserState, String> { it.user?.name ?: "Guest" }
     Text("Hello, $name")
 }
 ```
@@ -177,7 +175,7 @@ fun TodoListScreen() {
 
 - [StoreProvider] — provides the [Store] to the Compose composition tree
 - `composeState<S>()` — primary state-observation hook; returns `State<S>`
-- `select<S, R>()` — derived state with equality-based recomposition control
+- `composeState<S, R>(selector)`: a selected value that recomposes only when it changes
 - `rememberDispatcher()` — returns the store's `Dispatch` function
 - `rememberLogic<M, L>()` — returns the typed [ModuleLogic] instance
 - `rememberStore()` — returns the raw [Store] (for advanced use)
