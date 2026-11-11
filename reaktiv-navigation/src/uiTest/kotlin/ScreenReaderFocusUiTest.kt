@@ -13,6 +13,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.waitUntilDoesNotExist
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.StoreProvider
@@ -130,12 +131,14 @@ class ScreenReaderFocusUiTest {
     private fun ComposeUiTest.open(harness: Harness, modal: Modal) {
         harness.store.launch { harness.store.navigation { navigateTo(modal) } }
         awaitCurrentScreen(harness.store, modal.route)
+        waitUntilExactlyOneExists(hasText(modal.route, ignoreCase = true), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
     }
 
-    private fun ComposeUiTest.pressSystemBack(harness: Harness) {
+    private fun ComposeUiTest.pressSystemBack(harness: Harness, closing: Modal) {
         harness.store.launch { performUserBack(harness.store, harness.navModule, DismissSource.Back) }
         awaitCurrentScreen(harness.store, "home")
+        waitUntilDoesNotExist(hasText(closing.route, ignoreCase = true), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
     }
 
@@ -144,7 +147,8 @@ class ScreenReaderFocusUiTest {
         val harness = mount()
         open(harness, PickerModal)
 
-        pressSystemBack(harness)
+        pressSystemBack(harness, PickerModal)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { harness.focus.moves.isNotEmpty() }
 
         assertEquals(listOf<ScreenReaderFocusTarget>(Opener), harness.focus.moves)
     }
@@ -161,6 +165,7 @@ class ScreenReaderFocusUiTest {
             }
         }
         awaitCurrentScreen(harness.store, "other")
+        waitUntilExactlyOneExists(hasText("Other"), timeoutMillis = UI_TEST_WAIT_MS)
         waitForIdle()
 
         assertEquals(emptyList(), harness.focus.moves)
@@ -172,7 +177,7 @@ class ScreenReaderFocusUiTest {
         harness.focus.focused = null
         open(harness, PickerModal)
 
-        pressSystemBack(harness)
+        pressSystemBack(harness, PickerModal)
 
         assertEquals(emptyList(), harness.focus.moves)
     }

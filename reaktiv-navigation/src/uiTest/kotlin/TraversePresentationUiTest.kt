@@ -3,6 +3,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilExactlyOneExists
@@ -74,6 +75,7 @@ class TraversePresentationUiTest {
         waitUntil(timeoutMillis = UI_TEST_WAIT_MS) {
             runBlocking { store.selectState<NavigationState>().first().backStack.size == 1 }
         }
+        advanceFramesUntil { onAllNodesWithText("First Body").fetchSemanticsNodes().isNotEmpty() }
         repeat(3) { mainClock.advanceTimeBy(16) }
     }
 
