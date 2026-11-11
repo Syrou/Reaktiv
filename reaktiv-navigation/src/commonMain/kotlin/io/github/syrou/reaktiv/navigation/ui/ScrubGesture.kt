@@ -65,6 +65,7 @@ internal fun armContentBack(
 ): InteractiveTransitionController.ScrubKind? {
     if (!canArmInteractiveBackGesture(state, navModule)) return null
     if (controller.contentTransitionActive) return null
+    if (controller.backInterceptors.activeFor(state) != null) return null
     val revealed = state.revealedEntry ?: return null
     return InteractiveTransitionController.ScrubKind.ContentBack(state.currentEntry, revealed)
 }

@@ -1029,6 +1029,36 @@ A screen behind the modal that carries a `paneTitle` can make TalkBack override 
 
 ---
 
+### [BC-195] On Apple platforms an edge swipe that cannot move the screen still goes back
+
+**Type:** Behavioural
+
+**Grep:** `NavigationRender(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// iOS: the top entry is a modal, or a screen that arrived with SlideUpBottom.
+// A swipe from the left edge did nothing, because the interactive edge swipe never starts there.
+NavigationRender()
+```
+
+**After:**
+```kotlin
+// iOS: the same swipe, released past the commit point, goes back through the top entry's
+// dismissal, or through an enabled InterceptBack on it. Nothing moves while the finger drags.
+NavigationRender()
+```
+
+**Notes:** This matches the iOS system edge swipe, which Compose Multiplatform turns on whenever a
+`navigationevent` back handler is enabled, so an app that drops its own handlers in favour of
+`InterceptBack` keeps the edge swipe it had. It uses the same distance and speed as the swipe that
+moves the screen, and it respects `dismissal`, so a `Dismissal.Blocking` modal stays open. It
+applies to Apple targets only. Android back and the web are unchanged. A screen with
+`backGestureEnabled = false` gets no edge swipe at all, as before. See AD-198.
+
+---
+
 ## Additions
 
 <!-- Append AD-NN entries below, incrementing from the last AD ID in this section -->
@@ -11101,5 +11131,38 @@ every scrub frame or width change. A selector that captures changing values appl
 composition where it changes, and a swapped store is followed the same way `composeState<S>()`
 follows it. It is an overload of `composeState`, which stays the single state observation API
 (BC-13 removed the separate `select` delegate). `composeState<S>()` itself is unchanged.
+
+---
+
+### [AD-198] InterceptBack
+
+**Type:** Addition
+
+**Grep:** `InterceptBack(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+@Composable
+fun TrackEditor(hasUnsavedChanges: Boolean) {
+    val store = rememberStore()
+    val scope = rememberCoroutineScope()
+    InterceptBack(enabled = hasUnsavedChanges) {
+        scope.launch { store.navigation { navigateTo("discard-changes") } }
+    }
+    TrackForm()
+}
+```
+
+**Notes:** Lets UI inside a screen take back before the screen's own `dismissal` applies, for an
+expanded sheet, a focused field or a prompt about unsaved changes. While it is enabled and the
+entry it is composed in is on top, Android back and the Apple edge swipe (BC-195) call it instead
+of going back, and the swipes that move the screen with the finger do not start, so the screen
+does not slide out before the prompt shows. The most recently composed enabled interceptor wins.
+One on a screen covered by another entry, such as a modal, waits until its screen is on top again.
+Composed outside any screen it applies whatever is on top, and outside `NavigationRender` it does
+nothing. How a screen itself leaves still belongs in `dismissal`. It replaces a
+`navigationevent` `NavigationBackHandler` placed inside a screen, which Reaktiv's own back handling
+does not see.
 
 ---

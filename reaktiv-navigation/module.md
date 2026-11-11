@@ -465,6 +465,25 @@ object FilterSheet : Screen {
 `onDismissRequest` is the unified dismiss funnel: edge-swipe commits, swipe-down commits,
 tap-outside on modals, and system back all route through it when set.
 
+On Apple platforms an edge swipe that cannot move the screen, because the top entry is a modal,
+arrived vertically or has an `InterceptBack` enabled, still goes back when it is released past the
+commit point, as the system edge swipe does.
+
+`InterceptBack` lets UI inside a screen take back before the screen does, such as an expanded
+sheet, a focused field or a prompt about unsaved changes:
+
+```kotlin
+@Composable
+fun FiltersContent() {
+    var expanded by remember { mutableStateOf(false) }
+    InterceptBack(enabled = expanded) { expanded = false }
+    FilterList(expanded = expanded, onExpand = { expanded = true })
+}
+```
+
+While it is enabled and its screen is on top, system back and the Apple edge swipe call it instead
+of going back, and the swipes that move the screen do not start.
+
 ---
 
 ## Reading Navigation State

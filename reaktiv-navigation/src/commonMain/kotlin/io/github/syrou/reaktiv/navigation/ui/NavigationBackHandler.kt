@@ -37,7 +37,7 @@ internal class PlatformBackCoordinator(
         if (release()) {
             completeInteractiveDismiss(true, 0f, controller, store, navModule)
         } else {
-            performUserBack(store, navModule, DismissSource.Back)
+            requestUserBack(store, navModule, controller.backInterceptors, stateProvider())
         }
     }
 
@@ -46,4 +46,18 @@ internal class PlatformBackCoordinator(
     }
 
     private fun release(): Boolean = ownsScrub.also { ownsScrub = false }
+}
+
+internal suspend fun requestUserBack(
+    store: Store,
+    navModule: NavigationModule,
+    interceptors: BackInterceptors,
+    state: NavigationState
+) {
+    val interceptor = interceptors.activeFor(state)
+    if (interceptor != null) {
+        interceptor.onBack()
+    } else {
+        performUserBack(store, navModule, DismissSource.Back)
+    }
 }
