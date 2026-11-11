@@ -45,11 +45,11 @@ internal fun DismissIndicatorSlot(
 ) {
     val controller = LocalInteractiveTransitionController.current
     val navModule = LocalNavigationModule.current
-    val navigationState by composeState<NavigationState>()
-    val showPill = indicatorEntry != null &&
-        controller != null &&
-        navigationState.currentEntry.stableKey == indicatorEntry.stableKey &&
-        canArmSwipeDismiss(navigationState, navModule)
+    val indicatorKey = indicatorEntry?.stableKey
+    val armed by composeState<NavigationState, Boolean> {
+        it.currentEntry.stableKey == indicatorKey && canArmSwipeDismiss(it, navModule)
+    }
+    val showPill = indicatorEntry != null && controller != null && armed
     val surface = indicatorEntry?.let { dismissableSurface(it, navModule) }
     val declaredInsets = indicatorEntry?.navigatable?.contentInsets ?: ContentInsets.Fullscreen
     val reportsOccupiedInset = declaredInsets.windowInsets() != null
