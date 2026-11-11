@@ -24,6 +24,7 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -36,6 +37,7 @@ import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.Modal
+import io.github.syrou.reaktiv.navigation.util.canHandleBack
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -52,6 +54,7 @@ internal fun Modifier.scrubRecognizer(
     pass: ScrubPass,
     key: Any?,
     accepts: PointerInputScope.(down: PointerInputChange) -> Boolean = { true },
+    requestsBackWhenUnarmed: Boolean = false,
     arm: (NavigationState) -> InteractiveTransitionController.ScrubKind?
 ): Modifier {
     val store = rememberStore()
@@ -72,11 +75,22 @@ internal fun Modifier.scrubRecognizer(
             val extent = if (vertical) size.height.toFloat() else size.width.toFloat()
             if (extent <= 0f) return@awaitEachGesture
             if (!latestAccepts.value(this@pointerInput, down)) return@awaitEachGesture
-            val kind = latestArm.value(latestState.value) ?: return@awaitEachGesture
             val axis = if (vertical) {
                 ScrubAxis.vertical(down, extent)
             } else {
                 ScrubAxis.horizontal(down, extent, layoutDirection == LayoutDirection.Ltr)
+            }
+            val kind = latestArm.value(latestState.value)
+            if (kind == null) {
+                val requestsBack = requestsBackWhenUnarmed &&
+                    pass == ScrubPass.Initial &&
+                    canRequestBack(latestState.value, controller)
+                if (requestsBack && awaitBackRequest(down, axis, slop, velocityThresholdPx)) {
+                    scope.launch {
+                        requestUserBack(store, navModule, controller.backInterceptors, latestState.value)
+                    }
+                }
+                return@awaitEachGesture
             }
             val slopChange = when (pass) {
                 ScrubPass.Initial -> awaitInitialPassSlop(down, axis, slop)
@@ -99,6 +113,38 @@ internal fun Modifier.scrubRecognizer(
             }
         }
     }
+}
+
+private fun canRequestBack(state: NavigationState, controller: InteractiveTransitionController): Boolean {
+    if (controller.phase != InteractiveTransitionController.Phase.Idle) return false
+    if (controller.contentTransitionActive) return false
+    if (!state.currentEntry.navigatable.backGestureEnabled) return false
+    return controller.backInterceptors.activeFor(state) != null || canHandleBack(state)
+}
+
+private suspend fun AwaitPointerEventScope.awaitBackRequest(
+    down: PointerInputChange,
+    axis: ScrubAxis,
+    slop: Float,
+    velocityThresholdPx: Float
+): Boolean {
+    val slopChange = awaitInitialPassSlop(down, axis, slop) ?: return false
+    slopChange.consume()
+    val velocityTracker = VelocityTracker()
+    velocityTracker.addPosition(down.uptimeMillis, down.position)
+    velocityTracker.addPosition(slopChange.uptimeMillis, slopChange.position)
+    var position = slopChange.position
+    pumpInitialPassDrag(down) { change ->
+        velocityTracker.addPosition(change.uptimeMillis, change.position)
+        position = change.position
+        change.consume()
+    }
+    val axisVelocity = axis.along(velocityTracker.calculateVelocity().let { Offset(it.x, it.y) })
+    return InteractiveTransitionController.shouldCommit(
+        progress = axis.progressAt(position),
+        velocity = axisVelocity,
+        velocityThreshold = velocityThresholdPx
+    )
 }
 
 private suspend fun AwaitPointerEventScope.awaitInitialPassSlop(
@@ -151,7 +197,8 @@ internal fun Modifier.backGestureRecognizer(
             val edgePx = EDGE_WIDTH_DP.dp.toPx()
             val inEdge = if (isLtr) down.position.x <= edgePx else down.position.x >= size.width - edgePx
             policy.admits(down) && inEdge
-        }
+        },
+        requestsBackWhenUnarmed = policy.edgeSwipeRequestsBack
     ) { state -> armContentBack(state, navModule, controller) }
 }
 

@@ -78,6 +78,8 @@ internal class InteractiveTransitionController(
 
     var contentTransitionActive: Boolean by mutableStateOf(false)
 
+    val backInterceptors: BackInterceptors = BackInterceptors()
+
     var rootCoordinates: LayoutCoordinates? = null
 
     var indicatorCoordinates: LayoutCoordinates? = null

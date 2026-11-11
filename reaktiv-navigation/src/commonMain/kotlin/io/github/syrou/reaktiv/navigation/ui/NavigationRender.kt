@@ -181,7 +181,8 @@ public fun NavigationRender(
                 }
             }
             PlatformBackHandler(
-                enabled = navigationState.canGoBack,
+                enabled = navigationState.canGoBack ||
+                    interactiveController.backInterceptors.activeFor(navigationState) != null,
                 coordinator = backCoordinator
             )
         }

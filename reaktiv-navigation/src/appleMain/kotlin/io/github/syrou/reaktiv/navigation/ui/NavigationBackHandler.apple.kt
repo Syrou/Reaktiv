@@ -3,7 +3,8 @@ package io.github.syrou.reaktiv.navigation.ui
 import androidx.compose.runtime.Composable
 
 @Composable
-internal actual fun platformBackGesturePolicy(): BackGesturePolicy = BackGesturePolicy.Everywhere
+internal actual fun platformBackGesturePolicy(): BackGesturePolicy =
+    BackGesturePolicy.Everywhere.copy(edgeSwipeRequestsBack = true)
 
 @Composable
 internal actual fun PlatformDocumentTitle(title: String?) {

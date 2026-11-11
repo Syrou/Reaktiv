@@ -7,7 +7,8 @@ internal data class BackGesturePolicy(
     val edgeSwipe: Boolean,
     val fullSurfaceSwipe: Boolean,
     val fullSurfaceSkipsEdge: Boolean,
-    val mouseStartsBack: Boolean
+    val mouseStartsBack: Boolean,
+    val edgeSwipeRequestsBack: Boolean = false
 ) {
     companion object {
         val Everywhere: BackGesturePolicy = BackGesturePolicy(

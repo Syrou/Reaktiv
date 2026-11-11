@@ -2870,6 +2870,10 @@ public final class io/github/syrou/reaktiv/navigation/ui/AnimationStateKt {
 	public static final fun rememberModalAnimationState (Ljava/util/List;Landroidx/compose/runtime/Composer;I)Ljava/util/List;
 }
 
+public final class io/github/syrou/reaktiv/navigation/ui/InterceptBackKt {
+	public static final fun InterceptBack (ZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/github/syrou/reaktiv/navigation/ui/LayerAnimationState {
 	public static final field $stable I
 	public fun <init> (Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/model/NavigationEntry;Lio/github/syrou/reaktiv/navigation/util/AnimationDecision;Ljava/util/List;Z)V
