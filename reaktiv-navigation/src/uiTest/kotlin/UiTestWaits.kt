@@ -24,6 +24,16 @@ internal fun ComposeUiTest.awaitCurrentScreen(store: Store, route: String) {
 }
 
 @OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.advanceFramesUntil(condition: () -> Boolean) {
+    waitUntil(timeoutMillis = UI_TEST_WAIT_MS) {
+        condition() || run {
+            mainClock.advanceTimeByFrame()
+            false
+        }
+    }
+}
+
+@OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.scrollListUntilTextVisible(
     text: String,
     revealLater: Boolean,

@@ -6,6 +6,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
@@ -31,6 +35,7 @@ import io.github.syrou.reaktiv.navigation.dsl.NavigationBuilder
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
+import io.github.syrou.reaktiv.navigation.ui.LocalRenderedNavigationState
 import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import io.github.syrou.reaktiv.navigation.ui.currentPaneColumn
 import kotlinx.coroutines.launch
@@ -50,7 +55,8 @@ class PaneLayoutUiTest {
 
         @Composable
         override fun Content(params: Params) {
-            Box(Modifier.fillMaxSize().testTag("pane-$label")) {
+            val renderedRoute = LocalRenderedNavigationState.current?.currentEntry?.route.orEmpty()
+            Box(Modifier.fillMaxSize().testTag("pane-$label").semantics { stateDescription = renderedRoute }) {
                 Text("$label ${params.getString("messageId").orEmpty()}".trim())
             }
         }
@@ -150,6 +156,9 @@ class PaneLayoutUiTest {
         assertTrue(inboxLeft < messageLeft, "the message column sits right of the inbox")
     }
 
+    private fun ComposeUiTest.renderedRouteOf(tag: String): String? =
+        onNodeWithTag(tag).fetchSemanticsNode().config.getOrNull(SemanticsProperties.StateDescription)
+
     private fun ComposeUiTest.widthOf(tag: String): Float =
         onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.width
 
@@ -174,7 +183,7 @@ class PaneLayoutUiTest {
         store.launch { store.navigation { navigateBack() } }
         val navigationState = runBlocking { store.selectState<NavigationState>() }
         waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { navigationState.value.currentEntry.route == "inbox" }
-        mainClock.advanceTimeByFrame()
+        advanceFramesUntil { renderedRouteOf("pane-Inbox") == "inbox" }
         waitForIdle()
         onNodeWithText("Message 42").assertExists()
         assertTrue(abs(widthOf("pane-Inbox") - widthOf("frame") * 0.4f) < 2f, "the column stays while the message leaves")
