@@ -14,4 +14,5 @@ internal actual fun PlatformBackHandler(
     enabled: Boolean,
     coordinator: PlatformBackCoordinator
 ) {
+    NavigationEventBackHandler(enabled, coordinator)
 }

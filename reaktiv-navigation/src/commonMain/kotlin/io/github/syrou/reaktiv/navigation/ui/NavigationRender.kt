@@ -122,9 +122,9 @@ public fun currentActionResource(): ActionResource? {
  * ```
  *
  * @param modifier Modifier applied to the root [Box] that wraps all rendered layers.
- * @param handlePlatformBack When true, system back (Android hardware/gesture back) is handled
- *   automatically by dispatching through the unified dismiss funnel. Set to false if the app
- *   wires its own platform back handling.
+ * @param handlePlatformBack When true, platform back is handled through the unified dismiss funnel:
+ *   Android back and predictive back, the iOS edge swipe, and Escape on iOS, the web and desktop.
+ *   Set to false if the app wires its own platform back handling.
  */
 @Composable
 public fun NavigationRender(

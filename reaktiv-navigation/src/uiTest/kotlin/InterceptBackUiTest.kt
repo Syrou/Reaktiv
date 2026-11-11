@@ -20,6 +20,11 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEvent
+import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.NavigationEventInput
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.github.syrou.reaktiv.compose.StoreProvider
 import io.github.syrou.reaktiv.core.Middleware
 import io.github.syrou.reaktiv.core.Store
@@ -44,6 +49,7 @@ import io.github.syrou.reaktiv.navigation.ui.NavigationRender
 import io.github.syrou.reaktiv.navigation.ui.PlatformBackCoordinator
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlin.concurrent.Volatile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -54,6 +60,7 @@ class InterceptBackUiTest {
 
     private object Probe {
         var intercepting by mutableStateOf(true)
+        @Volatile
         var intercepted = 0
         var controller: InteractiveTransitionController? = null
 
@@ -115,7 +122,16 @@ class InterceptBackUiTest {
         override val dismissal = Dismissal.Blocking
     }
 
-    private val appleEdge = BackGesturePolicy.Everywhere.copy(edgeSwipeRequestsBack = true)
+    private class BackInput : NavigationEventInput() {
+        fun start() = dispatchOnBackStarted(NavigationEvent(swipeEdge = NavigationEvent.EDGE_LEFT))
+
+        fun progress(value: Float) =
+            dispatchOnBackProgressed(NavigationEvent(swipeEdge = NavigationEvent.EDGE_LEFT, progress = value))
+
+        fun complete() = dispatchOnBackCompleted()
+
+        fun cancel() = dispatchOnBackCancelled()
+    }
 
     private class BackRecorder {
         val backs = mutableListOf<NavigationAction.Back>()
@@ -126,9 +142,14 @@ class InterceptBackUiTest {
         }
     }
 
-    private class Harness(val store: Store, val navModule: NavigationModule, val recorder: BackRecorder)
+    private class Harness(
+        val store: Store,
+        val navModule: NavigationModule,
+        val recorder: BackRecorder,
+        val input: BackInput
+    )
 
-    private fun ComposeUiTest.mount(policy: BackGesturePolicy): Harness {
+    private fun ComposeUiTest.mount(policy: BackGesturePolicy = BackGesturePolicy.Everywhere): Harness {
         Probe.reset()
         val navModule = createNavigationModule {
             rootGraph {
@@ -142,15 +163,23 @@ class InterceptBackUiTest {
             module(navModule)
             middlewares(recorder.middleware)
         }
+        val dispatcher = NavigationEventDispatcher()
+        val input = BackInput()
+        dispatcher.addInput(input)
+        val owner = object : NavigationEventDispatcherOwner {
+            override val navigationEventDispatcher: NavigationEventDispatcher = dispatcher
+        }
         setContent {
-            StoreProvider(store) {
-                CompositionLocalProvider(LocalBackGesturePolicy provides policy) {
-                    NavigationRender()
+            CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
+                StoreProvider(store) {
+                    CompositionLocalProvider(LocalBackGesturePolicy provides policy) {
+                        NavigationRender()
+                    }
                 }
             }
         }
         waitUntilExactlyOneExists(hasText("Home"), timeoutMillis = UI_TEST_WAIT_MS)
-        return Harness(store, navModule, recorder)
+        return Harness(store, navModule, recorder, input)
     }
 
     private fun ComposeUiTest.open(harness: Harness, route: String, text: String, coversHome: Boolean = true) {
@@ -167,6 +196,20 @@ class InterceptBackUiTest {
         harness.store.launch { harness.store.navigation { navigateTo(modal) } }
         awaitCurrentScreen(harness.store, modal.route)
         waitUntilExactlyOneExists(hasText(modal.route), timeoutMillis = UI_TEST_WAIT_MS)
+        waitForIdle()
+    }
+
+    private fun ComposeUiTest.backGestureTo(harness: Harness, progress: Float): Boolean {
+        runOnIdle {
+            harness.input.start()
+            harness.input.progress(progress)
+        }
+        waitForIdle()
+        return onAllNodesWithText("Home").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    private fun ComposeUiTest.completeBack(harness: Harness) {
+        runOnIdle { harness.input.complete() }
         waitForIdle()
     }
 
@@ -188,21 +231,129 @@ class InterceptBackUiTest {
         runBlocking { harness.store.selectState<NavigationState>() }.value.currentEntry.navigatable.route
 
     @Test
-    fun edgeSwipeGoesToTheInterceptorWithoutMovingTheScreen() = runComposeUiTest {
-        val harness = mount(appleEdge)
+    fun backGoesToTheInterceptorWithoutMovingTheScreen() = runComposeUiTest {
+        val harness = mount()
         open(harness, EditorScreen.route, "Editor")
 
-        val revealedMidDrag = dragFromEdge()
+        val revealedMidGesture = backGestureTo(harness, 0.5f)
+        completeBack(harness)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { Probe.intercepted == 1 }
 
-        assertFalse(revealedMidDrag)
-        assertEquals(1, Probe.intercepted)
+        assertFalse(revealedMidGesture)
         assertTrue(harness.recorder.backs.isEmpty())
         assertEquals(EditorScreen.route, currentRoute(harness))
     }
 
     @Test
-    fun interceptorStopsBackSwipesWhereTheEdgeDoesNotRequestBack() = runComposeUiTest {
-        val harness = mount(BackGesturePolicy.Everywhere)
+    fun backFollowsTheGestureAndPopsWithoutAnInterceptor() = runComposeUiTest {
+        val harness = mount()
+        open(harness, EditorScreen.route, "Editor")
+        Probe.intercepting = false
+        waitForIdle()
+
+        val revealedMidGesture = backGestureTo(harness, 0.5f)
+        completeBack(harness)
+        awaitCurrentScreen(harness.store, HomeScreen.route)
+
+        assertTrue(revealedMidGesture)
+        assertEquals(0, Probe.intercepted)
+        assertEquals(1, harness.recorder.backs.size)
+    }
+
+    @Test
+    fun cancelledBackKeepsTheScreen() = runComposeUiTest {
+        val harness = mount()
+        open(harness, EditorScreen.route, "Editor")
+        Probe.intercepting = false
+        waitForIdle()
+
+        backGestureTo(harness, 0.4f)
+        runOnIdle { harness.input.cancel() }
+        waitForIdle()
+
+        assertTrue(harness.recorder.backs.isEmpty())
+        assertEquals(EditorScreen.route, currentRoute(harness))
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { onAllNodesWithText("Home").fetchSemanticsNodes().isEmpty() }
+    }
+
+    @Test
+    fun backWithoutAGestureGoesBack() = runComposeUiTest {
+        val harness = mount()
+        open(harness, EditorScreen.route, "Editor")
+        Probe.intercepting = false
+        waitForIdle()
+
+        completeBack(harness)
+        awaitCurrentScreen(harness.store, HomeScreen.route)
+
+        assertEquals(1, harness.recorder.backs.size)
+    }
+
+    @Test
+    fun backOnAScreenThatArrivedVerticallyGoesBack() = runComposeUiTest {
+        val harness = mount()
+        open(harness, SheetScreen.route, "Sheet", coversHome = false)
+
+        backGestureTo(harness, 0.5f)
+        completeBack(harness)
+        awaitCurrentScreen(harness.store, HomeScreen.route)
+
+        assertEquals(1, harness.recorder.backs.size)
+    }
+
+    @Test
+    fun backLeavesABlockingModalOpen() = runComposeUiTest {
+        val harness = mount()
+        openModal(harness, BlockingModal)
+
+        completeBack(harness)
+
+        assertTrue(harness.recorder.backs.isEmpty())
+        assertEquals(BlockingModal.route, currentRoute(harness))
+    }
+
+    @Test
+    fun interceptorUnderAModalWaitsUntilItsScreenIsOnTop() = runComposeUiTest {
+        val harness = mount()
+        open(harness, EditorScreen.route, "Editor")
+        openModal(harness, DefaultModal)
+
+        completeBack(harness)
+        awaitCurrentScreen(harness.store, EditorScreen.route)
+
+        assertEquals(0, Probe.intercepted)
+        assertEquals(1, harness.recorder.backs.size)
+
+        completeBack(harness)
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { Probe.intercepted == 1 }
+
+        assertEquals(1, harness.recorder.backs.size)
+    }
+
+    @Test
+    fun backDecidesFromTheStoreRatherThanTheLastRenderedFrame() = runComposeUiTest {
+        val harness = mount()
+        open(harness, EditorScreen.route, "Editor")
+        openModal(harness, DefaultModal)
+        val navigationState = runBlocking { harness.store.selectState<NavigationState>() }
+        val renderedWithModal = navigationState.value
+        completeBack(harness)
+        awaitCurrentScreen(harness.store, EditorScreen.route)
+        val controller = checkNotNull(Probe.controller)
+        val coordinator = PlatformBackCoordinator(harness.store, harness.navModule, controller) {
+            renderedWithModal
+        }
+
+        runBlocking { coordinator.commit() }
+        waitUntil(timeoutMillis = UI_TEST_WAIT_MS) { Probe.intercepted == 1 }
+
+        assertEquals(1, harness.recorder.backs.size)
+        assertEquals(EditorScreen.route, currentRoute(harness))
+    }
+
+    @Test
+    fun interceptorStopsInAppBackSwipes() = runComposeUiTest {
+        val harness = mount()
         open(harness, EditorScreen.route, "Editor")
 
         val revealedMidDrag = dragFromEdge()
@@ -214,8 +365,8 @@ class InterceptBackUiTest {
     }
 
     @Test
-    fun disabledInterceptorLeavesBackToTheScreen() = runComposeUiTest {
-        val harness = mount(appleEdge)
+    fun disabledInterceptorLeavesInAppBackSwipesToTheScreen() = runComposeUiTest {
+        val harness = mount()
         open(harness, EditorScreen.route, "Editor")
         Probe.intercepting = false
         waitForIdle()
@@ -226,71 +377,5 @@ class InterceptBackUiTest {
         assertTrue(revealedMidDrag)
         assertEquals(0, Probe.intercepted)
         assertEquals(1, harness.recorder.backs.size)
-    }
-
-    @Test
-    fun platformBackRunsTheInterceptorAndOtherwiseGoesBack() = runComposeUiTest {
-        val harness = mount(BackGesturePolicy.Everywhere)
-        open(harness, EditorScreen.route, "Editor")
-        val controller = checkNotNull(Probe.controller)
-        val navigationState = runBlocking { harness.store.selectState<NavigationState>() }
-        val coordinator = PlatformBackCoordinator(harness.store, harness.navModule, controller) {
-            navigationState.value
-        }
-
-        assertFalse(coordinator.startScrub())
-        runBlocking { coordinator.commit() }
-        waitForIdle()
-
-        assertEquals(1, Probe.intercepted)
-        assertTrue(harness.recorder.backs.isEmpty())
-
-        Probe.intercepting = false
-        waitForIdle()
-        runBlocking { coordinator.commit() }
-        awaitCurrentScreen(harness.store, HomeScreen.route)
-
-        assertEquals(1, Probe.intercepted)
-        assertEquals(1, harness.recorder.backs.size)
-    }
-
-    @Test
-    fun interceptorUnderAModalWaitsUntilItsScreenIsOnTop() = runComposeUiTest {
-        val harness = mount(appleEdge)
-        open(harness, EditorScreen.route, "Editor")
-        openModal(harness, DefaultModal)
-
-        dragFromEdge()
-        awaitCurrentScreen(harness.store, EditorScreen.route)
-
-        assertEquals(0, Probe.intercepted)
-        assertEquals(1, harness.recorder.backs.size)
-
-        dragFromEdge()
-
-        assertEquals(1, Probe.intercepted)
-        assertEquals(1, harness.recorder.backs.size)
-    }
-
-    @Test
-    fun edgeSwipeOnAScreenThatArrivedVerticallyGoesBack() = runComposeUiTest {
-        val harness = mount(appleEdge)
-        open(harness, SheetScreen.route, "Sheet", coversHome = false)
-
-        dragFromEdge()
-        awaitCurrentScreen(harness.store, HomeScreen.route)
-
-        assertEquals(1, harness.recorder.backs.size)
-    }
-
-    @Test
-    fun edgeSwipeLeavesABlockingModalOpen() = runComposeUiTest {
-        val harness = mount(appleEdge)
-        openModal(harness, BlockingModal)
-
-        dragFromEdge()
-
-        assertTrue(harness.recorder.backs.isEmpty())
-        assertEquals(BlockingModal.route, currentRoute(harness))
     }
 }

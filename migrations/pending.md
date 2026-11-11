@@ -1055,7 +1055,42 @@ NavigationRender()
 `InterceptBack` keeps the edge swipe it had. It uses the same distance and speed as the swipe that
 moves the screen, and it respects `dismissal`, so a `Dismissal.Blocking` modal stays open. It
 applies to Apple targets only. Android back and the web are unchanged. A screen with
-`backGestureEnabled = false` gets no edge swipe at all, as before. See AD-198.
+`backGestureEnabled = false` gets no edge swipe at all, as before. See AD-198. Replaced by BC-196.
+
+---
+
+### [BC-196] Platform back on iOS, the web and desktop goes through navigationevent
+
+**Type:** Behavioural
+
+**Grep:** `NavigationRender(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// iOS, web, desktop: NavigationRender registered no platform back handler.
+// Escape did nothing, and the iOS system edge swipe only worked if the app enabled its own
+// navigationevent handler, which then went back without consulting dismissal.
+NavigationRender()
+```
+
+**After:**
+```kotlin
+// NavigationRender registers a navigationevent back handler, as it already did on Android
+// through PredictiveBackHandler. The iOS system edge swipe moves the screen with the finger,
+// and Escape goes back. Both follow InterceptBack and then the top entry's dismissal.
+NavigationRender()
+```
+
+**Notes:** Compose Multiplatform delivers the iOS system edge swipe and Escape (iOS hardware
+keyboards, the web, desktop) through `navigationevent`. `NavigationRender` now listens to them
+whenever it can go back or an `InterceptBack` is enabled, with Compose's own thresholds for
+completing the swipe. An edge swipe or Escape on a modal, or on a screen that arrived vertically,
+goes back through `dismissal` without moving anything, so a `Dismissal.Blocking` entry stays put.
+This replaces the edge swipe request from BC-195. An app `NavigationBackHandler` composed inside a
+screen still takes precedence, as on Android, but Reaktiv's swipes do not see it, so move it to
+`InterceptBack` (AD-198). Pass `handlePlatformBack = false` to keep handling platform back yourself.
+The browser back button is unchanged and still arrives through history.
 
 ---
 
