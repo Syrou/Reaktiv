@@ -5,15 +5,15 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 
 /**
- * Browsers deliver back through history navigation rather than through a system callback the
- * Compose tree can intercept, so there is nothing to register here. Back is driven by the app,
- * either from UI affordances or from the edge swipe gesture below.
+ * The browser back button arrives through history navigation, not here. What Compose reports as
+ * back, Escape pressed with nothing else handling it, goes through the same handling as Android back.
  */
 @Composable
 internal actual fun PlatformBackHandler(
     enabled: Boolean,
     coordinator: PlatformBackCoordinator
 ) {
+    NavigationEventBackHandler(enabled, coordinator)
 }
 
 @Composable

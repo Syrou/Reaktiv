@@ -465,9 +465,10 @@ object FilterSheet : Screen {
 `onDismissRequest` is the unified dismiss funnel: edge-swipe commits, swipe-down commits,
 tap-outside on modals, and system back all route through it when set.
 
-On Apple platforms an edge swipe that cannot move the screen, because the top entry is a modal,
-arrived vertically or has an `InterceptBack` enabled, still goes back when it is released past the
-commit point, as the system edge swipe does.
+Platform back goes through the same handling on every platform: Android back and predictive back,
+the iOS system edge swipe, and Escape on iOS, the web and desktop. A back that cannot move the
+screen, because the top entry is a modal, arrived vertically or has an `InterceptBack` enabled,
+goes back when it completes, following the entry's `dismissal`.
 
 `InterceptBack` lets UI inside a screen take back before the screen does, such as an expanded
 sheet, a focused field or a prompt about unsaved changes:
@@ -481,8 +482,8 @@ fun FiltersContent() {
 }
 ```
 
-While it is enabled and its screen is on top, system back and the Apple edge swipe call it instead
-of going back, and the swipes that move the screen do not start.
+While it is enabled and its screen is on top, platform back calls it instead of going back, and
+the swipes that move the screen do not start.
 
 ---
 

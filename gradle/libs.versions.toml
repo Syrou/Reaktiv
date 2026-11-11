@@ -9,6 +9,7 @@ kotlinx-datetime = "0.8.0"
 kotlinx-io = "0.6.0"
 ktor = "3.1.0"
 androidx-activity-compose = "1.13.0"
+navigationevent = "1.1.0"
 androidx-appcompat = "1.7.0"
 androidx-lifecycle = "2.8.1"
 compose-multiplatform = "1.12.0"
@@ -50,6 +51,7 @@ coil3-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3
 coil3-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil3" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "androidx-core-splashscreen" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity-compose" }
+navigationevent-compose = { module = "org.jetbrains.androidx.navigationevent:navigationevent-compose", version.ref = "navigationevent" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidx-lifecycle" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }

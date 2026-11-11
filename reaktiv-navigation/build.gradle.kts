@@ -36,6 +36,7 @@ kotlin {
                 api(libs.compose.runtime)
                 api(libs.compose.foundation)
                 implementation(libs.compose.material3)
+                implementation(libs.navigationevent.compose)
                 implementation(project(":reaktiv-compose"))
             }
         }

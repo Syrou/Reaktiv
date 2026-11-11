@@ -17,11 +17,12 @@ import io.github.syrou.reaktiv.navigation.NavigationState
  * sheet, a focused field or a prompt about unsaved changes. How the screen itself leaves belongs in
  * [io.github.syrou.reaktiv.navigation.definition.Navigatable.dismissal].
  *
- * While it is enabled and its screen is on top, platform back and the Apple edge swipe call [onBack]
- * instead of going back. The swipes that move the screen with the finger do not start, so nothing
- * moves before [onBack] runs. The most recently composed enabled interceptor wins. One on a screen
- * covered by another entry, such as a modal, waits until its screen is on top again. Composed
- * outside any screen, it applies whatever is on top. Outside [NavigationRender] it does nothing.
+ * While it is enabled and its screen is on top, platform back calls [onBack] instead of going back.
+ * That covers Android back, the iOS edge swipe and Escape. The swipes that move the screen with the
+ * finger do not start, so nothing moves before [onBack] runs. The most recently composed enabled
+ * interceptor wins. One on a screen covered by another entry, such as a modal, waits until its
+ * screen is on top again. Composed outside any screen, it applies whatever is on top. Outside
+ * [NavigationRender] it does nothing.
  *
  * @param enabled whether back is taken right now.
  * @param onBack runs on the main thread when the user goes back.
