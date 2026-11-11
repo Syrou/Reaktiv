@@ -64,9 +64,9 @@ public fun currentNavigatable(): Navigatable {
 @Composable
 private fun currentPerceivedEntry(): NavigationEntry {
     LocalRenderedEntry.current?.let { return it }
-    val navigationState by composeState<NavigationState>()
+    val currentEntry by composeState<NavigationState, NavigationEntry> { it.currentEntry }
     val controller = LocalInteractiveTransitionController.current
-    return controller?.committedTarget ?: navigationState.currentEntry
+    return controller?.committedTarget ?: currentEntry
 }
 
 /**

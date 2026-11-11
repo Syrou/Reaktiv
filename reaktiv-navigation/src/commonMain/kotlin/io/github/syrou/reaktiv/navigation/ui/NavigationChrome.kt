@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import io.github.syrou.reaktiv.compose.composeState
 import io.github.syrou.reaktiv.compose.rememberStore
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.model.NavigationEntry
 import kotlinx.coroutines.launch
 import io.github.syrou.reaktiv.navigation.util.performUserBack
 import io.github.syrou.reaktiv.navigation.definition.DismissSource
@@ -63,8 +64,8 @@ public class NavigationChromeState internal constructor(
  */
 @Composable
 public fun previousTitle(): String? {
-    val navigationState by composeState<NavigationState>()
-    return navigationState.revealedEntry?.titleResource?.invoke()
+    val revealedEntry by composeState<NavigationState, NavigationEntry?> { it.revealedEntry }
+    return revealedEntry?.titleResource?.invoke()
 }
 
 /**
@@ -89,11 +90,10 @@ public fun previousTitle(): String? {
 public fun rememberNavigationChrome(): NavigationChromeState {
     val store = rememberStore()
     val scope = rememberCoroutineScope()
-    val navigationState by composeState<NavigationState>()
-    val route = navigationState.currentEntry.route
+    val route by composeState<NavigationState, String> { it.currentEntry.route }
     val title = currentTitle()
     val backTitle = previousTitle()
-    val canGoBack = navigationState.canGoBack
+    val canGoBack by composeState<NavigationState, Boolean> { it.canGoBack }
 
     return remember(route, title, backTitle, canGoBack) {
         NavigationChromeState(
