@@ -182,6 +182,7 @@ public fun NavigationRender(
             }
             PlatformBackHandler(
                 enabled = navigationState.canGoBack ||
+                    (navigationState.isEvaluatingNavigation && !navigationState.isBootstrapping) ||
                     interactiveController.backInterceptors.activeFor(navigationState) != null,
                 coordinator = backCoordinator
             )
@@ -235,7 +236,7 @@ public fun NavigationRender(
                 entries = navigationState.systemLayerEntries,
                 graphDefinitions = graphDefinitions,
                 evaluationOverlay = navModule.getLoadingModal()
-                    ?.takeIf { navigationState.isEvaluatingNavigation }
+                    ?.takeIf { navigationState.isEvaluatingNavigation && navigationState.evaluatingInGraph == null }
             )
         }
     }

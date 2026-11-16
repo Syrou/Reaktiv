@@ -2,7 +2,6 @@ package io.github.syrou.reaktiv.navigation.model
 
 import io.github.syrou.reaktiv.navigation.definition.Navigatable
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Maps navigatables registered directly inside an `intercept { }` block to the guard that
@@ -57,7 +56,7 @@ public typealias NavigatableInterceptMap = Map<Navigatable, InterceptDefinition>
  */
 public data class InterceptDefinition(
     val guard: NavigationGuard,
-    val loadingThreshold: Duration = 200.milliseconds,
+    val loadingThreshold: Duration = DEFAULT_GUARD_LOADING_THRESHOLD,
     val cacheKey: CacheKeySelector? = null,
     internal val outerGuards: List<GuardChainEntry> = emptyList()
 ) {

@@ -338,7 +338,10 @@ public class NavigationModule internal constructor(
             isBootstrapping = false
         )
 
-        is NavigationAction.SetEvaluating -> state.copy(isEvaluatingNavigation = action.isEvaluating)
+        is NavigationAction.SetEvaluating -> state.copy(
+            isEvaluatingNavigation = action.isEvaluating,
+            evaluatingInGraph = action.graph.takeIf { action.isEvaluating }
+        )
 
         is NavigationAction.SetStartFailure -> state.copy(startFailure = action.failure)
 

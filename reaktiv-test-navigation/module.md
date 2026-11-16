@@ -39,4 +39,5 @@ fun `auth guard rejects logged out users`() = reaktivTest(AuthModule, navigation
 
 Provides `assertCurrentRoute`, `assertCurrentPath`, `assertBackStack`,
 `awaitRoute` (suspends until navigation lands) and `evaluateGuard` (runs a
-`NavigationGuard` directly against the test store).
+`NavigationGuard` directly against the test store, with the params a navigation
+would enter with).

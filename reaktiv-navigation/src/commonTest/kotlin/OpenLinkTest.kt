@@ -39,6 +39,7 @@ class OpenLinkTest {
                 if (withNotFound) notFoundScreen(missing)
                 deepLinkAliases {
                     alias("{scheme}://{host}/p/{userId}", "profile/{userId}")
+                    alias("app://callback", "settings")
                 }
                 rootGraph {
                     start(home)
@@ -61,6 +62,27 @@ class OpenLinkTest {
 
     private suspend fun Store.current() =
         selectState<NavigationState>().first().currentEntry
+
+    @Test
+    fun `a link with only a host keeps its query for the alias`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val store = store()
+            advanceUntilIdle()
+
+            store.openLink("app://callback?result=failed")
+            advanceUntilIdle()
+            assertEquals("settings", store.current().route)
+            assertEquals("failed", store.current().params.getString("result"))
+
+            store.openLink("app://callback/?result=success")
+            advanceUntilIdle()
+            assertEquals("success", store.current().params.getString("result"))
+
+            store.openLink("app://callback")
+            advanceUntilIdle()
+            assertEquals("settings", store.current().route)
+            assertEquals(null, store.current().params.getString("result"))
+        }
 
     @Test
     fun `a template link fills its params and lands with parents beneath`() =

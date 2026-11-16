@@ -63,6 +63,17 @@ class LinkMapTest {
 
     private val adminGuard: NavigationGuard = { GuardResult.Allow }
     private val auditGuard: NavigationGuard = { GuardResult.Allow }
+    private val checked = object : Screen {
+        override val route = "checked"
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val guard: NavigationGuard = { GuardResult.Allow }
+
+        @Composable
+        override fun Content(params: Params) {
+            Text(route)
+        }
+    }
 
     private fun module(): NavigationModule = createNavigationModule {
         notFoundScreen(missing)
@@ -115,7 +126,7 @@ class LinkMapTest {
                         }
                     }
                 }
-                screens(vip)
+                screens(vip, checked)
             }
         }
     }
@@ -130,7 +141,7 @@ class LinkMapTest {
     fun `every path the app can open is listed with the screen it opens`() {
         assertEquals(
             listOf(
-                "home", "settings", "user/{id}", "user/{uid}", "profile/{userId}", "sheet", "alert", "vip",
+                "home", "settings", "user/{id}", "user/{uid}", "profile/{userId}", "sheet", "alert", "vip", "checked",
                 "news/feed", "news/article/{slug}", "wizard/step", "wizard/nested/step", "dynamic/reports",
                 "umbrella/inner/overview", "hub/hubhome/settings", "admin/reports", "admin/audit/audit",
                 "missing", "crash", "loading"
@@ -180,6 +191,14 @@ class LinkMapTest {
         assertEquals(listOf(1, 2), route("admin/audit/audit").guards)
         assertEquals(listOf(1), route("vip").guards)
         assertEquals(emptyList(), route("home").guards)
+    }
+
+    @Test
+    fun `a screen's own guard is listed after the guards around it`() {
+        val guards = route("checked").guards
+        assertEquals(2, guards.size)
+        assertEquals(1, guards.first())
+        assertEquals(false, guards.last() in route("admin/audit/audit").guards)
     }
 
     @Test

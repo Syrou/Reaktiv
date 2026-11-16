@@ -15,6 +15,7 @@ import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
@@ -250,6 +251,19 @@ public interface Navigatable : NavigationNode, TransitionSpec {
 
     public val hiddenUrlParams: Set<String>
         get() = emptySet()
+
+    /**
+     * A guard this screen or modal runs every time a navigation enters it, after the guards of every
+     * `intercept` around it, with the params it is entered with.
+     *
+     * Use it for what this destination itself needs, such as access to its feature or the item its params name,
+     * and `intercept` for a rule that covers a whole area. It runs for a `navigateTo`, a link, a pending navigation
+     * that resumes and a restored history entry alike, but not when the user goes back to the screen, and not for
+     * the destination a guard redirects to. A screen with a guard is never built beneath a destination from its
+     * path, since nothing has checked it.
+     */
+    public val guard: NavigationGuard?
+        get() = null
 
     /**
      * Called when this navigatable is added to the backstack.

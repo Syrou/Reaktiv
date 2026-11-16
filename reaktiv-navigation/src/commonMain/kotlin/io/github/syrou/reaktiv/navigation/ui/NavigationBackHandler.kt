@@ -10,7 +10,9 @@ import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.github.syrou.reaktiv.core.Store
+import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.core.util.selectState
+import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.DismissSource
@@ -53,6 +55,7 @@ internal class PlatformBackCoordinator(
             completeInteractiveDismiss(true, 0f, controller, store, navModule)
             return
         }
+        if (store.selectLogic<NavigationLogic>().cancelSlowNavigation()) return
         val state = store.selectState<NavigationState>().first()
         val interceptor = controller.backInterceptors.activeFor(state)
         if (interceptor != null) {

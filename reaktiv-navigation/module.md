@@ -147,6 +147,69 @@ val navigationModule = createNavigationModule {
 }
 ```
 
+A guard also gets the params of the screen being entered as `params`, so it can check the item a
+navigation names, such as a project that has to belong to the signed in user. It sees them the same
+way for a `navigateTo` inside the app, a link, and a pending navigation that resumes after sign in.
+
+```kotlin
+intercept(
+    guard = { store ->
+        val projectId = params.getString("projectId")
+        if (projectId in store.selectState<ProjectState>().value.ownProjectIds) GuardResult.Allow
+        else GuardResult.RedirectTo(ProjectListScreen)
+    }
+) {
+    screens(ProjectScreen)
+}
+```
+
+A guard with a `cacheKey` keeps its answer per params as well as per key, since its answer can
+depend on them.
+
+### A screen's own guard
+
+A screen or modal can declare a `guard` of its own for what that destination needs, such as access
+to its feature or the item its params name, while `intercept` keeps the rules that cover a whole
+area. It runs after every `intercept` guard around the screen, each time a navigation enters it,
+so a `navigateTo`, a link, a resumed pending navigation and a restored history entry all meet the
+same check. It does not run when the user goes back to the screen. A redirect can pass params to
+the screen it sends the user to.
+
+```kotlin
+object ProjectSettingsScreen : Screen {
+    override val route = "project-settings"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+    override val guard: NavigationGuard = { store ->
+        if (store.selectState<PlanState>().value.hasTeamFeatures) GuardResult.Allow
+        else GuardResult.RedirectTo(UpgradeScreen, Params.of("source" to "project-settings"))
+    }
+
+    @Composable
+    override fun Content(params: Params) { /* ... */ }
+}
+```
+
+The destination a guard redirects to opens without running guards of its own, so two guards can
+never send a navigation back and forth. A screen with a guard is not built beneath a destination
+from its path, since nothing has checked it.
+
+### Loading while a guard runs
+
+When guards take longer than their `loadingThreshold` (200 ms by default), the `loadingModal`
+shows until they answer. It shows inside the deepest graph layout that the screen on top and the
+destination share, so a bottom bar or a side menu stays on screen while one of its sections
+loads, and it covers the whole app when the two share no layout, during bootstrap and when
+restoring browser history. `NavigationState.evaluatingInGraph` names that graph.
+
+While the loading modal shows, a navigation to another destination, a link or a browser history
+step cancels the one that is waiting instead of queueing behind it, and a back press cancels it and
+stays on the current screen. Closing a modal or going back from code does not, since apps often do
+that in the same tap that started the navigation, and neither does an alert on the system layer,
+which shows over the loading modal. The cancelled navigation returns
+`NavigationOutcome.Dropped`, or `LinkOutcome.Ignored` for a link. A navigation behind a guard that
+answers within the threshold is never cancelled.
+
 ---
 
 ## Dynamic Entry Points
@@ -418,8 +481,9 @@ when (val outcome = store.openLink("home/leaderboard/player/{playerId}", mapOf("
 ```
 
 The link can be a route template, a concrete path, a path with a query, an alias address such as
-`myapp://example.com/p/42` or a web address under the app's base path. Parent screens are built
-beneath it, guards run and the back stack is replaced.
+`myapp://example.com/p/42` or a web address under the app's base path. A custom scheme link with
+only a host, such as `myapp://callback?result=failed`, keeps its query for the alias it matches.
+Parent screens are built beneath it, guards run and the back stack is replaced.
 
 The DevTools Nav tab draws the map and opens links on a connected device when the app installs
 `NavigationLinks` from `reaktiv-navigation-tooling`.

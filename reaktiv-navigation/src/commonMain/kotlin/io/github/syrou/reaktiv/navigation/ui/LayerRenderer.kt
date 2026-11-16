@@ -582,6 +582,7 @@ private fun LayoutBranchHost(
                         screenHeight = screenHeight
                     )
                 }
+                GraphEvaluationOverlay(branch.route)
             }
         }
     }
@@ -692,6 +693,29 @@ private fun PaneColumnHost(
                 }
             }
         }
+    }
+}
+
+/**
+ * The loading modal drawn over the screens of the layout of [graphRoute] while a navigation that stays inside that
+ * layout waits on a slow guard, see [NavigationState.evaluatingInGraph]. The layout's own chrome, such as a bottom
+ * bar, stays on screen and usable around it, and it swallows taps on the screens beneath it as the overlay over the
+ * whole app does.
+ */
+@Composable
+private fun GraphEvaluationOverlay(graphRoute: String) {
+    val loadingGraph by composeState<NavigationState, String?> { state ->
+        state.evaluatingInGraph.takeIf { state.isEvaluatingNavigation }
+    }
+    if (loadingGraph != graphRoute) return
+    val loading = LocalNavigationModule.current.getLoadingModal() ?: return
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(NavigationZIndex.SYSTEM_BASE + loading.elevation)
+            .consumeAllPointerInput()
+    ) {
+        NavigatableContent(loading, Params.empty())
     }
 }
 

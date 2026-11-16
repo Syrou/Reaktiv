@@ -109,9 +109,14 @@ public sealed class NavigationAction : ModuleAction(NavigationModule::class) {
      * evaluation completes.
      *
      * @param isEvaluating `true` to show the evaluation overlay; `false` to hide it.
+     * @param graph The graph whose layout shows the overlay, or `null` for the whole app. See
+     * [NavigationState.evaluatingInGraph].
      */
     @Serializable
-    public data class SetEvaluating(val isEvaluating: Boolean) : NavigationAction(), HighPriorityAction
+    public data class SetEvaluating(
+        val isEvaluating: Boolean,
+        val graph: String? = null
+    ) : NavigationAction(), HighPriorityAction
 
     @Serializable
     @ConsistentCopyVisibility

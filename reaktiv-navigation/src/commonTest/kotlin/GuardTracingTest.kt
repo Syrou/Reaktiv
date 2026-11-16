@@ -14,6 +14,7 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.model.GuardResult
+import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -148,7 +149,7 @@ class GuardTracingTest {
             { object : ModuleLogic() {} }
     }
 
-    private fun guardedModule(guard: suspend (StoreAccessor) -> GuardResult) = createNavigationModule {
+    private fun guardedModule(guard: NavigationGuard) = createNavigationModule {
         rootGraph {
             start(startScreen)
             screens(startScreen, loginScreen)
@@ -349,6 +350,49 @@ class GuardTracingTest {
             assertEquals("dashboard", completions[0].result)
 
             assertEquals("dashboard", store.selectState<NavigationState>().first().currentEntry.route)
+        }
+
+    @Test
+    fun `a screen's own guard is traced after the intercept guard around it`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val checkedScreen = object : Screen {
+                override val route = "checked"
+                override val enterTransition = NavTransition.None
+                override val exitTransition = NavTransition.None
+                override val guard: NavigationGuard = { GuardResult.Allow }
+
+                @Composable
+                override fun Content(params: Params) { Text(route) }
+            }
+            val store = createStore {
+                module(
+                    createNavigationModule {
+                        rootGraph {
+                            start(startScreen)
+                            screens(startScreen)
+                            intercept(guard = { GuardResult.Allow }) {
+                                graph("workspace") {
+                                    start(homeScreen)
+                                    screens(homeScreen, checkedScreen)
+                                }
+                            }
+                        }
+                    }
+                )
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceUntilIdle()
+            val instrumentation = RecordingInstrumentation()
+            store.setDispatchInstrumentation(instrumentation)
+
+            store.navigation { navigateTo("workspace/checked") }
+            advanceUntilIdle()
+
+            assertEquals(
+                listOf("guard(workspace)", "screenGuard(checked)"),
+                instrumentation.guardStarts().map { it.name }
+            )
+            assertEquals(listOf("Allow", "Allow"), instrumentation.guardCompletions().map { it.result })
         }
 
     @Test
