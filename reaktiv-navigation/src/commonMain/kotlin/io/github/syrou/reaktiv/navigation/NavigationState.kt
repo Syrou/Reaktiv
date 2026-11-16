@@ -83,7 +83,14 @@ public data class NavigationState(
 
     val startFailure: StartFailure? = null,
 
-    val windowWidthClass: WindowWidthClass? = null
+    val windowWidthClass: WindowWidthClass? = null,
+
+    /**
+     * The graph whose layout shows the loading modal while [isEvaluatingNavigation] is `true`, or `null` when it
+     * covers the whole app. It is the deepest graph with a layout that the screen on top and the destination being
+     * evaluated share, so chrome such as a bottom bar stays on screen while one of its sections loads.
+     */
+    val evaluatingInGraph: String? = null
 ) : ModuleState {
 
     @Deprecated(

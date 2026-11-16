@@ -21,6 +21,7 @@ import io.github.syrou.reaktiv.navigation.extension.navigateDeepLink
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.model.GuardResult
+import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -98,11 +99,11 @@ class GuardCorrectnessTest {
         override val createLogic: (StoreAccessor) -> ModuleLogic = { object : ModuleLogic() {} }
     }
 
-    private val requireLogin: suspend (StoreAccessor) -> GuardResult = { store ->
+    private val requireLogin: NavigationGuard = { store ->
         if (store.selectState<AccessState>().value.loggedIn) GuardResult.Allow else GuardResult.Reject
     }
 
-    private val requireAdmin: suspend (StoreAccessor) -> GuardResult = { store ->
+    private val requireAdmin: NavigationGuard = { store ->
         if (store.selectState<AccessState>().value.admin) GuardResult.Allow else GuardResult.Reject
     }
 

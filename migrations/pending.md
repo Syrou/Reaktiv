@@ -11201,3 +11201,165 @@ nothing. How a screen itself leaves still belongs in `dismissal`. It replaces a
 does not see.
 
 ---
+
+### [BC-199] Guards get the params of the screen being entered
+
+**Type:** Breaking | Addition
+
+**Grep:** `NavigationGuard|suspend \(StoreAccessor\) -> GuardResult|evaluateGuard\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+val requireAuth: suspend (StoreAccessor) -> GuardResult = { store ->
+    if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+    else GuardResult.RedirectTo(LoginScreen)
+}
+val result = requireAuth(store)
+```
+
+**After:**
+```kotlin
+val requireAuth: NavigationGuard = { store ->
+    if (store.selectState<AuthState>().value.isAuthenticated) GuardResult.Allow
+    else GuardResult.RedirectTo(LoginScreen)
+}
+val result = requireAuth(GuardContext(Params.empty()), store)
+
+intercept(
+    guard = { store ->
+        val projectId = params.getString("projectId")
+        if (projectId in store.selectState<ProjectState>().value.ownProjectIds) GuardResult.Allow
+        else GuardResult.RedirectTo(ProjectListScreen)
+    }
+) {
+    screens(ProjectScreen)
+}
+```
+
+**Notes:** `NavigationGuard` is now `suspend GuardContext.(StoreAccessor) -> GuardResult`, and
+`GuardContext.params` holds the params of the screen being entered, the same for a `navigateTo`,
+a link and a pending navigation that resumes after sign in. A guard can then check the item a
+navigation names, such as a project that has to belong to the signed in user. Guards written as
+lambdas inside `intercept` compile unchanged. A guard declared with the old function type must be
+declared as `NavigationGuard`, and code that calls a guard directly passes a `GuardContext` first.
+`evaluateGuard` in reaktiv-test-navigation takes the params as an optional second argument. A guard
+with a `cacheKey` now keeps its answer per params as well as per key, so it runs again when the
+same zone is entered with other params. `CacheKeySelector` itself is unchanged, since dynamic start
+selectors share it and run without params.
+
+---
+
+### [AD-200] A screen or modal can declare its own guard
+
+**Type:** Addition
+
+**Grep:** `override val guard`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object ProjectSettingsScreen : Screen {
+    override val route = "project-settings"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+    override val guard: NavigationGuard = { store ->
+        if (store.selectState<PlanState>().value.hasTeamFeatures) GuardResult.Allow
+        else GuardResult.RedirectTo(UpgradeScreen, Params.of("source" to "project-settings"))
+    }
+
+    @Composable
+    override fun Content(params: Params) { /* settings */ }
+}
+```
+
+**Notes:** `Navigatable.guard` runs after every `intercept` guard around the destination, each time
+a navigation enters it, with the params it is entered with (BC-199). A `navigateTo`, a link, a
+resumed pending navigation and a restored history entry all run it. Going back to the screen does
+not, and neither does the destination a guard redirects to, which also keeps two guards from
+sending a navigation back and forth. A screen with a guard is not built beneath a destination from
+its path, the same way an ancestor behind an `intercept` it has not passed is left out. Use it for
+what one destination needs, such as access to its feature or the item its params name, and
+`intercept` for a rule that covers an area. The link map lists it after the `intercept` guards
+around the route, and tracing reports it as `screenGuard(route)`.
+
+---
+
+### [AD-201] Guard redirects can pass params to their target
+
+**Type:** Addition
+
+**Grep:** `RedirectTo\(|PendAndRedirectTo\(`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+GuardResult.RedirectTo(UpgradeScreen, Params.of("source" to "project-settings"))
+GuardResult.PendAndRedirectTo(LoginScreen, params = Params.of("reason" to "session-expired"))
+```
+
+**Notes:** `RedirectTo` and `PendAndRedirectTo` take optional `params` that the redirect target
+opens with, such as why an upgrade screen was shown. They default to none, so existing redirects
+are unchanged.
+
+---
+
+### [BC-202] The loading modal of a slow guard shows inside the shared layout, and a new destination cancels it
+
+**Type:** Behavioural | Addition
+
+**Grep:** `loadingModal\(|isEvaluatingNavigation|SetEvaluating\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+// A slow guard covered the whole app with the loading modal, and a tap or back press waited
+// behind it or did nothing.
+```
+
+**After:**
+```kotlin
+val state = store.selectState<NavigationState>().value
+state.isEvaluatingNavigation // true while a slow guard runs
+state.evaluatingInGraph // "tabs" when the screen on top and the destination share that layout
+```
+
+**Notes:** The loading modal now shows inside the deepest graph layout that the screen on top and
+the destination share, so chrome such as a bottom bar stays on screen and usable while one of its
+sections loads. With no shared layout, during bootstrap and when restoring browser history it
+covers the whole app as before. `NavigationState.evaluatingInGraph` names the graph and
+`NavigationAction.SetEvaluating` carries it. While the loading modal shows, a navigation to another
+destination, a link or a browser history step cancels the one that waits instead of queueing behind
+it, and a back press cancels it and stays on the current screen instead of doing nothing. Closing a
+modal or going back from code does not, since apps often do that in the same tap that started the
+navigation, and neither does an alert on the system layer, which shows over the loading modal. The
+cancelled navigation returns
+`NavigationOutcome.Dropped`, and a cancelled link `LinkOutcome.Ignored`. The platform back handler
+stays enabled while a slow guard runs after bootstrap, so back cancels it on the first screen too.
+A navigation behind a guard that answers within its threshold is never cancelled and queues as
+before.
+
+---
+
+### [BC-203] A custom scheme link with only a host keeps its query
+
+**Type:** Behavioural
+
+**Grep:** `openLink\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.openLink("myapp://callback?result=failed") // the alias for myapp://callback got no params
+```
+
+**After:**
+```kotlin
+store.openLink("myapp://callback?result=failed") // the alias gets result=failed
+```
+
+**Notes:** A link with nothing between its host and its query lost the query, because only text
+after a `/` was read as the path. Its query now reaches the alias it matches, the same as for
+`myapp://callback/?result=failed`.
+
+---

@@ -12,6 +12,7 @@ import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.definition.ScreenGroup
 import io.github.syrou.reaktiv.navigation.definition.StartDestination
 import io.github.syrou.reaktiv.navigation.model.CacheKeySelector
+import io.github.syrou.reaktiv.navigation.model.DEFAULT_GUARD_LOADING_THRESHOLD
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
 import io.github.syrou.reaktiv.navigation.model.NavigatableInterceptMap
@@ -257,7 +258,7 @@ public class NavigationGraphBuilder(
      */
     public fun intercept(
         guard: NavigationGuard,
-        loadingThreshold: Duration = 200.milliseconds,
+        loadingThreshold: Duration = DEFAULT_GUARD_LOADING_THRESHOLD,
         cacheKey: CacheKeySelector? = null,
         block: NavigationGraphBuilder.() -> Unit
     ) {

@@ -11,6 +11,7 @@ import io.github.syrou.reaktiv.navigation.createNavigationModule
 import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.model.GuardResult
+import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.test.reaktivTest
@@ -114,7 +115,7 @@ class NavigationAssertionsTest {
 
     @Test
     fun `evaluateGuard runs a guard against the test store`() = reaktivTest(NavTestAuthModule, navModule()) {
-        val guard: suspend (StoreAccessor) -> GuardResult = { accessor ->
+        val guard: NavigationGuard = { accessor ->
             if (accessor.selectState<NavTestAuthState>().first().isAuthenticated) GuardResult.Allow
             else GuardResult.Reject
         }
@@ -123,4 +124,15 @@ class NavigationAssertionsTest {
         dispatch(NavTestAuthAction.Login)
         assertEquals(GuardResult.Allow, evaluateGuard(guard))
     }
+
+    @Test
+    fun `evaluateGuard passes the params a navigation would enter with`() =
+        reaktivTest(NavTestAuthModule, navModule()) {
+            val guard: NavigationGuard = {
+                if (params.getString("projectId") == "own") GuardResult.Allow else GuardResult.Reject
+            }
+
+            assertEquals(GuardResult.Reject, evaluateGuard(guard))
+            assertEquals(GuardResult.Allow, evaluateGuard(guard, Params.of("projectId" to "own")))
+        }
 }

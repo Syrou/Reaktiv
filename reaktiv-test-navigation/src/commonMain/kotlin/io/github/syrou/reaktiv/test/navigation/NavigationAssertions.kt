@@ -2,8 +2,10 @@ package io.github.syrou.reaktiv.test.navigation
 
 import io.github.syrou.reaktiv.core.util.selectState
 import io.github.syrou.reaktiv.navigation.NavigationState
+import io.github.syrou.reaktiv.navigation.model.GuardContext
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.model.NavigationGuard
+import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.test.ReaktivTestScope
 import kotlinx.coroutines.flow.first
 
@@ -42,7 +44,10 @@ public suspend fun ReaktivTestScope.assertBackStack(vararg routes: String) {
 public suspend fun ReaktivTestScope.awaitRoute(route: String): NavigationState =
     store.selectState<NavigationState>().first { it.currentEntry.route == route }
 
-public suspend fun ReaktivTestScope.evaluateGuard(guard: NavigationGuard): GuardResult {
+public suspend fun ReaktivTestScope.evaluateGuard(
+    guard: NavigationGuard,
+    params: Params = Params.empty(),
+): GuardResult {
     settle()
-    return guard(store)
+    return guard(GuardContext(params), store)
 }

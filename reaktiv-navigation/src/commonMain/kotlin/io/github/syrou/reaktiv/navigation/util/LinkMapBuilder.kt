@@ -43,9 +43,9 @@ internal fun buildLinkMap(data: PrecomputedNavigationData, webPrefix: String?): 
 private class GuardIds {
     private val seen = mutableListOf<NavigationGuard>()
 
-    fun of(intercept: InterceptDefinition?): List<Int> {
-        if (intercept == null) return emptyList()
-        val chain = intercept.outerGuards.map { it.guard } + intercept.guard
+    fun of(intercept: InterceptDefinition?, screenGuard: NavigationGuard? = null): List<Int> {
+        val zoneChain = intercept?.let { it.outerGuards.map { entry -> entry.guard } + it.guard }.orEmpty()
+        val chain = zoneChain + listOfNotNull(screenGuard)
         return chain.map { guard ->
             val index = seen.indexOfFirst { it === guard }
             if (index >= 0) {
@@ -106,7 +106,7 @@ private fun linkRoute(
         screen = navigatable::class.simpleName,
         kind = if (navigatable is Modal) LinkKind.Modal else LinkKind.Screen,
         params = template.paramNames,
-        guards = guardIds.of(data.interceptsByPath[path]),
+        guards = guardIds.of(data.interceptsByPath[path], navigatable.guard),
         access = access
     )
 }

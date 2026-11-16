@@ -39,7 +39,9 @@ import io.github.syrou.reaktiv.navigation.exception.MissingPathParamsException
 import io.github.syrou.reaktiv.navigation.exception.PopUpToTargetNotInBackStackException
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.model.CacheKeySelector
+import io.github.syrou.reaktiv.navigation.model.DEFAULT_GUARD_LOADING_THRESHOLD
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
+import io.github.syrou.reaktiv.navigation.model.GuardContext
 import io.github.syrou.reaktiv.navigation.model.GuardResult
 import io.github.syrou.reaktiv.navigation.model.InterceptDefinition
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
@@ -85,6 +87,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
@@ -100,7 +103,28 @@ private object EvaluationOverlayKey : CoroutineContext.Key<EvaluationOverlay>
 
 private class EvaluationOverlay : AbstractCoroutineContextElement(EvaluationOverlayKey) {
     var raised: Boolean = false
+    var loadingGraph: String? = null
+    val waitingBehindLoading = AtomicBoolean(false)
 }
+
+/**
+ * A navigation that is waiting on a slow guard while its loading modal shows, and may be cancelled by the next
+ * navigation or a back press. See [NavigationLogic.cancelSlowNavigation].
+ */
+private class InFlightNavigation(val job: Job, val overlay: EvaluationOverlay) {
+    val superseded = AtomicBoolean(false)
+}
+
+private val DESTINATION_OPERATIONS = setOf(
+    NavigationOperation.Navigate,
+    NavigationOperation.Replace,
+    NavigationOperation.PopUpTo,
+    NavigationOperation.ResumePending,
+    NavigationOperation.DeepLink
+)
+
+private class SupersededNavigation :
+    CancellationException("A newer navigation took over while this one waited on a guard")
 
 /**
  * Side-effecting logic for the navigation system.
@@ -163,6 +187,7 @@ public class NavigationLogic internal constructor(
     private val startSelections = mutableMapOf<String, NavigationNode>()
     private var crashListener: CrashListener? = null
     private val overlayOwners = MutableStateFlow(0)
+    private val inFlight = AtomicReference<InFlightNavigation?>(null)
 
     internal val locationCodec: LocationCodec by lazy {
         LocationCodec(precomputedData, reaktivJson(storeAccessor.serializersModule))
@@ -465,7 +490,14 @@ public class NavigationLogic internal constructor(
         if (!opensSystemLayer(builder.primaryRoute()) && currentCoroutineContext()[NavigationLockKey] == null) {
             bootstrapCompleted.await()
         }
-        return evaluateAndExecute(builder)
+        val goesSomewhere = builder.operations.any { it.operation in DESTINATION_OPERATIONS }
+        if (goesSomewhere && !opensSystemLayer(builder.primaryRoute())) cancelSlowNavigation()
+        return try {
+            evaluateAndExecute(builder)
+        } catch (superseded: SupersededNavigation) {
+            currentCoroutineContext().ensureActive()
+            NavigationOutcome.Dropped
+        }
     }
 
     private fun NavigationBuilder.primaryRoute(): String? =
@@ -495,12 +527,17 @@ public class NavigationLogic internal constructor(
     private sealed class GuardEvaluation {
         object Allow : GuardEvaluation()
         object Reject : GuardEvaluation()
-        data class Redirect(val route: String, val zonePath: String?) : GuardEvaluation()
+        data class Redirect(
+            val route: String,
+            val zonePath: String?,
+            val params: Params = Params.empty()
+        ) : GuardEvaluation()
         data class PendAndRedirect(
             val pending: PendingNavigation,
             val redirectRoute: String,
             val alreadyAtRedirect: Boolean,
-            val zonePath: String?
+            val zonePath: String?,
+            val redirectParams: Params = Params.empty()
         ) : GuardEvaluation()
     }
 
@@ -582,6 +619,7 @@ public class NavigationLogic internal constructor(
 
     private inner class StepGuard(private val vantage: GuardVantage) {
         private val cleared = mutableListOf<InterceptDefinition>()
+        private val clearedScreens = mutableListOf<Pair<Navigatable, Params>>()
 
         private fun zoneOf(path: String): InterceptDefinition? = precomputedData.interceptsByPath[path]
 
@@ -589,6 +627,7 @@ public class NavigationLogic internal constructor(
             zone in cleared || vantage.passed.any { zoneOf(it.path) == zone }
 
         fun admits(ancestor: NavigationEntry, destination: NavigationEntry): Boolean {
+            if (ancestor.navigatable.guard != null) return false
             val zone = zoneOf(ancestor.path) ?: return true
             return zone == zoneOf(destination.path) || passedThrough(zone)
         }
@@ -598,61 +637,105 @@ public class NavigationLogic internal constructor(
                 ?.takeIf { it != GuardEvaluation.Allow }
                 ?.let { Execution.Stopped(it, step) }
 
+        /**
+         * Runs the guards between the app and [targetRoute], the `intercept` guards around it from the outside in
+         * and then the guard of the screen it lands on, and returns the first answer that is not
+         * [GuardEvaluation.Allow]. Returns `null` when nothing guards the route.
+         */
         suspend fun evaluate(
             targetRoute: String,
             targetResolution: RouteResolution?,
             step: NavigationStep
         ): GuardEvaluation? {
             if (isExternallyDriven()) return GuardEvaluation.Allow
-            val zone = zoneFor(targetRoute, targetResolution) ?: return null
+            val context = GuardContext(step.params)
+            val zoneEvaluation = zoneFor(targetRoute, targetResolution)?.let { zone ->
+                evaluateZone(zone, targetRoute, step, context)
+            }
+            if (zoneEvaluation != null && zoneEvaluation != GuardEvaluation.Allow) return zoneEvaluation
+            return evaluateScreen(targetRoute, targetResolution, step, context) ?: zoneEvaluation
+        }
+
+        private suspend fun evaluateZone(
+            zone: Zone,
+            targetRoute: String,
+            step: NavigationStep,
+            context: GuardContext
+        ): GuardEvaluation {
             val interceptDef = zone.intercept
             if (passedThrough(interceptDef)) return GuardEvaluation.Allow
             val zoneKey = zone.graphId ?: targetRoute
             val zonePath = zoneBoundaryPath(zone)
 
-            fun GuardResult.toGuardEvaluation(): GuardEvaluation = when (this) {
-                is GuardResult.Allow -> GuardEvaluation.Allow
-                is GuardResult.Reject -> GuardEvaluation.Reject
-                is GuardResult.RedirectTo -> GuardEvaluation.Redirect(redirectRoute(target), zonePath)
-                is GuardResult.PendAndRedirectTo -> {
-                    val pending = PendingNavigation(
-                        route = targetRoute,
-                        params = step.params,
-                        metadata = metadata,
-                        displayHint = displayHint
-                    )
-                    val redirectTarget = redirectRoute(target)
-                    val redirectPath = precomputedData.routeResolver.resolve(redirectTarget)?.entryPath()
-                    GuardEvaluation.PendAndRedirect(
-                        pending = pending,
-                        redirectRoute = redirectTarget,
-                        alreadyAtRedirect = redirectPath == vantage.surviving.lastOrNull()?.path,
-                        zonePath = zonePath
-                    )
-                }
-            }
-
             for ((index, outerEntry) in interceptDef.outerGuards.withIndex()) {
-                val result = evaluateCached(outerEntry.guard, outerEntry.cacheKey) {
+                val result = evaluateCached(outerEntry.guard, outerEntry.cacheKey, step.params) {
                     evaluateWithThreshold(outerEntry.loadingThreshold) {
                         traceGuard(
                             storeAccessor,
                             "outerGuard[$index]($zoneKey)",
                             targetRoute
-                        ) { outerEntry.guard(storeAccessor) }
+                        ) { outerEntry.guard(context, storeAccessor) }
                     }
                 }
-                val evaluation = result.toGuardEvaluation()
+                val evaluation = result.toGuardEvaluation(targetRoute, step, zonePath)
                 if (evaluation != GuardEvaluation.Allow) return evaluation
             }
 
-            val evaluation = evaluateCached(interceptDef.guard, interceptDef.cacheKey) {
+            val evaluation = evaluateCached(interceptDef.guard, interceptDef.cacheKey, step.params) {
                 evaluateWithThreshold(interceptDef.loadingThreshold) {
-                    traceGuard(storeAccessor, "guard($zoneKey)", targetRoute) { interceptDef.guard(storeAccessor) }
+                    traceGuard(storeAccessor, "guard($zoneKey)", targetRoute) {
+                        interceptDef.guard(context, storeAccessor)
+                    }
                 }
-            }.toGuardEvaluation()
+            }.toGuardEvaluation(targetRoute, step, zonePath)
             if (evaluation == GuardEvaluation.Allow) cleared.add(interceptDef)
             return evaluation
+        }
+
+        private suspend fun evaluateScreen(
+            targetRoute: String,
+            resolution: RouteResolution?,
+            step: NavigationStep,
+            context: GuardContext
+        ): GuardEvaluation? {
+            val screen = resolution?.targetNavigatable ?: return null
+            val guard = screen.guard ?: return null
+            val checked = screen to step.params
+            if (checked in clearedScreens) return GuardEvaluation.Allow
+            val evaluation = evaluateWithThreshold(DEFAULT_GUARD_LOADING_THRESHOLD) {
+                traceGuard(storeAccessor, "screenGuard(${screen.route})", targetRoute) {
+                    guard(context, storeAccessor)
+                }
+            }.toGuardEvaluation(targetRoute, step, zonePath = null)
+            if (evaluation == GuardEvaluation.Allow) clearedScreens.add(checked)
+            return evaluation
+        }
+
+        private fun GuardResult.toGuardEvaluation(
+            targetRoute: String,
+            step: NavigationStep,
+            zonePath: String?
+        ): GuardEvaluation = when (this) {
+            is GuardResult.Allow -> GuardEvaluation.Allow
+            is GuardResult.Reject -> GuardEvaluation.Reject
+            is GuardResult.RedirectTo -> GuardEvaluation.Redirect(redirectRoute(target), zonePath, params)
+            is GuardResult.PendAndRedirectTo -> {
+                val pending = PendingNavigation(
+                    route = targetRoute,
+                    params = step.params,
+                    metadata = metadata,
+                    displayHint = displayHint
+                )
+                val redirectTarget = redirectRoute(target)
+                val redirectPath = precomputedData.routeResolver.resolve(redirectTarget)?.entryPath()
+                GuardEvaluation.PendAndRedirect(
+                    pending = pending,
+                    redirectRoute = redirectTarget,
+                    alreadyAtRedirect = redirectPath == vantage.surviving.lastOrNull()?.path,
+                    zonePath = zonePath,
+                    redirectParams = params
+                )
+            }
         }
     }
 
@@ -782,6 +865,7 @@ public class NavigationLogic internal constructor(
      */
     private suspend fun executeRedirect(
         route: String,
+        params: Params,
         replaced: NavigationStep,
         clearsBackStack: Boolean,
         zonePath: String?,
@@ -789,6 +873,7 @@ public class NavigationLogic internal constructor(
     ) {
         val builder = NavigationBuilder(storeAccessor)
         if (clearsBackStack) builder.clearBackStack()
+        builder.params(params)
         builder.navigateTo(
             route,
             replaceCurrent = replaced.operation == NavigationOperation.Replace && !clearsBackStack,
@@ -814,13 +899,20 @@ public class NavigationLogic internal constructor(
     ): NavigationOutcome? = when (guard) {
         is GuardEvaluation.Reject -> NavigationOutcome.Rejected
         is GuardEvaluation.Redirect -> {
-            executeRedirect(guard.route, step, builder.clearsBackStack(), guard.zonePath, closing)
+            executeRedirect(guard.route, guard.params, step, builder.clearsBackStack(), guard.zonePath, closing)
             NavigationOutcome.Redirected(guard.route)
         }
         is GuardEvaluation.PendAndRedirect -> {
             storeAccessor.dispatchAndAwait(NavigationAction.SetPendingNavigation(guard.pending))
             if (!guard.alreadyAtRedirect) {
-                executeRedirect(guard.redirectRoute, step, clearsBackStack = true, guard.zonePath, closing)
+                executeRedirect(
+                    guard.redirectRoute,
+                    guard.redirectParams,
+                    step,
+                    clearsBackStack = true,
+                    guard.zonePath,
+                    closing
+                )
             }
             NavigationOutcome.Redirected(guard.redirectRoute)
         }
@@ -955,7 +1047,7 @@ public class NavigationLogic internal constructor(
             val result = CompletableDeferred<T>()
             val overlay = EvaluationOverlay()
             val job = CoroutineScope(currentCoroutineContext().minusKey(Job) + logicJob)
-                .launch(NavigationLockMarker() + overlay) {
+                .launch(NavigationLockMarker() + overlay, start = CoroutineStart.LAZY) {
                     try {
                         result.complete(work())
                     } catch (e: Throwable) {
@@ -964,10 +1056,19 @@ public class NavigationLogic internal constructor(
                         lowerOverlay(overlay)
                     }
                 }
+            val flight = InFlightNavigation(job, overlay)
+            inFlight.store(flight)
             job.invokeOnCompletion { cause ->
+                inFlight.compareAndSet(flight, null)
                 if (cause != null) result.completeExceptionally(cause)
             }
-            withContext(NonCancellable) { result.await() }
+            job.start()
+            try {
+                withContext(NonCancellable) { result.await() }
+            } catch (cancellation: CancellationException) {
+                if (flight.superseded.load()) throw SupersededNavigation()
+                throw cancellation
+            }
         } finally {
             settleJob = transitionSettleJob.load()
             navigationMutex.unlock()
@@ -991,10 +1092,11 @@ public class NavigationLogic internal constructor(
     private suspend fun <T> evaluateCached(
         owner: Any,
         cacheKey: CacheKeySelector?,
+        params: Params = Params.empty(),
         evaluate: suspend () -> T
     ): T {
         if (cacheKey == null) return evaluate()
-        val key = cacheKey(storeAccessor)
+        val key = cacheKey(storeAccessor) to params
         val cached = evaluationCache[owner]
         if (cached != null && cached.key == key) {
             @Suppress("UNCHECKED_CAST")
@@ -1023,14 +1125,55 @@ public class NavigationLogic internal constructor(
             true
         } ?: false
         val overlay = currentCoroutineContext()[EvaluationOverlayKey]
-        if (!completedInTime && overlay != null && precomputedData.loadingModal != null) {
-            if (!overlay.raised) {
-                overlay.raised = true
-                overlayOwners.update { it + 1 }
-            }
-            storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(true))
+        if (completedInTime || overlay == null || precomputedData.loadingModal == null) {
+            return@coroutineScope deferred.await()
         }
-        deferred.await()
+        if (!overlay.raised) {
+            overlay.raised = true
+            overlayOwners.update { it + 1 }
+        }
+        storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(true, overlay.loadingGraph))
+        overlay.waitingBehindLoading.store(true)
+        try {
+            deferred.await()
+        } finally {
+            overlay.waitingBehindLoading.store(false)
+        }
+    }
+
+    /**
+     * Cancels the navigation that is waiting on a slow guard behind its loading modal, so the user can take another
+     * way while it loads. A navigation to a destination, a link and a browser history step do this before they queue,
+     * and a back press does it instead of going back. Closing a modal or going back from code does not, since apps
+     * often do that in the same tap that started the navigation, and neither does a system layer entry such as an
+     * alert, which shows over the loading modal without queueing behind it. A navigation that has not shown its loading modal
+     * yet, bootstrap and work that is already landing are left alone, so a quick tap still queues behind a quick
+     * guard as before.
+     *
+     * @return `true` when a navigation was cancelled.
+     */
+    internal fun cancelSlowNavigation(): Boolean {
+        val flight = inFlight.load() ?: return false
+        if (!flight.overlay.waitingBehindLoading.load()) return false
+        if (!flight.superseded.compareAndSet(expectedValue = false, newValue = true)) return false
+        flight.job.cancel(SupersededNavigation())
+        return true
+    }
+
+    /**
+     * The deepest graph with a layout that the screen on top and [route] share, where the loading modal shows while
+     * a navigation to [route] is evaluated, or `null` to cover the whole app. Bootstrap always covers the whole app.
+     */
+    private suspend fun loadingGraphFor(route: String): String? {
+        val state = getCurrentNavigationState()
+        if (state.isBootstrapping) return null
+        val targetGraph = precomputedData.routeResolver.resolve(route)?.owningGraphId
+            ?: precomputedData.routeResolver.canonicalGraphId(route)
+            ?: return null
+        val graphIndex = precomputedData.graphIndex
+        val current = graphIndex.layoutsAround(state.currentEntry.graphId).map { it.route }
+        val target = graphIndex.layoutsAround(targetGraph).map { it.route }
+        return current.zip(target).takeWhile { (shown, wanted) -> shown == wanted }.lastOrNull()?.first
     }
 
     /**
@@ -1173,7 +1316,9 @@ public class NavigationLogic internal constructor(
     }
 
     private fun pathOfUrl(url: String): String {
-        val afterHost = url.substringAfter("://").substringAfter('/', "")
+        val afterScheme = url.substringAfter("://")
+        val hostEnd = afterScheme.indexOfFirst { it == '/' || it == '?' || it == '#' }
+        val afterHost = if (hostEnd < 0) "" else afterScheme.substring(hostEnd).removePrefix("/")
         val fragment = afterHost.substringAfter('#', "")
         if (afterHost.substringBefore('#').substringBefore('?').isEmpty() && fragment.startsWith("/")) {
             return fragment.removePrefix("/")
@@ -1193,6 +1338,7 @@ public class NavigationLogic internal constructor(
         if (coldStart) {
             bootstrapCompleted.await()
         }
+        cancelSlowNavigation()
 
         val outcome = try {
             follow(location)
@@ -1263,7 +1409,12 @@ public class NavigationLogic internal constructor(
             null
         }
         builder.validate()
-        val outcome = evaluateAndExecute(builder).toExternalOutcome()
+        val outcome = try {
+            evaluateAndExecute(builder).toExternalOutcome()
+        } catch (superseded: SupersededNavigation) {
+            currentCoroutineContext().ensureActive()
+            ExternalOutcome.Stale
+        }
         return if (fallback != null && outcome == ExternalOutcome.Landed) ExternalOutcome.LandedOnNotFound(fallback) else outcome
     }
 
@@ -1436,8 +1587,10 @@ public class NavigationLogic internal constructor(
         val pending = getCurrentNavigationState().pendingNavigation
         val steps = builder.operations.map { it.resuming(pending) }
         val targets = LinkedHashMap<Int, ResolvedTarget>()
+        val overlay = currentCoroutineContext()[EvaluationOverlayKey]
         for ((index, step) in steps.withIndex()) {
             val route = targetRoute(step) ?: continue
+            overlay?.loadingGraph = loadingGraphFor(route)
             guard?.check(route, precomputedData.routeResolver.resolve(route), step)?.let { return it }
             val target = resolveDestination(route, pass)
             guard?.check(target.route, target.resolution, step)?.let { return it }

@@ -1,7 +1,9 @@
 package io.github.syrou.reaktiv.navigation.util
 
 import io.github.syrou.reaktiv.core.StoreAccessor
+import io.github.syrou.reaktiv.core.util.selectLogic
 import io.github.syrou.reaktiv.core.util.selectState
+import io.github.syrou.reaktiv.navigation.NavigationLogic
 import io.github.syrou.reaktiv.navigation.NavigationModule
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.definition.DismissAction
@@ -77,6 +79,7 @@ internal suspend fun performUserBack(
 }
 
 internal suspend fun performUserBack(store: StoreAccessor, navModule: NavigationModule, source: DismissSource) {
+    if (store.selectLogic<NavigationLogic>().cancelSlowNavigation()) return
     val state = store.selectState<NavigationState>().first()
     if (!canHandleBack(state)) return
     performUserBack(store, navModule, state.currentEntry, state.revealedEntry, source)

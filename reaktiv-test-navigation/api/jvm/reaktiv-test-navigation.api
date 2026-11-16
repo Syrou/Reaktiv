@@ -4,6 +4,7 @@ public final class io/github/syrou/reaktiv/test/navigation/NavigationAssertionsK
 	public static final fun assertCurrentPath (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun assertCurrentRoute (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun awaitRoute (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun evaluateGuard (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun evaluateGuard (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Lkotlin/jvm/functions/Function3;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun evaluateGuard$default (Lio/github/syrou/reaktiv/test/ReaktivTestScope;Lkotlin/jvm/functions/Function3;Lio/github/syrou/reaktiv/navigation/param/Params;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
