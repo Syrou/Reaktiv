@@ -11363,3 +11363,92 @@ after a `/` was read as the path. Its query now reaches the alias it matches, th
 `myapp://callback/?result=failed`.
 
 ---
+
+### [BC-204] A guard redirect keeps the steps before the screen it refuses
+
+**Type:** Behavioural
+
+**Grep:** `GuardResult.RedirectTo`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+store.navigation {
+    popUpTo("list")
+    navigateTo("guarded") // a guard redirects to "not-ready"
+}
+// back stack: home, list, detail, not-ready
+```
+
+**After:**
+```kotlin
+store.navigation {
+    popUpTo("list")
+    navigateTo("guarded") // a guard redirects to "not-ready"
+}
+// back stack: home, list, not-ready
+```
+
+**Notes:** A `RedirectTo` used to replace the whole navigation with the redirect target, so a
+`popUpTo` that cleared a detail pane before opening something in it was lost, and the redirect target
+stacked on top of what the pane held. The steps before the refused screen now apply and the redirect
+target takes the refused screen's place. Steps after it are still dropped, since they were meant to
+follow a screen that never opened. `PendAndRedirectTo` still reroutes the whole navigation.
+
+---
+
+### [AD-205] A screen's own guard sets its loading threshold
+
+**Type:** Addition
+
+**Grep:** `override val guard`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object ArtistInsightsScreen : Screen {
+    override val route = "artist-insights"
+    override val enterTransition = NavTransition.SlideInRight
+    override val exitTransition = NavTransition.SlideOutLeft
+    override val guard: NavigationGuard = { store -> /* may need the network */ GuardResult.Allow }
+    override val guardLoadingThreshold = 500.milliseconds
+
+    @Composable
+    override fun Content(params: Params) { /* insights */ }
+}
+```
+
+**Notes:** `Navigatable.guardLoadingThreshold` is how long the screen's own `guard` (AD-200) may
+take before the loading modal shows, as `intercept`'s `loadingThreshold` is for its guard. It
+defaults to the same 200 ms. Raise it for a guard that often needs the network, so a check that
+answers soon after a tap shows no loading at all.
+
+---
+
+### [AD-206] The loading modal stays up for a minimum time once shown
+
+**Type:** Addition
+
+**Grep:** `LoadingModal`
+**File glob:** `**/*.kt`
+
+**Example:**
+```kotlin
+object AppLoading : LoadingModal {
+    override val route = "loading"
+    override val enterTransition = NavTransition.Fade
+    override val exitTransition = NavTransition.FadeOut
+    override val minimumDisplay = 500.milliseconds
+
+    @Composable
+    override fun Content(params: Params) { /* spinner */ }
+}
+```
+
+**Notes:** `LoadingModal.minimumDisplay` keeps the loading modal up for that long once a slow guard
+or start has shown it, so a check that answers just after its loading threshold leaves a short
+loading screen instead of a flash. It defaults to zero, which hides it as soon as the check is done,
+as before. Startup is never held, since that would only delay the first screen, and neither is a
+navigation another one cancelled, so the new one shows at once.
+
+---

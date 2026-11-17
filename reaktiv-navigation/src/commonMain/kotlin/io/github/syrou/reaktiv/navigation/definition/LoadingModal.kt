@@ -1,6 +1,7 @@
 package io.github.syrou.reaktiv.navigation.definition
 
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
+import kotlin.time.Duration
 
 /**
  * A full-screen SYSTEM overlay shown while a guard or entry definition is evaluating.
@@ -33,4 +34,11 @@ public interface LoadingModal : Modal {
     override val elevation: Float get() = 0f
     override val swipeToDismiss: Boolean get() = false
     override val backGestureEnabled: Boolean get() = false
+
+    /**
+     * How long the loading modal stays up once a slow guard or start has shown it, so a check that answers just after
+     * its loading threshold doesn't flash it on and off. Zero, the default, hides it as soon as the check is done.
+     * Startup and a navigation another one cancelled are never held.
+     */
+    public val minimumDisplay: Duration get() = Duration.ZERO
 }

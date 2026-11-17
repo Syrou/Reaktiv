@@ -15,6 +15,7 @@ import io.github.syrou.reaktiv.navigation.alias.TitleResource
 import io.github.syrou.reaktiv.navigation.layer.RenderLayer
 import io.github.syrou.reaktiv.navigation.transition.TransitionSpec
 import io.github.syrou.reaktiv.navigation.model.NavigationEntry
+import io.github.syrou.reaktiv.navigation.model.DEFAULT_GUARD_LOADING_THRESHOLD
 import io.github.syrou.reaktiv.navigation.model.NavigationGuard
 import io.github.syrou.reaktiv.navigation.param.Params
 import io.github.syrou.reaktiv.navigation.transition.GestureAxis
@@ -22,6 +23,7 @@ import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import io.github.syrou.reaktiv.navigation.transition.presentationAxis
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -264,6 +266,13 @@ public interface Navigatable : NavigationNode, TransitionSpec {
      */
     public val guard: NavigationGuard?
         get() = null
+
+    /**
+     * How long [guard] may take before the loading modal shows, as `intercept` sets it for its own guard. Raise it for
+     * a guard that often needs the network, so a check that answers soon after a tap shows no loading at all.
+     */
+    public val guardLoadingThreshold: Duration
+        get() = DEFAULT_GUARD_LOADING_THRESHOLD
 
     /**
      * Called when this navigatable is added to the backstack.
