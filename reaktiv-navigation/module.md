@@ -191,13 +191,33 @@ object ProjectSettingsScreen : Screen {
 ```
 
 The destination a guard redirects to opens without running guards of its own, so two guards can
-never send a navigation back and forth. A screen with a guard is not built beneath a destination
+never send a navigation back and forth. A redirect keeps the steps of the same navigation that come
+before the refused screen, such as a `popUpTo` that clears a detail pane before opening something in
+it, and drops the steps after it. A `PendAndRedirectTo` reroutes the whole navigation. A screen with a guard is not built beneath a destination
 from its path, since nothing has checked it.
 
 ### Loading while a guard runs
 
 When guards take longer than their `loadingThreshold` (200 ms by default), the `loadingModal`
-shows until they answer. It shows inside the deepest graph layout that the screen on top and the
+shows until they answer. A screen's own guard takes its threshold from `guardLoadingThreshold`, the
+same way `intercept` takes `loadingThreshold`, so a guard that often needs the network can wait a
+little longer and show no loading for a check that answers soon after a tap. Once the loading modal
+shows, it stays up for its `minimumDisplay`, so a check that answers just after the threshold
+leaves a short loading screen instead of a flash:
+
+```kotlin
+object AppLoading : LoadingModal {
+    override val route = "loading"
+    override val enterTransition = NavTransition.Fade
+    override val exitTransition = NavTransition.FadeOut
+    override val minimumDisplay = 500.milliseconds
+
+    @Composable
+    override fun Content(params: Params) { /* spinner */ }
+}
+```
+
+Startup is never held for `minimumDisplay`, and neither is a navigation another one cancelled. It shows inside the deepest graph layout that the screen on top and the
 destination share, so a bottom bar or a side menu stays on screen while one of its sections
 loads, and it covers the whole app when the two share no layout, during bootstrap and when
 restoring browser history. `NavigationState.evaluatingInGraph` names that graph.

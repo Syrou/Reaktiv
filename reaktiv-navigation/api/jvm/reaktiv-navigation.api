@@ -853,6 +853,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/Graph$DefaultIm
 public abstract interface class io/github/syrou/reaktiv/navigation/definition/LoadingModal : io/github/syrou/reaktiv/navigation/definition/Modal {
 	public fun getBackGestureEnabled ()Z
 	public fun getElevation ()F
+	public fun getMinimumDisplay-UwyO8pc ()J
 	public fun getRenderLayer ()Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
 	public fun getShouldDimBackground ()Z
 	public fun getSwipeToDismiss ()Z
@@ -870,7 +871,9 @@ public final class io/github/syrou/reaktiv/navigation/definition/LoadingModal$De
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)F
 	public static fun getGuard (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function3;
+	public static fun getGuardLoadingThreshold-UwyO8pc (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)J
 	public static fun getHiddenUrlParams (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Ljava/util/Set;
+	public static fun getMinimumDisplay-UwyO8pc (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)J
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lkotlin/jvm/functions/Function2;
 	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public static fun getPopExitTransition (Lio/github/syrou/reaktiv/navigation/definition/LoadingModal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -907,6 +910,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/Modal$DefaultIm
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Modal;)F
 	public static fun getGuard (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function3;
+	public static fun getGuardLoadingThreshold-UwyO8pc (Lio/github/syrou/reaktiv/navigation/definition/Modal;)J
 	public static fun getHiddenUrlParams (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Ljava/util/Set;
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lkotlin/jvm/functions/Function2;
 	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Modal;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -984,6 +988,7 @@ public abstract interface class io/github/syrou/reaktiv/navigation/definition/Na
 	public abstract fun getEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public abstract fun getExitTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
 	public fun getGuard ()Lkotlin/jvm/functions/Function3;
+	public fun getGuardLoadingThreshold-UwyO8pc ()J
 	public fun getHiddenUrlParams ()Ljava/util/Set;
 	public fun getOnDismissRequest ()Lkotlin/jvm/functions/Function2;
 	public abstract fun getPopEnterTransition ()Lio/github/syrou/reaktiv/navigation/transition/NavTransition;
@@ -1004,6 +1009,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/Navigatable$Def
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)F
 	public static fun getGuard (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lkotlin/jvm/functions/Function3;
+	public static fun getGuardLoadingThreshold-UwyO8pc (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)J
 	public static fun getHiddenUrlParams (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Ljava/util/Set;
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lkotlin/jvm/functions/Function2;
 	public static fun getRenderLayer (Lio/github/syrou/reaktiv/navigation/definition/Navigatable;)Lio/github/syrou/reaktiv/navigation/layer/RenderLayer;
@@ -1170,6 +1176,7 @@ public final class io/github/syrou/reaktiv/navigation/definition/Screen$DefaultI
 	public static fun getDismissal (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/definition/Dismissal;
 	public static fun getElevation (Lio/github/syrou/reaktiv/navigation/definition/Screen;)F
 	public static fun getGuard (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function3;
+	public static fun getGuardLoadingThreshold-UwyO8pc (Lio/github/syrou/reaktiv/navigation/definition/Screen;)J
 	public static fun getHiddenUrlParams (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Ljava/util/Set;
 	public static fun getOnDismissRequest (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lkotlin/jvm/functions/Function2;
 	public static fun getPopEnterTransition (Lio/github/syrou/reaktiv/navigation/definition/Screen;)Lio/github/syrou/reaktiv/navigation/transition/NavTransition;

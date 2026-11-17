@@ -39,7 +39,6 @@ import io.github.syrou.reaktiv.navigation.exception.MissingPathParamsException
 import io.github.syrou.reaktiv.navigation.exception.PopUpToTargetNotInBackStackException
 import io.github.syrou.reaktiv.navigation.exception.RouteNotFoundException
 import io.github.syrou.reaktiv.navigation.model.CacheKeySelector
-import io.github.syrou.reaktiv.navigation.model.DEFAULT_GUARD_LOADING_THRESHOLD
 import io.github.syrou.reaktiv.navigation.model.EntryDefinition
 import io.github.syrou.reaktiv.navigation.model.GuardContext
 import io.github.syrou.reaktiv.navigation.model.GuardResult
@@ -101,10 +100,14 @@ private class NavigationLockMarker : AbstractCoroutineContextElement(NavigationL
 
 private object EvaluationOverlayKey : CoroutineContext.Key<EvaluationOverlay>
 
-private class EvaluationOverlay : AbstractCoroutineContextElement(EvaluationOverlayKey) {
+private class EvaluationOverlay(
+    val atStartup: Boolean = false
+) : AbstractCoroutineContextElement(EvaluationOverlayKey) {
     var raised: Boolean = false
+    var minimumDisplay: Job? = null
     var loadingGraph: String? = null
     val waitingBehindLoading = AtomicBoolean(false)
+    val cancelled = AtomicBoolean(false)
 }
 
 /**
@@ -299,7 +302,7 @@ public class NavigationLogic internal constructor(
         bootstrapGraphId: String?
     ): Boolean {
         var resolved = false
-        val overlay = EvaluationOverlay()
+        val overlay = EvaluationOverlay(atStartup = true)
         navigationMutex.withLock {
             withContext(NavigationLockMarker() + overlay) {
                 try {
@@ -606,7 +609,11 @@ public class NavigationLogic internal constructor(
     private sealed class Execution {
         object Committed : Execution()
         object Blocked : Execution()
-        class Stopped(val evaluation: GuardEvaluation, val step: NavigationStep) : Execution()
+        class Stopped(
+            val evaluation: GuardEvaluation,
+            val step: NavigationStep,
+            val earlierSteps: List<NavigationStep> = emptyList()
+        ) : Execution()
     }
 
     private class Pass(
@@ -702,7 +709,7 @@ public class NavigationLogic internal constructor(
             val guard = screen.guard ?: return null
             val checked = screen to step.params
             if (checked in clearedScreens) return GuardEvaluation.Allow
-            val evaluation = evaluateWithThreshold(DEFAULT_GUARD_LOADING_THRESHOLD) {
+            val evaluation = evaluateWithThreshold(screen.guardLoadingThreshold) {
                 traceGuard(storeAccessor, "screenGuard(${screen.route})", targetRoute) {
                     guard(context, storeAccessor)
                 }
@@ -869,10 +876,13 @@ public class NavigationLogic internal constructor(
         replaced: NavigationStep,
         clearsBackStack: Boolean,
         zonePath: String?,
-        closing: List<NavigationAction>
+        closing: List<NavigationAction>,
+        earlierSteps: List<NavigationStep> = emptyList()
     ) {
         val builder = NavigationBuilder(storeAccessor)
-        if (clearsBackStack) builder.clearBackStack()
+        builder.operations.addAll(earlierSteps)
+        val keptClear = earlierSteps.any { it.operation == NavigationOperation.ClearBackStack }
+        if (clearsBackStack && !keptClear) builder.clearBackStack()
         builder.params(params)
         builder.navigateTo(
             route,
@@ -891,15 +901,30 @@ public class NavigationLogic internal constructor(
         if (node is Navigatable) navigateTo(node) else navigateTo(node.fullPathOrRoute())
     }
 
+    /**
+     * Carries out what a guard decided for [step]. A redirect keeps the [earlierSteps] of the same navigation, such as a
+     * `popUpTo` that clears a detail pane before opening something in it, and lands on the redirect target in place of
+     * the refused step. Later steps are dropped, since they were meant to follow a screen that never opened. A pending
+     * redirect reroutes the whole navigation to sign in, so it keeps nothing.
+     */
     private suspend fun guardOutcome(
         guard: GuardEvaluation?,
         builder: NavigationBuilder,
         step: NavigationStep,
-        closing: List<NavigationAction> = emptyList()
+        closing: List<NavigationAction> = emptyList(),
+        earlierSteps: List<NavigationStep> = emptyList()
     ): NavigationOutcome? = when (guard) {
         is GuardEvaluation.Reject -> NavigationOutcome.Rejected
         is GuardEvaluation.Redirect -> {
-            executeRedirect(guard.route, guard.params, step, builder.clearsBackStack(), guard.zonePath, closing)
+            executeRedirect(
+                guard.route,
+                guard.params,
+                step,
+                builder.clearsBackStack(),
+                guard.zonePath,
+                closing,
+                earlierSteps
+            )
             NavigationOutcome.Redirected(guard.route)
         }
         is GuardEvaluation.PendAndRedirect -> {
@@ -924,7 +949,8 @@ public class NavigationLogic internal constructor(
             Execution.Committed -> NavigationOutcome.Success
             Execution.Blocked -> NavigationOutcome.Dropped
             is Execution.Stopped ->
-                guardOutcome(result.evaluation, builder, result.step, pass.closing) ?: NavigationOutcome.Success
+                guardOutcome(result.evaluation, builder, result.step, pass.closing, result.earlierSteps)
+                    ?: NavigationOutcome.Success
         }
 
     @Suppress("DEPRECATION")
@@ -1082,11 +1108,23 @@ public class NavigationLogic internal constructor(
     private suspend fun lowerOverlay(overlay: EvaluationOverlay) {
         if (!overlay.raised) return
         withContext(NonCancellable) {
+            holdForMinimumDisplay(overlay)
             val stillRaised = overlayOwners.updateAndGet { it - 1 } > 0
             if (!stillRaised && getCurrentNavigationState().isEvaluatingNavigation) {
                 storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(false))
             }
         }
+    }
+
+    /**
+     * Keeps the loading modal up until it has shown for its [LoadingModal.minimumDisplay], so a guard that answers
+     * just after its threshold leaves a short loading screen instead of a flash. The startup overlay is never held,
+     * since holding it would only delay the first screen, and neither is a navigation another one cancelled, so the
+     * new one shows at once.
+     */
+    private suspend fun holdForMinimumDisplay(overlay: EvaluationOverlay) {
+        val minimumDisplay = overlay.minimumDisplay ?: return
+        if (overlay.cancelled.load()) minimumDisplay.cancel() else minimumDisplay.join()
     }
 
     private suspend fun <T> evaluateCached(
@@ -1130,6 +1168,9 @@ public class NavigationLogic internal constructor(
         }
         if (!overlay.raised) {
             overlay.raised = true
+            overlay.minimumDisplay = precomputedData.loadingModal?.minimumDisplay
+                ?.takeIf { it > Duration.ZERO && !overlay.atStartup }
+                ?.let { minimum -> logicScope.launch { delay(minimum) } }
             overlayOwners.update { it + 1 }
         }
         storeAccessor.dispatchAndAwait(NavigationAction.SetEvaluating(true, overlay.loadingGraph))
@@ -1156,6 +1197,7 @@ public class NavigationLogic internal constructor(
         val flight = inFlight.load() ?: return false
         if (!flight.overlay.waitingBehindLoading.load()) return false
         if (!flight.superseded.compareAndSet(expectedValue = false, newValue = true)) return false
+        flight.overlay.cancelled.store(true)
         flight.job.cancel(SupersededNavigation())
         return true
     }
@@ -1591,9 +1633,14 @@ public class NavigationLogic internal constructor(
         for ((index, step) in steps.withIndex()) {
             val route = targetRoute(step) ?: continue
             overlay?.loadingGraph = loadingGraphFor(route)
-            guard?.check(route, precomputedData.routeResolver.resolve(route), step)?.let { return it }
+            val earlierSteps = builder.operations.take(index)
+            guard?.check(route, precomputedData.routeResolver.resolve(route), step)?.let {
+                return Execution.Stopped(it.evaluation, it.step, earlierSteps)
+            }
             val target = resolveDestination(route, pass)
-            guard?.check(target.route, target.resolution, step)?.let { return it }
+            guard?.check(target.route, target.resolution, step)?.let {
+                return Execution.Stopped(it.evaluation, it.step, earlierSteps)
+            }
             targets[index] = target
         }
         transitionSettleJob.load()?.join()
