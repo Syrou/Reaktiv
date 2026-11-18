@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintStream
+import java.net.URLClassLoader
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -91,6 +92,20 @@ class ReaktivTracingCompilerTest {
         assertTrue("notifyMethodStart" in compilation.output, compilation.output)
     }
 
+    @Test
+    fun `a null argument or result of a generic type is traced as null`() {
+        val runtime = runtime(RECORDING_TRACER_STUB, ORIGIN_STUB)
+        val compilation = compile(mapOf(GENERIC_LOGIC), classpath = listOf(runtime))
+        assertEquals(ExitCode.OK, compilation.exitCode, compilation.output)
+
+        val urls = listOf(compilation.classes, runtime, File(stdlib)).map { it.toURI().toURL() }
+        val traced = URLClassLoader(urls.toTypedArray(), null).use { loader ->
+            loader.loadClass("sample.GenericLogicKt").getMethod("passNull").invoke(null)
+        }
+
+        assertEquals("params={value=null} result=null", traced)
+    }
+
     private companion object {
         val CORE_STUBS = "Core.kt" to """
             package io.github.syrou.reaktiv.core
@@ -149,6 +164,37 @@ class ReaktivTracingCompilerTest {
             }
         """.trimIndent()
 
+        val RECORDING_TRACER_STUB = "LogicTracer.kt" to """
+            package io.github.syrou.reaktiv.core.tracing
+
+            object LogicTracer {
+                val active: Boolean get() = true
+                val calls = mutableListOf<String>()
+
+                suspend fun notifyMethodStart(
+                    logicClass: String,
+                    methodName: String,
+                    params: Map<String, String>,
+                    sourceFile: String? = null,
+                    lineNumber: Int? = null,
+                    githubSourceUrl: String? = null,
+                    startedAtMs: Long? = null,
+                    redactions: Map<String, String>? = null
+                ): String {
+                    calls += "params=${'$'}params"
+                    return ""
+                }
+
+                fun notifyMethodCompleted(callId: String, result: String?, resultType: String, durationMs: Long) {
+                    calls += "result=${'$'}result"
+                }
+
+                fun notifyMethodFailed(callId: String, exception: Throwable, durationMs: Long) {
+                    calls += "failed=${'$'}exception"
+                }
+            }
+        """.trimIndent()
+
         val ORIGIN_STUB = "DispatchOriginTracker.kt" to """
             package io.github.syrou.reaktiv.core.tracing
 
@@ -164,6 +210,26 @@ class ReaktivTracingCompilerTest {
 
             class SampleLogic : ModuleLogic() {
                 suspend fun load(id: Int): String = "item-${'$'}id"
+            }
+        """.trimIndent()
+
+        val GENERIC_LOGIC = "GenericLogic.kt" to """
+            package sample
+
+            import io.github.syrou.reaktiv.core.ModuleLogic
+            import io.github.syrou.reaktiv.core.tracing.LogicTracer
+            import kotlin.coroutines.Continuation
+            import kotlin.coroutines.EmptyCoroutineContext
+            import kotlin.coroutines.startCoroutine
+
+            class GenericLogic : ModuleLogic() {
+                suspend fun <T> pass(value: T): T = value
+            }
+
+            fun passNull(): String {
+                suspend { GenericLogic().pass<String?>(null) }
+                    .startCoroutine(Continuation(EmptyCoroutineContext) { it.getOrThrow() })
+                return LogicTracer.calls.joinToString(" ")
             }
         """.trimIndent()
 
