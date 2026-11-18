@@ -35,10 +35,9 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrCatchImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrReturnImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrThrowImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrTryImpl
-import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classFqName
-import org.jetbrains.kotlin.ir.types.isMarkedNullable
+import org.jetbrains.kotlin.ir.types.isNullable
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
@@ -340,7 +339,7 @@ internal class LogicMethodTransformer(
     }
 
     private fun IrBuilderWithScope.irToStringSafe(value: IrExpression): IrExpression {
-        if ((value.type as? IrSimpleType)?.isMarkedNullable() == true) {
+        if (value.type.isNullable()) {
             return irBlock(resultType = irBuiltIns.stringType) {
                 val tmp = irTemporary(value, nameHint = "tracing_nullCheck")
                 +irIfThenElse(
