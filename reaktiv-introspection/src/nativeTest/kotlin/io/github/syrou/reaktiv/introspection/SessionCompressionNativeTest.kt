@@ -1,6 +1,9 @@
 package io.github.syrou.reaktiv.introspection
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.io.Buffer
+import kotlinx.io.readByteArray
+import kotlinx.io.writeString
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -39,6 +42,20 @@ class SessionCompressionNativeTest {
 
         assertTrue(original.size > 64 * 1024, "fixture must exceed one zlib chunk")
         assertContentEquals(original, gzipDecompress(gzipCompress(original)))
+    }
+
+    @Test
+    fun `a stream larger than the internal chunk round trips whole and in pieces`() = runTest {
+        val original = sessionLikeJson(20_000)
+        val whole = Buffer()
+        val pieces = Buffer()
+
+        gzipTo(whole) { it.writeString(original) }
+        gzipTo(pieces) { sink -> original.chunked(1_000).forEach { sink.writeString(it) } }
+
+        assertTrue(original.length > 64 * 1024, "fixture must exceed one zlib chunk")
+        assertEquals(original, gzipDecompress(whole.readByteArray()).decodeToString())
+        assertEquals(original, gzipDecompress(pieces.readByteArray()).decodeToString())
     }
 
     @Test

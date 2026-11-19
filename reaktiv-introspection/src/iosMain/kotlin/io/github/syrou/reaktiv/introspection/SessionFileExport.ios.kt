@@ -1,45 +1,40 @@
 package io.github.syrou.reaktiv.introspection
 
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.usePinned
-import platform.Foundation.NSData
+import kotlinx.io.RawSink
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSURL
 import platform.Foundation.NSUserDomainMask
-import platform.Foundation.create
-import platform.Foundation.writeToFile
-import platform.posix.memcpy
 
 public actual class SessionFileExport actual constructor(private val platformContext: PlatformContext) {
 
-    @OptIn(ExperimentalForeignApi::class)
-    public actual fun saveToDownloads(bytes: ByteArray, fileName: String): String {
-        val fileManager = NSFileManager.defaultManager
-        val urls = fileManager.URLsForDirectory(NSDocumentDirectory, NSUserDomainMask)
-        val documentsUrl = urls.firstOrNull()
-            ?: throw Exception("Failed to find Documents directory")
+    public actual fun saveToDownloads(bytes: ByteArray, fileName: String): String =
+        save(fileName) { file -> file.buffered().use { it.write(bytes) } }
 
-        @Suppress("UNCHECKED_CAST")
-        val documentsPath = (documentsUrl as platform.Foundation.NSURL).path
-            ?: throw Exception("Failed to get Documents path")
+    internal actual suspend fun saveToDownloads(fileName: String, write: suspend (RawSink) -> Unit): String =
+        save(fileName) { write(it) }
 
-        val filePath = "$documentsPath/$fileName"
-
-        val success = bytes.toNSData().writeToFile(filePath, atomically = true)
-
-        if (!success) {
-            throw Exception("Failed to write session file to $filePath")
+    private inline fun save(fileName: String, write: (RawSink) -> Unit): String {
+        val documentsPath = documentsPath()
+        val target = Path(documentsPath, fileName)
+        val partial = Path(documentsPath, "$fileName.part")
+        try {
+            SystemFileSystem.sink(partial).use(write)
+            SystemFileSystem.atomicMove(partial, target)
+        } catch (e: Throwable) {
+            runCatching { SystemFileSystem.delete(partial, mustExist = false) }
+            throw e
         }
-
-        return filePath
+        return target.toString()
     }
 
-    @OptIn(ExperimentalForeignApi::class)
-    private fun ByteArray.toNSData(): NSData {
-        if (isEmpty()) return NSData()
-        return usePinned { pinned ->
-            NSData.create(bytes = pinned.addressOf(0), length = size.toULong())
-        }
+    private fun documentsPath(): String {
+        val documentsUrl = NSFileManager.defaultManager.URLsForDirectory(NSDocumentDirectory, NSUserDomainMask)
+            .firstOrNull() as? NSURL
+            ?: throw Exception("Failed to find Documents directory")
+        return documentsUrl.path ?: throw Exception("Failed to get Documents path")
     }
 }

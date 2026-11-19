@@ -1,6 +1,8 @@
 package io.github.syrou.reaktiv.introspection
 
 import io.github.syrou.reaktiv.introspection.capture.SessionCapture
+import io.github.syrou.reaktiv.introspection.protocol.CrashOrigin
+import kotlinx.io.RawSink
 
 /**
  * Platform-specific session file export.
@@ -20,6 +22,8 @@ import io.github.syrou.reaktiv.introspection.capture.SessionCapture
  */
 public expect class SessionFileExport(platformContext: PlatformContext) {
     public fun saveToDownloads(bytes: ByteArray, fileName: String): String
+
+    internal suspend fun saveToDownloads(fileName: String, write: suspend (RawSink) -> Unit): String
 }
 
 internal fun sessionFileMimeType(fileName: String): String =
@@ -35,9 +39,9 @@ internal suspend fun SessionFileExport.saveSession(
     crash: Throwable? = null,
     fileName: String? = null
 ): String {
-    val json = if (crash == null) capture.exportSession() else capture.exportCrashSession(crash)
-    return saveToDownloads(
-        gzipCompress(json.encodeToByteArray()),
-        fileName ?: capture.suggestFileName(if (crash == null) null else "crash")
-    )
+    crash?.let { capture.reportCrash(it, CrashOrigin.UNCAUGHT) }
+    val export = capture.buildExport()
+    return saveToDownloads(fileName ?: capture.suggestFileName(if (crash == null) null else "crash")) { file ->
+        capture.writeSessionFile(export, file)
+    }
 }

@@ -1,5 +1,9 @@
 package io.github.syrou.reaktiv.introspection
 
+import kotlinx.io.Buffer
+import kotlinx.io.RawSink
+import kotlinx.io.Sink
+import kotlinx.io.readByteArray
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.js.Promise
@@ -32,4 +36,14 @@ public actual suspend fun gzipCompress(data: ByteArray): ByteArray = pipe(data, 
 public actual suspend fun gzipDecompress(data: ByteArray): ByteArray {
     require(isGzip(data)) { "Input is not gzip data" }
     return pipe(data, compress = false)
+}
+
+internal actual suspend fun gzipTo(destination: RawSink, write: suspend (Sink) -> Unit) {
+    destination.use { file ->
+        val plain = Buffer()
+        write(plain)
+        val compressed = Buffer()
+        compressed.write(gzipCompress(plain.readByteArray()))
+        file.write(compressed, compressed.size)
+    }
 }
