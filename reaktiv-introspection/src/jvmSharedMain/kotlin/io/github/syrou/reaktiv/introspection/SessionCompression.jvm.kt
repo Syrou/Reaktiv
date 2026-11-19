@@ -1,5 +1,10 @@
 package io.github.syrou.reaktiv.introspection
 
+import kotlinx.io.RawSink
+import kotlinx.io.Sink
+import kotlinx.io.asOutputStream
+import kotlinx.io.asSink
+import kotlinx.io.buffered
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
@@ -13,4 +18,8 @@ public actual suspend fun gzipCompress(data: ByteArray): ByteArray {
 public actual suspend fun gzipDecompress(data: ByteArray): ByteArray {
     require(isGzip(data)) { "Input is not gzip data" }
     return GZIPInputStream(data.inputStream()).use { it.readBytes() }
+}
+
+internal actual suspend fun gzipTo(destination: RawSink, write: suspend (Sink) -> Unit) {
+    GZIPOutputStream(destination.buffered().asOutputStream()).asSink().buffered().use { write(it) }
 }

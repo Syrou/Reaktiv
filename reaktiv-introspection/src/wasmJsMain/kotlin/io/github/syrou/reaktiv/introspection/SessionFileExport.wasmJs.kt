@@ -1,5 +1,8 @@
 package io.github.syrou.reaktiv.introspection
 
+import kotlinx.io.Buffer
+import kotlinx.io.RawSink
+import kotlinx.io.readByteArray
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -42,5 +45,11 @@ public actual class SessionFileExport actual constructor(private val platformCon
         )
         if (failure != null) throw UnsupportedOperationException("Could not download $fileName: $failure")
         return fileName
+    }
+
+    internal actual suspend fun saveToDownloads(fileName: String, write: suspend (RawSink) -> Unit): String {
+        val file = Buffer()
+        write(file)
+        return saveToDownloads(file.readByteArray(), fileName)
     }
 }

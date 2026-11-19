@@ -4,8 +4,11 @@ import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
+import kotlinx.io.indexOf
 import kotlinx.io.readString
 import kotlinx.io.writeString
+
+private const val NEWLINE: Byte = '\n'.code.toByte()
 
 /**
  * Abstraction for line-based event storage used by SessionCapture.
@@ -24,7 +27,7 @@ import kotlinx.io.writeString
  */
 internal interface CaptureStorage {
     fun appendLines(lines: List<String>)
-    fun readLines(): List<String>
+    fun forEachLine(action: (String) -> Unit)
     fun lineCount(): Int
     fun clear()
 
@@ -61,15 +64,17 @@ internal class FileCaptureStorage(
         count += lines.size
     }
 
-    override fun readLines(): List<String> {
-        if (!SystemFileSystem.exists(filePath)) return emptyList()
-        val source = SystemFileSystem.source(filePath).buffered()
-        val text = try {
-            source.readString()
-        } finally {
-            source.close()
+    override fun forEachLine(action: (String) -> Unit) {
+        if (!SystemFileSystem.exists(filePath)) return
+        SystemFileSystem.source(filePath).buffered().use { source ->
+            while (true) {
+                val end = source.indexOf(NEWLINE)
+                if (end < 0) break
+                val line = source.readString(end)
+                source.skip(1)
+                if (line.isNotEmpty()) action(line)
+            }
         }
-        return text.substringBeforeLast('\n', missingDelimiterValue = "").split('\n').filter { it.isNotEmpty() }
     }
 
     override fun lineCount(): Int = count
@@ -104,7 +109,9 @@ internal class InMemoryCaptureStorage : CaptureStorage {
         this.lines.addAll(lines)
     }
 
-    override fun readLines(): List<String> = lines.toList()
+    override fun forEachLine(action: (String) -> Unit) {
+        lines.toList().forEach(action)
+    }
 
     override fun lineCount(): Int = lines.size
 
@@ -118,6 +125,8 @@ internal class InMemoryCaptureStorage : CaptureStorage {
         }
     }
 }
+
+internal fun CaptureStorage.readLines(): List<String> = buildList { forEachLine { add(it) } }
 
 /**
  * Creates a [CaptureStorage] instance, using file-backed storage when

@@ -1,6 +1,9 @@
 package io.github.syrou.reaktiv.introspection
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.io.Buffer
+import kotlinx.io.readByteArray
+import kotlinx.io.writeString
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -45,6 +48,27 @@ class SessionCompressionTest {
         val original = """{"note":"höger ümlaut 日本語 🎵"}"""
 
         assertEquals(original, gzipDecompress(gzipCompress(original.encodeToByteArray())).decodeToString())
+    }
+
+    @Test
+    fun `gzipTo compresses what is written in pieces into its destination`() = runTest {
+        val original = sessionLikeJson(5_000)
+        val destination = Buffer()
+
+        gzipTo(destination) { sink -> original.chunked(10_000).forEach { sink.writeString(it) } }
+        val compressed = destination.readByteArray()
+
+        assertTrue(isGzip(compressed))
+        assertEquals(original, decodeSessionBytes(compressed))
+    }
+
+    @Test
+    fun `gzipTo writes a valid empty stream when nothing is written`() = runTest {
+        val destination = Buffer()
+
+        gzipTo(destination) { }
+
+        assertEquals("", decodeSessionBytes(destination.readByteArray()))
     }
 
     @Test

@@ -34,7 +34,9 @@ internal class CaptureLane<T>(
 
     fun decode(line: String): T = json.decodeFromString(serializer, line)
 
-    fun read(): List<T> = lines().map(::decode)
+    fun read(): List<T> = read { it }
+
+    fun <R> read(transform: (T) -> R): List<R> = buildList { storage.forEachLine { add(transform(decode(it))) } }
 
     fun replace(lines: List<String>) {
         storage.clear()

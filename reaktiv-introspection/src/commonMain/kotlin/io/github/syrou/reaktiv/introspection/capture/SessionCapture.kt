@@ -23,6 +23,7 @@ import io.github.syrou.reaktiv.introspection.network.sliceOnCharBoundary
 import io.github.syrou.reaktiv.introspection.network.NetworkRequestCapture
 import io.github.syrou.reaktiv.introspection.network.NetworkTap
 import io.github.syrou.reaktiv.introspection.SessionRedaction
+import io.github.syrou.reaktiv.introspection.gzipTo
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -56,12 +57,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.launch
+import kotlinx.io.RawSink
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.io.encodeToSink
 import kotlinx.serialization.modules.SerializersModule
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicLong
@@ -595,8 +598,14 @@ public class SessionCapture(
      * @param crash Crash information to embed; defaults to the last reported crash
      * @return JSON string that can be imported as a ghost device in DevTools
      */
+    public suspend fun exportSession(crash: CrashInfo? = null): String = json.encodeToString(buildExport(crash))
+
+    internal suspend fun writeSessionFile(export: SessionExport, destination: RawSink) {
+        gzipTo(destination) { sink -> json.encodeToSink(SessionExport.serializer(), export, sink) }
+    }
+
     @OptIn(ExperimentalUuidApi::class)
-    public suspend fun exportSession(crash: CrashInfo? = null): String {
+    internal suspend fun buildExport(crash: CrashInfo? = null): SessionExport {
         flush()
         val allCrashes = readCrashes()
         val resolvedCrash = crash
@@ -604,9 +613,9 @@ public class SessionCapture(
             ?: allCrashes.lastOrNull()
         val now = currentTimeMillis()
         val redaction = SessionRedaction(stateJson, if (redactSensitiveKeys) sensitiveKeys else emptySet(), redactor)
-        val actionsList = readActions().map(redaction::action)
-        val logicStartedList = readLogicStarted().map(redaction::logicStart)
-        val logicCompletedList = readLogicCompleted().map(redaction::logicCompleted)
+        val actionsList = actionsLane.read(redaction::action)
+        val logicStartedList = logicStartedLane.read(redaction::logicStart)
+        val logicCompletedList = logicCompletedLane.read(redaction::logicCompleted)
         val logicFailedList = readLogicFailed()
         val stateReadsList = readStateReads()
         val diagnosis = resolvedCrash?.let {
@@ -634,8 +643,8 @@ public class SessionCapture(
                 logicFailedEvents = logicFailedList,
                 stateReads = stateReadsList,
                 markers = readMarkers(),
-                network = readNetwork().map(redaction::exchange),
-                logs = readLogs().map(redaction::log)
+                network = networkLane.read(redaction::exchange),
+                logs = logLane.read(redaction::log)
             ),
             droppedRecords = droppedCount.load(),
             diagnosis = diagnosis,
@@ -644,7 +653,7 @@ public class SessionCapture(
         redaction.issues.forEach { issue ->
             ReaktivDebug.warn("SessionCapture: $issue, so an import cannot restore this field exactly")
         }
-        return json.encodeToString(export)
+        return export
     }
 
     public suspend fun diagnoseCrash(crash: CrashInfo): CrashDiagnosis {

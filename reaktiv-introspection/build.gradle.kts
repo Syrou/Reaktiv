@@ -54,6 +54,7 @@ kotlin {
                 api(project(":reaktiv-core"))
                 api(project(":reaktiv-tracing-runtime"))
                 implementation(libs.kotlinx.io.core)
+                implementation(libs.kotlinx.serialization.json.io)
             }
         }
 

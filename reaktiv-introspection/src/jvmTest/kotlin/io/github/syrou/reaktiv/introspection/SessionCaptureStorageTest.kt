@@ -4,6 +4,7 @@ import io.github.syrou.reaktiv.introspection.capture.CaptureStorage
 import io.github.syrou.reaktiv.introspection.capture.FileCaptureStorage
 import io.github.syrou.reaktiv.introspection.capture.InMemoryCaptureStorage
 import io.github.syrou.reaktiv.introspection.capture.createCaptureStorage
+import io.github.syrou.reaktiv.introspection.capture.readLines
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.writeString

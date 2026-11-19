@@ -1,5 +1,7 @@
 package io.github.syrou.reaktiv.introspection
 
+import kotlinx.io.RawSink
+import kotlinx.io.Sink
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -27,6 +29,8 @@ public expect suspend fun gzipCompress(data: ByteArray): ByteArray
  * @throws IllegalArgumentException when the input is not gzip data
  */
 public expect suspend fun gzipDecompress(data: ByteArray): ByteArray
+
+internal expect suspend fun gzipTo(destination: RawSink, write: suspend (Sink) -> Unit)
 
 /**
  * True when [data] starts with the gzip magic number.
