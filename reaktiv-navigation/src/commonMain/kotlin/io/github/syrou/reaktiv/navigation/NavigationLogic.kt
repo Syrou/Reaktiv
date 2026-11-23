@@ -655,7 +655,7 @@ public class NavigationLogic internal constructor(
             step: NavigationStep
         ): GuardEvaluation? {
             if (isExternallyDriven()) return GuardEvaluation.Allow
-            val context = GuardContext(step.params)
+            val context = GuardContext(targetResolution?.let { entryParams(step, it) } ?: step.params)
             val zoneEvaluation = zoneFor(targetRoute, targetResolution)?.let { zone ->
                 evaluateZone(zone, targetRoute, step, context)
             }
@@ -675,7 +675,7 @@ public class NavigationLogic internal constructor(
             val zonePath = zoneBoundaryPath(zone)
 
             for ((index, outerEntry) in interceptDef.outerGuards.withIndex()) {
-                val result = evaluateCached(outerEntry.guard, outerEntry.cacheKey, step.params) {
+                val result = evaluateCached(outerEntry.guard, outerEntry.cacheKey, context.params) {
                     evaluateWithThreshold(outerEntry.loadingThreshold) {
                         traceGuard(
                             storeAccessor,
@@ -688,7 +688,7 @@ public class NavigationLogic internal constructor(
                 if (evaluation != GuardEvaluation.Allow) return evaluation
             }
 
-            val evaluation = evaluateCached(interceptDef.guard, interceptDef.cacheKey, step.params) {
+            val evaluation = evaluateCached(interceptDef.guard, interceptDef.cacheKey, context.params) {
                 evaluateWithThreshold(interceptDef.loadingThreshold) {
                     traceGuard(storeAccessor, "guard($zoneKey)", targetRoute) {
                         interceptDef.guard(context, storeAccessor)
@@ -707,7 +707,7 @@ public class NavigationLogic internal constructor(
         ): GuardEvaluation? {
             val screen = resolution?.targetNavigatable ?: return null
             val guard = screen.guard ?: return null
-            val checked = screen to step.params
+            val checked = screen to context.params
             if (checked in clearedScreens) return GuardEvaluation.Allow
             val evaluation = evaluateWithThreshold(screen.guardLoadingThreshold) {
                 traceGuard(storeAccessor, "screenGuard(${screen.route})", targetRoute) {
@@ -1724,8 +1724,7 @@ public class NavigationLogic internal constructor(
                     val resolution = targets[index]?.resolution ?: continue
 
                     if (step.synthesizeBackstack) {
-                        val destinationPath = resolution.entryPath()
-                        val finalEntry = createNavigationEntry(step, resolution, destinationPath, 0)
+                        val finalEntry = createNavigationEntry(step, resolution, 0)
                         if (switchToRootDestination(finalEntry)) continue
                         val ancestors = synthesizeAncestorEntries(finalEntry, sim.backStack, pass)
                             .filter { guard == null || guard.admits(it, finalEntry) }
@@ -1741,8 +1740,7 @@ public class NavigationLogic internal constructor(
                         sim = NavigationStackMath.applyNavigate(sim, finalEntry, step.shouldDismissModals)
                         lastNavigatedEntry = finalEntry
                     } else {
-                        val entryPath = resolution.entryPath()
-                        val entry = createNavigationEntry(step, resolution, entryPath, 0)
+                        val entry = createNavigationEntry(step, resolution, 0)
                         if (switchToRootDestination(entry)) continue
                         val beneathModals = if (step.shouldDismissModals) {
                             sim.backStack.lastOrNull { it.navigatable !is Modal }
@@ -1794,8 +1792,7 @@ public class NavigationLogic internal constructor(
 
                 NavigationOperation.Replace -> {
                     val resolution = targets.getValue(index).resolution
-                    val entryPath = resolution.entryPath()
-                    val entry = createNavigationEntry(step, resolution, entryPath, sim.backStack.size)
+                    val entry = createNavigationEntry(step, resolution, sim.backStack.size)
                     val remaining = sim.backStack
                         .takeWhile { it.navigatable.renderLayer != RenderLayer.SYSTEM }
                         .dropLast(1)
@@ -1839,12 +1836,7 @@ public class NavigationLogic internal constructor(
                             val resolution = precomputedData.routeResolver.resolve(fallbackRoute) ?: throw RouteNotFoundException("Fallback route not found: $fallbackRoute")
                             val fallbackStep = step.copy(target = step.popUpToFallback)
                             guard?.check(fallbackRoute, resolution, fallbackStep)?.let { return it }
-                            val newEntry = createNavigationEntry(
-                                fallbackStep,
-                                resolution,
-                                resolution.entryPath(),
-                                stackPosition = 1
-                            )
+                            val newEntry = createNavigationEntry(fallbackStep, resolution, stackPosition = 1)
                             batchedActions.add(NavigationAction.ClearBackstack)
                             sim = NavigationStackMath.applyClearBackstack(sim)
                             batchedActions.add(NavigationAction.Navigate(newEntry))
@@ -2011,24 +2003,22 @@ public class NavigationLogic internal constructor(
     private suspend fun createNavigationEntry(
         step: NavigationStep,
         resolution: RouteResolution,
-        path: String,
         stackPosition: Int
-    ): NavigationEntry {
-        return resolution.targetNavigatable.toNavigationEntry(
-            path = path,
-            params = step.params + resolution.extractedParams,
-            stackPosition = stackPosition
-        ).let(::withTextPathParams)
-    }
+    ): NavigationEntry = resolution.targetNavigatable.toNavigationEntry(
+        path = resolution.entryPath(),
+        params = entryParams(step, resolution),
+        stackPosition = stackPosition
+    )
 
-    private fun withTextPathParams(entry: NavigationEntry): NavigationEntry {
-        val template = RouteTemplate.parse(entry.path)
-        val missing = template.missing(entry.params::getString)
-        if (missing.isNotEmpty()) throw MissingPathParamsException(entry.path, missing)
-        val params = template.paramNames.fold(entry.params) { params, name ->
-            if (params[name] is String) params else params.with(name, params.getString(name).orEmpty())
+    private fun entryParams(step: NavigationStep, resolution: RouteResolution): Params {
+        val path = resolution.entryPath()
+        val template = RouteTemplate.parse(path)
+        val params = step.params + resolution.extractedParams
+        val missing = template.missing(params::getString)
+        if (missing.isNotEmpty()) throw MissingPathParamsException(path, missing)
+        return template.paramNames.fold(params) { filled, name ->
+            if (filled[name] is String) filled else filled.with(name, filled.getString(name).orEmpty())
         }
-        return if (params == entry.params) entry else entry.copy(params = params)
     }
 
     private suspend fun getCurrentNavigationState(): NavigationState {

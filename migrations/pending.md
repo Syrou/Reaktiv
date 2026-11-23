@@ -11452,3 +11452,44 @@ as before. Startup is never held, since that would only delay the first screen, 
 navigation another one cancelled, so the new one shows at once.
 
 ---
+
+### [BC-207] Guards get the path params of the screen being entered
+
+**Type:** Behavioural
+
+**Grep:** `override val guard|intercept\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+object ProjectScreen : Screen {
+    override val route = "project/{projectId}"
+    override val guard: NavigationGuard = { store ->
+        val projectId = params.getString("projectId")
+        if (projectId in store.selectState<ProjectState>().value.ownProjectIds) GuardResult.Allow
+        else GuardResult.RedirectTo(ProjectListScreen)
+    }
+    ...
+}
+
+store.openLink("project/42") // the guard read projectId as null and redirected
+```
+
+**After:**
+```kotlin
+store.openLink("project/42") // the guard reads projectId as "42", the same as the screen
+```
+
+**Notes:** `GuardContext.params` held only the params passed next to the route, so a guard read
+null for a path param whenever the navigation named the screen by its path, such as a link, a
+reloaded web URL, `navigateTo("project/42")` or a pending navigation that came from one of them. A
+navigation that passed the value as a param worked. `intercept` guards and a screen's own guard now
+get the params the screen is entered with: the navigation's params plus the values in its path, the
+path winning when both name a key, and path params as text, so `navigateTo(ProjectScreen,
+"projectId" to 42)` gives the guard `"42"` like the screen. A guard with a `cacheKey` keeps its
+answer per these params, so it runs again for another value in the path. A navigation that lacks a
+path param now fails with `MissingPathParamsException` before its guards run instead of after them.
+Only guards that read a path param need review, and a workaround that read the value elsewhere,
+such as from the current location, can go.
+
+---
