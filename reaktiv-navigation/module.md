@@ -147,9 +147,10 @@ val navigationModule = createNavigationModule {
 }
 ```
 
-A guard also gets the params of the screen being entered as `params`, so it can check the item a
-navigation names, such as a project that has to belong to the signed in user. It sees them the same
-way for a `navigateTo` inside the app, a link, and a pending navigation that resumes after sign in.
+A guard also gets the params of the screen being entered as `params`, the values in its path
+included, so it can check the item a navigation names, such as a project that has to belong to the
+signed in user. It sees them the same way for a `navigateTo` inside the app, a link, and a pending
+navigation that resumes after sign in.
 
 ```kotlin
 intercept(

@@ -1,11 +1,17 @@
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import io.github.syrou.reaktiv.core.Store
 import io.github.syrou.reaktiv.core.createStore
 import io.github.syrou.reaktiv.navigation.NavigationState
 import io.github.syrou.reaktiv.navigation.createNavigationModule
+import io.github.syrou.reaktiv.navigation.definition.Screen
 import io.github.syrou.reaktiv.navigation.extension.navigateBack
 import io.github.syrou.reaktiv.navigation.extension.navigation
 import io.github.syrou.reaktiv.navigation.extension.openLink
 import io.github.syrou.reaktiv.navigation.model.GuardResult
+import io.github.syrou.reaktiv.navigation.model.NavigationGuard
+import io.github.syrou.reaktiv.navigation.param.Params
+import io.github.syrou.reaktiv.navigation.transition.NavTransition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -24,6 +30,24 @@ class GuardParamsTest {
     private val projects = historyScreen("projects")
     private val project = historyScreen("project")
     private val evaluations = mutableListOf<String?>()
+    private val items = historyScreen("items")
+    private val item = guardedScreen("items/{item-id}") { _ ->
+        val itemId = params.getString("item-id")
+        evaluations.add("screen:$itemId")
+        if (itemId == "known") GuardResult.Allow else GuardResult.RedirectTo(items)
+    }
+
+    private fun guardedScreen(route: String, guard: NavigationGuard): Screen = object : Screen {
+        override val route = route
+        override val enterTransition = NavTransition.None
+        override val exitTransition = NavTransition.None
+        override val guard: NavigationGuard = guard
+
+        @Composable
+        override fun Content(params: Params) {
+            Text(route)
+        }
+    }
 
     private fun TestScope.store(cached: Boolean = false) = createStore {
         module(
@@ -40,6 +64,26 @@ class GuardParamsTest {
                         cacheKey = if (cached) { _ -> "signed-in" } else null
                     ) {
                         screens(project)
+                    }
+                }
+            }
+        )
+        coroutineContext(StandardTestDispatcher(testScheduler))
+    }
+
+    private fun TestScope.itemStore() = createStore {
+        module(
+            createNavigationModule {
+                rootGraph {
+                    start(home)
+                    screens(home, items)
+                    intercept(
+                        guard = { _ ->
+                            evaluations.add("zone:${params.getString("item-id")}")
+                            GuardResult.Allow
+                        }
+                    ) {
+                        screens(item)
                     }
                 }
             }
@@ -104,5 +148,22 @@ class GuardParamsTest {
             advanceUntilIdle()
             assertEquals("projects", store.current().route)
             assertEquals(listOf<String?>("own", "other"), evaluations)
+        }
+
+    @Test
+    fun `guards read the path params of a link like its screen does`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val store = itemStore()
+            advanceUntilIdle()
+
+            store.openLink("items/other")
+            advanceUntilIdle()
+            assertEquals("items", store.current().route)
+
+            store.openLink("items/known")
+            advanceUntilIdle()
+            assertEquals("items/known", store.current().location)
+            assertEquals("known", store.current().params.getString("item-id"))
+            assertEquals(listOf<String?>("zone:other", "screen:other", "zone:known", "screen:known"), evaluations)
         }
 }
