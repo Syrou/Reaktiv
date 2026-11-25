@@ -11493,3 +11493,42 @@ Only guards that read a path param need review, and a workaround that read the v
 such as from the current location, can go.
 
 ---
+
+### [BC-208] A closed store cancels a dispatch and reports an awaited one as an error
+
+**Type:** Behavioural
+
+**Grep:** `\.close\(\)|\.cleanup\(\)|dispatchAndAwait`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+storeAccessor.launch {
+    cache.write(entry) // the store closes while this runs
+    storeAccessor.dispatch(CacheAction.Written) // IllegalStateException crashed the coroutine
+}
+
+val result = store.dispatchAndAwait(SomeAction) // threw once the store was closed
+```
+
+**After:**
+```kotlin
+storeAccessor.launch {
+    cache.write(entry)
+    storeAccessor.dispatch(CacheAction.Written) // CancellationException, so the coroutine ends as cancelled
+}
+
+val result = store.dispatchAndAwait(SomeAction) // DispatchResult.Error(IllegalStateException("Store is closed"))
+```
+
+**Notes:** An action still queued when the store closed already got `DispatchResult.Error` in
+`dispatchAndAwait`, see BC-45, while one that reached the store just after it closed threw
+`IllegalStateException`, so the outcome depended on timing. `dispatchAndAwait` now returns that
+`DispatchResult.Error` either way, as its contract says. `dispatch` still fails when the store is
+closed, but with `CancellationException("Store is closed")`, as sending to a cancelled channel does.
+A coroutine of the store that `close()` cancelled while it was inside work that doesn't stop at
+cancellation, such as a blocking write, used to crash once it dispatched, and now ends as cancelled.
+`CancellationException` extends `IllegalStateException`, so code that caught the old exception still
+catches it. Code that caught it around `dispatchAndAwait` reads the `DispatchResult.Error` instead.
+
+---

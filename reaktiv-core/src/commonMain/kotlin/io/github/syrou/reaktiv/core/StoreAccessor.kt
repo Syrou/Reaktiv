@@ -52,6 +52,9 @@ public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
     /**
      * The dispatch function for sending actions to the store.
      * This is fire-and-forget - it returns immediately without waiting for processing.
+     * A dispatch to a closed store throws a [kotlinx.coroutines.CancellationException], as sending to a
+     * cancelled channel does. A coroutine that is winding down when the store closes then ends as
+     * cancelled instead of crashing, and a caller outside a coroutine still finds out.
      */
     public abstract val dispatch: Dispatch
 
@@ -67,7 +70,8 @@ public abstract class StoreAccessor(scope: CoroutineScope) : CoroutineScope {
      * @return [DispatchResult.Processed] if action was applied,
      *         [DispatchResult.Blocked] if middleware blocked the action,
      *         [DispatchResult.Dropped] if the store discarded it, for example because a reset swapped past it,
-     *         [DispatchResult.Error] if processing failed
+     *         [DispatchResult.Error] if processing failed, or if the store is closed, whether it closed
+     *         before the action was queued or while it waited
      * @throws IllegalStateException when called from inside the dispatch pipeline, which would wait
      *         for itself. Middleware and [ModuleLogic.beforeReset] must use [dispatch] instead.
      */
