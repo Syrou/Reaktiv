@@ -165,7 +165,9 @@ public class Store internal constructor(
             epoch = resetEpoch.load()
         )
         if (target.trySend(envelope).isFailure) {
-            throw IllegalStateException("Store is closed")
+            if (completion == null) throw CancellationException("Store is closed")
+            failClosed(envelope)
+            return
         }
         dispatchEnqueuedCount.addAndFetch(1L)
     }
@@ -670,9 +672,8 @@ public class Store internal constructor(
         withContext(NonCancellable) {
             if (constructed.isCompleted && initFailure.load() == null) {
                 val completion = CompletableDeferred<DispatchResult>()
-                runCatching { enqueue(CloseFence, completion) }.onSuccess {
-                    withTimeoutOrNull(RESET_DRAIN_TIMEOUT_MS) { completion.await() }
-                }
+                enqueue(CloseFence, completion)
+                withTimeoutOrNull(RESET_DRAIN_TIMEOUT_MS) { completion.await() }
             }
             cleanup()
         }

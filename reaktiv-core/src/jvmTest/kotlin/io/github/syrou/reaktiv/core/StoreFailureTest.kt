@@ -2,10 +2,14 @@ package io.github.syrou.reaktiv.core
 
 import io.github.syrou.reaktiv.core.util.selectState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import java.util.concurrent.CountDownLatch
@@ -13,6 +17,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalReaktivApi::class)
@@ -126,5 +132,47 @@ class StoreFailureTest {
 
         assertEquals(2, store.selectState<CountState>().first().count)
         store.cleanup()
+    }
+
+    @Test
+    fun `a dispatch to a closed store is cancelled and an awaited one reports the closed store`() = runBlocking<Unit> {
+        val store = createStore {
+            module(CountModule)
+            coroutineContext(Dispatchers.Default)
+        }
+        withTimeout(5_000) { store.initialized.first { it } }
+        store.close()
+
+        assertFailsWith<CancellationException> { store.dispatch(CountAction.Increment) }
+        val result = withTimeout(5_000) { store.dispatchAndAwait(CountAction.Increment) }
+
+        assertIs<DispatchResult.Error>(result)
+        assertIs<IllegalStateException>(result.cause)
+    }
+
+    @Test
+    fun `a coroutine that dispatches after the store closed under it ends as cancelled`() = runBlocking<Unit> {
+        val store = createStore {
+            module(CountModule)
+            coroutineContext(Dispatchers.Default)
+        }
+        withTimeout(5_000) { store.initialized.first { it } }
+        val writing = CompletableDeferred<Unit>()
+        val written = CompletableDeferred<Unit>()
+        val ended = CompletableDeferred<Throwable?>()
+        val job = store.launch {
+            withContext(NonCancellable) {
+                writing.complete(Unit)
+                written.await()
+            }
+            store.dispatch(CountAction.Increment)
+        }
+        job.invokeOnCompletion { cause -> ended.complete(cause) }
+        withTimeout(5_000) { writing.await() }
+
+        store.close()
+        written.complete(Unit)
+
+        assertIs<CancellationException>(withTimeout(5_000) { ended.await() })
     }
 }
