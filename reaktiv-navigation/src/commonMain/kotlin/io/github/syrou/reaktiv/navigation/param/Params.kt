@@ -7,6 +7,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 
 @PublishedApi
 internal fun <T> typedParamValue(value: T, serializer: KSerializer<T>): Any = when (value) {
@@ -206,7 +208,9 @@ public class Params private constructor(
         if (raw == null || raw is String) return raw as String?
         val typed = this as TypedParam<Any?>
         return try {
-            Json.encodeToString(typed.serializer, typed.value)
+            val element = Json.encodeToJsonElement(typed.serializer, typed.value)
+            (element as? JsonPrimitive)?.takeIf { it.isString }?.content
+                ?: Json.encodeToString(JsonElement.serializer(), element)
         } catch (e: SerializationException) {
             raw.toString()
         }
@@ -262,7 +266,7 @@ public class Params private constructor(
                 "kotlin.Double" -> value.toDoubleOrNull() as? T
                 "kotlin.Long" -> value.toLongOrNull() as? T
                 "kotlin.Float" -> value.toFloatOrNull() as? T
-                else -> null
+                else -> decodeJsonValue(value, serializer)
             }
         } catch (e: Exception) {
             null

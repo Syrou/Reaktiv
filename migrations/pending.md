@@ -11532,3 +11532,44 @@ cancellation, such as a blocking write, used to crash once it dispatched, and no
 catches it. Code that caught it around `dispatchAndAwait` reads the `DispatchResult.Error` instead.
 
 ---
+
+### [BC-209] A typed param reads from text and writes as text through its serializer
+
+**Type:** Behavioural
+
+**Grep:** `getTyped<|withTyped\(|put\(`
+**File glob:** `**/*.kt`
+
+**Before:**
+```kotlin
+@Serializable
+enum class Period {
+    @SerialName("weekly")
+    WEEKLY,
+
+    @SerialName("all_time")
+    ALL_TIME,
+}
+
+Params.of("period" to "all_time").getTyped<Period>("period") // null, only scalars read from text
+Params.empty().withTyped("period", Period.ALL_TIME).getString("period") // "\"all_time\"", its JSON
+navigateTo("stats/{type}") { put("type", Period.ALL_TIME) } // stats/"all_time"
+```
+
+**After:**
+```kotlin
+Params.of("period" to "all_time").getTyped<Period>("period") // Period.ALL_TIME
+Params.empty().withTyped("period", Period.ALL_TIME).getString("period") // "all_time"
+navigateTo("stats/{type}") { put("type", Period.ALL_TIME) } // stats/all_time
+```
+
+**Notes:** A param that arrives as text, such as a link's query or path param, now reaches the
+type's serializer when the type isn't a scalar, so an enum reads by its serial name. Text that
+names no entry still reads as null, and so does
+the Kotlin name of an entry whose serial name differs, so the serial names are what a link spells.
+A typed param whose JSON is a string reads as that string, so a typed enum fills a path parameter
+and `getString` with its serial name instead of its quoted JSON, and reads back as itself. Objects
+and lists still read as their JSON text. Code that stripped the quotes from `getString` of a typed
+enum no longer needs to.
+
+---
