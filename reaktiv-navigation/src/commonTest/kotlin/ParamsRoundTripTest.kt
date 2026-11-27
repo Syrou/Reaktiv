@@ -8,12 +8,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -22,6 +24,15 @@ class ParamsRoundTripTest {
 
     @Serializable
     data class Profile(val id: Long, val score: Double, val tags: List<String>)
+
+    @Serializable
+    enum class Period {
+        @SerialName("weekly")
+        WEEKLY,
+
+        @SerialName("all_time")
+        ALL_TIME,
+    }
 
     private fun roundTrip(params: Params): Params =
         Json.decodeFromString(Params.serializer(), Json.encodeToString(Params.serializer(), params))
@@ -59,6 +70,25 @@ class ParamsRoundTripTest {
 
         assertEquals("""["x","y"]""", params.getString("tags"))
         assertEquals("""["x","y"]""", roundTrip(params).getString("tags"))
+    }
+
+    @Test
+    fun `an enum reads from text by its serial name`() {
+        val params = Params.of("period" to "all_time", "kotlinName" to "ALL_TIME", "unknown" to "monthly")
+
+        assertEquals(Period.ALL_TIME, params.getTyped<Period>("period"))
+        assertNull(params.getTyped<Period>("kotlinName"))
+        assertNull(params.getTyped<Period>("unknown"))
+    }
+
+    @Test
+    fun `a typed enum reads as its serial name and back`() {
+        val params = Params.empty().withTyped("period", Period.ALL_TIME)
+        val text = params.getString("period")
+
+        assertEquals("all_time", text)
+        assertEquals(Period.ALL_TIME, Params.of("period" to text.orEmpty()).getTyped<Period>("period"))
+        assertEquals(Period.ALL_TIME, roundTrip(params).getTyped<Period>("period"))
     }
 
     @Test
@@ -112,5 +142,31 @@ class ParamsRoundTripTest {
             val state = store.selectState<NavigationState>().first()
             assertEquals("weekly", state.currentEntry.params["type"])
             assertEquals("stats/weekly", state.currentFullPath)
+        }
+
+    @Test
+    fun `a typed enum put in the navigation builder fills its path parameter with its serial name`() =
+        runTest(timeout = 5.toDuration(DurationUnit.SECONDS)) {
+            val store = createStore {
+                module(
+                    createNavigationModule {
+                        rootGraph {
+                            start(SplashScreen)
+                            screens(StatsScreen)
+                        }
+                    }
+                )
+                coroutineContext(StandardTestDispatcher(testScheduler))
+            }
+            advanceUntilIdle()
+
+            store.navigation {
+                navigateTo("stats/{type}") { put("type", Period.ALL_TIME) }
+            }
+            advanceUntilIdle()
+
+            val state = store.selectState<NavigationState>().first()
+            assertEquals("stats/all_time", state.currentFullPath)
+            assertEquals(Period.ALL_TIME, state.currentEntry.params.getTyped<Period>("type"))
         }
 }
